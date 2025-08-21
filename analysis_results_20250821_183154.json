@@ -1,0 +1,659 @@
+{
+  "analyst_results": {
+    "fundamentals_analyst": {
+      "agent_id": "fundamentals_analyst",
+      "agent_name": "基本面分析师",
+      "analysis_result": {
+        "AAPL": {
+          "signal": "neutral",
+          "confidence": 25.0,
+          "reasoning": {
+            "profitability_signal": {
+              "signal": "bullish",
+              "details": "ROE: 156.00%, Net Margin: 26.20%, Op Margin: 30.71%"
+            },
+            "growth_signal": {
+              "signal": "neutral",
+              "details": "Revenue Growth: 0.63%, Earnings Growth: 4.04%"
+            },
+            "financial_health_signal": {
+              "signal": "neutral",
+              "details": "Current Ratio: 1.07, D/E: 3.77"
+            },
+            "price_ratios_signal": {
+              "signal": "bearish",
+              "details": "P/E: 29.67, P/B: 40.41, P/S: 7.76"
+            }
+          }
+        },
+        "MSFT": {
+          "signal": "bearish",
+          "confidence": 50.0,
+          "reasoning": {
+            "profitability_signal": {
+              "signal": "bullish",
+              "details": "ROE: 38.40%, Net Margin: 36.30%, Op Margin: 45.53%"
+            },
+            "growth_signal": {
+              "signal": "bearish",
+              "details": "Revenue Growth: 4.25%, Earnings Growth: 7.06%"
+            },
+            "financial_health_signal": {
+              "signal": "neutral",
+              "details": "Current Ratio: 1.22, D/E: 0.97"
+            },
+            "price_ratios_signal": {
+              "signal": "bearish",
+              "details": "P/E: 33.86, P/B: 11.73, P/S: 12.28"
+            }
+          }
+        }
+      },
+      "notification_sent": true,
+      "notification_decision": {
+        "should_notify": true,
+        "content": "MSFT 风险提示：综合信号偏空（置信度50%）。增长放缓（营收+4.25%、EPS+7.06%）与高估值不匹配（P/E 33.86、P/S 12.28、P/B 11.73），存在估值回撤风险；盈利与财务指标稳健提供一定缓冲。建议：降低超配或考虑对冲，重点跟踪下一次业绩与Azure增速、AI工作负载变现、指引与资本开支节奏。AAPL：综合中性（置信度25%），盈利强但增长温和，估值偏高（P/E 29.67、P/S 7.76），短期缺乏明确催化，维持观察。未发现即刻性流动性/财务压力，但需关注高估值对情绪与利率变动的敏感性。",
+        "urgency": "medium",
+        "category": "risk_warning"
+      },
+      "status": "success"
+    },
+    "sentiment_analyst": {
+      "agent_id": "sentiment_analyst",
+      "agent_name": "情绪分析师",
+      "analysis_result": {
+        "AAPL": {
+          "signal": "bearish",
+          "confidence": 62.0,
+          "reasoning": {
+            "insider_trading": {
+              "signal": "bearish",
+              "confidence": 62,
+              "metrics": {
+                "total_trades": 1000,
+                "bullish_trades": 380,
+                "bearish_trades": 620,
+                "weight": 0.3,
+                "weighted_bullish": 114.0,
+                "weighted_bearish": 186.0
+              }
+            },
+            "news_sentiment": {
+              "signal": "neutral",
+              "confidence": 0,
+              "metrics": {
+                "total_articles": 0,
+                "bullish_articles": 0,
+                "bearish_articles": 0,
+                "neutral_articles": 0,
+                "weight": 0.7,
+                "weighted_bullish": 0.0,
+                "weighted_bearish": 0.0
+              }
+            },
+            "combined_analysis": {
+              "total_weighted_bullish": 114.0,
+              "total_weighted_bearish": 186.0,
+              "signal_determination": "Bearish based on weighted signal comparison"
+            }
+          }
+        },
+        "MSFT": {
+          "signal": "bullish",
+          "confidence": 75.1,
+          "reasoning": {
+            "insider_trading": {
+              "signal": "bullish",
+              "confidence": 75,
+              "metrics": {
+                "total_trades": 1000,
+                "bullish_trades": 751,
+                "bearish_trades": 249,
+                "weight": 0.3,
+                "weighted_bullish": 225.3,
+                "weighted_bearish": 74.7
+              }
+            },
+            "news_sentiment": {
+              "signal": "neutral",
+              "confidence": 0,
+              "metrics": {
+                "total_articles": 0,
+                "bullish_articles": 0,
+                "bearish_articles": 0,
+                "neutral_articles": 0,
+                "weight": 0.7,
+                "weighted_bullish": 0.0,
+                "weighted_bearish": 0.0
+              }
+            },
+            "combined_analysis": {
+              "total_weighted_bullish": 225.3,
+              "total_weighted_bearish": 74.7,
+              "signal_determination": "Bullish based on weighted signal comparison"
+            }
+          }
+        }
+      },
+      "notification_sent": true,
+      "notification_decision": {
+        "should_notify": true,
+        "content": "情绪分析更新（数据来源：内部交易；新闻样本为0）：\n- AAPL：偏空，置信度62%。内部卖出占比高（620/1000），加权看空186>114。与基本面“中性”判断出现偏离，或有短期情绪压力。\n- MSFT：偏多，置信度75.1%。内部买入力度高（751/1000），与基本面“偏空/估值回撤风险”结论相反，信号分歧需关注。\n建议：请基本面与技术/量化同仁协同复核分歧来源；新闻团队关注是否出现增量报道以验证或否定该情绪信号；组合侧可先观察并视价格行为与后续新闻再评估仓位与对冲。",
+        "urgency": "medium",
+        "category": "market_alert"
+      },
+      "status": "success"
+    },
+    "technical_analyst": {
+      "agent_id": "technical_analyst",
+      "agent_name": "技术分析师",
+      "analysis_result": {
+        "AAPL": {
+          "signal": "neutral",
+          "confidence": 18,
+          "reasoning": {
+            "trend_following": {
+              "signal": "bearish",
+              "confidence": 33,
+              "metrics": {
+                "adx": 33.47361632727093,
+                "trend_strength": 0.33473616327270933
+              }
+            },
+            "mean_reversion": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "z_score": 0.0,
+                "price_vs_bb": 0.11802406231669654,
+                "rsi_14": 24.11267605633803,
+                "rsi_28": 31.50506888484537
+              }
+            },
+            "momentum": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "momentum_1m": -0.025440516927672685,
+                "momentum_3m": 0.0,
+                "momentum_6m": 0.0,
+                "volume_momentum": 1.2491848409682098
+              }
+            },
+            "volatility": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "historical_volatility": 0.12146103543770821,
+                "volatility_regime": 0.0,
+                "volatility_z_score": 0.0,
+                "atr_ratio": 0.016340388988724742
+              }
+            },
+            "statistical_arbitrage": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "hurst_exponent": -1.8511255743987584e-15,
+                "skewness": 0.0,
+                "kurtosis": 0.0
+              }
+            }
+          }
+        },
+        "MSFT": {
+          "signal": "neutral",
+          "confidence": 14,
+          "reasoning": {
+            "trend_following": {
+              "signal": "bullish",
+              "confidence": 23,
+              "metrics": {
+                "adx": 23.44379228527926,
+                "trend_strength": 0.2344379228527926
+              }
+            },
+            "mean_reversion": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "z_score": 0.0,
+                "price_vs_bb": 0.8049655134687723,
+                "rsi_14": 44.55466896700451,
+                "rsi_28": 58.78922521521799
+              }
+            },
+            "momentum": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "momentum_1m": 0.04561862180163867,
+                "momentum_3m": 0.0,
+                "momentum_6m": 0.0,
+                "volume_momentum": 0.8098093370615803
+              }
+            },
+            "volatility": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "historical_volatility": 0.19380684075491345,
+                "volatility_regime": 0.0,
+                "volatility_z_score": 0.0,
+                "atr_ratio": 0.01534983668557675
+              }
+            },
+            "statistical_arbitrage": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "hurst_exponent": -1.8511255743987584e-15,
+                "skewness": 0.0,
+                "kurtosis": 0.0
+              }
+            }
+          }
+        }
+      },
+      "notification_sent": true,
+      "notification_decision": {
+        "should_notify": true,
+        "content": "技术面更新（与基本面/情绪信号交叉验证）：\n- AAPL：总信号中性（置信度18%），但短线风险上升——趋势跟随偏空（ADX≈33），RSI14≈24已超卖，价格贴近布林带下轨（≈0.12）。结合情绪侧“偏空”，存在进一步下探与情绪放大风险。建议：若放量跌破近期支撑，收缩风险敞口或临时对冲；若RSI重返30上方或价格收复中轨，再评估均值回归机会。\n- MSFT：总信号中性（置信度14%）；弱多趋势（ADX≈23）但量能动能偏弱（≈0.81），价格接近布林带上轨（≈0.80）。技术面未确认情绪侧“偏多”，与基本面“估值回撤风险”更一致。建议：避免追高，等待量价共振的趋势确认或采取对冲以防估值回调。\n结论：对AAPL提高防守优先级；MSFT维持中性观察并准备对冲。若出现显著放量的突破/跌破，将及时更新。",
+        "urgency": "medium",
+        "category": "risk_warning"
+      },
+      "status": "success"
+    },
+    "valuation_analyst": {
+      "agent_id": "valuation_analyst",
+      "agent_name": "估值分析师",
+      "analysis_result": {
+        "AAPL": {
+          "signal": "bearish",
+          "confidence": 100,
+          "reasoning": {
+            "dcf_analysis": {
+              "signal": "bearish",
+              "details": "Value: $1,643,697,181,345.77, Market Cap: $2,994,371,342,560.00, Gap: -45.1%, Weight: 35%"
+            },
+            "owner_earnings_analysis": {
+              "signal": "bearish",
+              "details": "Value: $740,793,685,723.28, Market Cap: $2,994,371,342,560.00, Gap: -75.3%, Weight: 35%"
+            },
+            "ev_ebitda_analysis": {
+              "signal": "neutral",
+              "details": "Value: $2,783,108,079,270.29, Market Cap: $2,994,371,342,560.00, Gap: -7.1%, Weight: 20%"
+            },
+            "residual_income_analysis": {
+              "signal": "bearish",
+              "details": "Value: $2,445,436,316,793.26, Market Cap: $2,994,371,342,560.00, Gap: -18.3%, Weight: 10%"
+            }
+          }
+        },
+        "MSFT": {
+          "signal": "bearish",
+          "confidence": 100,
+          "reasoning": {
+            "dcf_analysis": {
+              "signal": "bearish",
+              "details": "Value: $1,177,944,665,919.74, Market Cap: $2,794,827,926,197.00, Gap: -57.9%, Weight: 35%"
+            },
+            "owner_earnings_analysis": {
+              "signal": "bearish",
+              "details": "Value: $1,444,301,343,719.71, Market Cap: $2,794,827,926,197.00, Gap: -48.3%, Weight: 35%"
+            },
+            "ev_ebitda_analysis": {
+              "signal": "neutral",
+              "details": "Value: $2,558,535,404,105.90, Market Cap: $2,794,827,926,197.00, Gap: -8.5%, Weight: 20%"
+            },
+            "residual_income_analysis": {
+              "signal": "bearish",
+              "details": "Value: $1,072,142,955,932.10, Market Cap: $2,794,827,926,197.00, Gap: -61.6%, Weight: 10%"
+            }
+          }
+        }
+      },
+      "notification_sent": true,
+      "notification_decision": {
+        "should_notify": true,
+        "content": "估值结论更新（valuation）：我们对AAPL与MSFT的综合估值信号均为偏空，置信度100%。关键数据：\n- AAPL：DCF -45.1%，Owner Earnings -75.3%，EV/EBITDA -7.1%，Residual Income -18.3%；加权结论偏空。与情绪“偏空”和技术“短线风险上升”一致，存在估值与情绪同向放大的回撤风险。\n- MSFT：DCF -57.9%，Owner Earnings -48.3%，EV/EBITDA -8.5%，Residual Income -61.6%；加权结论偏空。与基本面“估值回撤风险”一致，但与情绪“偏多”相反，存在情绪驱动的短期偏离与中期估值收敛的冲突风险。\n建议/协同：\n- 组合/风险：提高AAPL防守（降低超配或部署对冲）；MSFT避免追高并准备估值回撤对冲，重点盯住下一次业绩、Azure/AI变现与CapEx节奏可能触发的de-rating。\n- 基本面/技术/量化：优先复核MSFT情绪-估值分歧来源；对AAPL若出现放量跌破关键支撑，请同步以触发风控阈值调整。\n- 新闻：跟踪是否出现改变估值前提的新增催化。\n说明：无即时性流动性/财务压力迹象，但AAPL的技术与情绪与估值共振，短线更需防守。",
+        "urgency": "medium",
+        "category": "risk_warning"
+      },
+      "status": "success"
+    }
+  },
+  "final_report": {
+    "summary": {
+      "total_analysts": 4,
+      "successful_analyses": 4,
+      "failed_analyses": 0,
+      "notifications_sent": 4
+    },
+    "analyst_signals": {
+      "fundamentals_analyst": {
+        "AAPL": {
+          "signal": "neutral",
+          "confidence": 25.0,
+          "reasoning": {
+            "profitability_signal": {
+              "signal": "bullish",
+              "details": "ROE: 156.00%, Net Margin: 26.20%, Op Margin: 30.71%"
+            },
+            "growth_signal": {
+              "signal": "neutral",
+              "details": "Revenue Growth: 0.63%, Earnings Growth: 4.04%"
+            },
+            "financial_health_signal": {
+              "signal": "neutral",
+              "details": "Current Ratio: 1.07, D/E: 3.77"
+            },
+            "price_ratios_signal": {
+              "signal": "bearish",
+              "details": "P/E: 29.67, P/B: 40.41, P/S: 7.76"
+            }
+          }
+        },
+        "MSFT": {
+          "signal": "bearish",
+          "confidence": 50.0,
+          "reasoning": {
+            "profitability_signal": {
+              "signal": "bullish",
+              "details": "ROE: 38.40%, Net Margin: 36.30%, Op Margin: 45.53%"
+            },
+            "growth_signal": {
+              "signal": "bearish",
+              "details": "Revenue Growth: 4.25%, Earnings Growth: 7.06%"
+            },
+            "financial_health_signal": {
+              "signal": "neutral",
+              "details": "Current Ratio: 1.22, D/E: 0.97"
+            },
+            "price_ratios_signal": {
+              "signal": "bearish",
+              "details": "P/E: 33.86, P/B: 11.73, P/S: 12.28"
+            }
+          }
+        }
+      },
+      "sentiment_analyst": {
+        "AAPL": {
+          "signal": "bearish",
+          "confidence": 62.0,
+          "reasoning": {
+            "insider_trading": {
+              "signal": "bearish",
+              "confidence": 62,
+              "metrics": {
+                "total_trades": 1000,
+                "bullish_trades": 380,
+                "bearish_trades": 620,
+                "weight": 0.3,
+                "weighted_bullish": 114.0,
+                "weighted_bearish": 186.0
+              }
+            },
+            "news_sentiment": {
+              "signal": "neutral",
+              "confidence": 0,
+              "metrics": {
+                "total_articles": 0,
+                "bullish_articles": 0,
+                "bearish_articles": 0,
+                "neutral_articles": 0,
+                "weight": 0.7,
+                "weighted_bullish": 0.0,
+                "weighted_bearish": 0.0
+              }
+            },
+            "combined_analysis": {
+              "total_weighted_bullish": 114.0,
+              "total_weighted_bearish": 186.0,
+              "signal_determination": "Bearish based on weighted signal comparison"
+            }
+          }
+        },
+        "MSFT": {
+          "signal": "bullish",
+          "confidence": 75.1,
+          "reasoning": {
+            "insider_trading": {
+              "signal": "bullish",
+              "confidence": 75,
+              "metrics": {
+                "total_trades": 1000,
+                "bullish_trades": 751,
+                "bearish_trades": 249,
+                "weight": 0.3,
+                "weighted_bullish": 225.3,
+                "weighted_bearish": 74.7
+              }
+            },
+            "news_sentiment": {
+              "signal": "neutral",
+              "confidence": 0,
+              "metrics": {
+                "total_articles": 0,
+                "bullish_articles": 0,
+                "bearish_articles": 0,
+                "neutral_articles": 0,
+                "weight": 0.7,
+                "weighted_bullish": 0.0,
+                "weighted_bearish": 0.0
+              }
+            },
+            "combined_analysis": {
+              "total_weighted_bullish": 225.3,
+              "total_weighted_bearish": 74.7,
+              "signal_determination": "Bullish based on weighted signal comparison"
+            }
+          }
+        }
+      },
+      "technical_analyst": {
+        "AAPL": {
+          "signal": "neutral",
+          "confidence": 18,
+          "reasoning": {
+            "trend_following": {
+              "signal": "bearish",
+              "confidence": 33,
+              "metrics": {
+                "adx": 33.47361632727093,
+                "trend_strength": 0.33473616327270933
+              }
+            },
+            "mean_reversion": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "z_score": 0.0,
+                "price_vs_bb": 0.11802406231669654,
+                "rsi_14": 24.11267605633803,
+                "rsi_28": 31.50506888484537
+              }
+            },
+            "momentum": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "momentum_1m": -0.025440516927672685,
+                "momentum_3m": 0.0,
+                "momentum_6m": 0.0,
+                "volume_momentum": 1.2491848409682098
+              }
+            },
+            "volatility": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "historical_volatility": 0.12146103543770821,
+                "volatility_regime": 0.0,
+                "volatility_z_score": 0.0,
+                "atr_ratio": 0.016340388988724742
+              }
+            },
+            "statistical_arbitrage": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "hurst_exponent": -1.8511255743987584e-15,
+                "skewness": 0.0,
+                "kurtosis": 0.0
+              }
+            }
+          }
+        },
+        "MSFT": {
+          "signal": "neutral",
+          "confidence": 14,
+          "reasoning": {
+            "trend_following": {
+              "signal": "bullish",
+              "confidence": 23,
+              "metrics": {
+                "adx": 23.44379228527926,
+                "trend_strength": 0.2344379228527926
+              }
+            },
+            "mean_reversion": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "z_score": 0.0,
+                "price_vs_bb": 0.8049655134687723,
+                "rsi_14": 44.55466896700451,
+                "rsi_28": 58.78922521521799
+              }
+            },
+            "momentum": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "momentum_1m": 0.04561862180163867,
+                "momentum_3m": 0.0,
+                "momentum_6m": 0.0,
+                "volume_momentum": 0.8098093370615803
+              }
+            },
+            "volatility": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "historical_volatility": 0.19380684075491345,
+                "volatility_regime": 0.0,
+                "volatility_z_score": 0.0,
+                "atr_ratio": 0.01534983668557675
+              }
+            },
+            "statistical_arbitrage": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "hurst_exponent": -1.8511255743987584e-15,
+                "skewness": 0.0,
+                "kurtosis": 0.0
+              }
+            }
+          }
+        }
+      },
+      "valuation_analyst": {
+        "AAPL": {
+          "signal": "bearish",
+          "confidence": 100,
+          "reasoning": {
+            "dcf_analysis": {
+              "signal": "bearish",
+              "details": "Value: $1,643,697,181,345.77, Market Cap: $2,994,371,342,560.00, Gap: -45.1%, Weight: 35%"
+            },
+            "owner_earnings_analysis": {
+              "signal": "bearish",
+              "details": "Value: $740,793,685,723.28, Market Cap: $2,994,371,342,560.00, Gap: -75.3%, Weight: 35%"
+            },
+            "ev_ebitda_analysis": {
+              "signal": "neutral",
+              "details": "Value: $2,783,108,079,270.29, Market Cap: $2,994,371,342,560.00, Gap: -7.1%, Weight: 20%"
+            },
+            "residual_income_analysis": {
+              "signal": "bearish",
+              "details": "Value: $2,445,436,316,793.26, Market Cap: $2,994,371,342,560.00, Gap: -18.3%, Weight: 10%"
+            }
+          }
+        },
+        "MSFT": {
+          "signal": "bearish",
+          "confidence": 100,
+          "reasoning": {
+            "dcf_analysis": {
+              "signal": "bearish",
+              "details": "Value: $1,177,944,665,919.74, Market Cap: $2,794,827,926,197.00, Gap: -57.9%, Weight: 35%"
+            },
+            "owner_earnings_analysis": {
+              "signal": "bearish",
+              "details": "Value: $1,444,301,343,719.71, Market Cap: $2,794,827,926,197.00, Gap: -48.3%, Weight: 35%"
+            },
+            "ev_ebitda_analysis": {
+              "signal": "neutral",
+              "details": "Value: $2,558,535,404,105.90, Market Cap: $2,794,827,926,197.00, Gap: -8.5%, Weight: 20%"
+            },
+            "residual_income_analysis": {
+              "signal": "bearish",
+              "details": "Value: $1,072,142,955,932.10, Market Cap: $2,794,827,926,197.00, Gap: -61.6%, Weight: 10%"
+            }
+          }
+        }
+      }
+    },
+    "notification_activity": {
+      "total_notifications": 4,
+      "notifications_by_agent": {
+        "fundamentals_analyst": 1,
+        "sentiment_analyst": 1,
+        "technical_analyst": 1,
+        "valuation_analyst": 1
+      },
+      "recent_notifications": [
+        {
+          "sender": "fundamentals_analyst",
+          "content": "MSFT 风险提示：综合信号偏空（置信度50%）。增长放缓（营收+4.25%、EPS+7.06%）与高估值不匹配（P/E 33.86、P/S 12.28、P/B 11.73），存在估值回撤风险；盈利与财务指标稳健提供一定缓冲。建议：降低超配或考虑对冲，重点跟踪下一次业绩与Azure增速、AI工作负载变现、指引与资本开支节奏。AAPL：综合中性（置信度25%），盈利强但增长温和，估值偏高（P/E 29.67、P/S 7.76），短期缺乏明确催化，维持观察。未发现即刻性流动性/财务压力，但需关注高估值对情绪与利率变动的敏感性。",
+          "urgency": "medium",
+          "category": "risk_warning",
+          "timestamp": "18:26:49"
+        },
+        {
+          "sender": "sentiment_analyst",
+          "content": "情绪分析更新（数据来源：内部交易；新闻样本为0）：\n- AAPL：偏空，置信度62%。内部卖出占比高（620/1000），加权看空186>114。与基本面“中性”判断出现偏离，或有短期情绪压力。\n- MSFT：偏多，置信度75.1%。内部买入力度高（751/1000），与基本面“偏空/估值回撤风险”结论相反，信号分歧需关注。\n建议：请基本面与技术/量化同仁协同复核分歧来源；新闻团队关注是否出现增量报道以验证或否定该情绪信号；组合侧可先观察并视价格行为与后续新闻再评估仓位与对冲。",
+          "urgency": "medium",
+          "category": "market_alert",
+          "timestamp": "18:27:16"
+        },
+        {
+          "sender": "technical_analyst",
+          "content": "技术面更新（与基本面/情绪信号交叉验证）：\n- AAPL：总信号中性（置信度18%），但短线风险上升——趋势跟随偏空（ADX≈33），RSI14≈24已超卖，价格贴近布林带下轨（≈0.12）。结合情绪侧“偏空”，存在进一步下探与情绪放大风险。建议：若放量跌破近期支撑，收缩风险敞口或临时对冲；若RSI重返30上方或价格收复中轨，再评估均值回归机会。\n- MSFT：总信号中性（置信度14%）；弱多趋势（ADX≈23）但量能动能偏弱（≈0.81），价格接近布林带上轨（≈0.80）。技术面未确认情绪侧“偏多”，与基本面“估值回撤风险”更一致。建议：避免追高，等待量价共振的趋势确认或采取对冲以防估值回调。\n结论：对AAPL提高防守优先级；MSFT维持中性观察并准备对冲。若出现显著放量的突破/跌破，将及时更新。",
+          "urgency": "medium",
+          "category": "risk_warning",
+          "timestamp": "18:31:29"
+        },
+        {
+          "sender": "valuation_analyst",
+          "content": "估值结论更新（valuation）：我们对AAPL与MSFT的综合估值信号均为偏空，置信度100%。关键数据：\n- AAPL：DCF -45.1%，Owner Earnings -75.3%，EV/EBITDA -7.1%，Residual Income -18.3%；加权结论偏空。与情绪“偏空”和技术“短线风险上升”一致，存在估值与情绪同向放大的回撤风险。\n- MSFT：DCF -57.9%，Owner Earnings -48.3%，EV/EBITDA -8.5%，Residual Income -61.6%；加权结论偏空。与基本面“估值回撤风险”一致，但与情绪“偏多”相反，存在情绪驱动的短期偏离与中期估值收敛的冲突风险。\n建议/协同：\n- 组合/风险：提高AAPL防守（降低超配或部署对冲）；MSFT避免追高并准备估值回撤对冲，重点盯住下一次业绩、Azure/AI变现与CapEx节奏可能触发的de-rating。\n- 基本面/技术/量化：优先复核MSFT情绪-估值分歧来源；对AAPL若出现放量跌破关键支撑，请同步以触发风控阈值调整。\n- 新闻：跟踪是否出现改变估值前提的新增催化。\n说明：无即时性流动性/财务压力迹象，但AAPL的技术与情绪与估值共振，短线更需防守。",
+          "urgency": "medium",
+          "category": "risk_warning",
+          "timestamp": "18:31:54"
+        }
+      ]
+    },
+    "errors": []
+  },
+  "analysis_timestamp": "2025-08-21T18:31:54.630764",
+  "tickers": [
+    "AAPL",
+    "MSFT"
+  ],
+  "date_range": {
+    "start": "2024-01-01",
+    "end": "2024-03-01"
+  }
+}
