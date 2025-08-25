@@ -262,7 +262,7 @@ class InvestmentAnalysisEngine:
             "final_analyst_results": second_round_results,
             "risk_analysis_results": risk_analysis_results,
             "portfolio_management_results": portfolio_management_results,
-            # "final_report": final_report, 
+            "final_report": final_report, 
             "analysis_timestamp": datetime.now().isoformat(),
             "tickers": tickers,
             "date_range": {"start": start_date, "end": end_date}
@@ -842,12 +842,23 @@ def main():
         # 打印摘要
         engine.print_session_summary(results)
         
-        # 保存结果到文件
+        # 保存结果到文件（排除final_report）
+        results_to_save = {
+            "first_round_results": results["first_round_results"],
+            "final_analyst_results": results["final_analyst_results"],
+            "risk_analysis_results": results["risk_analysis_results"],
+            "portfolio_management_results": results["portfolio_management_results"],
+            "analysis_timestamp": results["analysis_timestamp"],
+            "tickers": results["tickers"],
+            "date_range": results["date_range"]
+        }
+        
         output_file = f"/root/wuyue.wy/Project/IA/analysis_results_logs/analysis_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(results, f, ensure_ascii=False, indent=2, default=str)
+            json.dump(results_to_save, f, ensure_ascii=False, indent=2, default=str)
         
         print(f"\n💾 详细结果已保存到: {output_file}")
+        print(f"📋 保存内容: 第一轮分析、第二轮分析、风险管理、投资组合管理（不包含final_report汇总）")
         
     except Exception as e:
         print(f"❌ 主程序执行失败: {str(e)}")
