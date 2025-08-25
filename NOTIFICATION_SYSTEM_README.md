@@ -257,13 +257,55 @@ for notification in memory.notifications:
 3. **并发安全** - 当前版本未考虑并发，如需并发请添加锁机制
 4. **错误处理** - LLM调用失败时会跳过通知，不影响主分析流程
 
+## 🔄 第二轮分析机制
+
+### 📋 **两轮分析流程**
+
+系统现在支持完整的两轮分析机制：
+
+1. **第一轮分析**
+   - 四个agent独立分析，生成初始意见
+   - 根据分析结果决定是否发送通知
+
+2. **第二轮分析**
+   - 基于第一轮的final_report进行修正
+   - 每个agent收到：
+     - `summary`: 第一轮分析总结
+     - `analyst_signals`: 自己的第一轮结果
+     - `notification_activity`: 通知活动情况
+     - `pipeline_info`: 用户自定义的Pipeline信息
+
+### 🔧 **自定义Pipeline信息**
+
+通过修改 `pipeline_config_example.py` 添加：
+- 市场观点
+- 策略指导
+- 外部观点
+- 自定义备注
+
+```python
+pipeline_info = {
+    "market_outlook": {
+        "sentiment": "谨慎乐观",
+        "key_events": ["美联储会议", "财报季"],
+        "risk_factors": ["通胀", "地缘政治"]
+    },
+    "strategy_guidance": {
+        "allocation_preference": "均衡配置",
+        "sector_focus": ["科技", "医疗"],
+        "risk_tolerance": "中等"
+    }
+}
+```
+
 ## 🎉 总结
 
-这个通知系统让你的AI agents变得更加智能和自主，它们现在可以：
+这个AI投资分析系统现在具备：
 
 - 🧠 **智能判断** - 自动决定何时分享信息
 - 📢 **主动通信** - 向其他agents广播重要发现
-- 🧠 **记忆管理** - 记住收到的所有通知
-- 🎯 **上下文感知** - 基于历史通知做出更好的决策
+- 🔄 **两轮分析** - 基于通知和额外信息修正观点
+- 🎯 **上下文感知** - 基于全面信息做出最终决策
+- ⚡ **并行执行** - 支持高效的并行分析
 
-这为构建更复杂的多Agent协作系统奠定了基础！
+这为构建更智能、更协作的多Agent投资决策系统奠定了基础！

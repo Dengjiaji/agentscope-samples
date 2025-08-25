@@ -39,6 +39,13 @@ from src.communication.notification_system import (
     format_notifications_for_context
 )
 
+# 导入第二轮LLM分析系统
+from src.agents.second_round_llm_analyst import (
+    run_second_round_llm_analysis,
+    format_second_round_result_for_state,
+    ANALYST_PERSONAS
+)
+
 # 设置日志
 logging.basicConfig(
     level=logging.INFO,
@@ -145,7 +152,7 @@ class InvestmentAnalysisEngine:
             
             if analysis_result:
                 print(f"✅ {agent_name} 分析完成")
-                print(f"📊 分析结果: {json.dumps(analysis_result, ensure_ascii=False, indent=2)}")
+                # print(f"📊 分析结果: {json.dumps(analysis_result, ensure_ascii=False, indent=2)}")
                 
                 # 判断是否需要发送通知
                 notification_decision = should_send_notification(
@@ -216,17 +223,22 @@ class InvestmentAnalysisEngine:
         state = self.create_base_state(tickers, start_date, end_date)
         
         if parallel:
-            # 并行执行所有分析师
+            # 并行执行所有分析师（第一轮）
             analyst_results = self.run_analysts_parallel(state)
         else:
-            # 串行执行所有分析师（原有逻辑）
+            # 串行执行所有分析师（第一轮）
             analyst_results = self.run_analysts_sequential(state)
         
+        # 第二轮分析：基于通知和第一轮结果的修正
+        print("\n🔄 开始第二轮分析（基于通知和第一轮结果）...")
+        second_round_results = self.run_second_round_analysis(analyst_results, state, parallel)
+        
         # 生成最终报告
-        final_report = self.generate_final_report(analyst_results, state)
+        final_report = self.generate_final_report(second_round_results, state)
         
         return {
-            "analyst_results": analyst_results,
+            "first_round_results": analyst_results,
+            "final_analyst_results": second_round_results,
             "final_report": final_report,
             "analysis_timestamp": datetime.now().isoformat(),
             "tickers": tickers,
@@ -320,6 +332,191 @@ class InvestmentAnalysisEngine:
                 "status": "error"
             }
     
+    def run_second_round_analysis(self, first_round_results: Dict[str, Any], 
+                                state: AgentState, parallel: bool = True) -> Dict[str, Any]:
+        """运行第二轮分析：基于第一轮结果和通知的修正"""
+        print("📊 准备第二轮分析数据...")
+        
+        # 1. 生成第一轮的final_report
+        first_round_report = self.generate_final_report(first_round_results, state)
+    
+        
+        # 2. 执行第二轮分析（不再需要prepare_second_round_contexts）
+        if parallel:
+            second_round_results = self.run_second_round_parallel(first_round_report, state)
+        else:
+            second_round_results = self.run_second_round_sequential(first_round_report, state)
+        
+        return second_round_results
+    
+
+
+    
+    def run_second_round_parallel(self, first_round_report: Dict, state: AgentState) -> Dict[str, Any]:
+        """并行执行第二轮分析"""
+        print("🚀 启动第二轮并行分析...")
+        start_time = datetime.now()
+        
+        # 为每个分析师创建独立的状态副本
+        analyst_states = {}
+        for agent_id in self.core_analysts.keys():
+            analyst_states[agent_id] = deepcopy(state)
+            # 清除第一轮的分析结果，避免冲突
+            analyst_states[agent_id]["data"]["analyst_signals"] = {}
+        
+        second_round_results = {}
+        
+        # 使用ThreadPoolExecutor进行并行执行
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            # 提交所有任务
+            future_to_agent = {}
+            for agent_id, agent_info in self.core_analysts.items():
+                future = executor.submit(
+                    self.run_second_round_single_analyst,
+                    agent_id, 
+                    agent_info, 
+                    first_round_report,
+                    analyst_states[agent_id]
+                )
+                future_to_agent[future] = agent_id
+            
+            # 收集结果
+            completed_count = 0
+            for future in concurrent.futures.as_completed(future_to_agent):
+                agent_id = future_to_agent[future]
+                agent_name = self.core_analysts[agent_id]['name']
+                
+                try:
+                    result = future.result()
+                    second_round_results[agent_id] = result
+                    completed_count += 1
+                    
+                    print(f"✅ {agent_name} 第二轮分析完成 ({completed_count}/4)")
+                    
+                    # 合并分析结果到主状态
+                    if result.get("status") == "success" and "analysis_result" in result:
+                        state["data"]["analyst_signals"][agent_id] = result["analysis_result"]
+                    
+                except Exception as e:
+                    print(f"❌ {agent_name} 第二轮分析出错: {str(e)}")
+                    second_round_results[agent_id] = {
+                        "agent_id": agent_id,
+                        "agent_name": agent_name,
+                        "error": str(e),
+                        "status": "error"
+                    }
+        
+        end_time = datetime.now()
+        execution_time = (end_time - start_time).total_seconds()
+        print(f"\n⏱️ 第二轮并行分析完成，总耗时: {execution_time:.2f} 秒")
+        print("=" * 40)
+        
+        return second_round_results
+    
+    def run_second_round_sequential(self, first_round_report: Dict, state: AgentState) -> Dict[str, Any]:
+        """串行执行第二轮分析"""
+        second_round_results = {}
+        
+        for agent_id, agent_info in self.core_analysts.items():
+            result = self.run_second_round_single_analyst(
+                agent_id, agent_info, first_round_report, state
+            )
+            second_round_results[agent_id] = result
+            
+            print("\n" + "-" * 40)
+        
+        return second_round_results
+    
+    def run_second_round_single_analyst(self, agent_id: str, agent_info: Dict, 
+                                      first_round_report: Dict, 
+                                      state: AgentState) -> Dict[str, Any]:
+        """运行单个分析师的第二轮LLM分析"""
+        agent_name = agent_info['name']
+        
+        print(f"\n🤖 {agent_name} 开始第二轮LLM分析...")
+        
+        try:
+            # 提取需要的数据
+            tickers = state["data"]["tickers"]
+            
+            # 获取第一轮分析结果
+            first_round_analysis = first_round_report.get("analyst_signals", {}).get(agent_id, {})
+            
+            # 获取整体摘要
+            overall_summary = first_round_report.get("summary", {})
+            
+            # 获取通知信息
+            notifications = []
+            notification_activity = first_round_report.get("notification_activity", {})
+            if "recent_notifications" in notification_activity:
+                notifications = notification_activity["recent_notifications"]
+            
+            # 运行LLM分析
+            llm_analysis = run_second_round_llm_analysis(
+                agent_id=agent_id,
+                tickers=tickers,
+                first_round_analysis=first_round_analysis,
+                overall_summary=overall_summary,
+                notifications=notifications,
+                state=state
+            )
+            
+            # 格式化结果
+            analysis_result = format_second_round_result_for_state(llm_analysis)
+            
+            # 存储到状态中
+            state["data"]["analyst_signals"][f"{agent_id}_round2"] = analysis_result
+            
+            print(f"✅ {agent_name} 第二轮LLM分析完成")
+            
+            print(llm_analysis.ticker_signals)
+            # 显示每个ticker的信号
+            for ticker_signal in llm_analysis.ticker_signals:
+                signal_emoji = {"bullish": "📈", "bearish": "📉", "neutral": "➖"}
+                emoji = signal_emoji.get(ticker_signal.signal, "❓")
+                print(f"  {emoji} {ticker_signal.ticker}: {ticker_signal.signal.upper()} "
+                      f"(信心度: {ticker_signal.confidence}%)")
+                print(f"     💭 理由: {ticker_signal.reasoning}")
+            
+            return {
+                "agent_id": agent_id,
+                "agent_name": agent_name,
+                "analysis_result": analysis_result,
+                "llm_analysis": llm_analysis,
+                "round": 2,
+                "status": "success"
+            }
+            
+        except Exception as e:
+            print(f"❌ {agent_name} 第二轮LLM分析失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
+            # 创建失败结果
+            fallback_result = {
+                "analyst_id": agent_id,
+                "analyst_name": agent_name,
+                "ticker_signals": [
+                    {
+                        "ticker": ticker,
+                        "signal": "neutral",
+                        "confidence": 50,
+                        "reasoning": f"由于错误无法完成分析: {str(e)}"
+                    } for ticker in state["data"]["tickers"]
+                ],
+                "timestamp": datetime.now().isoformat(),
+                "analysis_type": "second_round_llm_failed"
+            }
+            
+            return {
+                "agent_id": agent_id,
+                "agent_name": agent_name,
+                "analysis_result": fallback_result,
+                "error": str(e),
+                "round": 2,
+                "status": "error"
+            }
+    
     def generate_final_report(self, analyst_results: Dict[str, Any], 
                             state: AgentState) -> Dict[str, Any]:
         """生成最终分析报告"""
@@ -400,8 +597,17 @@ class InvestmentAnalysisEngine:
         
         print(f"📈 分析股票: {', '.join(results['tickers'])}")
         print(f"⏰ 分析时间: {results['analysis_timestamp']}")
-        print(f"✅ 成功分析: {summary['successful_analyses']}/{summary['total_analysts']}")
+        print(f"✅ 最终成功分析: {summary['successful_analyses']}/{summary['total_analysts']}")
         print(f"📢 发送通知: {summary['notifications_sent']} 条")
+        
+        # 显示两轮分析信息
+        if 'first_round_results' in results:
+            first_round_success = len([r for r in results['first_round_results'].values() if r.get('status') == 'success'])
+            print(f"🔄 第一轮分析: {first_round_success}/{len(results['first_round_results'])} 成功")
+        
+        if 'final_analyst_results' in results:
+            second_round_success = len([r for r in results['final_analyst_results'].values() if r.get('status') == 'success'])
+            print(f"🔄 第二轮分析: {second_round_success}/{len(results['final_analyst_results'])} 成功")
         
         if summary["failed_analyses"] > 0:
             print(f"❌ 失败分析: {summary['failed_analyses']}")
@@ -446,7 +652,7 @@ def main():
         engine.print_session_summary(results)
         
         # 保存结果到文件
-        output_file = f"analysis_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        output_file = f"/root/wuyue.wy/Project/IA/analysis_results_logs/analysis_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(results, f, ensure_ascii=False, indent=2, default=str)
         

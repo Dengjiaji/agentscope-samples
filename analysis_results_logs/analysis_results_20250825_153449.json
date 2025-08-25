@@ -1,0 +1,501 @@
+{
+  "first_round_results": {
+    "valuation_analyst": {
+      "agent_id": "valuation_analyst",
+      "agent_name": "估值分析师",
+      "analysis_result": {
+        "AAPL": {
+          "signal": "bearish",
+          "confidence": 100,
+          "reasoning": {
+            "dcf_analysis": {
+              "signal": "bearish",
+              "details": "Value: $1,643,697,181,345.77, Market Cap: $2,994,371,342,560.00, Gap: -45.1%, Weight: 35%"
+            },
+            "owner_earnings_analysis": {
+              "signal": "bearish",
+              "details": "Value: $740,793,685,723.28, Market Cap: $2,994,371,342,560.00, Gap: -75.3%, Weight: 35%"
+            },
+            "ev_ebitda_analysis": {
+              "signal": "neutral",
+              "details": "Value: $2,783,108,079,270.29, Market Cap: $2,994,371,342,560.00, Gap: -7.1%, Weight: 20%"
+            },
+            "residual_income_analysis": {
+              "signal": "bearish",
+              "details": "Value: $2,445,436,316,793.26, Market Cap: $2,994,371,342,560.00, Gap: -18.3%, Weight: 10%"
+            }
+          }
+        },
+        "MSFT": {
+          "signal": "bearish",
+          "confidence": 100,
+          "reasoning": {
+            "dcf_analysis": {
+              "signal": "bearish",
+              "details": "Value: $1,177,944,665,919.74, Market Cap: $2,794,827,926,197.00, Gap: -57.9%, Weight: 35%"
+            },
+            "owner_earnings_analysis": {
+              "signal": "bearish",
+              "details": "Value: $1,444,301,343,719.71, Market Cap: $2,794,827,926,197.00, Gap: -48.3%, Weight: 35%"
+            },
+            "ev_ebitda_analysis": {
+              "signal": "neutral",
+              "details": "Value: $2,558,535,404,105.90, Market Cap: $2,794,827,926,197.00, Gap: -8.5%, Weight: 20%"
+            },
+            "residual_income_analysis": {
+              "signal": "bearish",
+              "details": "Value: $1,072,142,955,932.10, Market Cap: $2,794,827,926,197.00, Gap: -61.6%, Weight: 10%"
+            }
+          }
+        }
+      },
+      "notification_sent": true,
+      "notification_decision": {
+        "should_notify": true,
+        "content": "风险警报：AAPL 与 MSFT 估值显著高于多模型内在价值，整体信号为 bearish，置信度 100。\n- AAPL：DCF -45%，Owner Earnings -75%，Residual Income -18%，EV/EBITDA -7%（近公允）；市值≈$2.99T。\n- MSFT：DCF -58%，Owner Earnings -48%，Residual Income -62%，EV/EBITDA -8%（近公允）；市值≈$2.79T。\n解读：两大权重股在除相对估值外的核心模型下均显著高估，若盈利增速放缓或利率上行导致估值回归，指数与多资产组合面临回撤风险。\n建议：\n1) 由科技与量化团队复核假设并进行敏感性与情景测试（15–30%估值回撤）。\n2) 审视组合暴露与集中度，评估减配/对冲方案（保护性看跌/领口、期权覆盖）。\n3) 跟踪近期财报/指引与AI相关资本开支与盈利转化节奏、利率变动与风险溢价。\n备注：无即时催化披露，但风险具有系统性与传导性，建议尽快评估应对。",
+        "urgency": "high",
+        "category": "risk_warning"
+      },
+      "status": "success"
+    },
+    "technical_analyst": {
+      "agent_id": "technical_analyst",
+      "agent_name": "技术分析师",
+      "analysis_result": {
+        "AAPL": {
+          "signal": "neutral",
+          "confidence": 18,
+          "reasoning": {
+            "trend_following": {
+              "signal": "bearish",
+              "confidence": 33,
+              "metrics": {
+                "adx": 33.47361632727093,
+                "trend_strength": 0.33473616327270933
+              }
+            },
+            "mean_reversion": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "z_score": 0.0,
+                "price_vs_bb": 0.11802406231669654,
+                "rsi_14": 24.11267605633803,
+                "rsi_28": 31.50506888484537
+              }
+            },
+            "momentum": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "momentum_1m": -0.025440516927672685,
+                "momentum_3m": 0.0,
+                "momentum_6m": 0.0,
+                "volume_momentum": 1.2491848409682098
+              }
+            },
+            "volatility": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "historical_volatility": 0.12146103543770821,
+                "volatility_regime": 0.0,
+                "volatility_z_score": 0.0,
+                "atr_ratio": 0.016340388988724742
+              }
+            },
+            "statistical_arbitrage": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "hurst_exponent": -1.8511255743987584e-15,
+                "skewness": 0.0,
+                "kurtosis": 0.0
+              }
+            }
+          }
+        },
+        "MSFT": {
+          "signal": "neutral",
+          "confidence": 14,
+          "reasoning": {
+            "trend_following": {
+              "signal": "bullish",
+              "confidence": 23,
+              "metrics": {
+                "adx": 23.44379228527926,
+                "trend_strength": 0.2344379228527926
+              }
+            },
+            "mean_reversion": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "z_score": 0.0,
+                "price_vs_bb": 0.8049655134687723,
+                "rsi_14": 44.55466896700451,
+                "rsi_28": 58.78922521521799
+              }
+            },
+            "momentum": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "momentum_1m": 0.04561862180163867,
+                "momentum_3m": 0.0,
+                "momentum_6m": 0.0,
+                "volume_momentum": 0.8098093370615803
+              }
+            },
+            "volatility": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "historical_volatility": 0.19380684075491345,
+                "volatility_regime": 0.0,
+                "volatility_z_score": 0.0,
+                "atr_ratio": 0.01534983668557675
+              }
+            },
+            "statistical_arbitrage": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "hurst_exponent": -1.8511255743987584e-15,
+                "skewness": 0.0,
+                "kurtosis": 0.0
+              }
+            }
+          }
+        }
+      },
+      "notification_sent": false,
+      "notification_decision": {
+        "should_notify": false,
+        "reason": "当前AAPL与MSFT整体信号为中性且置信度较低（AAPL 18、MSFT 14），未发现显著且紧急的风险或机会；波动与量能处于常态，趋势强度不高（MSFT ADX≈23）或虽偏弱/强但缺乏共振（AAPL ADX≈33但RSI偏低），为避免不必要或重复通知，暂不发送。"
+      },
+      "status": "success"
+    },
+    "fundamentals_analyst": {
+      "agent_id": "fundamentals_analyst",
+      "agent_name": "基本面分析师",
+      "analysis_result": {
+        "AAPL": {
+          "signal": "neutral",
+          "confidence": 25.0,
+          "reasoning": {
+            "profitability_signal": {
+              "signal": "bullish",
+              "details": "ROE: 156.00%, Net Margin: 26.20%, Op Margin: 30.71%"
+            },
+            "growth_signal": {
+              "signal": "neutral",
+              "details": "Revenue Growth: 0.63%, Earnings Growth: 4.04%"
+            },
+            "financial_health_signal": {
+              "signal": "neutral",
+              "details": "Current Ratio: 1.07, D/E: 3.77"
+            },
+            "price_ratios_signal": {
+              "signal": "bearish",
+              "details": "P/E: 29.67, P/B: 40.41, P/S: 7.76"
+            }
+          }
+        },
+        "MSFT": {
+          "signal": "bearish",
+          "confidence": 50.0,
+          "reasoning": {
+            "profitability_signal": {
+              "signal": "bullish",
+              "details": "ROE: 38.40%, Net Margin: 36.30%, Op Margin: 45.53%"
+            },
+            "growth_signal": {
+              "signal": "bearish",
+              "details": "Revenue Growth: 4.25%, Earnings Growth: 7.06%"
+            },
+            "financial_health_signal": {
+              "signal": "neutral",
+              "details": "Current Ratio: 1.22, D/E: 0.97"
+            },
+            "price_ratios_signal": {
+              "signal": "bearish",
+              "details": "P/E: 33.86, P/B: 11.73, P/S: 12.28"
+            }
+          }
+        }
+      },
+      "notification_sent": true,
+      "notification_decision": {
+        "should_notify": true,
+        "content": "模型将MSFT下调至“看空”（置信度50%）：盈利能力强但增长放缓（营收+4.25%、EPS+7.06%）与高估值（P/E 33.9x、P/S 12.3x、P/B 11.7x）不匹配；财务健康中性（流动比率1.22、D/E 0.97）。存在估值回撤/重估风险。建议：关注下一次财报与指引、AI/云增速更新，审视仓位与风险敞口。AAPL维持“中性”（置信度25%），暂不建议动作。",
+        "urgency": "medium",
+        "category": "risk_warning"
+      },
+      "status": "success"
+    },
+    "sentiment_analyst": {
+      "agent_id": "sentiment_analyst",
+      "agent_name": "情绪分析师",
+      "analysis_result": {
+        "AAPL": {
+          "signal": "bearish",
+          "confidence": 62.0,
+          "reasoning": {
+            "insider_trading": {
+              "signal": "bearish",
+              "confidence": 62,
+              "metrics": {
+                "total_trades": 1000,
+                "bullish_trades": 380,
+                "bearish_trades": 620,
+                "weight": 0.3,
+                "weighted_bullish": 114.0,
+                "weighted_bearish": 186.0
+              }
+            },
+            "news_sentiment": {
+              "signal": "neutral",
+              "confidence": 0,
+              "metrics": {
+                "total_articles": 0,
+                "bullish_articles": 0,
+                "bearish_articles": 0,
+                "neutral_articles": 0,
+                "weight": 0.7,
+                "weighted_bullish": 0.0,
+                "weighted_bearish": 0.0
+              }
+            },
+            "combined_analysis": {
+              "total_weighted_bullish": 114.0,
+              "total_weighted_bearish": 186.0,
+              "signal_determination": "Bearish based on weighted signal comparison"
+            }
+          }
+        },
+        "MSFT": {
+          "signal": "bullish",
+          "confidence": 75.1,
+          "reasoning": {
+            "insider_trading": {
+              "signal": "bullish",
+              "confidence": 75,
+              "metrics": {
+                "total_trades": 1000,
+                "bullish_trades": 751,
+                "bearish_trades": 249,
+                "weight": 0.3,
+                "weighted_bullish": 225.3,
+                "weighted_bearish": 74.7
+              }
+            },
+            "news_sentiment": {
+              "signal": "neutral",
+              "confidence": 0,
+              "metrics": {
+                "total_articles": 0,
+                "bullish_articles": 0,
+                "bearish_articles": 0,
+                "neutral_articles": 0,
+                "weight": 0.7,
+                "weighted_bullish": 0.0,
+                "weighted_bearish": 0.0
+              }
+            },
+            "combined_analysis": {
+              "total_weighted_bullish": 225.3,
+              "total_weighted_bearish": 74.7,
+              "signal_determination": "Bullish based on weighted signal comparison"
+            }
+          }
+        }
+      },
+      "notification_sent": true,
+      "notification_decision": {
+        "should_notify": true,
+        "content": "监控提醒：内幕交易信号显示分化——AAPL 偏空（置信度 62%，620/380），MSFT 偏多（置信度 75.1%，751/249）。当前新闻情绪无覆盖（0 篇），综合信号主要由内幕交易驱动（权重 0.3），紧迫性较低但具有跟踪价值。建议：将 AAPL 列入风险观察、MSFT 列入机会观察，关注未来24-72小时是否出现相关新闻、异常成交量或监管披露以验证/否定信号；若出现外部催化，请升级为 market_alert。",
+        "urgency": "low",
+        "category": "general"
+      },
+      "status": "success"
+    }
+  },
+  "final_analyst_results": {
+    "sentiment_analyst": {
+      "agent_id": "sentiment_analyst",
+      "agent_name": "情绪分析师",
+      "analysis_result": {
+        "analyst_id": "sentiment_analyst",
+        "analyst_name": "情绪分析师",
+        "ticker_signals": [
+          {
+            "ticker": "AAPL",
+            "signal": "neutral",
+            "confidence": 50,
+            "reasoning": "由于错误无法完成分析: run_second_round_llm_analysis() missing 1 required positional argument: 'pipeline_info'"
+          },
+          {
+            "ticker": "MSFT",
+            "signal": "neutral",
+            "confidence": 50,
+            "reasoning": "由于错误无法完成分析: run_second_round_llm_analysis() missing 1 required positional argument: 'pipeline_info'"
+          }
+        ],
+        "timestamp": "2025-08-25T15:34:49.954245",
+        "analysis_type": "second_round_llm_failed"
+      },
+      "error": "run_second_round_llm_analysis() missing 1 required positional argument: 'pipeline_info'",
+      "round": 2,
+      "status": "error"
+    },
+    "fundamentals_analyst": {
+      "agent_id": "fundamentals_analyst",
+      "agent_name": "基本面分析师",
+      "analysis_result": {
+        "analyst_id": "fundamentals_analyst",
+        "analyst_name": "基本面分析师",
+        "ticker_signals": [
+          {
+            "ticker": "AAPL",
+            "signal": "neutral",
+            "confidence": 50,
+            "reasoning": "由于错误无法完成分析: run_second_round_llm_analysis() missing 1 required positional argument: 'pipeline_info'"
+          },
+          {
+            "ticker": "MSFT",
+            "signal": "neutral",
+            "confidence": 50,
+            "reasoning": "由于错误无法完成分析: run_second_round_llm_analysis() missing 1 required positional argument: 'pipeline_info'"
+          }
+        ],
+        "timestamp": "2025-08-25T15:34:49.954534",
+        "analysis_type": "second_round_llm_failed"
+      },
+      "error": "run_second_round_llm_analysis() missing 1 required positional argument: 'pipeline_info'",
+      "round": 2,
+      "status": "error"
+    },
+    "valuation_analyst": {
+      "agent_id": "valuation_analyst",
+      "agent_name": "估值分析师",
+      "analysis_result": {
+        "analyst_id": "valuation_analyst",
+        "analyst_name": "估值分析师",
+        "ticker_signals": [
+          {
+            "ticker": "AAPL",
+            "signal": "neutral",
+            "confidence": 50,
+            "reasoning": "由于错误无法完成分析: run_second_round_llm_analysis() missing 1 required positional argument: 'pipeline_info'"
+          },
+          {
+            "ticker": "MSFT",
+            "signal": "neutral",
+            "confidence": 50,
+            "reasoning": "由于错误无法完成分析: run_second_round_llm_analysis() missing 1 required positional argument: 'pipeline_info'"
+          }
+        ],
+        "timestamp": "2025-08-25T15:34:49.954655",
+        "analysis_type": "second_round_llm_failed"
+      },
+      "error": "run_second_round_llm_analysis() missing 1 required positional argument: 'pipeline_info'",
+      "round": 2,
+      "status": "error"
+    },
+    "technical_analyst": {
+      "agent_id": "technical_analyst",
+      "agent_name": "技术分析师",
+      "analysis_result": {
+        "analyst_id": "technical_analyst",
+        "analyst_name": "技术分析师",
+        "ticker_signals": [
+          {
+            "ticker": "AAPL",
+            "signal": "neutral",
+            "confidence": 50,
+            "reasoning": "由于错误无法完成分析: run_second_round_llm_analysis() missing 1 required positional argument: 'pipeline_info'"
+          },
+          {
+            "ticker": "MSFT",
+            "signal": "neutral",
+            "confidence": 50,
+            "reasoning": "由于错误无法完成分析: run_second_round_llm_analysis() missing 1 required positional argument: 'pipeline_info'"
+          }
+        ],
+        "timestamp": "2025-08-25T15:34:49.954725",
+        "analysis_type": "second_round_llm_failed"
+      },
+      "error": "run_second_round_llm_analysis() missing 1 required positional argument: 'pipeline_info'",
+      "round": 2,
+      "status": "error"
+    }
+  },
+  "final_report": {
+    "summary": {
+      "total_analysts": 4,
+      "successful_analyses": 0,
+      "failed_analyses": 4,
+      "notifications_sent": 0
+    },
+    "analyst_signals": {},
+    "notification_activity": {
+      "total_notifications": 3,
+      "notifications_by_agent": {
+        "valuation_analyst": 1,
+        "fundamentals_analyst": 1,
+        "sentiment_analyst": 1
+      },
+      "recent_notifications": [
+        {
+          "sender": "valuation_analyst",
+          "content": "风险警报：AAPL 与 MSFT 估值显著高于多模型内在价值，整体信号为 bearish，置信度 100。\n- AAPL：DCF -45%，Owner Earnings -75%，Residual Income -18%，EV/EBITDA -7%（近公允）；市值≈$2.99T。\n- MSFT：DCF -58%，Owner Earnings -48%，Residual Income -62%，EV/EBITDA -8%（近公允）；市值≈$2.79T。\n解读：两大权重股在除相对估值外的核心模型下均显著高估，若盈利增速放缓或利率上行导致估值回归，指数与多资产组合面临回撤风险。\n建议：\n1) 由科技与量化团队复核假设并进行敏感性与情景测试（15–30%估值回撤）。\n2) 审视组合暴露与集中度，评估减配/对冲方案（保护性看跌/领口、期权覆盖）。\n3) 跟踪近期财报/指引与AI相关资本开支与盈利转化节奏、利率变动与风险溢价。\n备注：无即时催化披露，但风险具有系统性与传导性，建议尽快评估应对。",
+          "urgency": "high",
+          "category": "risk_warning",
+          "timestamp": "15:34:41"
+        },
+        {
+          "sender": "fundamentals_analyst",
+          "content": "模型将MSFT下调至“看空”（置信度50%）：盈利能力强但增长放缓（营收+4.25%、EPS+7.06%）与高估值（P/E 33.9x、P/S 12.3x、P/B 11.7x）不匹配；财务健康中性（流动比率1.22、D/E 0.97）。存在估值回撤/重估风险。建议：关注下一次财报与指引、AI/云增速更新，审视仓位与风险敞口。AAPL维持“中性”（置信度25%），暂不建议动作。",
+          "urgency": "medium",
+          "category": "risk_warning",
+          "timestamp": "15:34:49"
+        },
+        {
+          "sender": "sentiment_analyst",
+          "content": "监控提醒：内幕交易信号显示分化——AAPL 偏空（置信度 62%，620/380），MSFT 偏多（置信度 75.1%，751/249）。当前新闻情绪无覆盖（0 篇），综合信号主要由内幕交易驱动（权重 0.3），紧迫性较低但具有跟踪价值。建议：将 AAPL 列入风险观察、MSFT 列入机会观察，关注未来24-72小时是否出现相关新闻、异常成交量或监管披露以验证/否定信号；若出现外部催化，请升级为 market_alert。",
+          "urgency": "low",
+          "category": "general",
+          "timestamp": "15:34:49"
+        }
+      ]
+    },
+    "errors": [
+      {
+        "agent": "sentiment_analyst",
+        "error": "run_second_round_llm_analysis() missing 1 required positional argument: 'pipeline_info'"
+      },
+      {
+        "agent": "fundamentals_analyst",
+        "error": "run_second_round_llm_analysis() missing 1 required positional argument: 'pipeline_info'"
+      },
+      {
+        "agent": "valuation_analyst",
+        "error": "run_second_round_llm_analysis() missing 1 required positional argument: 'pipeline_info'"
+      },
+      {
+        "agent": "technical_analyst",
+        "error": "run_second_round_llm_analysis() missing 1 required positional argument: 'pipeline_info'"
+      }
+    ]
+  },
+  "analysis_timestamp": "2025-08-25T15:34:49.954950",
+  "tickers": [
+    "AAPL",
+    "MSFT"
+  ],
+  "date_range": {
+    "start": "2024-01-01",
+    "end": "2024-03-01"
+  }
+}

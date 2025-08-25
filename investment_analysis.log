@@ -131,3 +131,467 @@
 - NVDA：技术面偏多但总体置信度中等（趋势分项较强）。ADX≈86显示强趋势延续概率较高，其余维度中性。策略建议（低-中置信）：顺势/逢回调参与，止损参考20DMA或2x ATR的跟踪；反转风险信号包括RSI>75后的顶背离、放量跌破20DMA或ADX回落至<50。
 - 协同请求：请估值与基本面组就AAPL统一技术触发阈值以同步对冲/减仓节奏；对NVDA如有估值/基本面约束，请反馈以调整技术建议。
 2025-08-25 10:50:48,820 - INFO - Broadcasted notification from technical_analyst to all agents
+2025-08-25 12:06:43,985 - INFO - Registered agent: fundamentals_analyst
+2025-08-25 12:06:43,985 - INFO - Registered agent: sentiment_analyst
+2025-08-25 12:06:43,985 - INFO - Registered agent: technical_analyst
+2025-08-25 12:06:43,985 - INFO - Registered agent: valuation_analyst
+2025-08-25 12:06:43,985 - INFO - 投资分析引擎初始化完成
+2025-08-25 12:06:53,347 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 12:07:02,386 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 12:07:08,742 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 12:07:08,743 - INFO - Agent fundamentals_analyst received notification from sentiment_analyst
+2025-08-25 12:07:08,743 - INFO - Agent technical_analyst received notification from sentiment_analyst
+2025-08-25 12:07:08,743 - INFO - Agent valuation_analyst received notification from sentiment_analyst
+2025-08-25 12:07:08,743 - INFO - Agent sentiment_analyst sent notification: 内部交易信号提示：MSFT 显示显著看多（751/1000 笔看多，置信度75.1%，加权看多225.3>看空74.7）；AAPL 显示偏空（620/1000 笔看空，置信度62.0%，加权看空186.0>看多114.0）。当前新闻情绪无有效样本（权重较高，暂缺），信号主要来自内部交易。建议：MSFT 作为机会重点跟踪，AAPL 作为风险关注；待新闻/基本面佐证后再提升紧急级别，避免过度反应。
+2025-08-25 12:07:08,743 - INFO - Broadcasted notification from sentiment_analyst to all agents
+2025-08-25 12:07:21,741 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 12:07:21,742 - INFO - Agent fundamentals_analyst received notification from valuation_analyst
+2025-08-25 12:07:21,742 - INFO - Agent sentiment_analyst received notification from valuation_analyst
+2025-08-25 12:07:21,742 - INFO - Agent technical_analyst received notification from valuation_analyst
+2025-08-25 12:07:21,742 - INFO - Agent valuation_analyst sent notification: 估值预警：AAPL 与 MSFT 多模型一致给出 Bearish（置信度100）。加权结果显示两者相对当前市值分别高估约45.4%与45.0%，存在显著下行风险。关键依据：AAPL—DCF -45.1%，Owner Earnings -75.3%，EV/EBITDA -7.1%，Residual Income -18.3%（市值$2.99T vs 估值$1.64T/$0.74T/$2.78T/$2.45T）；MSFT—DCF -57.9%，Owner Earnings -48.3%，EV/EBITDA -8.5%，Residual Income -61.6%（市值$2.79T vs 估值$1.18T/$1.44T/$2.56T/$1.07T）。建议：请相关板块/组合同事复核关键假设（增长、WACC、回购、税率）与敏感性，评估仓位与对冲，避免加仓，关注临近财报与宏观催化的回撤风险放大效应。
+2025-08-25 12:07:21,742 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-25 14:40:06,580 - INFO - Registered agent: fundamentals_analyst
+2025-08-25 14:40:06,580 - INFO - Registered agent: sentiment_analyst
+2025-08-25 14:40:06,580 - INFO - Registered agent: technical_analyst
+2025-08-25 14:40:06,580 - INFO - Registered agent: valuation_analyst
+2025-08-25 14:40:06,580 - INFO - 投资分析引擎初始化完成
+2025-08-25 14:40:18,537 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:40:25,123 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:40:25,124 - INFO - Agent fundamentals_analyst received notification from valuation_analyst
+2025-08-25 14:40:25,124 - INFO - Agent sentiment_analyst received notification from valuation_analyst
+2025-08-25 14:40:25,124 - INFO - Agent technical_analyst received notification from valuation_analyst
+2025-08-25 14:40:25,124 - INFO - Agent valuation_analyst sent notification: 估值预警：对AAPL与MSFT的多模型估值显示显著高估，综合信号均为Bearish（置信度100）。AAPL：DCF估值较市值-45.1%，Owner Earnings -75.3%，EV/EBITDA约-7.1%（中性），Residual Income -18.3%。MSFT：DCF -57.9%，Owner Earnings -48.3%，EV/EBITDA约-8.5%（中性），Residual Income -61.6%。两大权重科技股同时出现明显负向估值偏差，具有潜在系统性下行风险。建议科技行业分析师与相关PM/风险团队复核关键假设（长期增长、WACC、回购与资本开支回报）、评估仓位与对冲策略（指数/板块对冲或单名期权价差）、并开展情景与压力测试；密切跟踪后续业绩与指引等催化对估值的验证。
+2025-08-25 14:40:25,124 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-25 14:40:26,846 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:40:26,847 - INFO - Agent fundamentals_analyst received notification from sentiment_analyst
+2025-08-25 14:40:26,847 - INFO - Agent technical_analyst received notification from sentiment_analyst
+2025-08-25 14:40:26,847 - INFO - Agent valuation_analyst received notification from sentiment_analyst
+2025-08-25 14:40:26,847 - INFO - Agent sentiment_analyst sent notification: Insider交易信号更新：AAPL 偏空（置信度62%），MSFT 偏多（置信度75%）。当前新闻情绪数据缺失（0篇），合成结论完全由内部交易驱动（新闻权重较高但为空，可能导致偏差）。建议将MSFT视为阶段性机会、AAPL为下行风险，等待新闻/价格动作确认并结合事件日历再行决策。
+2025-08-25 14:40:26,847 - INFO - Broadcasted notification from sentiment_analyst to all agents
+2025-08-25 14:40:31,793 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:40:32,351 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-08-25 14:40:32,393 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-08-25 14:40:32,401 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-08-25 14:40:32,499 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-08-25 14:40:32,577 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-08-25 14:40:32,602 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-08-25 14:40:32,625 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-08-25 14:40:32,795 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-08-25 14:40:32,801 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-08-25 14:40:32,828 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-08-25 14:40:32,929 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-08-25 14:40:33,173 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-08-25 14:42:29,150 - INFO - Registered agent: fundamentals_analyst
+2025-08-25 14:42:29,150 - INFO - Registered agent: sentiment_analyst
+2025-08-25 14:42:29,150 - INFO - Registered agent: technical_analyst
+2025-08-25 14:42:29,150 - INFO - Registered agent: valuation_analyst
+2025-08-25 14:42:29,150 - INFO - 投资分析引擎初始化完成
+2025-08-25 14:42:38,642 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:42:49,161 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:42:49,162 - INFO - Agent sentiment_analyst received notification from fundamentals_analyst
+2025-08-25 14:42:49,163 - INFO - Agent technical_analyst received notification from fundamentals_analyst
+2025-08-25 14:42:49,163 - INFO - Agent valuation_analyst received notification from fundamentals_analyst
+2025-08-25 14:42:49,163 - INFO - Agent fundamentals_analyst sent notification: MSFT 基本面评估发出偏空信号（置信度50%）。盈利能力依然强劲（净利率36.3%，营业利润率45.53%），但增长放缓（营收增速4.25%，盈利增速7.06%）且估值显著偏高（P/E 33.86，P/S 12.28，P/B 11.73）。财务健康中性（流动比1.22，D/E 0.97）。建议关注潜在估值回撤风险与仓位暴露，等待后续业绩/指引验证增长动能。AAPL 整体信号中性（置信度25%），暂不建议行动。
+2025-08-25 14:42:49,163 - INFO - Broadcasted notification from fundamentals_analyst to all agents
+2025-08-25 14:42:51,011 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:42:51,012 - INFO - Agent fundamentals_analyst received notification from valuation_analyst
+2025-08-25 14:42:51,012 - INFO - Agent sentiment_analyst received notification from valuation_analyst
+2025-08-25 14:42:51,012 - INFO - Agent technical_analyst received notification from valuation_analyst
+2025-08-25 14:42:51,012 - INFO - Agent valuation_analyst sent notification: 大型权重股AAPL、MSFT综合估值发出一致看空信号（置信度100）。四套模型显示其内在价值显著低于当前市值：AAPL内在价值较市值低7%–75%（DCF -45.1%、Owner Earnings -75.3%、EV/EBITDA -7.1%、Residual Income -18.3%）；MSFT低8.5%–61.6%（DCF -57.9%、Owner Earnings -48.3%、EV/EBITDA -8.5%、Residual Income -61.6%）。虽无短期事件触发，但估值拉伸叠加权重集中度，潜在回撤与再定价风险上升。请相关覆盖与组合团队优先复核关键假设（增长、利润率、贴现率、终值、回购/FCF转换）、开展敏感性与情景测试，并评估仓位与对冲方案；同步跟踪财报节奏、AI资本开支与监管动态。
+2025-08-25 14:42:51,012 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-25 14:42:52,664 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:42:52,665 - INFO - Agent fundamentals_analyst received notification from sentiment_analyst
+2025-08-25 14:42:52,665 - INFO - Agent technical_analyst received notification from sentiment_analyst
+2025-08-25 14:42:52,665 - INFO - Agent valuation_analyst received notification from sentiment_analyst
+2025-08-25 14:42:52,665 - INFO - Agent sentiment_analyst sent notification: 市场提示：基于最新内部交易数据，MSFT 显著偏多（751/1000，置信度≈75%），AAPL 显著偏空（620/1000，置信度≈62%）。当前新闻情绪无有效样本（权重较高但缺失），结论为初步判断。建议在未来24–48小时重点监控两标的新闻与监管披露，评估短期头寸暴露与对冲；如新闻端出现同向信号，再提升优先级。
+2025-08-25 14:42:52,665 - INFO - Broadcasted notification from sentiment_analyst to all agents
+2025-08-25 14:43:19,183 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:43:25,397 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:43:40,417 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:43:49,955 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:43:54,064 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:44:07,235 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:44:11,959 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:44:19,778 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:44:29,278 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:44:29,844 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:45:00,590 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:45:56,119 - INFO - Registered agent: fundamentals_analyst
+2025-08-25 14:45:56,119 - INFO - Registered agent: sentiment_analyst
+2025-08-25 14:45:56,119 - INFO - Registered agent: technical_analyst
+2025-08-25 14:45:56,119 - INFO - Registered agent: valuation_analyst
+2025-08-25 14:45:56,119 - INFO - 投资分析引擎初始化完成
+2025-08-25 14:46:13,010 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:46:13,016 - INFO - Agent sentiment_analyst received notification from fundamentals_analyst
+2025-08-25 14:46:13,016 - INFO - Agent technical_analyst received notification from fundamentals_analyst
+2025-08-25 14:46:13,016 - INFO - Agent valuation_analyst received notification from fundamentals_analyst
+2025-08-25 14:46:13,016 - INFO - Agent fundamentals_analyst sent notification: MSFT 基本面信号偏空（置信度50%）：盈利能力仍强，但增长放缓（营收+4.25%，盈利+7.06%），估值偏高（P/E 33.9，P/S 12.3，P/B 11.7），若增长未达预期存在估值回落风险。建议复核多头敞口与估值假设，关注下一次业绩/指引与AI相关增量兑现，必要时考虑对冲或降仓。AAPL 结论中性（置信度25%），暂不建议动作。
+2025-08-25 14:46:13,016 - INFO - Broadcasted notification from fundamentals_analyst to all agents
+2025-08-25 14:46:17,571 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:46:17,582 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:46:17,583 - INFO - Agent fundamentals_analyst received notification from valuation_analyst
+2025-08-25 14:46:17,583 - INFO - Agent sentiment_analyst received notification from valuation_analyst
+2025-08-25 14:46:17,583 - INFO - Agent technical_analyst received notification from valuation_analyst
+2025-08-25 14:46:17,583 - INFO - Agent valuation_analyst sent notification: 风险提示：对AAPL与MSFT的最新估值复核给出一致性偏空结论（置信度100）。AAPL：DCF与Owner Earnings分别较现价低约45%与75%，剩余收益模型低约18%，EV/EBITDA接近合理但仍低约7%；MSFT：DCF与Owner Earnings分别低约58%与48%，剩余收益模型低约62%，EV/EBITDA低约9%。两大权重股若增速放缓或折现率上行，潜在回撤风险显著，或对指数与组合造成放大影响。建议：1) 覆核关键假设（长期增长、WACC、回购力度、AI变现节奏）；2) 开展情景与敏感性测试（收入/利润率路径、CAPEX与SBC）；3) 关注触发点（下一财报与指引、服务/云业务增速、AI工作负载盈利化里程碑、毛利率与换机周期）；4) 评估仓位管理与对冲方案、准备沟通材料。注：当前无即时事件，但建议在下次财报前完成复核与行动建议。
+2025-08-25 14:46:17,583 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-25 14:46:35,434 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:46:35,435 - INFO - Agent fundamentals_analyst received notification from sentiment_analyst
+2025-08-25 14:46:35,435 - INFO - Agent technical_analyst received notification from sentiment_analyst
+2025-08-25 14:46:35,435 - INFO - Agent valuation_analyst received notification from sentiment_analyst
+2025-08-25 14:46:35,435 - INFO - Agent sentiment_analyst sent notification: 内部人交易信号出现分化：AAPL 偏空（置信度62%，620空/380多），MSFT 偏多（置信度75%，751多/249空）。当前新闻情绪数据缺失（0篇），综合判断仅基于内部人交易，结论暂为初步参考。建议关注但不急于行动：1) 监控两标的后续新闻与监管披露；2) 待新闻源恢复后复核情绪，若出现同向确认再升级为交易机会/风险预警。
+2025-08-25 14:46:35,435 - INFO - Broadcasted notification from sentiment_analyst to all agents
+2025-08-25 14:47:17,518 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:47:19,292 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:47:23,839 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:47:27,142 - INFO - Registered agent: fundamentals_analyst
+2025-08-25 14:47:27,142 - INFO - Registered agent: sentiment_analyst
+2025-08-25 14:47:27,142 - INFO - Registered agent: technical_analyst
+2025-08-25 14:47:27,142 - INFO - Registered agent: valuation_analyst
+2025-08-25 14:47:27,143 - INFO - 投资分析引擎初始化完成
+2025-08-25 14:47:44,620 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:47:44,626 - INFO - Agent sentiment_analyst received notification from fundamentals_analyst
+2025-08-25 14:47:44,626 - INFO - Agent technical_analyst received notification from fundamentals_analyst
+2025-08-25 14:47:44,626 - INFO - Agent valuation_analyst received notification from fundamentals_analyst
+2025-08-25 14:47:44,626 - INFO - Agent fundamentals_analyst sent notification: 模型对MSFT发出偏空信号（置信度50%）。主要驱动：估值显著偏高（P/E 33.86，P/S 12.28，P/B 11.73）且增速放缓（营收增速4.25%，盈利增速7.06%）；但盈利能力仍强（净利率36.3%，经营利润率45.53%），财务健康中性（流动比1.22，D/E 0.97）。建议相关分析师审视持仓与建仓节奏，重点跟踪云业务增速、AI变现进展与下季指引；在缺乏上修催化的情况下，考虑降低超配或设置风险对冲。AAPL信号中性且置信度低（25%），暂不建议动作。
+2025-08-25 14:47:44,626 - INFO - Broadcasted notification from fundamentals_analyst to all agents
+2025-08-25 14:47:46,273 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:47:50,072 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:47:50,073 - INFO - Agent fundamentals_analyst received notification from sentiment_analyst
+2025-08-25 14:47:50,074 - INFO - Agent technical_analyst received notification from sentiment_analyst
+2025-08-25 14:47:50,074 - INFO - Agent valuation_analyst received notification from sentiment_analyst
+2025-08-25 14:47:50,074 - INFO - Agent sentiment_analyst sent notification: 内部交易信号显示：MSFT偏强看多（置信度75%），AAPL偏弱看空（置信度62%）。当前新闻情绪数据为空（0篇），综合结果主要由内部交易驱动，需谨慎解读。建议将MSFT列入机会观察、AAPL列入风险观察；尽快补充相关新闻与事件验证，并结合价格/成交量与期权流进行确认，设置相应预警阈值。
+2025-08-25 14:47:50,074 - INFO - Broadcasted notification from sentiment_analyst to all agents
+2025-08-25 14:47:51,118 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:47:51,119 - INFO - Agent fundamentals_analyst received notification from valuation_analyst
+2025-08-25 14:47:51,119 - INFO - Agent sentiment_analyst received notification from valuation_analyst
+2025-08-25 14:47:51,119 - INFO - Agent technical_analyst received notification from valuation_analyst
+2025-08-25 14:47:51,120 - INFO - Agent valuation_analyst sent notification: 估值复核提示：AAPL 与 MSFT 同步为 bearish，置信度100。关键结果：AAPL 估值相对市值缺口 DCF -45.1%、Owner Earnings -75.3%、Residual Income -18.3%、EV/EBITDA -7.1%；MSFT 缺口 DCF -57.9%、Owner Earnings -48.3%、Residual Income -61.6%、EV/EBITDA -8.5%。两者为超大权重成分，若业绩或情绪走弱，存在显著回撤与组合相对回撤风险。建议：1) 本周内跨组复核关键假设（WACC、长期增长、回购与CAPEX）；2) 盘点指数与主动组合的 AAPL/MSFT 敞口并设定风险上限或对冲预案；3) 关注潜在触发因素（近期财报与指引、AI 投入回报节奏、云业务增速、终端需求与区域风险、监管与反垄断进展）。当前不建议立即交易，先完成复核与情景/敏感性测试后再决策。
+2025-08-25 14:47:51,120 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-25 14:47:51,388 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-08-25 14:47:51,399 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-08-25 14:47:51,412 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-08-25 14:47:51,444 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-08-25 14:47:51,611 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-08-25 14:47:51,643 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-08-25 14:47:51,653 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-08-25 14:47:51,667 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-08-25 14:47:51,818 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-08-25 14:47:51,862 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-08-25 14:47:51,889 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-08-25 14:47:51,942 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 400 Bad Request"
+2025-08-25 14:51:27,714 - INFO - Registered agent: fundamentals_analyst
+2025-08-25 14:51:27,714 - INFO - Registered agent: sentiment_analyst
+2025-08-25 14:51:27,714 - INFO - Registered agent: technical_analyst
+2025-08-25 14:51:27,714 - INFO - Registered agent: valuation_analyst
+2025-08-25 14:51:27,714 - INFO - 投资分析引擎初始化完成
+2025-08-25 14:51:40,098 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:51:43,776 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:51:43,777 - INFO - Agent fundamentals_analyst received notification from valuation_analyst
+2025-08-25 14:51:43,777 - INFO - Agent sentiment_analyst received notification from valuation_analyst
+2025-08-25 14:51:43,777 - INFO - Agent technical_analyst received notification from valuation_analyst
+2025-08-25 14:51:43,778 - INFO - Agent valuation_analyst sent notification: 估值预警：AAPL 与 MSFT 综合估值信号为看空，置信度100。两者现价均显著高于多模型估算内在价值，存在中长期回撤风险，或对宽基指数与科技板块带来系统性影响。
+- AAPL：DCF -45.1%，所有者收益 -75.3%，EV/EBITDA -7.1%（中性），剩余收益 -18.3%。
+- MSFT：DCF -57.9%，所有者收益 -48.3%，EV/EBITDA -8.5%（中性），剩余收益 -61.6%。
+说明：尽管相对倍数法偏中性，但现金流与剩余收益法均显示大幅高估，结论一致性高。暂无即时事件驱动，但偏离幅度大、重要性高。
+建议：
+1) 研究与组合团队评估是否下调仓位/对冲（如买入看跌、对冲因子暴露）。
+2) 请相关分析师复核关键假设（WACC、终值增速、AI相关盈利增量、回购节奏）。
+3) 开展情景与敏感性测试（增长下修/利率上行/估值回归）。
+4) 跟踪潜在催化（业绩指引、云增速/装机需求变化、监管进展）。
+拟安排：48小时内组织跨组评审并输出客户沟通要点。
+2025-08-25 14:51:43,778 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-25 14:51:45,167 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:51:45,168 - INFO - Agent fundamentals_analyst received notification from sentiment_analyst
+2025-08-25 14:51:45,168 - INFO - Agent technical_analyst received notification from sentiment_analyst
+2025-08-25 14:51:45,168 - INFO - Agent valuation_analyst received notification from sentiment_analyst
+2025-08-25 14:51:45,168 - INFO - Agent sentiment_analyst sent notification: 监控提醒：当前仅基于内部交易数据（新闻情绪暂无可用文章，权重0.7缺失），出现较明显分化信号。MSFT：看多，置信度75.1%（内部交易：751笔偏多 vs 249笔偏空，加权多方225.3 > 空方74.7），或存在阶段性资金净流入的机会。AAPL：偏空，置信度62.0%（内部交易：620偏空 vs 380偏多，加权空方186.0 > 多方114.0），或存在短期下行风险。建议：纳入观察名单，等待新闻/价量确认；量化与事件组可做交叉验证。请勿仅据此单一信号做交易决策。
+2025-08-25 14:51:45,168 - INFO - Broadcasted notification from sentiment_analyst to all agents
+2025-08-25 14:51:47,655 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:51:47,656 - INFO - Agent sentiment_analyst received notification from fundamentals_analyst
+2025-08-25 14:51:47,656 - INFO - Agent technical_analyst received notification from fundamentals_analyst
+2025-08-25 14:51:47,656 - INFO - Agent valuation_analyst received notification from fundamentals_analyst
+2025-08-25 14:51:47,656 - INFO - Agent fundamentals_analyst sent notification: MSFT 基本面信号转为偏空（置信度50%）：盈利依然强劲（ROE 38.4%，净利率36.3%），但增长放缓（营收+4.25%，EPS+7.06%），估值显著偏高（P/E 33.9，P/S 12.3）。在增长动能趋缓背景下，存在估值回归下行风险；建议审视多头敞口、关注下一财季指引与AI商业化进展。AAPL 信号中性（置信度25%）：盈利强但增长趋平，估值偏高（P/E 29.7，P/B 40.4）；短期缺乏明确催化，需警惕估值压缩。当前未发现流动性或杠杆急性风险。
+2025-08-25 14:51:47,656 - INFO - Broadcasted notification from fundamentals_analyst to all agents
+2025-08-25 14:52:13,535 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:52:26,516 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:52:34,505 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:52:35,530 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:53:06,435 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:53:06,725 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:53:14,557 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:53:23,694 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:53:36,282 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:53:57,845 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:53:59,382 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:54:13,624 - INFO - Registered agent: fundamentals_analyst
+2025-08-25 14:54:13,624 - INFO - Registered agent: sentiment_analyst
+2025-08-25 14:54:13,624 - INFO - Registered agent: technical_analyst
+2025-08-25 14:54:13,624 - INFO - Registered agent: valuation_analyst
+2025-08-25 14:54:13,624 - INFO - 投资分析引擎初始化完成
+2025-08-25 14:54:26,260 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:54:33,828 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:54:33,829 - INFO - Agent fundamentals_analyst received notification from valuation_analyst
+2025-08-25 14:54:33,829 - INFO - Agent sentiment_analyst received notification from valuation_analyst
+2025-08-25 14:54:33,829 - INFO - Agent technical_analyst received notification from valuation_analyst
+2025-08-25 14:54:33,829 - INFO - Agent valuation_analyst sent notification: 估值风险预警：AAPL 与 MSFT 同时被判定为 bearish（置信度100），综合加权估值偏离均约为 -45%。
+- AAPL：DCF -45.1%，Owner Earnings -75.3%，EV/EBITDA -7.1%（中性），Residual Income -18.3%；对应内在价值约 $1.64T/$0.74T/$2.78T/$2.45T vs 市值 $2.99T。
+- MSFT：DCF -57.9%，Owner Earnings -48.3%，EV/EBITDA -8.5%（中性），Residual Income -61.6%；对应内在价值约 $1.18T/$1.44T/$2.56T/$1.07T vs 市值 $2.79T。
+含义：两大权重股显著高估的信号在多方法论下趋同，若出现回撤将对指数与组合带来系统性风险。
+建议：审视敞口与对冲方案，评估减仓或期权保护，设定风控阈值；重点跟踪业绩与指引、利率路径、AI需求节奏等潜在催化。说明：本预警为估值驱动，非短线事件驱动。
+2025-08-25 14:54:33,829 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-25 14:54:39,934 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:54:39,935 - INFO - Agent sentiment_analyst received notification from fundamentals_analyst
+2025-08-25 14:54:39,935 - INFO - Agent technical_analyst received notification from fundamentals_analyst
+2025-08-25 14:54:39,935 - INFO - Agent valuation_analyst received notification from fundamentals_analyst
+2025-08-25 14:54:39,935 - INFO - Agent fundamentals_analyst sent notification: MSFT 基本面信号转为偏空（置信度50%）：盈利能力仍强，但收入/盈利增速放缓（营收+4.25%、EPS+7.06%），估值高位（P/E 33.86、P/S 12.28、P/B 11.73）与增速不匹配，存在估值回撤风险。建议相关分析师评估持仓暴露与下行情景（业绩指引/AI 需求不及预期、估值压缩），准备对冲/减配预案。AAPL 总体中性（置信度25%）：盈利强但增长平缓、估值偏高，暂不触发行动，仅供参考。
+2025-08-25 14:54:39,935 - INFO - Broadcasted notification from fundamentals_analyst to all agents
+2025-08-25 14:54:46,339 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:54:46,340 - INFO - Agent fundamentals_analyst received notification from sentiment_analyst
+2025-08-25 14:54:46,340 - INFO - Agent technical_analyst received notification from sentiment_analyst
+2025-08-25 14:54:46,340 - INFO - Agent valuation_analyst received notification from sentiment_analyst
+2025-08-25 14:54:46,340 - INFO - Agent sentiment_analyst sent notification: 情绪模型更新：MSFT 出现显著看多内线交易信号（1000 笔中 751 笔看多，置信度 75.1%），AAPL 出现偏空内线交易信号（1000 笔中 620 笔看空，置信度 62.0%）。当前无有效新闻情绪数据，结论主要由内线交易驱动，需谨慎解读。建议：1) 关注两股短期资金流与价格动作；2) 设置新闻与监管披露提醒以寻求确认；3) 由相关团队评估仓位与对冲调整。MSFT 偏机会，AAPL 偏风险提示。
+2025-08-25 14:54:46,340 - INFO - Broadcasted notification from sentiment_analyst to all agents
+2025-08-25 14:57:17,964 - INFO - Registered agent: fundamentals_analyst
+2025-08-25 14:57:17,964 - INFO - Registered agent: sentiment_analyst
+2025-08-25 14:57:17,964 - INFO - Registered agent: technical_analyst
+2025-08-25 14:57:17,964 - INFO - Registered agent: valuation_analyst
+2025-08-25 14:57:17,964 - INFO - 投资分析引擎初始化完成
+2025-08-25 14:57:27,409 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:57:36,193 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:57:36,194 - INFO - Agent fundamentals_analyst received notification from valuation_analyst
+2025-08-25 14:57:36,194 - INFO - Agent sentiment_analyst received notification from valuation_analyst
+2025-08-25 14:57:36,194 - INFO - Agent technical_analyst received notification from valuation_analyst
+2025-08-25 14:57:36,194 - INFO - Agent valuation_analyst sent notification: 估值警示：AAPL/MSFT 多模型一致显示显著高估（综合信号：看空，置信度100）。关键结果：
+- AAPL：DCF -45.1%，所有者收益 -75.3%，EV/EBITDA -7.1%（中性），剩余收益 -18.3%。
+- MSFT：DCF -57.9%，所有者收益 -48.3%，EV/EBITDA -8.5%（中性），剩余收益 -61.6%。
+解读：两大权重股存在明显估值回撤风险，虽暂无明确短期催化，但对组合风险暴露与行业基准可能产生重大影响（潜在倍数压缩/估值重定价）。
+建议行动：
+1) 与行业/量化/风险团队联合复核核心假设（增长、利润率、贴现率、AI变现节奏）。
+2) 开展情景与压力测试（假设10–20%倍数回落）。
+3) 评估对冲与仓位调整方案（指数/单名期权、因子暴露）。
+如无反证，将在下一次投资例会上提交减配建议。
+2025-08-25 14:57:36,194 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-25 14:57:38,640 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:57:38,641 - INFO - Agent fundamentals_analyst received notification from sentiment_analyst
+2025-08-25 14:57:38,641 - INFO - Agent technical_analyst received notification from sentiment_analyst
+2025-08-25 14:57:38,641 - INFO - Agent valuation_analyst received notification from sentiment_analyst
+2025-08-25 14:57:38,642 - INFO - Agent sentiment_analyst sent notification: 内部交易信号更新：MSFT 显示较强看多（751/1000 笔偏多，置信度 75.1%），AAPL 显示温和看空（620/1000 笔偏空，置信度 62.0%）。当前新闻情绪数据为空，尚无外部佐证，结论主要由内部交易驱动。建议：1) 重点跟踪两标的短期价量与异常成交；2) 校验并补充新闻/研报覆盖以验证信号；3) 关注后续监管披露与财报窗口期可能带来的变动。
+2025-08-25 14:57:38,642 - INFO - Broadcasted notification from sentiment_analyst to all agents
+2025-08-25 14:57:43,514 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:57:43,515 - INFO - Agent sentiment_analyst received notification from fundamentals_analyst
+2025-08-25 14:57:43,515 - INFO - Agent technical_analyst received notification from fundamentals_analyst
+2025-08-25 14:57:43,515 - INFO - Agent valuation_analyst received notification from fundamentals_analyst
+2025-08-25 14:57:43,515 - INFO - Agent fundamentals_analyst sent notification: MSFT 出现总体看空信号（置信度50%）。盈利能力仍强（净利率36.3%，营业利率45.5%），但增长放缓（营收+4.25%，盈利+7.06%）与高估值（P/E 33.86、P/S 12.28、P/B 11.73）背离，增加估值回撤风险；财务健康中性（流动比1.22、D/E 0.97）。建议复核持仓与估值假设，关注后续增长催化与指引变化。AAPL 总体中性（置信度25%）：盈利能力强（ROE 156%、净利率26.2%），增长乏力且估值偏高（P/E 29.67、P/S 7.76、P/B 40.41），短期不触发操作，仅建议持续跟踪。
+2025-08-25 14:57:43,515 - INFO - Broadcasted notification from fundamentals_analyst to all agents
+2025-08-25 14:58:07,745 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:58:23,671 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:58:24,047 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:58:29,740 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:58:34,169 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:58:48,612 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:59:06,179 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:59:06,401 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:59:10,906 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:59:20,969 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:59:37,944 - INFO - Registered agent: fundamentals_analyst
+2025-08-25 14:59:37,944 - INFO - Registered agent: sentiment_analyst
+2025-08-25 14:59:37,944 - INFO - Registered agent: technical_analyst
+2025-08-25 14:59:37,944 - INFO - Registered agent: valuation_analyst
+2025-08-25 14:59:37,944 - INFO - 投资分析引擎初始化完成
+2025-08-25 14:59:50,338 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:59:51,392 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:59:57,960 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 14:59:57,961 - INFO - Agent fundamentals_analyst received notification from valuation_analyst
+2025-08-25 14:59:57,961 - INFO - Agent sentiment_analyst received notification from valuation_analyst
+2025-08-25 14:59:57,961 - INFO - Agent technical_analyst received notification from valuation_analyst
+2025-08-25 14:59:57,961 - INFO - Agent valuation_analyst sent notification: 估值风险警示：对AAPL与MSFT的多模型复核均给出bearish且置信度100，显示显著高估并具备组合层面影响。
+- AAPL：DCF低于市值45.1%（权重35%）、Owner Earnings低75.3%（35%）、Residual Income低18.3%（10%）；EV/EBITDA低7.1%（20%）。
+- MSFT：DCF低57.9%（35%）、Owner Earnings低48.3%（35%）、Residual Income低61.6%（10%）；EV/EBITDA低8.5%（20%）。
+两只超大权重股同时在多方法下显著低于市值，提示潜在回撤/估值再定价风险，或对广泛指数与组合产生非线性影响。
+建议：1) 立即开展持仓与对冲压力测试（利率上行/增长放缓/估值回归情景）；2) 与TMT与量化团队复核关键假设与同业相对估值，跟踪财报与指引作为潜在催化；3) 对超配部位考虑分阶段降权或期权对冲，并设定价格/估值触发阈值与监控。
+2025-08-25 14:59:57,961 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-25 15:00:01,540 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:00:01,541 - INFO - Agent fundamentals_analyst received notification from sentiment_analyst
+2025-08-25 15:00:01,541 - INFO - Agent technical_analyst received notification from sentiment_analyst
+2025-08-25 15:00:01,541 - INFO - Agent valuation_analyst received notification from sentiment_analyst
+2025-08-25 15:00:01,541 - INFO - Agent sentiment_analyst sent notification: 市场提醒：内部交易数据显示显著分化。MSFT 出现强烈看涨信号（751/1000 笔为买入，综合置信度 75.1%）；AAPL 偏空（620/1000 笔为卖出，综合置信度 62%）。目前新闻面无增量佐证。建议：对 MSFT 关注后续新闻/订单流与技术位突破作为确认；对 AAPL 关注是否出现管理层减持加速或负面新闻作为确认，并设置下行风险预警。说明：本信号主要来自内部交易（权重 0.3），属前置指标，建议与基本面与技术面交叉验证，避免过度反应。
+2025-08-25 15:00:01,541 - INFO - Broadcasted notification from sentiment_analyst to all agents
+2025-08-25 15:00:40,543 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:00:45,227 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:01:00,074 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:01:31,572 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:09:33,224 - INFO - Registered agent: fundamentals_analyst
+2025-08-25 15:09:33,224 - INFO - Registered agent: sentiment_analyst
+2025-08-25 15:09:33,224 - INFO - Registered agent: technical_analyst
+2025-08-25 15:09:33,224 - INFO - Registered agent: valuation_analyst
+2025-08-25 15:09:33,224 - INFO - 投资分析引擎初始化完成
+2025-08-25 15:09:45,732 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:10:02,304 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:10:02,305 - INFO - Agent sentiment_analyst received notification from fundamentals_analyst
+2025-08-25 15:10:02,306 - INFO - Agent technical_analyst received notification from fundamentals_analyst
+2025-08-25 15:10:02,306 - INFO - Agent valuation_analyst received notification from fundamentals_analyst
+2025-08-25 15:10:02,306 - INFO - Agent fundamentals_analyst sent notification: MSFT风险警示：基本面信号偏空（置信度50%）。盈利能力强（净利率36.3%、营业利润率45.5%），但增长放缓（收入+4.25%、EPS+7.06%）与高估值（P/E 33.86、P/S 12.28、P/B 11.73）背离，存在去溢价/估值回撤风险。建议：1) 评估持仓与风控阈值；2) 开展下行情景压力测试；3) 密切跟踪下一期业绩与指引，验证云/AI增速。
+2025-08-25 15:10:02,306 - INFO - Broadcasted notification from fundamentals_analyst to all agents
+2025-08-25 15:10:03,168 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:10:03,169 - INFO - Agent fundamentals_analyst received notification from valuation_analyst
+2025-08-25 15:10:03,169 - INFO - Agent sentiment_analyst received notification from valuation_analyst
+2025-08-25 15:10:03,169 - INFO - Agent technical_analyst received notification from valuation_analyst
+2025-08-25 15:10:03,169 - INFO - Agent valuation_analyst sent notification: 估值预警：AAPL与MSFT多模型一致偏空且置信度100。AAPL：DCF较市值低45.1%，所有者收益法低75.3%，剩余收益法低18.3%，EV/EBITDA低7.1%；MSFT：DCF低57.9%，所有者收益法低48.3%，剩余收益法低61.6%，EV/EBITDA低8.5%。两只为超大权重标的，若无新增增长催化，回撤风险上升。建议：1) 复核相关持仓权重与风险限额；2) 评估对冲/减仓窗口（财报、指引、监管等催化前后）；3) 与行业/因子团队同步关键假设（增长率、WACC、资本回报、AI/云CAPEX持续性）。如已有同类提醒请合并处理，避免重复通知。
+2025-08-25 15:10:03,169 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-25 15:10:06,799 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:10:06,800 - INFO - Agent fundamentals_analyst received notification from sentiment_analyst
+2025-08-25 15:10:06,800 - INFO - Agent technical_analyst received notification from sentiment_analyst
+2025-08-25 15:10:06,800 - INFO - Agent valuation_analyst received notification from sentiment_analyst
+2025-08-25 15:10:06,800 - INFO - Agent sentiment_analyst sent notification: 市场提醒：内部交易信号出现明显偏向。MSFT 偏多（置信度75%，看多/看空=751/249，信号权重0.3），AAPL 偏空（置信度62%，看多/看空=380/620，信号权重0.3）。当前新闻数据为0篇（权重0.7），缺乏外部验证。建议相关分析师尽快核查基本面与事件驱动、监管披露及期权流，关注短期价格反应，并在出现新闻确认时评估仓位与风控调整。谨慎解读，避免仅凭该单一来源交易。
+2025-08-25 15:10:06,800 - INFO - Broadcasted notification from sentiment_analyst to all agents
+2025-08-25 15:10:32,529 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:10:42,481 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:10:43,433 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:10:58,421 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:11:24,198 - INFO - Registered agent: fundamentals_analyst
+2025-08-25 15:11:24,198 - INFO - Registered agent: sentiment_analyst
+2025-08-25 15:11:24,198 - INFO - Registered agent: technical_analyst
+2025-08-25 15:11:24,198 - INFO - Registered agent: valuation_analyst
+2025-08-25 15:11:24,198 - INFO - 投资分析引擎初始化完成
+2025-08-25 15:11:35,708 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:11:39,342 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:11:45,678 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:11:45,679 - INFO - Agent fundamentals_analyst received notification from valuation_analyst
+2025-08-25 15:11:45,679 - INFO - Agent sentiment_analyst received notification from valuation_analyst
+2025-08-25 15:11:45,679 - INFO - Agent technical_analyst received notification from valuation_analyst
+2025-08-25 15:11:45,679 - INFO - Agent valuation_analyst sent notification: 估值警示：AAPL与MSFT均触发一致看空信号（置信度100）。AAPL估值缺口：DCF -45.1%、Owner Earnings -75.3%、Residual Income -18.3%、EV/EBITDA -7.1%；MSFT估值缺口：DCF -57.9%、Owner Earnings -48.3%、Residual Income -61.6%、EV/EBITDA -8.5%。多方法一致指向显著高估且为两大权重标的，存在组合集中度与下行风险。请覆盖与风险团队尽快复核关键假设（增长、折现率、回购/FCF）并评估敞口与对冲需求，避免潜在回撤。
+2025-08-25 15:11:45,679 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-25 15:11:45,855 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:11:45,856 - INFO - Agent fundamentals_analyst received notification from sentiment_analyst
+2025-08-25 15:11:45,856 - INFO - Agent technical_analyst received notification from sentiment_analyst
+2025-08-25 15:11:45,856 - INFO - Agent valuation_analyst received notification from sentiment_analyst
+2025-08-25 15:11:45,856 - INFO - Agent sentiment_analyst sent notification: 初步市场信号更新：1) MSFT 显示偏强的看多内部交易信号（信心约75%，751/1000 笔为看多）；2) AAPL 显示中等强度的看空内部交易信号（信心约62%，620/1000 笔为看空）。当前无有效新闻情绪数据参与（最近未抓取到相关报道），结论主要基于内部交易维度，建议作为预警参考：关注后续新闻/价格行为确认，并评估是否提前构建相应的观察/对冲与机会清单。
+2025-08-25 15:11:45,856 - INFO - Broadcasted notification from sentiment_analyst to all agents
+2025-08-25 15:12:14,287 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:12:16,697 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:12:23,130 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:12:24,904 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:30:30,515 - INFO - Registered agent: fundamentals_analyst
+2025-08-25 15:30:30,515 - INFO - Registered agent: sentiment_analyst
+2025-08-25 15:30:30,515 - INFO - Registered agent: technical_analyst
+2025-08-25 15:30:30,515 - INFO - Registered agent: valuation_analyst
+2025-08-25 15:30:30,515 - INFO - 投资分析引擎初始化完成
+2025-08-25 15:30:44,601 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:30:57,050 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:30:57,052 - INFO - Agent fundamentals_analyst received notification from sentiment_analyst
+2025-08-25 15:30:57,052 - INFO - Agent technical_analyst received notification from sentiment_analyst
+2025-08-25 15:30:57,052 - INFO - Agent valuation_analyst received notification from sentiment_analyst
+2025-08-25 15:30:57,052 - INFO - Agent sentiment_analyst sent notification: 情绪快讯：仅基于内部交易数据（新闻信号暂缺）。MSFT 显示较强看多（信心 75.1%，751/1000 笔为看多，权重0.3），AAPL 显示温和看空（信心 62.0%，620/1000 笔为看空，权重0.3）。建议纳入观察并等待新闻/价格行动确认。行动建议：1) 未来24–48小时监控两标的新闻与异常成交；2) 复核类似内部交易偏度的历史后验表现；3) 设置谨慎试探仓位与风控阈值。
+2025-08-25 15:30:57,052 - INFO - Broadcasted notification from sentiment_analyst to all agents
+2025-08-25 15:31:01,156 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:31:01,157 - INFO - Agent fundamentals_analyst received notification from valuation_analyst
+2025-08-25 15:31:01,157 - INFO - Agent sentiment_analyst received notification from valuation_analyst
+2025-08-25 15:31:01,157 - INFO - Agent technical_analyst received notification from valuation_analyst
+2025-08-25 15:31:01,157 - INFO - Agent valuation_analyst sent notification: 估值模型对两大权重股发出一致性看空信号：AAPL 与 MSFT 综合信号均为 bearish，置信度100%。核心结论（相对当前市值）：AAPL—DCF -45.1%，Owner Earnings -75.3%，Residual Income -18.3%，EV/EBITDA 约-7.1%（接近合理）；MSFT—DCF -57.9%，Owner Earnings -48.3%，Residual Income -61.6%，EV/EBITDA 约-8.5%（接近合理）。该结果显示两标的在多框架下存在显著高估风险，或对组合的指数权重敞口构成潜在回撤风险。建议：1) 立即复核持仓与指数敞口、评估减配/对冲（如买入保护性期权或因子中和）；2) 在下次再平衡前完成敏感性与情景测试（增长、贴现率、回购强度假设）；3) 请科技行业、量化与宏观团队交叉验证并提供催化剂与风险清单。说明：当前为估值驱动，无明确短期催化，但幅度具实质性，需在48小时内完成复核并提出执行建议。
+2025-08-25 15:31:01,157 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-25 15:31:13,707 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:31:13,708 - INFO - Agent sentiment_analyst received notification from fundamentals_analyst
+2025-08-25 15:31:13,708 - INFO - Agent technical_analyst received notification from fundamentals_analyst
+2025-08-25 15:31:13,708 - INFO - Agent valuation_analyst received notification from fundamentals_analyst
+2025-08-25 15:31:13,708 - INFO - Agent fundamentals_analyst sent notification: MSFT 出现估值与增长错配的偏空信号（置信度50%）：盈利能力仍强，但增速放缓（营收+4.3%、EPS+7.1%），估值显著偏高（P/E 33.9、P/S 12.3、P/B 11.7）。短期无明确催化，但存在估值回落/业绩不及预期引发的下行风险。建议：审视超配敞口与对冲方案，关注下一财季指引与AI相关商业化节奏。AAPL 结论中性（置信度25%），暂无需行动，仅持续跟踪其高估值与增长动能。
+2025-08-25 15:31:13,708 - INFO - Broadcasted notification from fundamentals_analyst to all agents
+2025-08-25 15:31:52,259 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:31:52,835 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:31:55,002 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:32:07,848 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:34:22,881 - INFO - Registered agent: fundamentals_analyst
+2025-08-25 15:34:22,881 - INFO - Registered agent: sentiment_analyst
+2025-08-25 15:34:22,881 - INFO - Registered agent: technical_analyst
+2025-08-25 15:34:22,881 - INFO - Registered agent: valuation_analyst
+2025-08-25 15:34:22,881 - INFO - 投资分析引擎初始化完成
+2025-08-25 15:34:41,936 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:34:41,942 - INFO - Agent fundamentals_analyst received notification from valuation_analyst
+2025-08-25 15:34:41,942 - INFO - Agent sentiment_analyst received notification from valuation_analyst
+2025-08-25 15:34:41,942 - INFO - Agent technical_analyst received notification from valuation_analyst
+2025-08-25 15:34:41,942 - INFO - Agent valuation_analyst sent notification: 风险警报：AAPL 与 MSFT 估值显著高于多模型内在价值，整体信号为 bearish，置信度 100。
+- AAPL：DCF -45%，Owner Earnings -75%，Residual Income -18%，EV/EBITDA -7%（近公允）；市值≈$2.99T。
+- MSFT：DCF -58%，Owner Earnings -48%，Residual Income -62%，EV/EBITDA -8%（近公允）；市值≈$2.79T。
+解读：两大权重股在除相对估值外的核心模型下均显著高估，若盈利增速放缓或利率上行导致估值回归，指数与多资产组合面临回撤风险。
+建议：
+1) 由科技与量化团队复核假设并进行敏感性与情景测试（15–30%估值回撤）。
+2) 审视组合暴露与集中度，评估减配/对冲方案（保护性看跌/领口、期权覆盖）。
+3) 跟踪近期财报/指引与AI相关资本开支与盈利转化节奏、利率变动与风险溢价。
+备注：无即时催化披露，但风险具有系统性与传导性，建议尽快评估应对。
+2025-08-25 15:34:41,942 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-25 15:34:47,189 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:34:49,392 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:34:49,393 - INFO - Agent sentiment_analyst received notification from fundamentals_analyst
+2025-08-25 15:34:49,393 - INFO - Agent technical_analyst received notification from fundamentals_analyst
+2025-08-25 15:34:49,393 - INFO - Agent valuation_analyst received notification from fundamentals_analyst
+2025-08-25 15:34:49,393 - INFO - Agent fundamentals_analyst sent notification: 模型将MSFT下调至“看空”（置信度50%）：盈利能力强但增长放缓（营收+4.25%、EPS+7.06%）与高估值（P/E 33.9x、P/S 12.3x、P/B 11.7x）不匹配；财务健康中性（流动比率1.22、D/E 0.97）。存在估值回撤/重估风险。建议：关注下一次财报与指引、AI/云增速更新，审视仓位与风险敞口。AAPL维持“中性”（置信度25%），暂不建议动作。
+2025-08-25 15:34:49,393 - INFO - Broadcasted notification from fundamentals_analyst to all agents
+2025-08-25 15:34:49,950 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:34:49,951 - INFO - Agent fundamentals_analyst received notification from sentiment_analyst
+2025-08-25 15:34:49,951 - INFO - Agent technical_analyst received notification from sentiment_analyst
+2025-08-25 15:34:49,951 - INFO - Agent valuation_analyst received notification from sentiment_analyst
+2025-08-25 15:34:49,951 - INFO - Agent sentiment_analyst sent notification: 监控提醒：内幕交易信号显示分化——AAPL 偏空（置信度 62%，620/380），MSFT 偏多（置信度 75.1%，751/249）。当前新闻情绪无覆盖（0 篇），综合信号主要由内幕交易驱动（权重 0.3），紧迫性较低但具有跟踪价值。建议：将 AAPL 列入风险观察、MSFT 列入机会观察，关注未来24-72小时是否出现相关新闻、异常成交量或监管披露以验证/否定信号；若出现外部催化，请升级为 market_alert。
+2025-08-25 15:34:49,951 - INFO - Broadcasted notification from sentiment_analyst to all agents
+2025-08-25 15:36:21,096 - INFO - Registered agent: fundamentals_analyst
+2025-08-25 15:36:21,096 - INFO - Registered agent: sentiment_analyst
+2025-08-25 15:36:21,096 - INFO - Registered agent: technical_analyst
+2025-08-25 15:36:21,096 - INFO - Registered agent: valuation_analyst
+2025-08-25 15:36:21,096 - INFO - 投资分析引擎初始化完成
+2025-08-25 15:36:30,389 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:36:40,871 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:36:40,872 - INFO - Agent fundamentals_analyst received notification from valuation_analyst
+2025-08-25 15:36:40,872 - INFO - Agent sentiment_analyst received notification from valuation_analyst
+2025-08-25 15:36:40,872 - INFO - Agent technical_analyst received notification from valuation_analyst
+2025-08-25 15:36:40,872 - INFO - Agent valuation_analyst sent notification: 估值警示：对AAPL与MSFT的多方法估值复核显示显著高估风险（综合信号：bearish，置信度100）。AAPL：DCF -45%，所有者收益 -75%，EV/EBITDA -7.1%，剩余收益 -18.3%；MSFT：DCF -57.9%，所有者收益 -48.3%，EV/EBITDA -8.5%，剩余收益 -61.6%。两家公司为核心权重资产，若回归内在价值，潜在下行对组合影响显著。建议：立即复核相关持仓与VaR/回撤敞口，评估阶段性降权或对冲方案；设置监控触发（业绩、AI商业化进度、利率路径）并关注EV/EBITDA相对中性带来的短期支撑。
+2025-08-25 15:36:40,872 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-25 15:36:43,410 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:36:43,411 - INFO - Agent fundamentals_analyst received notification from sentiment_analyst
+2025-08-25 15:36:43,411 - INFO - Agent technical_analyst received notification from sentiment_analyst
+2025-08-25 15:36:43,411 - INFO - Agent valuation_analyst received notification from sentiment_analyst
+2025-08-25 15:36:43,411 - INFO - Agent sentiment_analyst sent notification: 监测到基于内部人交易的显著分化：MSFT 看多信号较强（置信度 75.1%，751/1000 笔为多头），AAPL 显示温和看空（置信度 62%，620/1000 笔为空头）。当前新闻情绪无可用数据（0 篇），结论完全由内部人交易驱动，需谨慎解读。建议：关注MSFT多头机会与AAPL潜在下行风险，设置价格/成交量/新闻触发告警，并在新闻数据恢复后复核。
+2025-08-25 15:36:43,411 - INFO - Broadcasted notification from sentiment_analyst to all agents
+2025-08-25 15:36:50,139 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:36:50,140 - INFO - Agent sentiment_analyst received notification from fundamentals_analyst
+2025-08-25 15:36:50,140 - INFO - Agent technical_analyst received notification from fundamentals_analyst
+2025-08-25 15:36:50,140 - INFO - Agent valuation_analyst received notification from fundamentals_analyst
+2025-08-25 15:36:50,140 - INFO - Agent fundamentals_analyst sent notification: MSFT出现偏空信号（置信度50%）：增速放缓（营收+4.25%、EPS+7.06%）与估值偏高（P/E 33.86、P/S 12.28、P/B 11.73）叠加，存在中期估值回撤风险；盈利能力仍强（净利率36.3%、营运利润率45.5%），财务稳健（流动比1.22、D/E 0.97），短期无明显流动性/信用风险。AAPL信号中性（置信度25%），暂不触发动作。建议关注：MSFT业绩与指引、AI工作负载变现/CapEx节奏、Azure增速；必要时做仓位管理或对冲。
+2025-08-25 15:36:50,140 - INFO - Broadcasted notification from fundamentals_analyst to all agents
+2025-08-25 15:37:39,435 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:37:42,409 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:37:56,497 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:38:03,678 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:47:50,131 - INFO - Registered agent: fundamentals_analyst
+2025-08-25 15:47:50,131 - INFO - Registered agent: sentiment_analyst
+2025-08-25 15:47:50,131 - INFO - Registered agent: technical_analyst
+2025-08-25 15:47:50,131 - INFO - Registered agent: valuation_analyst
+2025-08-25 15:47:50,131 - INFO - 投资分析引擎初始化完成
+2025-08-25 15:47:57,348 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:48:08,626 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:48:08,627 - INFO - Agent sentiment_analyst received notification from fundamentals_analyst
+2025-08-25 15:48:08,627 - INFO - Agent technical_analyst received notification from fundamentals_analyst
+2025-08-25 15:48:08,627 - INFO - Agent valuation_analyst received notification from fundamentals_analyst
+2025-08-25 15:48:08,627 - INFO - Agent fundamentals_analyst sent notification: MSFT 触发看空信号（置信度50%）：增长放缓与高估值错配，存在估值回撤风险。要点：收入增速4.25%、盈利增速7.06%，但估值偏高（P/E 33.86，P/S 12.28，P/B 11.73）；盈利能力仍强（净利率36.3%，营业利润率45.53%），财务稳健（流动比率1.22，D/E 0.97）。建议：短期避免追高，关注即将到来的业绩与指引、AI 工作负载商业化进展及资本开支节奏；若增速下修或指引保守，存在估值去化风险。AAPL 总体信号中性且置信度低（25%），暂不建议通知。
+2025-08-25 15:48:08,628 - INFO - Broadcasted notification from fundamentals_analyst to all agents
+2025-08-25 15:48:09,142 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:48:09,143 - INFO - Agent fundamentals_analyst received notification from valuation_analyst
+2025-08-25 15:48:09,143 - INFO - Agent sentiment_analyst received notification from valuation_analyst
+2025-08-25 15:48:09,143 - INFO - Agent technical_analyst received notification from valuation_analyst
+2025-08-25 15:48:09,143 - INFO - Agent valuation_analyst sent notification: 估值风险提醒：AAPL 与 MSFT 同时被多模型判定为显著高估，综合信号均为bearish，置信度100。
+- AAPL：DCF -45.1%，Owner Earnings -75.3%，Residual Income -18.3%，EV/EBITDA -7.1%（近中性）。
+- MSFT：DCF -57.9%，Owner Earnings -48.3%，Residual Income -61.6%，EV/EBITDA -8.5%（近中性）。
+要点：两大权重龙头在以现金流/剩余收益为主的基础模型下出现明显低于现价的内在价值，存在估值压缩与组合集中度风险；倍数法虽接近中性但仍低于现价。
+建议：
+1) 请相关覆盖分析师尽快复核关键假设（长期增长、贴现率、资本效率、AI投入回报、回购持续性）。
+2) 风险团队评估对组合与基准的潜在下行敏感度与对冲需求。
+3) 在财报与宏观催化（利率路径/AI支出节奏）前完成情景测试与沟通。
+说明：本提醒基于估值模型结果，非事件驱动，但因标的权重与估值缺口显著，需优先处理。
+2025-08-25 15:48:09,143 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-25 15:48:13,297 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:48:13,298 - INFO - Agent fundamentals_analyst received notification from sentiment_analyst
+2025-08-25 15:48:13,298 - INFO - Agent technical_analyst received notification from sentiment_analyst
+2025-08-25 15:48:13,298 - INFO - Agent valuation_analyst received notification from sentiment_analyst
+2025-08-25 15:48:13,298 - INFO - Agent sentiment_analyst sent notification: Insider交易信号显示：MSFT 偏多（751买/249卖，置信75.1%），AAPL 偏空（380买/620卖，置信62%）。两者均基于大样本内部交易（各1000笔），但当前无相关新闻样本（0篇，新闻权重0.7），结论缺乏外部佐证。建议：1) 新闻/事件组紧盯突发报道与监管披露（8-K/10-Q/重大高管交易）；2) 量化与盘后监控设置短期价量确认阈值；3) 投资组关注MSFT上行动能与AAPL下行风险，先观察待确认再评估仓位调整。
+2025-08-25 15:48:13,298 - INFO - Broadcasted notification from sentiment_analyst to all agents
+2025-08-25 15:48:48,009 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:48:57,409 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:49:03,484 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 15:49:26,942 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"

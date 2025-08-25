@@ -1,0 +1,565 @@
+{
+  "first_round_results": {
+    "technical_analyst": {
+      "agent_id": "technical_analyst",
+      "agent_name": "技术分析师",
+      "analysis_result": {
+        "AAPL": {
+          "signal": "neutral",
+          "confidence": 18,
+          "reasoning": {
+            "trend_following": {
+              "signal": "bearish",
+              "confidence": 33,
+              "metrics": {
+                "adx": 33.47361632727093,
+                "trend_strength": 0.33473616327270933
+              }
+            },
+            "mean_reversion": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "z_score": 0.0,
+                "price_vs_bb": 0.11802406231669654,
+                "rsi_14": 24.11267605633803,
+                "rsi_28": 31.50506888484537
+              }
+            },
+            "momentum": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "momentum_1m": -0.025440516927672685,
+                "momentum_3m": 0.0,
+                "momentum_6m": 0.0,
+                "volume_momentum": 1.2491848409682098
+              }
+            },
+            "volatility": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "historical_volatility": 0.12146103543770821,
+                "volatility_regime": 0.0,
+                "volatility_z_score": 0.0,
+                "atr_ratio": 0.016340388988724742
+              }
+            },
+            "statistical_arbitrage": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "hurst_exponent": -1.8511255743987584e-15,
+                "skewness": 0.0,
+                "kurtosis": 0.0
+              }
+            }
+          }
+        },
+        "MSFT": {
+          "signal": "neutral",
+          "confidence": 14,
+          "reasoning": {
+            "trend_following": {
+              "signal": "bullish",
+              "confidence": 23,
+              "metrics": {
+                "adx": 23.44379228527926,
+                "trend_strength": 0.2344379228527926
+              }
+            },
+            "mean_reversion": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "z_score": 0.0,
+                "price_vs_bb": 0.8049655134687723,
+                "rsi_14": 44.55466896700451,
+                "rsi_28": 58.78922521521799
+              }
+            },
+            "momentum": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "momentum_1m": 0.04561862180163867,
+                "momentum_3m": 0.0,
+                "momentum_6m": 0.0,
+                "volume_momentum": 0.8098093370615803
+              }
+            },
+            "volatility": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "historical_volatility": 0.19380684075491345,
+                "volatility_regime": 0.0,
+                "volatility_z_score": 0.0,
+                "atr_ratio": 0.01534983668557675
+              }
+            },
+            "statistical_arbitrage": {
+              "signal": "neutral",
+              "confidence": 50,
+              "metrics": {
+                "hurst_exponent": -1.8511255743987584e-15,
+                "skewness": 0.0,
+                "kurtosis": 0.0
+              }
+            }
+          }
+        }
+      },
+      "notification_sent": false,
+      "notification_decision": {
+        "should_notify": false,
+        "reason": "当前AAPL与MSFT综合信号均为中性且置信度较低（AAPL 18，MSFT 14），未出现显著风险或高概率机会。AAPL虽有轻度趋势走弱（ADX≈33）与RSI偏低（14期≈24），但未达极端或触发阈值；MSFT的趋势偏强信号亦不足以构成行动级别提示。为避免噪音与重复信息，暂不发送通知。"
+      },
+      "status": "success"
+    },
+    "sentiment_analyst": {
+      "agent_id": "sentiment_analyst",
+      "agent_name": "情绪分析师",
+      "analysis_result": {
+        "AAPL": {
+          "signal": "bearish",
+          "confidence": 62.0,
+          "reasoning": {
+            "insider_trading": {
+              "signal": "bearish",
+              "confidence": 62,
+              "metrics": {
+                "total_trades": 1000,
+                "bullish_trades": 380,
+                "bearish_trades": 620,
+                "weight": 0.3,
+                "weighted_bullish": 114.0,
+                "weighted_bearish": 186.0
+              }
+            },
+            "news_sentiment": {
+              "signal": "neutral",
+              "confidence": 0,
+              "metrics": {
+                "total_articles": 0,
+                "bullish_articles": 0,
+                "bearish_articles": 0,
+                "neutral_articles": 0,
+                "weight": 0.7,
+                "weighted_bullish": 0.0,
+                "weighted_bearish": 0.0
+              }
+            },
+            "combined_analysis": {
+              "total_weighted_bullish": 114.0,
+              "total_weighted_bearish": 186.0,
+              "signal_determination": "Bearish based on weighted signal comparison"
+            }
+          }
+        },
+        "MSFT": {
+          "signal": "bullish",
+          "confidence": 75.1,
+          "reasoning": {
+            "insider_trading": {
+              "signal": "bullish",
+              "confidence": 75,
+              "metrics": {
+                "total_trades": 1000,
+                "bullish_trades": 751,
+                "bearish_trades": 249,
+                "weight": 0.3,
+                "weighted_bullish": 225.3,
+                "weighted_bearish": 74.7
+              }
+            },
+            "news_sentiment": {
+              "signal": "neutral",
+              "confidence": 0,
+              "metrics": {
+                "total_articles": 0,
+                "bullish_articles": 0,
+                "bearish_articles": 0,
+                "neutral_articles": 0,
+                "weight": 0.7,
+                "weighted_bullish": 0.0,
+                "weighted_bearish": 0.0
+              }
+            },
+            "combined_analysis": {
+              "total_weighted_bullish": 225.3,
+              "total_weighted_bearish": 74.7,
+              "signal_determination": "Bullish based on weighted signal comparison"
+            }
+          }
+        }
+      },
+      "notification_sent": true,
+      "notification_decision": {
+        "should_notify": true,
+        "content": "情绪快讯：仅基于内部交易数据（新闻信号暂缺）。MSFT 显示较强看多（信心 75.1%，751/1000 笔为看多，权重0.3），AAPL 显示温和看空（信心 62.0%，620/1000 笔为看空，权重0.3）。建议纳入观察并等待新闻/价格行动确认。行动建议：1) 未来24–48小时监控两标的新闻与异常成交；2) 复核类似内部交易偏度的历史后验表现；3) 设置谨慎试探仓位与风控阈值。",
+        "urgency": "medium",
+        "category": "market_alert"
+      },
+      "status": "success"
+    },
+    "valuation_analyst": {
+      "agent_id": "valuation_analyst",
+      "agent_name": "估值分析师",
+      "analysis_result": {
+        "AAPL": {
+          "signal": "bearish",
+          "confidence": 100,
+          "reasoning": {
+            "dcf_analysis": {
+              "signal": "bearish",
+              "details": "Value: $1,643,697,181,345.77, Market Cap: $2,994,371,342,560.00, Gap: -45.1%, Weight: 35%"
+            },
+            "owner_earnings_analysis": {
+              "signal": "bearish",
+              "details": "Value: $740,793,685,723.28, Market Cap: $2,994,371,342,560.00, Gap: -75.3%, Weight: 35%"
+            },
+            "ev_ebitda_analysis": {
+              "signal": "neutral",
+              "details": "Value: $2,783,108,079,270.29, Market Cap: $2,994,371,342,560.00, Gap: -7.1%, Weight: 20%"
+            },
+            "residual_income_analysis": {
+              "signal": "bearish",
+              "details": "Value: $2,445,436,316,793.26, Market Cap: $2,994,371,342,560.00, Gap: -18.3%, Weight: 10%"
+            }
+          }
+        },
+        "MSFT": {
+          "signal": "bearish",
+          "confidence": 100,
+          "reasoning": {
+            "dcf_analysis": {
+              "signal": "bearish",
+              "details": "Value: $1,177,944,665,919.74, Market Cap: $2,794,827,926,197.00, Gap: -57.9%, Weight: 35%"
+            },
+            "owner_earnings_analysis": {
+              "signal": "bearish",
+              "details": "Value: $1,444,301,343,719.71, Market Cap: $2,794,827,926,197.00, Gap: -48.3%, Weight: 35%"
+            },
+            "ev_ebitda_analysis": {
+              "signal": "neutral",
+              "details": "Value: $2,558,535,404,105.90, Market Cap: $2,794,827,926,197.00, Gap: -8.5%, Weight: 20%"
+            },
+            "residual_income_analysis": {
+              "signal": "bearish",
+              "details": "Value: $1,072,142,955,932.10, Market Cap: $2,794,827,926,197.00, Gap: -61.6%, Weight: 10%"
+            }
+          }
+        }
+      },
+      "notification_sent": true,
+      "notification_decision": {
+        "should_notify": true,
+        "content": "估值模型对两大权重股发出一致性看空信号：AAPL 与 MSFT 综合信号均为 bearish，置信度100%。核心结论（相对当前市值）：AAPL—DCF -45.1%，Owner Earnings -75.3%，Residual Income -18.3%，EV/EBITDA 约-7.1%（接近合理）；MSFT—DCF -57.9%，Owner Earnings -48.3%，Residual Income -61.6%，EV/EBITDA 约-8.5%（接近合理）。该结果显示两标的在多框架下存在显著高估风险，或对组合的指数权重敞口构成潜在回撤风险。建议：1) 立即复核持仓与指数敞口、评估减配/对冲（如买入保护性期权或因子中和）；2) 在下次再平衡前完成敏感性与情景测试（增长、贴现率、回购强度假设）；3) 请科技行业、量化与宏观团队交叉验证并提供催化剂与风险清单。说明：当前为估值驱动，无明确短期催化，但幅度具实质性，需在48小时内完成复核并提出执行建议。",
+        "urgency": "medium",
+        "category": "risk_warning"
+      },
+      "status": "success"
+    },
+    "fundamentals_analyst": {
+      "agent_id": "fundamentals_analyst",
+      "agent_name": "基本面分析师",
+      "analysis_result": {
+        "AAPL": {
+          "signal": "neutral",
+          "confidence": 25.0,
+          "reasoning": {
+            "profitability_signal": {
+              "signal": "bullish",
+              "details": "ROE: 156.00%, Net Margin: 26.20%, Op Margin: 30.71%"
+            },
+            "growth_signal": {
+              "signal": "neutral",
+              "details": "Revenue Growth: 0.63%, Earnings Growth: 4.04%"
+            },
+            "financial_health_signal": {
+              "signal": "neutral",
+              "details": "Current Ratio: 1.07, D/E: 3.77"
+            },
+            "price_ratios_signal": {
+              "signal": "bearish",
+              "details": "P/E: 29.67, P/B: 40.41, P/S: 7.76"
+            }
+          }
+        },
+        "MSFT": {
+          "signal": "bearish",
+          "confidence": 50.0,
+          "reasoning": {
+            "profitability_signal": {
+              "signal": "bullish",
+              "details": "ROE: 38.40%, Net Margin: 36.30%, Op Margin: 45.53%"
+            },
+            "growth_signal": {
+              "signal": "bearish",
+              "details": "Revenue Growth: 4.25%, Earnings Growth: 7.06%"
+            },
+            "financial_health_signal": {
+              "signal": "neutral",
+              "details": "Current Ratio: 1.22, D/E: 0.97"
+            },
+            "price_ratios_signal": {
+              "signal": "bearish",
+              "details": "P/E: 33.86, P/B: 11.73, P/S: 12.28"
+            }
+          }
+        }
+      },
+      "notification_sent": true,
+      "notification_decision": {
+        "should_notify": true,
+        "content": "MSFT 出现估值与增长错配的偏空信号（置信度50%）：盈利能力仍强，但增速放缓（营收+4.3%、EPS+7.1%），估值显著偏高（P/E 33.9、P/S 12.3、P/B 11.7）。短期无明确催化，但存在估值回落/业绩不及预期引发的下行风险。建议：审视超配敞口与对冲方案，关注下一财季指引与AI相关商业化节奏。AAPL 结论中性（置信度25%），暂无需行动，仅持续跟踪其高估值与增长动能。",
+        "urgency": "low",
+        "category": "risk_warning"
+      },
+      "status": "success"
+    }
+  },
+  "final_analyst_results": {
+    "valuation_analyst": {
+      "agent_id": "valuation_analyst",
+      "agent_name": "估值分析师",
+      "analysis_result": {
+        "analyst_id": "valuation_analyst",
+        "analyst_name": "估值分析师",
+        "ticker_signals": [
+          {
+            "ticker": "AAPL",
+            "signal": "bearish",
+            "confidence": 85,
+            "reasoning": "估值框架一致偏空且安全边际为负：DCF(-45.1%, 35%)、Owner Earnings(-75.3%, 35%)、Residual Income(-18.3%, 10%)，EV/EBITDA仅小幅偏高(-7.1%, 20%)；加权后综合估值折价约-45%，当前价格隐含的长期增长/贴现率假设偏激进。情绪面：内部交易偏度对AAPL为温和看空，与估值方向一致，但其短期权重有限（0.3），缺乏明确催化，时间把握存在不确定。基本面同业观点偏中性（25%置信度），对偏空结论的削弱有限。综合考虑我们低中风险偏好与安全边际要求，维持保守看空，建议减配或以保护性期权对冲，关注增长与贴现率敏感性（服务增速、硬件周期、回购力度、监管与AI设备落地）作为观点修正触发。"
+          },
+          {
+            "ticker": "MSFT",
+            "signal": "bearish",
+            "confidence": 86,
+            "reasoning": "多模型显示显著高估且安全边际不足：DCF(-57.9%, 35%)、Owner Earnings(-48.3%, 35%)、Residual Income(-61.6%, 10%)，EV/EBITDA接近合理(-8.5%, 20%)；综合估值折价约-45%，现价隐含持续高增与AI商业化高效率的乐观路径。基本面分析提示增速放缓与估值错配（P/E~34等），与估值结论相互印证；但内部交易情绪偏强看多（权重0.3），或带来短期上行或滞后回调的风险，降低短期做空胜率。结合保守估值框架与低中风险偏好，维持偏空，建议审视超配敞口并采用期权/因子中和对冲；关注AI货币化节奏（Copilot、Azure AI）、运营杠杆与回购/贴现率变化作为观点修正触发。"
+          }
+        ],
+        "timestamp": "2025-08-25T15:31:52.269647",
+        "analysis_type": "second_round_llm"
+      },
+      "llm_analysis": "analyst_id='valuation_analyst' analyst_name='估值分析师' ticker_signals=[TickerSignal(ticker='AAPL', signal='bearish', confidence=85, reasoning='估值框架一致偏空且安全边际为负：DCF(-45.1%, 35%)、Owner Earnings(-75.3%, 35%)、Residual Income(-18.3%, 10%)，EV/EBITDA仅小幅偏高(-7.1%, 20%)；加权后综合估值折价约-45%，当前价格隐含的长期增长/贴现率假设偏激进。情绪面：内部交易偏度对AAPL为温和看空，与估值方向一致，但其短期权重有限（0.3），缺乏明确催化，时间把握存在不确定。基本面同业观点偏中性（25%置信度），对偏空结论的削弱有限。综合考虑我们低中风险偏好与安全边际要求，维持保守看空，建议减配或以保护性期权对冲，关注增长与贴现率敏感性（服务增速、硬件周期、回购力度、监管与AI设备落地）作为观点修正触发。'), TickerSignal(ticker='MSFT', signal='bearish', confidence=86, reasoning='多模型显示显著高估且安全边际不足：DCF(-57.9%, 35%)、Owner Earnings(-48.3%, 35%)、Residual Income(-61.6%, 10%)，EV/EBITDA接近合理(-8.5%, 20%)；综合估值折价约-45%，现价隐含持续高增与AI商业化高效率的乐观路径。基本面分析提示增速放缓与估值错配（P/E~34等），与估值结论相互印证；但内部交易情绪偏强看多（权重0.3），或带来短期上行或滞后回调的风险，降低短期做空胜率。结合保守估值框架与低中风险偏好，维持偏空，建议审视超配敞口并采用期权/因子中和对冲；关注AI货币化节奏（Copilot、Azure AI）、运营杠杆与回购/贴现率变化作为观点修正触发。')] timestamp=datetime.datetime(2025, 8, 25, 15, 31, 52, 269647)",
+      "round": 2,
+      "status": "success"
+    },
+    "fundamentals_analyst": {
+      "agent_id": "fundamentals_analyst",
+      "agent_name": "基本面分析师",
+      "analysis_result": {
+        "analyst_id": "fundamentals_analyst",
+        "analyst_name": "基本面分析师",
+        "ticker_signals": [
+          {
+            "ticker": "AAPL",
+            "signal": "bearish",
+            "confidence": 55,
+            "reasoning": "一轮分析显示：盈利能力极强（ROE 156%、净利率26.2%、营业利率30.7%），但增长乏力（营收+0.6%、EPS+4.0%），财务健康中性（流动比率1.07、D/E 3.77），估值偏高（P/E 29.7、P/B 40.4、P/S 7.76）。外部观点强化估值压力：估值分析师多模型一致偏空（DCF -45.1%、Owner Earnings -75.3%、Residual Income -18.3%，EV/EBITDA略高于合理约-7%），基本面同业分析对AAPL给出中性。情绪分析对AAPL温和看空（权重0.3），缺乏明确短期催化。综合来看，高估值与低增速错配带来中期下行或估值回落风险；强盈利与回购可一定程度托底但难以消化溢价。结论：偏空，关注估值回落或增长再加速的再评估时点。"
+          },
+          {
+            "ticker": "MSFT",
+            "signal": "bearish",
+            "confidence": 60,
+            "reasoning": "一轮分析显示：盈利能力极强（ROE 38.4%、净利率36.3%、营业利率45.5%），但增速放缓（营收+4.3%、EPS+7.1%），财务健康中性偏稳（流动比率1.22、D/E 0.97），估值显著偏高（P/E 33.9、P/B 11.7、P/S 12.3）。外部共识强化偏空：估值分析师多框架显著高估（DCF -57.9%、Owner Earnings -48.3%、Residual Income -61.6%，EV/EBITDA略高于合理约-8.5%）；另一位基本面分析师提示“增长—估值错配”。情绪分析基于内部交易对MSFT短期偏多（权重0.3），或对股价形成近端支撑，降低我们对下行节奏的把握度。综合考虑长期基本面与估值溢价，我们维持偏空判断，但承认短期情绪可能导致走弱节奏不线性。操作上建议减配或对冲，重点跟踪下一财季指引与AI商业化进度。"
+          }
+        ],
+        "timestamp": "2025-08-25T15:31:52.841977",
+        "analysis_type": "second_round_llm"
+      },
+      "llm_analysis": "analyst_id='fundamentals_analyst' analyst_name='基本面分析师' ticker_signals=[TickerSignal(ticker='AAPL', signal='bearish', confidence=55, reasoning='一轮分析显示：盈利能力极强（ROE 156%、净利率26.2%、营业利率30.7%），但增长乏力（营收+0.6%、EPS+4.0%），财务健康中性（流动比率1.07、D/E 3.77），估值偏高（P/E 29.7、P/B 40.4、P/S 7.76）。外部观点强化估值压力：估值分析师多模型一致偏空（DCF -45.1%、Owner Earnings -75.3%、Residual Income -18.3%，EV/EBITDA略高于合理约-7%），基本面同业分析对AAPL给出中性。情绪分析对AAPL温和看空（权重0.3），缺乏明确短期催化。综合来看，高估值与低增速错配带来中期下行或估值回落风险；强盈利与回购可一定程度托底但难以消化溢价。结论：偏空，关注估值回落或增长再加速的再评估时点。'), TickerSignal(ticker='MSFT', signal='bearish', confidence=60, reasoning='一轮分析显示：盈利能力极强（ROE 38.4%、净利率36.3%、营业利率45.5%），但增速放缓（营收+4.3%、EPS+7.1%），财务健康中性偏稳（流动比率1.22、D/E 0.97），估值显著偏高（P/E 33.9、P/B 11.7、P/S 12.3）。外部共识强化偏空：估值分析师多框架显著高估（DCF -57.9%、Owner Earnings -48.3%、Residual Income -61.6%，EV/EBITDA略高于合理约-8.5%）；另一位基本面分析师提示“增长—估值错配”。情绪分析基于内部交易对MSFT短期偏多（权重0.3），或对股价形成近端支撑，降低我们对下行节奏的把握度。综合考虑长期基本面与估值溢价，我们维持偏空判断，但承认短期情绪可能导致走弱节奏不线性。操作上建议减配或对冲，重点跟踪下一财季指引与AI商业化进度。')] timestamp=datetime.datetime(2025, 8, 25, 15, 31, 52, 841977)",
+      "round": 2,
+      "status": "success"
+    },
+    "sentiment_analyst": {
+      "agent_id": "sentiment_analyst",
+      "agent_name": "情绪分析师",
+      "analysis_result": {
+        "analyst_id": "sentiment_analyst",
+        "analyst_name": "情绪分析师",
+        "ticker_signals": [
+          {
+            "ticker": "AAPL",
+            "signal": "bearish",
+            "confidence": 66,
+            "reasoning": "第一轮以内部交易为主的信号偏空（620/1000笔为看空，权重0.3，weighted bearish 186 > weighted bullish 114）。新闻与社媒信号缺失（模型中约70%权重未被触发），限制了纯情绪面的置信度。但来自其他团队的共识增强了偏空叙事：估值分析对AAPL给出强烈看空（100%置信度，多种估值框架指向显著高估），基本面团队虽给出中性但提示高估值与增长动能需跟踪。综合来看，内部交易与跨团队观点在短期叙事上同向，可能压制情绪与资金意愿；在无新闻催化的前提下维持看空判断，但因缺乏即时舆情与价格确认，置信度适度提升至中等偏上。"
+          },
+          {
+            "ticker": "MSFT",
+            "signal": "neutral",
+            "confidence": 60,
+            "reasoning": "第一轮内部交易数据显著偏多（751/1000笔看多，权重0.3，weighted bullish 225.3 > bearish 74.7），单独看属短期利多情绪。但新闻与社媒信号空白，导致情绪模型的大权重未被填充，降低确定性。其他分析师的输入与内部交易方向相左：估值团队对MSFT发出强烈看空（100%置信度，显著高估），基本面团队偏空（50%置信度，增速放缓与高估值错配）。这些信息提升了短期叙事逆转与情绪分化的概率。综合内部交易的正面倾向与估值/基本面的压制性叙事，短期情绪信号相互抵消，调整为中性并等待新闻或价格行为确认。"
+          }
+        ],
+        "timestamp": "2025-08-25T15:31:55.009529",
+        "analysis_type": "second_round_llm"
+      },
+      "llm_analysis": "analyst_id='sentiment_analyst' analyst_name='情绪分析师' ticker_signals=[TickerSignal(ticker='AAPL', signal='bearish', confidence=66, reasoning='第一轮以内部交易为主的信号偏空（620/1000笔为看空，权重0.3，weighted bearish 186 > weighted bullish 114）。新闻与社媒信号缺失（模型中约70%权重未被触发），限制了纯情绪面的置信度。但来自其他团队的共识增强了偏空叙事：估值分析对AAPL给出强烈看空（100%置信度，多种估值框架指向显著高估），基本面团队虽给出中性但提示高估值与增长动能需跟踪。综合来看，内部交易与跨团队观点在短期叙事上同向，可能压制情绪与资金意愿；在无新闻催化的前提下维持看空判断，但因缺乏即时舆情与价格确认，置信度适度提升至中等偏上。'), TickerSignal(ticker='MSFT', signal='neutral', confidence=60, reasoning='第一轮内部交易数据显著偏多（751/1000笔看多，权重0.3，weighted bullish 225.3 > bearish 74.7），单独看属短期利多情绪。但新闻与社媒信号空白，导致情绪模型的大权重未被填充，降低确定性。其他分析师的输入与内部交易方向相左：估值团队对MSFT发出强烈看空（100%置信度，显著高估），基本面团队偏空（50%置信度，增速放缓与高估值错配）。这些信息提升了短期叙事逆转与情绪分化的概率。综合内部交易的正面倾向与估值/基本面的压制性叙事，短期情绪信号相互抵消，调整为中性并等待新闻或价格行为确认。')] timestamp=datetime.datetime(2025, 8, 25, 15, 31, 55, 9529)",
+      "round": 2,
+      "status": "success"
+    },
+    "technical_analyst": {
+      "agent_id": "technical_analyst",
+      "agent_name": "技术分析师",
+      "analysis_result": {
+        "analyst_id": "technical_analyst",
+        "analyst_name": "技术分析师",
+        "ticker_signals": [
+          {
+            "ticker": "AAPL",
+            "signal": "bearish",
+            "confidence": 62,
+            "reasoning": "技术面：趋势跟随维度偏空且具一定强度（ADX≈33.5），1个月动量为-2.54%，价格贴近布林带下轨（price_vs_bb≈0.12），RSI(14)≈24处于超卖区但尚无明确反转迹象；放量下行（volume_momentum≈1.25）提示下跌有成交配合。波动与风险：ATR比率≈0.016，波动不高，若无反转信号，缓步下探或震荡筑底的概率较高。外部信息综合：情绪分析对AAPL给出温和看空，估值分析强烈偏空，基本面团队偏中性；非技术因素整体对短期反弹形成上方压力。结论：在未出现RSI重返30上方且价格收盘站回布林中轨之前，维持偏空判断；需警惕超卖条件下的短线反抽。无效化条件：RSI(14)上穿30并延续、价格日线收盘重回中轨上方并伴随量能改善。"
+          },
+          {
+            "ticker": "MSFT",
+            "signal": "neutral",
+            "confidence": 51,
+            "reasoning": "技术面：趋势跟随略偏多但趋势强度不足（ADX≈23.4<25），1个月动量+4.56%且价格靠近布林上轨（price_vs_bb≈0.81），RSI(14)≈44.6仍属中性；量能动能偏弱（volume_momentum≈0.81），存在价强量弱的隐忧，短线上行延续需要放量确认。波动：ATR比率≈0.015，整体波动温和，区间震荡/等待方向选择的概率较高。外部信息综合：情绪分析对MSFT偏强看多，或为短线提供支撑，但估值与基本面两方均偏空，构成上方压制与回撤风险。结论：技术与情绪短线支持震荡偏强，但估值/基本面压制使方向不具备高胜率确认，整体维持中性。确认与失效：上破并放量站稳布林上轨且RSI上移至55以上可转偏多；若回落跌破布林中轨且量能放大，则转偏空。"
+          }
+        ],
+        "timestamp": "2025-08-25T15:32:07.854850",
+        "analysis_type": "second_round_llm"
+      },
+      "llm_analysis": "analyst_id='technical_analyst' analyst_name='技术分析师' ticker_signals=[TickerSignal(ticker='AAPL', signal='bearish', confidence=62, reasoning='技术面：趋势跟随维度偏空且具一定强度（ADX≈33.5），1个月动量为-2.54%，价格贴近布林带下轨（price_vs_bb≈0.12），RSI(14)≈24处于超卖区但尚无明确反转迹象；放量下行（volume_momentum≈1.25）提示下跌有成交配合。波动与风险：ATR比率≈0.016，波动不高，若无反转信号，缓步下探或震荡筑底的概率较高。外部信息综合：情绪分析对AAPL给出温和看空，估值分析强烈偏空，基本面团队偏中性；非技术因素整体对短期反弹形成上方压力。结论：在未出现RSI重返30上方且价格收盘站回布林中轨之前，维持偏空判断；需警惕超卖条件下的短线反抽。无效化条件：RSI(14)上穿30并延续、价格日线收盘重回中轨上方并伴随量能改善。'), TickerSignal(ticker='MSFT', signal='neutral', confidence=51, reasoning='技术面：趋势跟随略偏多但趋势强度不足（ADX≈23.4<25），1个月动量+4.56%且价格靠近布林上轨（price_vs_bb≈0.81），RSI(14)≈44.6仍属中性；量能动能偏弱（volume_momentum≈0.81），存在价强量弱的隐忧，短线上行延续需要放量确认。波动：ATR比率≈0.015，整体波动温和，区间震荡/等待方向选择的概率较高。外部信息综合：情绪分析对MSFT偏强看多，或为短线提供支撑，但估值与基本面两方均偏空，构成上方压制与回撤风险。结论：技术与情绪短线支持震荡偏强，但估值/基本面压制使方向不具备高胜率确认，整体维持中性。确认与失效：上破并放量站稳布林上轨且RSI上移至55以上可转偏多；若回落跌破布林中轨且量能放大，则转偏空。')] timestamp=datetime.datetime(2025, 8, 25, 15, 32, 7, 854850)",
+      "round": 2,
+      "status": "success"
+    }
+  },
+  "final_report": {
+    "summary": {
+      "total_analysts": 4,
+      "successful_analyses": 4,
+      "failed_analyses": 0,
+      "notifications_sent": 0
+    },
+    "analyst_signals": {
+      "valuation_analyst": {
+        "analyst_id": "valuation_analyst",
+        "analyst_name": "估值分析师",
+        "ticker_signals": [
+          {
+            "ticker": "AAPL",
+            "signal": "bearish",
+            "confidence": 85,
+            "reasoning": "估值框架一致偏空且安全边际为负：DCF(-45.1%, 35%)、Owner Earnings(-75.3%, 35%)、Residual Income(-18.3%, 10%)，EV/EBITDA仅小幅偏高(-7.1%, 20%)；加权后综合估值折价约-45%，当前价格隐含的长期增长/贴现率假设偏激进。情绪面：内部交易偏度对AAPL为温和看空，与估值方向一致，但其短期权重有限（0.3），缺乏明确催化，时间把握存在不确定。基本面同业观点偏中性（25%置信度），对偏空结论的削弱有限。综合考虑我们低中风险偏好与安全边际要求，维持保守看空，建议减配或以保护性期权对冲，关注增长与贴现率敏感性（服务增速、硬件周期、回购力度、监管与AI设备落地）作为观点修正触发。"
+          },
+          {
+            "ticker": "MSFT",
+            "signal": "bearish",
+            "confidence": 86,
+            "reasoning": "多模型显示显著高估且安全边际不足：DCF(-57.9%, 35%)、Owner Earnings(-48.3%, 35%)、Residual Income(-61.6%, 10%)，EV/EBITDA接近合理(-8.5%, 20%)；综合估值折价约-45%，现价隐含持续高增与AI商业化高效率的乐观路径。基本面分析提示增速放缓与估值错配（P/E~34等），与估值结论相互印证；但内部交易情绪偏强看多（权重0.3），或带来短期上行或滞后回调的风险，降低短期做空胜率。结合保守估值框架与低中风险偏好，维持偏空，建议审视超配敞口并采用期权/因子中和对冲；关注AI货币化节奏（Copilot、Azure AI）、运营杠杆与回购/贴现率变化作为观点修正触发。"
+          }
+        ],
+        "timestamp": "2025-08-25T15:31:52.269647",
+        "analysis_type": "second_round_llm"
+      },
+      "fundamentals_analyst": {
+        "analyst_id": "fundamentals_analyst",
+        "analyst_name": "基本面分析师",
+        "ticker_signals": [
+          {
+            "ticker": "AAPL",
+            "signal": "bearish",
+            "confidence": 55,
+            "reasoning": "一轮分析显示：盈利能力极强（ROE 156%、净利率26.2%、营业利率30.7%），但增长乏力（营收+0.6%、EPS+4.0%），财务健康中性（流动比率1.07、D/E 3.77），估值偏高（P/E 29.7、P/B 40.4、P/S 7.76）。外部观点强化估值压力：估值分析师多模型一致偏空（DCF -45.1%、Owner Earnings -75.3%、Residual Income -18.3%，EV/EBITDA略高于合理约-7%），基本面同业分析对AAPL给出中性。情绪分析对AAPL温和看空（权重0.3），缺乏明确短期催化。综合来看，高估值与低增速错配带来中期下行或估值回落风险；强盈利与回购可一定程度托底但难以消化溢价。结论：偏空，关注估值回落或增长再加速的再评估时点。"
+          },
+          {
+            "ticker": "MSFT",
+            "signal": "bearish",
+            "confidence": 60,
+            "reasoning": "一轮分析显示：盈利能力极强（ROE 38.4%、净利率36.3%、营业利率45.5%），但增速放缓（营收+4.3%、EPS+7.1%），财务健康中性偏稳（流动比率1.22、D/E 0.97），估值显著偏高（P/E 33.9、P/B 11.7、P/S 12.3）。外部共识强化偏空：估值分析师多框架显著高估（DCF -57.9%、Owner Earnings -48.3%、Residual Income -61.6%，EV/EBITDA略高于合理约-8.5%）；另一位基本面分析师提示“增长—估值错配”。情绪分析基于内部交易对MSFT短期偏多（权重0.3），或对股价形成近端支撑，降低我们对下行节奏的把握度。综合考虑长期基本面与估值溢价，我们维持偏空判断，但承认短期情绪可能导致走弱节奏不线性。操作上建议减配或对冲，重点跟踪下一财季指引与AI商业化进度。"
+          }
+        ],
+        "timestamp": "2025-08-25T15:31:52.841977",
+        "analysis_type": "second_round_llm"
+      },
+      "sentiment_analyst": {
+        "analyst_id": "sentiment_analyst",
+        "analyst_name": "情绪分析师",
+        "ticker_signals": [
+          {
+            "ticker": "AAPL",
+            "signal": "bearish",
+            "confidence": 66,
+            "reasoning": "第一轮以内部交易为主的信号偏空（620/1000笔为看空，权重0.3，weighted bearish 186 > weighted bullish 114）。新闻与社媒信号缺失（模型中约70%权重未被触发），限制了纯情绪面的置信度。但来自其他团队的共识增强了偏空叙事：估值分析对AAPL给出强烈看空（100%置信度，多种估值框架指向显著高估），基本面团队虽给出中性但提示高估值与增长动能需跟踪。综合来看，内部交易与跨团队观点在短期叙事上同向，可能压制情绪与资金意愿；在无新闻催化的前提下维持看空判断，但因缺乏即时舆情与价格确认，置信度适度提升至中等偏上。"
+          },
+          {
+            "ticker": "MSFT",
+            "signal": "neutral",
+            "confidence": 60,
+            "reasoning": "第一轮内部交易数据显著偏多（751/1000笔看多，权重0.3，weighted bullish 225.3 > bearish 74.7），单独看属短期利多情绪。但新闻与社媒信号空白，导致情绪模型的大权重未被填充，降低确定性。其他分析师的输入与内部交易方向相左：估值团队对MSFT发出强烈看空（100%置信度，显著高估），基本面团队偏空（50%置信度，增速放缓与高估值错配）。这些信息提升了短期叙事逆转与情绪分化的概率。综合内部交易的正面倾向与估值/基本面的压制性叙事，短期情绪信号相互抵消，调整为中性并等待新闻或价格行为确认。"
+          }
+        ],
+        "timestamp": "2025-08-25T15:31:55.009529",
+        "analysis_type": "second_round_llm"
+      },
+      "technical_analyst": {
+        "analyst_id": "technical_analyst",
+        "analyst_name": "技术分析师",
+        "ticker_signals": [
+          {
+            "ticker": "AAPL",
+            "signal": "bearish",
+            "confidence": 62,
+            "reasoning": "技术面：趋势跟随维度偏空且具一定强度（ADX≈33.5），1个月动量为-2.54%，价格贴近布林带下轨（price_vs_bb≈0.12），RSI(14)≈24处于超卖区但尚无明确反转迹象；放量下行（volume_momentum≈1.25）提示下跌有成交配合。波动与风险：ATR比率≈0.016，波动不高，若无反转信号，缓步下探或震荡筑底的概率较高。外部信息综合：情绪分析对AAPL给出温和看空，估值分析强烈偏空，基本面团队偏中性；非技术因素整体对短期反弹形成上方压力。结论：在未出现RSI重返30上方且价格收盘站回布林中轨之前，维持偏空判断；需警惕超卖条件下的短线反抽。无效化条件：RSI(14)上穿30并延续、价格日线收盘重回中轨上方并伴随量能改善。"
+          },
+          {
+            "ticker": "MSFT",
+            "signal": "neutral",
+            "confidence": 51,
+            "reasoning": "技术面：趋势跟随略偏多但趋势强度不足（ADX≈23.4<25），1个月动量+4.56%且价格靠近布林上轨（price_vs_bb≈0.81），RSI(14)≈44.6仍属中性；量能动能偏弱（volume_momentum≈0.81），存在价强量弱的隐忧，短线上行延续需要放量确认。波动：ATR比率≈0.015，整体波动温和，区间震荡/等待方向选择的概率较高。外部信息综合：情绪分析对MSFT偏强看多，或为短线提供支撑，但估值与基本面两方均偏空，构成上方压制与回撤风险。结论：技术与情绪短线支持震荡偏强，但估值/基本面压制使方向不具备高胜率确认，整体维持中性。确认与失效：上破并放量站稳布林上轨且RSI上移至55以上可转偏多；若回落跌破布林中轨且量能放大，则转偏空。"
+          }
+        ],
+        "timestamp": "2025-08-25T15:32:07.854850",
+        "analysis_type": "second_round_llm"
+      }
+    },
+    "notification_activity": {
+      "total_notifications": 3,
+      "notifications_by_agent": {
+        "sentiment_analyst": 1,
+        "valuation_analyst": 1,
+        "fundamentals_analyst": 1
+      },
+      "recent_notifications": [
+        {
+          "sender": "sentiment_analyst",
+          "content": "情绪快讯：仅基于内部交易数据（新闻信号暂缺）。MSFT 显示较强看多（信心 75.1%，751/1000 笔为看多，权重0.3），AAPL 显示温和看空（信心 62.0%，620/1000 笔为看空，权重0.3）。建议纳入观察并等待新闻/价格行动确认。行动建议：1) 未来24–48小时监控两标的新闻与异常成交；2) 复核类似内部交易偏度的历史后验表现；3) 设置谨慎试探仓位与风控阈值。",
+          "urgency": "medium",
+          "category": "market_alert",
+          "timestamp": "15:30:57"
+        },
+        {
+          "sender": "valuation_analyst",
+          "content": "估值模型对两大权重股发出一致性看空信号：AAPL 与 MSFT 综合信号均为 bearish，置信度100%。核心结论（相对当前市值）：AAPL—DCF -45.1%，Owner Earnings -75.3%，Residual Income -18.3%，EV/EBITDA 约-7.1%（接近合理）；MSFT—DCF -57.9%，Owner Earnings -48.3%，Residual Income -61.6%，EV/EBITDA 约-8.5%（接近合理）。该结果显示两标的在多框架下存在显著高估风险，或对组合的指数权重敞口构成潜在回撤风险。建议：1) 立即复核持仓与指数敞口、评估减配/对冲（如买入保护性期权或因子中和）；2) 在下次再平衡前完成敏感性与情景测试（增长、贴现率、回购强度假设）；3) 请科技行业、量化与宏观团队交叉验证并提供催化剂与风险清单。说明：当前为估值驱动，无明确短期催化，但幅度具实质性，需在48小时内完成复核并提出执行建议。",
+          "urgency": "medium",
+          "category": "risk_warning",
+          "timestamp": "15:31:01"
+        },
+        {
+          "sender": "fundamentals_analyst",
+          "content": "MSFT 出现估值与增长错配的偏空信号（置信度50%）：盈利能力仍强，但增速放缓（营收+4.3%、EPS+7.1%），估值显著偏高（P/E 33.9、P/S 12.3、P/B 11.7）。短期无明确催化，但存在估值回落/业绩不及预期引发的下行风险。建议：审视超配敞口与对冲方案，关注下一财季指引与AI相关商业化节奏。AAPL 结论中性（置信度25%），暂无需行动，仅持续跟踪其高估值与增长动能。",
+          "urgency": "low",
+          "category": "risk_warning",
+          "timestamp": "15:31:13"
+        }
+      ]
+    },
+    "errors": []
+  },
+  "analysis_timestamp": "2025-08-25T15:32:07.855432",
+  "tickers": [
+    "AAPL",
+    "MSFT"
+  ],
+  "date_range": {
+    "start": "2024-01-01",
+    "end": "2024-03-01"
+  }
+}
