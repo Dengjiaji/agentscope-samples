@@ -46,6 +46,10 @@ from src.agents.second_round_llm_analyst import (
     ANALYST_PERSONAS
 )
 
+# 导入风险管理和投资组合管理
+from src.agents.risk_manager import risk_management_agent
+from src.agents.portfolio_manager import portfolio_management_agent
+
 # 设置日志
 logging.basicConfig(
     level=logging.INFO,
@@ -102,6 +106,14 @@ class InvestmentAnalysisEngine:
         if not api_key or not openai_key:
             raise ValueError("缺少必要的API密钥，请检查环境变量设置")
         
+        # 初始化投资组合状态
+        initial_portfolio = {
+            "cash": 100000.0,  # 初始现金10万
+            "positions": {},  # 初始无持仓
+            "margin_requirement": 0.1,  # 50%保证金要求
+            "margin_used": 0.0  # 当前使用保证金
+        }
+        
         state = AgentState(
             messages=[HumanMessage(content="Investment analysis session")],
             data={
@@ -109,6 +121,7 @@ class InvestmentAnalysisEngine:
                 "start_date": start_date,
                 "end_date": end_date,
                 "analyst_signals": {},
+                "portfolio": initial_portfolio,
                 "api_keys": {
                     'FINANCIAL_DATASETS_API_KEY': api_key,
                     'OPENAI_API_KEY': openai_key,
@@ -233,13 +246,23 @@ class InvestmentAnalysisEngine:
         print("\n🔄 开始第二轮分析（基于通知和第一轮结果）...")
         second_round_results = self.run_second_round_analysis(analyst_results, state, parallel)
         
+        # 第三步：风险管理分析
+        print("\n⚠️ 开始风险管理分析...")
+        risk_analysis_results = self.run_risk_management_analysis(state)
+        
+        # 第四步：投资组合管理决策
+        print("\n💼 开始投资组合管理决策...")
+        portfolio_management_results = self.run_portfolio_management_analysis(state)
+        
         # 生成最终报告
         final_report = self.generate_final_report(second_round_results, state)
         
         return {
             "first_round_results": analyst_results,
             "final_analyst_results": second_round_results,
-            "final_report": final_report,
+            "risk_analysis_results": risk_analysis_results,
+            "portfolio_management_results": portfolio_management_results,
+            # "final_report": final_report, 
             "analysis_timestamp": datetime.now().isoformat(),
             "tickers": tickers,
             "date_range": {"start": start_date, "end": end_date}
@@ -586,6 +609,148 @@ class InvestmentAnalysisEngine:
         
         return summary
     
+    def run_risk_management_analysis(self, state: AgentState) -> Dict[str, Any]:
+        """运行风险管理分析"""
+        print("⚠️ 执行风险管理分析...")
+        
+        try:
+            # 执行风险管理分析
+            risk_result = risk_management_agent(state, agent_id="risk_management_agent")
+            
+            # 获取风险分析结果
+            risk_analysis = state["data"]["analyst_signals"].get("risk_management_agent", {})
+            
+            if risk_analysis:
+                print("✅ 风险管理分析完成")
+                print(risk_analysis)
+                # 显示每个ticker的风险分析
+                for ticker, risk_data in risk_analysis.items():
+                    remaining_limit = risk_data.get("remaining_position_limit", 0)
+                    current_price = risk_data.get("current_price", 0)
+                    vol_metrics = risk_data.get("volatility_metrics", {})
+                    annualized_vol = vol_metrics.get("annualized_volatility", 0)
+                    
+                    print(f"  📊 {ticker}:")
+                    print(f"     💰 可投资额度: ${remaining_limit:.0f}")
+                    print(f"     💲 当前价格: ${current_price:.2f}")
+                    print(f"     📈 年化波动率: {annualized_vol:.1%}")
+                
+                return {
+                    "agent_id": "risk_management_agent",
+                    "agent_name": "风险管理分析师",
+                    "analysis_result": risk_analysis,
+                    "status": "success"
+                }
+            else:
+                print("⚠️ 风险管理分析未返回结果")
+                return {
+                    "agent_id": "risk_management_agent",
+                    "agent_name": "风险管理分析师", 
+                    "status": "no_result"
+                }
+                
+        except Exception as e:
+            print(f"❌ 风险管理分析失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return {
+                "agent_id": "risk_management_agent",
+                "agent_name": "风险管理分析师",
+                "error": str(e),
+                "status": "error"
+            }
+    
+    def run_portfolio_management_analysis(self, state: AgentState) -> Dict[str, Any]:
+        """运行投资组合管理分析"""
+        print("💼 执行投资组合管理决策...")
+        
+        try:
+            # 执行投资组合管理
+            portfolio_result = portfolio_management_agent(state, agent_id="portfolio_manager")
+            
+            # 更新state，因为portfolio_manager返回新的state
+            if portfolio_result and "messages" in portfolio_result:
+                state["messages"] = portfolio_result["messages"]
+                state["data"] = portfolio_result["data"]
+            
+            print(f"📨 执行后Messages数量: {len(state['messages'])}")
+            
+            # 获取投资决策结果
+            # portfolio_manager将结果保存在messages中，我们需要从最后一条message中提取
+            if state["messages"]:
+                last_message = state["messages"][-1]
+                print(f"🔍 最后一条消息的name: '{getattr(last_message, 'name', 'NO_NAME')}'")
+                
+                if hasattr(last_message, 'name') and last_message.name == "portfolio_manager":
+                    try:
+                        portfolio_decisions = json.loads(last_message.content)
+                        
+                        print("✅ 投资组合管理决策完成")
+                        print(portfolio_decisions)
+                        # 显示每个ticker的投资决策
+                        for ticker, decision in portfolio_decisions.items():
+                            action = decision.get("action", "hold")
+                            quantity = decision.get("quantity", 0)
+                            confidence = decision.get("confidence", 0)
+                            reasoning = decision.get("reasoning", "")
+                            
+                            action_emoji = {
+                                "buy": "📈", "sell": "📉", "short": "📉", 
+                                "cover": "📈", "hold": "⏸️"
+                            }
+                            emoji = action_emoji.get(action, "❓")
+                            
+                            print(f"  {emoji} {ticker}: {action.upper()}")
+                            if quantity > 0:
+                                print(f"     🔢 数量: {quantity} 股")
+                            print(f"     🎯 信心度: {confidence:.1f}%")
+                            print(f"     💭 理由: {reasoning}")
+                        
+                        return {
+                            "agent_id": "portfolio_manager",
+                            "agent_name": "投资组合管理者",
+                            "analysis_result": portfolio_decisions,
+                            "status": "success"
+                        }
+                        
+                    except json.JSONDecodeError as e:
+                        print(f"⚠️ 解析投资决策结果失败: {str(e)}")
+                        print(f"原始内容: {last_message.content}")
+                        return {
+                            "agent_id": "portfolio_manager",
+                            "agent_name": "投资组合管理者",
+                            "error": f"结果解析失败: {str(e)}",
+                            "status": "parsing_error"
+                        }
+                else:
+                    print(f"⚠️ 最后一条消息不是来自portfolio_manager")
+                    print(f"   实际name: '{getattr(last_message, 'name', 'NO_NAME')}'")
+                    return {
+                        "agent_id": "portfolio_manager",
+                        "agent_name": "投资组合管理者",
+                        "error": "消息来源不匹配",
+                        "status": "message_mismatch"
+                    }
+            else:
+                print("⚠️ 没有找到任何消息")
+                return {
+                    "agent_id": "portfolio_manager",
+                    "agent_name": "投资组合管理者",
+                    "error": "无消息",
+                    "status": "no_messages"
+                }
+                
+        except Exception as e:
+            print(f"❌ 投资组合管理决策失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return {
+                "agent_id": "portfolio_manager",
+                "agent_name": "投资组合管理者",
+                "error": str(e),
+                "status": "error"
+            }
+    
     def print_session_summary(self, results: Dict[str, Any]):
         """打印会话摘要"""
         print("\n" + "=" * 60)
@@ -608,6 +773,32 @@ class InvestmentAnalysisEngine:
         if 'final_analyst_results' in results:
             second_round_success = len([r for r in results['final_analyst_results'].values() if r.get('status') == 'success'])
             print(f"🔄 第二轮分析: {second_round_success}/{len(results['final_analyst_results'])} 成功")
+        
+        # 显示风险管理分析结果
+        if 'risk_analysis_results' in results:
+            risk_status = results['risk_analysis_results'].get('status', 'unknown')
+            risk_emoji = "✅" if risk_status == "success" else "❌"
+            print(f"⚠️ 风险管理分析: {risk_emoji} {risk_status}")
+        
+        # 显示投资组合管理结果 
+        if 'portfolio_management_results' in results:
+            portfolio_status = results['portfolio_management_results'].get('status', 'unknown')
+            portfolio_emoji = "✅" if portfolio_status == "success" else "❌"
+            print(f"💼 投资组合管理: {portfolio_emoji} {portfolio_status}")
+            
+            # 如果成功，显示投资决策摘要
+            if portfolio_status == "success" and 'analysis_result' in results['portfolio_management_results']:
+                decisions = results['portfolio_management_results']['analysis_result']
+                actions_count = {}
+                for decision in decisions.values():
+                    action = decision.get('action', 'hold')
+                    actions_count[action] = actions_count.get(action, 0) + 1
+                
+                print("     📊 投资决策摘要:")
+                for action, count in actions_count.items():
+                    action_emoji = {"buy": "📈", "sell": "📉", "short": "📉", "cover": "📈", "hold": "⏸️"}
+                    emoji = action_emoji.get(action, "❓")
+                    print(f"       {emoji} {action.upper()}: {count} 支股票")
         
         if summary["failed_analyses"] > 0:
             print(f"❌ 失败分析: {summary['failed_analyses']}")
@@ -669,7 +860,7 @@ def interactive_mode():
     print("=" * 50)
     
     engine = InvestmentAnalysisEngine()
-    
+    nizhen
     while True:
         try:
             print("\n请选择操作:")
