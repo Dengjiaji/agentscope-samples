@@ -59,3 +59,75 @@
 2025-08-21 19:34:21,251 - INFO - Agent technical_analyst received notification from valuation_analyst
 2025-08-21 19:34:21,251 - INFO - Agent valuation_analyst sent notification: 对AAPL的最新估值复核给出强烈看空信号（置信度100%）。多方法一致指向显著高估：DCF约1.64万亿美元 vs 市值2.99万亿美元（-45%）；业主盈余法0.74万亿（-75%）；EV/EBITDA 2.78万亿（-7%）；剩余收益法2.45万亿（-18%）。作为超大权重成分股，该结论对指数暴露与组合回撤风险具有实质影响；虽无明确短期催化，但估值回归风险上升。建议：1）尽快复核关键假设（增长、WACC、回购、服务业务占比）；2）对高权重账户评估减仓/对冲（如买入看跌/价差、相对价值对冲QQQ/XLK）；3）开展情景与敏感性测试，跟踪潜在催化（业绩指引、监管、供应链/中国需求、反垄断进展）。如有不同模型或最新信息，请24小时内反馈。
 2025-08-21 19:34:21,251 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-25 10:38:12,070 - INFO - Registered agent: fundamentals_analyst
+2025-08-25 10:38:12,071 - INFO - Registered agent: sentiment_analyst
+2025-08-25 10:38:12,071 - INFO - Registered agent: technical_analyst
+2025-08-25 10:38:12,071 - INFO - Registered agent: valuation_analyst
+2025-08-25 10:38:12,072 - INFO - 投资分析引擎初始化完成
+2025-08-25 10:38:19,117 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 10:38:25,090 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 10:38:27,466 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 10:38:27,468 - INFO - Agent fundamentals_analyst received notification from sentiment_analyst
+2025-08-25 10:38:27,468 - INFO - Agent technical_analyst received notification from sentiment_analyst
+2025-08-25 10:38:27,469 - INFO - Agent valuation_analyst received notification from sentiment_analyst
+2025-08-25 10:38:27,469 - INFO - Agent sentiment_analyst sent notification: AAPL出现偏空信号（置信度62.9%），主要由内部交易数据驱动：近样本1000笔内部交易中偏空629、偏多371（权重0.3），新闻情绪暂无有效数据（0篇，权重0.7）。由于信号主要来源于内部交易而非新闻推动，建议关注后续价格/期权流/基本面催化以验证，短期纳入观察名单。
+2025-08-25 10:38:27,469 - INFO - Broadcasted notification from sentiment_analyst to all agents
+2025-08-25 10:38:38,381 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 10:38:38,383 - INFO - Agent fundamentals_analyst received notification from valuation_analyst
+2025-08-25 10:38:38,383 - INFO - Agent sentiment_analyst received notification from valuation_analyst
+2025-08-25 10:38:38,383 - INFO - Agent technical_analyst received notification from valuation_analyst
+2025-08-25 10:38:38,384 - INFO - Agent valuation_analyst sent notification: 标的：AAPL。综合估值信号：强烈看空（置信度100%）。跨方法一致显示显著高估：DCF隐含价值约$1.64T vs 市值$2.99T（-45%）；Owner Earnings约$0.74T（-75%）；EV/EBITDA约$2.78T（-7%）；Residual Income约$2.45T（-18%）。建议：请覆盖分析师尽快复核关键假设（收入/终值增速、服务业务利润率、回购与资本回报、折现率），评估持仓风险并制定对冲/减仓预案，设定监控与触发阈值；同步跟踪潜在催化（需求放缓、监管与反垄断、区域销量变化、AI溢价回落）。如无异议，建议本周内安排沟通评审。
+2025-08-25 10:38:38,384 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-25 10:39:06,087 - INFO - 投资分析引擎初始化完成
+2025-08-25 10:39:23,418 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 10:39:23,420 - INFO - Agent fundamentals_analyst received notification from sentiment_analyst
+2025-08-25 10:39:23,420 - INFO - Agent technical_analyst received notification from sentiment_analyst
+2025-08-25 10:39:23,420 - INFO - Agent valuation_analyst received notification from sentiment_analyst
+2025-08-25 10:39:23,421 - INFO - Agent sentiment_analyst sent notification: 补充AAPL情绪面结论：综合情绪信号看空（置信度62.9%）。驱动因素为内部人交易显著净卖出：1000笔中看空629、看多371；加权后看空188.7 vs 看多111.3。新闻面目前缺乏有效样本（近期资料不足），暂不构成反向佐证。该结果与估值组“强烈看空（高估）”结论一致，提升整体风险验证度。建议：1) 将该情绪信号纳入本周评审与风控看板；2) 设定监控阈值：若未来两周内部人净卖出占比持续>60%或出现负面新闻集中（>5篇/周且负面占比>70%），上调风险级别并推动对冲/减仓预案执行；3) 持续跟踪潜在催化（需求放缓、监管、区域销量、AI溢价回落）。说明：该通知为对既有估值预警的补充，避免重复，仅新增情绪/行为面证据。
+2025-08-25 10:39:23,421 - INFO - Broadcasted notification from sentiment_analyst to all agents
+2025-08-25 10:39:29,472 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 10:39:29,473 - INFO - Agent fundamentals_analyst received notification from valuation_analyst
+2025-08-25 10:39:29,474 - INFO - Agent sentiment_analyst received notification from valuation_analyst
+2025-08-25 10:39:29,474 - INFO - Agent technical_analyst received notification from valuation_analyst
+2025-08-25 10:39:29,474 - INFO - Agent valuation_analyst sent notification: AAPL估值风险提示：综合四套估值模型给出强烈偏空结论（置信度100%）。相对当前约$2.99T市值，估值折价幅度为：DCF -45%、Owner Earnings -75%、Residual Income -18%、EV/EBITDA -7%。与情绪组刚发布的偏空信号（以内部交易为主，置信度62.9%）相互印证。虽暂无新闻驱动，但估值偏离显著，建议：1) 将AAPL纳入中期风险监控；2) 对相关持仓评估对冲/降权方案；3) 重点跟踪后续基本面催化（财报/指引/产品周期）、期权流与价格行为以验证；4) 若出现负面催化，准备提升为高紧急度警示。
+2025-08-25 10:39:29,474 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-25 10:39:31,685 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 10:39:31,686 - INFO - Agent sentiment_analyst received notification from fundamentals_analyst
+2025-08-25 10:39:31,687 - INFO - Agent technical_analyst received notification from fundamentals_analyst
+2025-08-25 10:39:31,687 - INFO - Agent valuation_analyst received notification from fundamentals_analyst
+2025-08-25 10:39:31,687 - INFO - Agent fundamentals_analyst sent notification: AAPL 基本面复核结果：综合信号=中性（置信25%）。要点：1) 估值与增长错配：P/E 29.7、P/S 7.76、P/B 40.4；但营收仅+0.63%、EPS +4.04%。2) 财务结构：流动比率1.07、D/E 3.77；回购对每股指标有支撑但提高了对现金流与利率的敏感度。3) 盈利质量强：ROE 156%、净利率26.2%、营业利率30.7%，但若需求/服务增长不及预期，溢价难以维系。与他部信号一致：估值团队给出“强烈看空”（高紧急度、高置信），情绪团队偏空（由内部交易驱动）。综合判断：短中期存在显著估值回撤/倍数压缩风险。建议与触发：- 立即与估值团队联合复核关键假设（收入/终值增速、服务利润率、回购节奏与杠杆、折现率）。- 监控触发：1) 指引/渠道数据显示营收、出货或中国区走弱；2) 服务毛利率/ARPU放缓；3) 内部交易继续净卖出；4) 监管/反垄断推进；5) AI相关功能未形成实质性变现。- 市场侧执行：如期权偏空加速或P/E回落至<25且增长仍未改善，启动对冲/减仓预案。请求：按估值团队建议，本周内安排跨组评审与持仓风险讨论。
+2025-08-25 10:39:31,687 - INFO - Broadcasted notification from fundamentals_analyst to all agents
+2025-08-25 10:39:46,826 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 10:39:46,828 - INFO - Agent fundamentals_analyst received notification from technical_analyst
+2025-08-25 10:39:46,828 - INFO - Agent sentiment_analyst received notification from technical_analyst
+2025-08-25 10:39:46,828 - INFO - Agent valuation_analyst received notification from technical_analyst
+2025-08-25 10:39:46,828 - INFO - Agent technical_analyst sent notification: AAPL 技术面更新：综合信号为“中性”，顶层置信度较低（0）。分项均为中性；趋势指标显示趋势强度较高（ADX≈40），但方向未明；动能/均值回归/波动/统计因子未见显著偏向。与情绪端轻度偏空及估值端强烈看空相比，技术面目前未形成确认。建议：1) 将AAPL纳入重点观察，与估值风控预案联动；2) 设定并监控技术触发条件（示例：日线收盘跌破关键均线并放量、RSI跌破中枢或出现顶背离、布林带/ATR扩张伴随下破、结构性跌破前低、期权偏度与成交量转弱）。如有触发，将立即升级为market_alert/风险预警并建议执行对冲/减仓方案。
+2025-08-25 10:39:46,829 - INFO - Broadcasted notification from technical_analyst to all agents
+2025-08-25 10:49:53,120 - INFO - 投资分析引擎初始化完成
+2025-08-25 10:50:17,089 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 10:50:17,091 - INFO - Agent fundamentals_analyst received notification from valuation_analyst
+2025-08-25 10:50:17,091 - INFO - Agent sentiment_analyst received notification from valuation_analyst
+2025-08-25 10:50:17,092 - INFO - Agent technical_analyst received notification from valuation_analyst
+2025-08-25 10:50:17,092 - INFO - Agent valuation_analyst sent notification: 估值团队结论更新：NVDA 出现显著“机会”信号（综合=强烈看多，置信度100%）。要点：1) DCF 上行+279.2%（价值≈$3.79T vs 市值≈$1.00T，权重35%）；2) Owner Earnings 上行+40.1%（权重35%）；3) EV/EBITDA 中性偏多+14.2%（权重20%）；4) Residual Income 偏空-54.4%（权重10%）。加权后仍为强看多。与AAPL已多组别覆盖的风险预警不同，本次为新增机会线索。建议与请求：- 基本面团队复核关键假设（增长与利润率、CapEx与FCF路径、竞争格局与ASP）；- 情绪团队扫描新闻/内部交易/期权流，验证是否存在催化与资金流共振；- 技术团队制定入场与风控触发（突破/回撤买点、量价与波动确认）；- 组合与风控评估仓位上限、止损与对冲方案。请于本周内完成跨组评审；若结论一致，纳入机会池并拟定执行计划。说明：AAPL 风险信号已由情绪/基本面/技术在跟踪，避免重复，此次不再推送。
+2025-08-25 10:50:17,092 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-25 10:50:23,944 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 10:50:23,946 - INFO - Agent fundamentals_analyst received notification from sentiment_analyst
+2025-08-25 10:50:23,946 - INFO - Agent technical_analyst received notification from sentiment_analyst
+2025-08-25 10:50:23,946 - INFO - Agent valuation_analyst received notification from sentiment_analyst
+2025-08-25 10:50:23,947 - INFO - Agent sentiment_analyst sent notification: NVDA 情绪监测提示：基于近1000笔内部交易数据，净卖出略占优（bearish 513 vs bullish 487），加权看空153.9 > 看多146.1，综合信号=轻度看空，置信度≈51.3%。新闻侧暂无有效样本（近期抓取为0），暂未形成外部确认。建议：1) 将NVDA纳入观察名单；2) 请估值/基本面团队做快速体检（估值与增长匹配度、库存与渠道、数据中心订单可见度）；3) 技术/期权侧设定并监控触发（如跌破关键均线并放量、RSI跌破中枢、期权偏度转负且隐含波动率上行）；4) 若后续出现负面催化或内部交易继续扩大净卖出，建议升级为高紧急度并评估对冲/减仓预案。说明：AAPL已由估值/基本面/技术团队覆盖并包含本组偏空结论，此次不重复通知。
+2025-08-25 10:50:23,947 - INFO - Broadcasted notification from sentiment_analyst to all agents
+2025-08-25 10:50:35,604 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 10:50:35,606 - INFO - Agent sentiment_analyst received notification from fundamentals_analyst
+2025-08-25 10:50:35,606 - INFO - Agent technical_analyst received notification from fundamentals_analyst
+2025-08-25 10:50:35,607 - INFO - Agent valuation_analyst received notification from fundamentals_analyst
+2025-08-25 10:50:35,607 - INFO - Agent fundamentals_analyst sent notification: NVDA 基本面机会提示：综合信号看多（置信度75%）。关键驱动：盈利能力与增长强劲（ROE 70.4%、净利率42.1%、营运利润率47.4%；收入同比+37.3%，利润同比+82.9%）；财务稳健（流动比率3.59、D/E 0.63）。约束：估值处高位（P/E≈53、P/S≈22），需入场纪律与确认。建议：1) 纳入机会池；2) 技术组提供入场/止损与分批加仓触发（关键均线回踩或放量突破等）；3) 情绪组跟踪新闻与期权/资金流，确认外部资金支持；4) 估值组更新情景估值与容忍区间，给出安全边际与仓位框架；5) 基本面监控：数据中心/AI加速器需求、供给节奏、产品迭代与竞争、监管/出口限制。若出现基本面与技术共振，上调执行优先级。
+2025-08-25 10:50:35,607 - INFO - Broadcasted notification from fundamentals_analyst to all agents
+2025-08-25 10:50:48,817 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-25 10:50:48,819 - INFO - Agent fundamentals_analyst received notification from technical_analyst
+2025-08-25 10:50:48,819 - INFO - Agent sentiment_analyst received notification from technical_analyst
+2025-08-25 10:50:48,819 - INFO - Agent valuation_analyst received notification from technical_analyst
+2025-08-25 10:50:48,820 - INFO - Agent technical_analyst sent notification: 技术组更新：
+- AAPL：综合技术信号=中性，当前并未确认估值/情绪组的偏空结论。ADX≈40（存在趋势但方向未验证），动量/波动/均值回归均无极值。建议将以下技术触发器纳入本周风控与执行条件：1) 日线收盘同时跌破50DMA与200DMA，且-DI>+DI并伴随ADX>25；2) RSI(14)<45并连续≥3日；3) 带宽扩张下沿放量跌破（BB宽度与ATR分别>近3个月中位数+1σ、>1.5x）；4) 期权面与价格共振（5日净delta/vega显著转负）。在未满足触发前，建议以观察/渐进对冲为主，避免因技术面未确认而提前大幅调整。
+- NVDA：技术面偏多但总体置信度中等（趋势分项较强）。ADX≈86显示强趋势延续概率较高，其余维度中性。策略建议（低-中置信）：顺势/逢回调参与，止损参考20DMA或2x ATR的跟踪；反转风险信号包括RSI>75后的顶背离、放量跌破20DMA或ADX回落至<50。
+- 协同请求：请估值与基本面组就AAPL统一技术触发阈值以同步对冲/减仓节奏；对NVDA如有估值/基本面约束，请反馈以调整技术建议。
+2025-08-25 10:50:48,820 - INFO - Broadcasted notification from technical_analyst to all agents
