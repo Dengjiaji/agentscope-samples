@@ -155,22 +155,47 @@ class AnalystMemory:
             }
             communication.signal_adjustments.append(adjustment)
             
-            # 更新当前信号
-            ticker = adjusted_signal.get("ticker")
-            if ticker:
-                self.current_signals[ticker] = adjusted_signal
-                
-                # 添加到信号历史
-                self.signal_history.append({
-                    "timestamp": datetime.now().isoformat(),
-                    "communication_id": communication_id,
-                    "communication_type": communication.communication_type,
-                    "ticker": ticker,
-                    "signal": adjusted_signal,
-                    "adjustment_reason": reasoning
-                })
+            # 更新当前信号（兼容两种结构：单ticker 或 多ticker列表）
+            printed_any = False
+            # 情况1：批量结构，形如 { analyst_id, analyst_name, ticker_signals: [ {ticker, signal, ...}, ...] }
+            if isinstance(adjusted_signal, dict) and isinstance(adjusted_signal.get("ticker_signals"), list):
+                for ts in adjusted_signal.get("ticker_signals", []):
+                    ticker_code = (ts or {}).get("ticker")
+                    if not ticker_code:
+                        continue
+                    # 更新最新信号
+                    self.current_signals[ticker_code] = ts
+                    # 记录历史
+                    self.signal_history.append({
+                        "timestamp": datetime.now().isoformat(),
+                        "communication_id": communication_id,
+                        "communication_type": communication.communication_type,
+                        "ticker": ticker_code,
+                        "signal": ts,
+                        "adjustment_reason": reasoning
+                    })
+                    print(f"🔄 {self.analyst_name} 调整了信号: {ticker_code}")
+                    printed_any = True
             
-            print(f"🔄 {self.analyst_name} 调整了信号: {ticker}")
+            # 情况2：单ticker结构，形如 { ticker: "AAPL", signal: "bearish", ... }
+            if not printed_any and isinstance(adjusted_signal, dict):
+                ticker_code = adjusted_signal.get("ticker")
+                if ticker_code:
+                    self.current_signals[ticker_code] = adjusted_signal
+                    self.signal_history.append({
+                        "timestamp": datetime.now().isoformat(),
+                        "communication_id": communication_id,
+                        "communication_type": communication.communication_type,
+                        "ticker": ticker_code,
+                        "signal": adjusted_signal,
+                        "adjustment_reason": reasoning
+                    })
+                    print(f"🔄 {self.analyst_name} 调整了信号: {ticker_code}")
+                    printed_any = True
+            
+            # 情况3：无法提取ticker，做降级打印
+            if not printed_any:
+                print(f"🔄 {self.analyst_name} 调整了信号: unknown")
     
     def complete_communication(self, communication_id: str):
         """完成通信"""

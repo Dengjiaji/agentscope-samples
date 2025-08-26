@@ -160,33 +160,74 @@ class CommunicationManager:
     def __init__(self):
         self.private_chat_system = PrivateChatSystem()
         self.meeting_system = MeetingSystem()
+        
+    def _get_max_chars(self, state) -> int:
+        """获取沟通文本最大字数，默认400，可通过state.metadata.communication_max_chars覆盖"""
+        try:
+            return int(state.get("metadata", {}).get("communication_max_chars", 400))
+        except Exception:
+            return 400
+    
+    def _truncate_text(self, text: str, max_chars: int) -> str:
+        """按字数上限截断文本（面向中文），保留前max_chars个字符"""
+        if not isinstance(text, str):
+            return text
+        return text if len(text) <= max_chars else text[:max_chars]
+    
+    def _persist_communication_result(self, payload: Dict[str, Any], comm_type: str, state):
+        """将沟通结果写入当前会话的输出JSON文件（从state.metadata.output_file获取）"""
+        default_name = f"/root/wuyue.wy/Project/IA/analysis_results_logs/communications_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        log_path = state.get("metadata", {}).get("output_file", default_name)
+        try:
+            # 确保目录存在
+            import os
+            os.makedirs("/root/wuyue.wy/Project/IA/analysis_results_logs", exist_ok=True)
+            with open(log_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            data = {}
+        
+        if "communication_logs" not in data:
+            data["communication_logs"] = {"private_chats": [], "meetings": [], "communication_decisions": []}
+        
+        if comm_type == "private_chat":
+            data["communication_logs"].setdefault("private_chats", []).append(payload)
+        elif comm_type == "meeting":
+            data["communication_logs"].setdefault("meetings", []).append(payload)
+        else:
+            # 其他类型直接附加在communication_logs根部，带上type
+            payload_with_type = {"type": comm_type, **payload}
+            data["communication_logs"].setdefault("others", []).append(payload_with_type)
+        
+        try:
+            with open(log_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            print("✅ 已将沟通结果写入日志文件")
+        except Exception as e:
+            print(f"❌ 写入沟通日志失败: {e}")
     
     def _get_llm_model(self, state, use_json_mode=False):
         """获取LLM模型实例"""
-        try:
-            # 从state中获取API密钥
-            api_keys = {}
-            if state and "data" in state and "api_keys" in state["data"]:
-                api_keys = state["data"]["api_keys"]
-            
-            model_name = state.get("metadata", {}).get("model_name", "gpt-3.5-turbo")
-            model_provider = state.get("metadata", {}).get("model_provider", "OpenAI")
-            
-            llm = get_model(model_name, model_provider, api_keys)
-            
-            # 如果需要JSON模式，配置结构化输出
-            if use_json_mode and hasattr(llm, 'bind'):
-                try:
-                    llm = llm.bind(response_format={"type": "json_object"})
-                except Exception:
-                    # 如果不支持JSON模式，继续使用常规模式
-                    pass
-            
-            return llm
-        except Exception as e:
-            print(f"❌ 获取LLM模型失败: {str(e)}")
-            # 使用默认配置
-            return get_model("gpt-3.5-turbo", "OpenAI", None)
+        # 从state中获取API密钥
+        api_keys = {}
+        if state and "data" in state and "api_keys" in state["data"]:
+            api_keys = state["data"]["api_keys"]
+        
+        model_name = state.get("metadata", {}).get("model_name", "gpt-3.5-turbo")
+        model_provider = state.get("metadata", {}).get("model_provider", "OpenAI")
+        
+        llm = get_model(model_name, model_provider, api_keys)
+        
+        # 如果需要JSON模式，配置结构化输出
+        if use_json_mode:
+            # 尝试多种JSON模式绑定方式
+            if hasattr(llm, 'bind'):
+                llm = llm.bind(response_format={"type": "json_object"})
+            elif hasattr(llm, 'with_config'):
+                llm = llm.with_config({"response_format": {"type": "json_object"}})
+            print(f"✅ JSON模式已启用 for {model_name}")
+        
+        return llm
     
     def decide_communication_strategy(self, manager_signals: Dict[str, Any], 
                                     analyst_signals: Dict[str, Any], 
@@ -202,7 +243,7 @@ class CommunicationManager:
 1. private_chat: 与单个分析师一对一私聊，适用于需要深入讨论特定问题
 2. meeting: 组织多个分析师开会讨论，适用于需要集体决策或存在重大分歧
 
-必须以JSON格式返回决策，不要包含任何其他文本。"""),
+必须以JSON格式返回决策，不要包含任何其他文本。请将任何文本内容控制在不超过{max_chars}字。"""),
             
             ("human", """分析师信号汇总:
 {analyst_signals}
@@ -223,52 +264,29 @@ class CommunicationManager:
 }}""")
         ])
         
-        try:
-            # 格式化分析师信号
-            signals_summary = {}
-            for analyst_id, signal_data in analyst_signals.items():
-                if isinstance(signal_data, dict) and 'ticker_signals' in signal_data:
-                    signals_summary[analyst_id] = signal_data['ticker_signals']
-                else:
-                    signals_summary[analyst_id] = signal_data
-            
-            # 调用LLM
-            messages = prompt_template.format_messages(
-                analyst_signals=json.dumps(signals_summary, ensure_ascii=False, indent=2)
-            )
-            
-            # 获取LLM模型（启用JSON模式）
-            llm = self._get_llm_model(state, use_json_mode=True)
-            
-            # 调用模型
-            response = llm.invoke(messages)
-            
-            # 尝试解析JSON
-            try:
-                decision_data = json.loads(response.content)
-            except json.JSONDecodeError as e:
-                print(f"❌ JSON解析失败: {str(e)}")
-                print(f"响应内容: {response.content}")
-                # 返回默认决策
-                return CommunicationDecision(
-                    should_communicate=False,
-                    communication_type="none",
-                    target_analysts=[],
-                    discussion_topic="",
-                    reasoning="JSON解析失败，使用默认决策"
-                )
-            
-            return CommunicationDecision(**decision_data)
-            
-        except Exception as e:
-            print(f"❌ 交流决策失败: {str(e)}")
-            return CommunicationDecision(
-                should_communicate=False,
-                communication_type="none",
-                target_analysts=[],
-                discussion_topic="",
-                reasoning=f"决策过程出错: {str(e)}"
-            )
+        # 格式化分析师信号
+        signals_summary = {}
+        for analyst_id, signal_data in analyst_signals.items():
+            if isinstance(signal_data, dict) and 'ticker_signals' in signal_data:
+                signals_summary[analyst_id] = signal_data['ticker_signals']
+            else:
+                signals_summary[analyst_id] = signal_data
+        
+        # 调用LLM
+        messages = prompt_template.format_messages(
+            analyst_signals=json.dumps(signals_summary, ensure_ascii=False, indent=2),
+            max_chars=self._get_max_chars(state)
+        )
+        
+        # 获取LLM模型（启用JSON模式）
+        llm = self._get_llm_model(state, use_json_mode=True)
+        
+        # 调用模型
+        response = llm.invoke(messages)
+        
+        # 直接解析JSON（不捕获异常）
+        decision_data = json.loads(response.content)
+        return CommunicationDecision(**decision_data)
     
     def conduct_private_chat(self, manager_id: str, analyst_id: str, 
                            topic: str, analyst_signal: Dict[str, Any], 
@@ -303,6 +321,7 @@ class CommunicationManager:
         conversation_history = []
         current_analyst_signal = analyst_signal.copy()
         
+        max_chars = self._get_max_chars(state)
         for round_num in range(max_rounds):
             print(f"\n💬 私聊第{round_num + 1}轮:")
             
@@ -311,6 +330,9 @@ class CommunicationManager:
                 analyst_id, topic, conversation_history, 
                 current_analyst_signal, state
             )
+            # 截断分析师回应
+            if isinstance(analyst_response, dict) and "response" in analyst_response:
+                analyst_response["response"] = self._truncate_text(analyst_response["response"], max_chars)
             
             conversation_history.append({
                 "speaker": analyst_id,
@@ -347,6 +369,7 @@ class CommunicationManager:
                     manager_id, analyst_id, conversation_history, 
                     current_analyst_signal, state
                 )
+                manager_response = self._truncate_text(manager_response, max_chars)
                 
                 conversation_history.append({
                     "speaker": manager_id,
@@ -368,11 +391,20 @@ class CommunicationManager:
         if analyst_memory and communication_id:
             analyst_memory.complete_communication(communication_id)
         
-        return {
+        result = {
             "chat_history": conversation_history,
             "final_analyst_signal": current_analyst_signal,
             "adjustments_made": len([h for h in conversation_history if "调整" in h.get("content", "")])
         }
+        # 持久化写入日志
+        payload = {
+            "timestamp": datetime.now().isoformat(),
+            "participants": [manager_id, analyst_id],
+            "topic": topic,
+            "result": result
+        }
+        self._persist_communication_result(payload, comm_type="private_chat", state=state)
+        return result
     
     def conduct_meeting(self, manager_id: str, analyst_ids: List[str], 
                        topic: str, analyst_signals: Dict[str, Any], 
@@ -412,6 +444,7 @@ class CommunicationManager:
             "round": 1
         })
         
+        max_chars = self._get_max_chars(state)
         for round_num in range(max_rounds):
             print(f"\n🏢 会议第{round_num + 1}轮发言:")
             
@@ -422,6 +455,9 @@ class CommunicationManager:
                     current_signals.get(analyst_id, {}), 
                     current_signals, state, round_num + 1
                 )
+                # 截断分析师发言
+                if isinstance(analyst_response, dict) and "response" in analyst_response:
+                    analyst_response["response"] = self._truncate_text(analyst_response["response"], max_chars)
                 
                 self.meeting_system.add_message(
                     meeting_id, analyst_id, analyst_response["response"]
@@ -433,8 +469,9 @@ class CommunicationManager:
                     "round": round_num + 1
                 })
                 
-                print(f"🗣️ {analyst_id}: {analyst_response['response']}")
-                
+                # print(f"🗣️ {analyst_id}: {analyst_response['response']}") 
+                print(f"🗣️ {analyst_id}: {analyst_response}")
+
                 # 记录发言到分析师记忆
                 analyst_memory = memory_manager.get_analyst_memory(analyst_id)
                 if analyst_memory and analyst_id in communication_ids:
@@ -463,6 +500,7 @@ class CommunicationManager:
         summary = self._get_manager_meeting_summary(
             manager_id, meeting_transcript, current_signals, state
         )
+        summary = self._truncate_text(summary, max_chars)
         
         self.meeting_system.add_message(meeting_id, manager_id, summary)
         meeting_transcript.append({
@@ -483,12 +521,23 @@ class CommunicationManager:
                 if analyst_memory:
                     analyst_memory.complete_communication(communication_ids[analyst_id])
         
-        return {
+        result = {
             "meeting_id": meeting_id,
             "transcript": meeting_transcript,
             "final_signals": current_signals,
             "adjustments_made": len([t for t in meeting_transcript if "调整" in t.get("content", "")])
         }
+        # 持久化写入日志
+        payload = {
+            "timestamp": datetime.now().isoformat(),
+            "meeting_id": meeting_id,
+            "host": manager_id,
+            "participants": analyst_ids,
+            "topic": topic,
+            "result": result
+        }
+        self._persist_communication_result(payload, comm_type="meeting", state=state)
+        return result
     
     def _get_analyst_chat_response(self, analyst_id: str, topic: str, 
                                  conversation_history: List[Dict], 
@@ -504,7 +553,7 @@ class CommunicationManager:
             full_context = analyst_memory.get_full_context_for_communication(tickers)
         
         prompt_template = ChatPromptTemplate.from_messages([
-            ("system", f"""你是{analyst_id}分析师。你正在与投资组合管理者进行一对一讨论。
+            ("system", """你是{analyst_id}分析师。你正在与投资组合管理者进行一对一讨论。
 
 你的完整记忆和分析历史：
 {full_context}
@@ -514,51 +563,45 @@ class CommunicationManager:
 2. 解释你的分析逻辑（可以引用你之前的分析过程）
 3. 如果有必要，基于新信息调整你的信号、信心度或reasoning
 
-当前话题的信号：{json.dumps(current_signal, ensure_ascii=False)}
+当前话题的信号：
+{current_signal}
 
 如果需要调整信号，请在回应中明确说明调整内容和原因。
 
-必须以JSON格式返回，不要包含任何其他文本：
+请必须以JSON格式返回你的回应，严格按照以下JSON结构，不要包含任何其他文本：
 {{
   "response": "你的回应内容",
   "signal_adjustment": true/false,
   "adjusted_signal": {{...}} // 如果有调整的话
-}}"""),
+}}
+
+注意：请将上述"response"字段的文字内容控制在不超过{max_chars}字。"""),
             
-            ("human", f"""对话话题：{topic}
+            ("human", """对话话题：{topic}
 
 当前对话历史：
-{self._format_conversation_history(conversation_history)}
+{conversation_history}
 
 请基于你的完整记忆和分析历史回应最新的对话内容。""")
         ])
         
-        try:
-            messages = prompt_template.format_messages()
-            
-            # 获取LLM模型（启用JSON模式）
-            llm = self._get_llm_model(state, use_json_mode=True)
-            
-            # 调用模型
-            response = llm.invoke(messages)
-            
-            # 尝试解析JSON
-            try:
-                return json.loads(response.content)
-            except json.JSONDecodeError as e:
-                print(f"❌ 分析师回应JSON解析失败: {str(e)}")
-                print(f"响应内容: {response.content}")
-                return {
-                    "response": f"我理解你的观点，基于当前分析保持原有立场。",
-                    "signal_adjustment": False
-                }
-            
-        except Exception as e:
-            print(f"❌ 获取分析师回应失败: {str(e)}")
-            return {
-                "response": f"抱歉，我在处理回应时遇到了问题：{str(e)}",
-                "signal_adjustment": False
-            }
+        messages = prompt_template.format_messages(
+            analyst_id=analyst_id,
+            full_context=full_context,
+            current_signal=json.dumps(current_signal, ensure_ascii=False),
+            topic=topic,
+            conversation_history=self._format_conversation_history(conversation_history),
+            max_chars=self._get_max_chars(state)
+        )
+        
+        # 获取LLM模型（启用JSON模式）
+        llm = self._get_llm_model(state, use_json_mode=True)
+        
+        # 调用模型
+        response = llm.invoke(messages)
+        
+        # 直接解析JSON（不捕获异常）
+        return json.loads(response.content)
     
     def _get_manager_chat_response(self, manager_id: str, analyst_id: str,
                                  conversation_history: List[Dict],
@@ -569,29 +612,29 @@ class CommunicationManager:
         prompt_template = ChatPromptTemplate.from_messages([
             ("system", """你是投资组合管理者，正在与分析师进行一对一讨论。
 基于分析师的回应，继续对话，提出问题或给出建议。
-保持专业和建设性的对话风格。"""),
+保持专业和建设性的对话风格。请将你的回应控制在不超过{max_chars}字。"""),
             
-            ("human", f"""对话历史：
-{self._format_conversation_history(conversation_history)}
+            ("human", """对话历史：
+{conversation_history}
 
-分析师当前信号：{json.dumps(current_signal, ensure_ascii=False)}
+分析师当前信号：
+{current_signal}
 
 请回应分析师最新的发言。""")
         ])
         
-        try:
-            messages = prompt_template.format_messages()
-            
-            # 获取LLM模型
-            llm = self._get_llm_model(state)
-            
-            # 调用模型
-            response = llm.invoke(messages)
-            return response.content
-            
-        except Exception as e:
-            print(f"❌ 获取管理者回应失败: {str(e)}")
-            return f"我需要更多时间思考这个问题。"
+        messages = prompt_template.format_messages(
+            conversation_history=self._format_conversation_history(conversation_history),
+            current_signal=json.dumps(current_signal, ensure_ascii=False),
+            max_chars=self._get_max_chars(state)
+        )
+        
+        # 获取LLM模型
+        llm = self._get_llm_model(state)
+        
+        # 调用模型
+        response = llm.invoke(messages)
+        return response.content
     
     def _get_analyst_meeting_response(self, analyst_id: str, topic: str,
                                     meeting_transcript: List[Dict],
@@ -608,7 +651,7 @@ class CommunicationManager:
             full_context = analyst_memory.get_full_context_for_communication(tickers)
         
         prompt_template = ChatPromptTemplate.from_messages([
-            ("system", f"""你是{analyst_id}分析师，正在参加一个投资会议。
+            ("system", """你是{analyst_id}分析师，正在参加一个投资会议。
 
 你的完整记忆和分析历史：
 {full_context}
@@ -619,52 +662,48 @@ class CommunicationManager:
 3. 如果听到有说服力的论据，基于新信息考虑调整你的信号
 4. 保持你作为{analyst_id}的专业特色和一致性
 
-你当前的分析信号：{json.dumps(current_signal, ensure_ascii=False)}
+你当前的分析信号：
+{current_signal}
 
-必须以JSON格式返回，不要包含任何其他文本：
+请必须以JSON格式返回你的回应，严格按照以下JSON结构，不要包含任何其他文本：
 {{
   "response": "你的发言内容",
   "signal_adjustment": true/false,
   "adjusted_signal": {{...}} // 如果有调整的话
-}}"""),
+}}
+
+注意：请将上述"response"字段的文字内容控制在不超过{max_chars}字。"""),
             
-            ("human", f"""会议话题：{topic}
+            ("human", """会议话题：{topic}
 
 会议记录：
-{self._format_meeting_transcript(meeting_transcript)}
+{meeting_transcript}
 
 其他分析师的信号：
-{json.dumps({k: v for k, v in all_signals.items() if k != analyst_id}, ensure_ascii=False, indent=2)}
+{other_signals}
 
 请基于你的完整记忆和专业背景发言。""")
         ])
         
-        try:
-            messages = prompt_template.format_messages()
-            
-            # 获取LLM模型（启用JSON模式）
-            llm = self._get_llm_model(state, use_json_mode=True)
-            
-            # 调用模型
-            response = llm.invoke(messages)
-            
-            # 尝试解析JSON
-            try:
-                return json.loads(response.content)
-            except json.JSONDecodeError as e:
-                print(f"❌ 会议发言JSON解析失败: {str(e)}")
-                print(f"响应内容: {response.content}")
-                return {
-                    "response": f"基于我的分析，我认为当前策略是合理的。",
-                    "signal_adjustment": False
-                }
-            
-        except Exception as e:
-            print(f"❌ 获取分析师会议发言失败: {str(e)}")
-            return {
-                "response": f"我同意之前的分析观点。",
-                "signal_adjustment": False
-            }
+        messages = prompt_template.format_messages(
+            analyst_id=analyst_id,
+            full_context=full_context,
+            round_num=round_num,
+            current_signal=json.dumps(current_signal, ensure_ascii=False),
+            topic=topic,
+            meeting_transcript=self._format_meeting_transcript(meeting_transcript),
+            other_signals=json.dumps({k: v for k, v in all_signals.items() if k != analyst_id}, ensure_ascii=False, indent=2),
+            max_chars=self._get_max_chars(state)
+        )
+        
+        # 获取LLM模型（启用JSON模式）
+        llm = self._get_llm_model(state, use_json_mode=True)
+        
+        # 调用模型
+        response = llm.invoke(messages)
+        
+        # 直接解析JSON（不捕获异常）
+        return json.loads(response.content)
     
     def _get_manager_meeting_summary(self, manager_id: str, 
                                    meeting_transcript: List[Dict],
@@ -674,30 +713,29 @@ class CommunicationManager:
         
         prompt_template = ChatPromptTemplate.from_messages([
             ("system", """你是投资组合管理者，正在总结会议内容。
-请简洁地总结讨论要点和最终达成的共识。"""),
+请简洁地总结讨论要点和最终达成的共识。请将总结控制在不超过{max_chars}字。"""),
             
-            ("human", f"""会议记录：
-{self._format_meeting_transcript(meeting_transcript)}
+            ("human", """会议记录：
+{meeting_transcript}
 
 最终信号：
-{json.dumps(final_signals, ensure_ascii=False, indent=2)}
+{final_signals}
 
 请总结这次会议。""")
         ])
         
-        try:
-            messages = prompt_template.format_messages()
-            
-            # 获取LLM模型
-            llm = self._get_llm_model(state)
-            
-            # 调用模型
-            response = llm.invoke(messages)
-            return response.content
-            
-        except Exception as e:
-            print(f"❌ 获取会议总结失败: {str(e)}")
-            return "会议讨论了投资策略，各分析师表达了观点。"
+        messages = prompt_template.format_messages(
+            meeting_transcript=self._format_meeting_transcript(meeting_transcript),
+            final_signals=json.dumps(final_signals, ensure_ascii=False, indent=2),
+            max_chars=self._get_max_chars(state)
+        )
+        
+        # 获取LLM模型
+        llm = self._get_llm_model(state)
+        
+        # 调用模型
+        response = llm.invoke(messages)
+        return response.content
     
     def _format_conversation_history(self, history: List[Dict]) -> str:
         """格式化对话历史"""
@@ -713,6 +751,39 @@ class CommunicationManager:
             round_info = f"第{entry['round']}轮" if isinstance(entry['round'], int) else entry['round']
             formatted.append(f"[{round_info}] {entry['speaker']}: {entry['content']}")
         return "\n".join(formatted)
+    
+    def _extract_and_clean_json(self, content: str) -> Optional[Dict[str, Any]]:
+        """从响应中提取和清理JSON"""
+        try:
+            # 移除markdown代码块
+            content = re.sub(r'```json\s*\n?', '', content)
+            content = re.sub(r'\n?\s*```', '', content)
+            
+            # 查找JSON部分
+            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            if json_match:
+                json_str = json_match.group()
+                
+                # 移除注释
+                json_str = re.sub(r'//.*', '', json_str)
+                
+                # 尝试解析
+                return json.loads(json_str)
+            
+            # 如果找不到完整JSON，尝试提取关键字段
+            response_match = re.search(r'"response"\s*:\s*"([^"]*)"', content)
+            adjustment_match = re.search(r'"signal_adjustment"\s*:\s*(true|false)', content)
+            
+            if response_match:
+                return {
+                    "response": response_match.group(1),
+                    "signal_adjustment": adjustment_match.group(1) == 'true' if adjustment_match else False
+                }
+                
+        except Exception as e:
+            print(f"JSON提取过程出错: {str(e)}")
+            
+        return None
 
 
 # 创建全局实例

@@ -282,6 +282,9 @@ class AdvancedInvestmentAnalysisEngine:
         # 创建基础状态
         state = self.create_base_state(tickers, start_date, end_date)
         state["metadata"]["communication_enabled"] = enable_communications
+        # 提前确定本次会话的输出文件路径，供通信过程落盘复用
+        output_file = f"/root/wuyue.wy/Project/IA/analysis_results_logs/communications_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        state["metadata"]["output_file"] = output_file
         
         # 第一步：运行所有分析师（第一轮）
         if parallel:
@@ -315,7 +318,8 @@ class AdvancedInvestmentAnalysisEngine:
             "final_report": final_report, 
             "analysis_timestamp": datetime.now().isoformat(),
             "tickers": tickers,
-            "date_range": {"start": start_date, "end": end_date}
+            "date_range": {"start": start_date, "end": end_date},
+            "output_file": state["metadata"].get("output_file")
         }
     
     def run_analysts_parallel(self, state: AgentState) -> Dict[str, Any]:
@@ -1079,7 +1083,10 @@ def main():
         # 创建目录
         os.makedirs("/root/wuyue.wy/Project/IA/analysis_results_logs", exist_ok=True)
         
-        output_file = f"/root/wuyue.wy/Project/IA/analysis_results_logs/communications_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        # 使用会话开始时确定的输出文件，确保通信过程与最终保存一致
+        output_file = results.get("output_file") or state["metadata"].get("output_file")
+        if not output_file:
+            output_file = f"/root/wuyue.wy/Project/IA/analysis_results_logs/communications_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(results_to_save, f, ensure_ascii=False, indent=2, default=str)
         
