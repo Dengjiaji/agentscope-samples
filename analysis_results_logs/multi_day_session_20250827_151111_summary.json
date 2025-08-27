@@ -1,0 +1,44 @@
+{
+  "session_id": "multi_day_session_20250827_151111",
+  "summary_timestamp": "2025-08-27T15:12:00.266601",
+  "period": {
+    "start_date": "2024-01-01",
+    "end_date": "2024-01-04",
+    "total_days": 4,
+    "successful_days": 0,
+    "failed_days": 4
+  },
+  "daily_results": [
+    {
+      "date": "2024-01-01",
+      "status": "failed",
+      "error": "'final_execution_report'",
+      "output_file": null
+    },
+    {
+      "date": "2024-01-02",
+      "status": "failed",
+      "error": "'final_execution_report'",
+      "output_file": null
+    },
+    {
+      "date": "2024-01-03",
+      "status": "failed",
+      "error": "'final_execution_report'",
+      "output_file": null
+    },
+    {
+      "date": "2024-01-04",
+      "status": "failed",
+      "error": "'final_execution_report'",
+      "output_file": null
+    }
+  ],
+  "time_series": {
+    "portfolio_values": [],
+    "communication_stats": []
+  },
+  "performance_analysis": {
+    "error": "数据不足，无法计算绩效指标"
+  }
+}

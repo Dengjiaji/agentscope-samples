@@ -1,0 +1,1094 @@
+{
+  "session_id": "multi_day_session_20250827_152337",
+  "date": "2024-01-03",
+  "timestamp": "2025-08-27T15:24:17.868233",
+  "results": {
+    "first_round_results": {
+      "technical_analyst": {
+        "agent_id": "technical_analyst",
+        "agent_name": "技术分析师",
+        "analysis_result": {
+          "AAPL": {
+            "signal": "neutral",
+            "confidence": 0,
+            "reasoning": {
+              "trend_following": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "adx": 39.85307283226096,
+                  "trend_strength": 0.3985307283226096
+                }
+              },
+              "mean_reversion": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "z_score": 0.0,
+                  "price_vs_bb": -0.17810268505305688,
+                  "rsi_14": 24.38785504407447,
+                  "rsi_28": 0.0
+                }
+              },
+              "momentum": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "momentum_1m": 0.0,
+                  "momentum_3m": 0.0,
+                  "momentum_6m": 0.0,
+                  "volume_momentum": 1.06062572508298
+                }
+              },
+              "volatility": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "historical_volatility": 0.0,
+                  "volatility_regime": 0.0,
+                  "volatility_z_score": 0.0,
+                  "atr_ratio": 0.015514634619112224
+                }
+              },
+              "statistical_arbitrage": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "hurst_exponent": -1.8511255743987584e-15,
+                  "skewness": 0.0,
+                  "kurtosis": 0.0
+                }
+              }
+            }
+          },
+          "MSFT": {
+            "signal": "neutral",
+            "confidence": 16,
+            "reasoning": {
+              "trend_following": {
+                "signal": "bullish",
+                "confidence": 28,
+                "metrics": {
+                  "adx": 27.709797147216058,
+                  "trend_strength": 0.2770979714721606
+                }
+              },
+              "mean_reversion": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "z_score": 0.0,
+                  "price_vs_bb": 0.311736055114618,
+                  "rsi_14": 43.79514116874595,
+                  "rsi_28": 0.0
+                }
+              },
+              "momentum": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "momentum_1m": 0.0,
+                  "momentum_3m": 0.0,
+                  "momentum_6m": 0.0,
+                  "volume_momentum": 0.9003548916441253
+                }
+              },
+              "volatility": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "historical_volatility": 0.0,
+                  "volatility_regime": 0.0,
+                  "volatility_z_score": 0.0,
+                  "atr_ratio": 0.013383702104695097
+                }
+              },
+              "statistical_arbitrage": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "hurst_exponent": -1.8511255743987584e-15,
+                  "skewness": 0.0,
+                  "kurtosis": 0.0
+                }
+              }
+            }
+          }
+        },
+        "notification_sent": false,
+        "notification_decision": {
+          "should_notify": false,
+          "reason": "通知机制已禁用"
+        },
+        "status": "success"
+      },
+      "fundamentals_analyst": {
+        "agent_id": "fundamentals_analyst",
+        "agent_name": "基本面分析师",
+        "analysis_result": {
+          "AAPL": {
+            "signal": "neutral",
+            "confidence": 25.0,
+            "reasoning": {
+              "profitability_signal": {
+                "signal": "bullish",
+                "details": "ROE: 156.00%, Net Margin: 26.20%, Op Margin: 30.71%"
+              },
+              "growth_signal": {
+                "signal": "neutral",
+                "details": "Revenue Growth: 0.63%, Earnings Growth: 4.04%"
+              },
+              "financial_health_signal": {
+                "signal": "neutral",
+                "details": "Current Ratio: 1.07, D/E: 3.77"
+              },
+              "price_ratios_signal": {
+                "signal": "bearish",
+                "details": "P/E: 29.67, P/B: 40.41, P/S: 7.76"
+              }
+            }
+          },
+          "MSFT": {
+            "signal": "bearish",
+            "confidence": 50.0,
+            "reasoning": {
+              "profitability_signal": {
+                "signal": "bullish",
+                "details": "ROE: 38.40%, Net Margin: 36.30%, Op Margin: 45.53%"
+              },
+              "growth_signal": {
+                "signal": "bearish",
+                "details": "Revenue Growth: 4.25%, Earnings Growth: 7.06%"
+              },
+              "financial_health_signal": {
+                "signal": "neutral",
+                "details": "Current Ratio: 1.22, D/E: 0.97"
+              },
+              "price_ratios_signal": {
+                "signal": "bearish",
+                "details": "P/E: 33.86, P/B: 11.73, P/S: 12.28"
+              }
+            }
+          }
+        },
+        "notification_sent": false,
+        "notification_decision": {
+          "should_notify": false,
+          "reason": "通知机制已禁用"
+        },
+        "status": "success"
+      },
+      "valuation_analyst": {
+        "agent_id": "valuation_analyst",
+        "agent_name": "估值分析师",
+        "analysis_result": {
+          "AAPL": {
+            "signal": "bearish",
+            "confidence": 100,
+            "reasoning": {
+              "dcf_analysis": {
+                "signal": "bearish",
+                "details": "Value: $1,643,697,181,345.77, Market Cap: $2,994,371,342,560.00, Gap: -45.1%, Weight: 35%"
+              },
+              "owner_earnings_analysis": {
+                "signal": "bearish",
+                "details": "Value: $740,793,685,723.28, Market Cap: $2,994,371,342,560.00, Gap: -75.3%, Weight: 35%"
+              },
+              "ev_ebitda_analysis": {
+                "signal": "neutral",
+                "details": "Value: $2,783,108,079,270.29, Market Cap: $2,994,371,342,560.00, Gap: -7.1%, Weight: 20%"
+              },
+              "residual_income_analysis": {
+                "signal": "bearish",
+                "details": "Value: $2,445,436,316,793.26, Market Cap: $2,994,371,342,560.00, Gap: -18.3%, Weight: 10%"
+              }
+            }
+          },
+          "MSFT": {
+            "signal": "bearish",
+            "confidence": 100,
+            "reasoning": {
+              "dcf_analysis": {
+                "signal": "bearish",
+                "details": "Value: $1,177,944,665,919.74, Market Cap: $2,794,827,926,197.00, Gap: -57.9%, Weight: 35%"
+              },
+              "owner_earnings_analysis": {
+                "signal": "bearish",
+                "details": "Value: $1,444,301,343,719.71, Market Cap: $2,794,827,926,197.00, Gap: -48.3%, Weight: 35%"
+              },
+              "ev_ebitda_analysis": {
+                "signal": "neutral",
+                "details": "Value: $2,558,535,404,105.90, Market Cap: $2,794,827,926,197.00, Gap: -8.5%, Weight: 20%"
+              },
+              "residual_income_analysis": {
+                "signal": "bearish",
+                "details": "Value: $1,072,142,955,932.10, Market Cap: $2,794,827,926,197.00, Gap: -61.6%, Weight: 10%"
+              }
+            }
+          }
+        },
+        "notification_sent": false,
+        "notification_decision": {
+          "should_notify": false,
+          "reason": "通知机制已禁用"
+        },
+        "status": "success"
+      },
+      "sentiment_analyst": {
+        "agent_id": "sentiment_analyst",
+        "agent_name": "情绪分析师",
+        "analysis_result": {
+          "AAPL": {
+            "signal": "bearish",
+            "confidence": 62.9,
+            "reasoning": {
+              "insider_trading": {
+                "signal": "bearish",
+                "confidence": 63,
+                "metrics": {
+                  "total_trades": 1000,
+                  "bullish_trades": 371,
+                  "bearish_trades": 629,
+                  "weight": 0.3,
+                  "weighted_bullish": 111.3,
+                  "weighted_bearish": 188.7
+                }
+              },
+              "news_sentiment": {
+                "signal": "neutral",
+                "confidence": 0,
+                "metrics": {
+                  "total_articles": 0,
+                  "bullish_articles": 0,
+                  "bearish_articles": 0,
+                  "neutral_articles": 0,
+                  "weight": 0.7,
+                  "weighted_bullish": 0.0,
+                  "weighted_bearish": 0.0
+                }
+              },
+              "combined_analysis": {
+                "total_weighted_bullish": 111.3,
+                "total_weighted_bearish": 188.7,
+                "signal_determination": "Bearish based on weighted signal comparison"
+              }
+            }
+          },
+          "MSFT": {
+            "signal": "bullish",
+            "confidence": 75.3,
+            "reasoning": {
+              "insider_trading": {
+                "signal": "bullish",
+                "confidence": 75,
+                "metrics": {
+                  "total_trades": 1000,
+                  "bullish_trades": 753,
+                  "bearish_trades": 247,
+                  "weight": 0.3,
+                  "weighted_bullish": 225.9,
+                  "weighted_bearish": 74.1
+                }
+              },
+              "news_sentiment": {
+                "signal": "neutral",
+                "confidence": 0,
+                "metrics": {
+                  "total_articles": 0,
+                  "bullish_articles": 0,
+                  "bearish_articles": 0,
+                  "neutral_articles": 0,
+                  "weight": 0.7,
+                  "weighted_bullish": 0.0,
+                  "weighted_bearish": 0.0
+                }
+              },
+              "combined_analysis": {
+                "total_weighted_bullish": 225.9,
+                "total_weighted_bearish": 74.1,
+                "signal_determination": "Bullish based on weighted signal comparison"
+              }
+            }
+          }
+        },
+        "notification_sent": false,
+        "notification_decision": {
+          "should_notify": false,
+          "reason": "通知机制已禁用"
+        },
+        "status": "success"
+      }
+    },
+    "final_analyst_results": {
+      "technical_analyst": {
+        "agent_id": "technical_analyst",
+        "agent_name": "技术分析师",
+        "analysis_result": {
+          "AAPL": {
+            "signal": "neutral",
+            "confidence": 0,
+            "reasoning": {
+              "trend_following": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "adx": 39.85307283226096,
+                  "trend_strength": 0.3985307283226096
+                }
+              },
+              "mean_reversion": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "z_score": 0.0,
+                  "price_vs_bb": -0.17810268505305688,
+                  "rsi_14": 24.38785504407447,
+                  "rsi_28": 0.0
+                }
+              },
+              "momentum": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "momentum_1m": 0.0,
+                  "momentum_3m": 0.0,
+                  "momentum_6m": 0.0,
+                  "volume_momentum": 1.06062572508298
+                }
+              },
+              "volatility": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "historical_volatility": 0.0,
+                  "volatility_regime": 0.0,
+                  "volatility_z_score": 0.0,
+                  "atr_ratio": 0.015514634619112224
+                }
+              },
+              "statistical_arbitrage": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "hurst_exponent": -1.8511255743987584e-15,
+                  "skewness": 0.0,
+                  "kurtosis": 0.0
+                }
+              }
+            }
+          },
+          "MSFT": {
+            "signal": "neutral",
+            "confidence": 16,
+            "reasoning": {
+              "trend_following": {
+                "signal": "bullish",
+                "confidence": 28,
+                "metrics": {
+                  "adx": 27.709797147216058,
+                  "trend_strength": 0.2770979714721606
+                }
+              },
+              "mean_reversion": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "z_score": 0.0,
+                  "price_vs_bb": 0.311736055114618,
+                  "rsi_14": 43.79514116874595,
+                  "rsi_28": 0.0
+                }
+              },
+              "momentum": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "momentum_1m": 0.0,
+                  "momentum_3m": 0.0,
+                  "momentum_6m": 0.0,
+                  "volume_momentum": 0.9003548916441253
+                }
+              },
+              "volatility": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "historical_volatility": 0.0,
+                  "volatility_regime": 0.0,
+                  "volatility_z_score": 0.0,
+                  "atr_ratio": 0.013383702104695097
+                }
+              },
+              "statistical_arbitrage": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "hurst_exponent": -1.8511255743987584e-15,
+                  "skewness": 0.0,
+                  "kurtosis": 0.0
+                }
+              }
+            }
+          }
+        },
+        "notification_sent": false,
+        "notification_decision": {
+          "should_notify": false,
+          "reason": "通知机制已禁用"
+        },
+        "status": "success"
+      },
+      "fundamentals_analyst": {
+        "agent_id": "fundamentals_analyst",
+        "agent_name": "基本面分析师",
+        "analysis_result": {
+          "AAPL": {
+            "signal": "neutral",
+            "confidence": 25.0,
+            "reasoning": {
+              "profitability_signal": {
+                "signal": "bullish",
+                "details": "ROE: 156.00%, Net Margin: 26.20%, Op Margin: 30.71%"
+              },
+              "growth_signal": {
+                "signal": "neutral",
+                "details": "Revenue Growth: 0.63%, Earnings Growth: 4.04%"
+              },
+              "financial_health_signal": {
+                "signal": "neutral",
+                "details": "Current Ratio: 1.07, D/E: 3.77"
+              },
+              "price_ratios_signal": {
+                "signal": "bearish",
+                "details": "P/E: 29.67, P/B: 40.41, P/S: 7.76"
+              }
+            }
+          },
+          "MSFT": {
+            "signal": "bearish",
+            "confidence": 50.0,
+            "reasoning": {
+              "profitability_signal": {
+                "signal": "bullish",
+                "details": "ROE: 38.40%, Net Margin: 36.30%, Op Margin: 45.53%"
+              },
+              "growth_signal": {
+                "signal": "bearish",
+                "details": "Revenue Growth: 4.25%, Earnings Growth: 7.06%"
+              },
+              "financial_health_signal": {
+                "signal": "neutral",
+                "details": "Current Ratio: 1.22, D/E: 0.97"
+              },
+              "price_ratios_signal": {
+                "signal": "bearish",
+                "details": "P/E: 33.86, P/B: 11.73, P/S: 12.28"
+              }
+            }
+          }
+        },
+        "notification_sent": false,
+        "notification_decision": {
+          "should_notify": false,
+          "reason": "通知机制已禁用"
+        },
+        "status": "success"
+      },
+      "valuation_analyst": {
+        "agent_id": "valuation_analyst",
+        "agent_name": "估值分析师",
+        "analysis_result": {
+          "AAPL": {
+            "signal": "bearish",
+            "confidence": 100,
+            "reasoning": {
+              "dcf_analysis": {
+                "signal": "bearish",
+                "details": "Value: $1,643,697,181,345.77, Market Cap: $2,994,371,342,560.00, Gap: -45.1%, Weight: 35%"
+              },
+              "owner_earnings_analysis": {
+                "signal": "bearish",
+                "details": "Value: $740,793,685,723.28, Market Cap: $2,994,371,342,560.00, Gap: -75.3%, Weight: 35%"
+              },
+              "ev_ebitda_analysis": {
+                "signal": "neutral",
+                "details": "Value: $2,783,108,079,270.29, Market Cap: $2,994,371,342,560.00, Gap: -7.1%, Weight: 20%"
+              },
+              "residual_income_analysis": {
+                "signal": "bearish",
+                "details": "Value: $2,445,436,316,793.26, Market Cap: $2,994,371,342,560.00, Gap: -18.3%, Weight: 10%"
+              }
+            }
+          },
+          "MSFT": {
+            "signal": "bearish",
+            "confidence": 100,
+            "reasoning": {
+              "dcf_analysis": {
+                "signal": "bearish",
+                "details": "Value: $1,177,944,665,919.74, Market Cap: $2,794,827,926,197.00, Gap: -57.9%, Weight: 35%"
+              },
+              "owner_earnings_analysis": {
+                "signal": "bearish",
+                "details": "Value: $1,444,301,343,719.71, Market Cap: $2,794,827,926,197.00, Gap: -48.3%, Weight: 35%"
+              },
+              "ev_ebitda_analysis": {
+                "signal": "neutral",
+                "details": "Value: $2,558,535,404,105.90, Market Cap: $2,794,827,926,197.00, Gap: -8.5%, Weight: 20%"
+              },
+              "residual_income_analysis": {
+                "signal": "bearish",
+                "details": "Value: $1,072,142,955,932.10, Market Cap: $2,794,827,926,197.00, Gap: -61.6%, Weight: 10%"
+              }
+            }
+          }
+        },
+        "notification_sent": false,
+        "notification_decision": {
+          "should_notify": false,
+          "reason": "通知机制已禁用"
+        },
+        "status": "success"
+      },
+      "sentiment_analyst": {
+        "agent_id": "sentiment_analyst",
+        "agent_name": "情绪分析师",
+        "analysis_result": {
+          "AAPL": {
+            "signal": "bearish",
+            "confidence": 62.9,
+            "reasoning": {
+              "insider_trading": {
+                "signal": "bearish",
+                "confidence": 63,
+                "metrics": {
+                  "total_trades": 1000,
+                  "bullish_trades": 371,
+                  "bearish_trades": 629,
+                  "weight": 0.3,
+                  "weighted_bullish": 111.3,
+                  "weighted_bearish": 188.7
+                }
+              },
+              "news_sentiment": {
+                "signal": "neutral",
+                "confidence": 0,
+                "metrics": {
+                  "total_articles": 0,
+                  "bullish_articles": 0,
+                  "bearish_articles": 0,
+                  "neutral_articles": 0,
+                  "weight": 0.7,
+                  "weighted_bullish": 0.0,
+                  "weighted_bearish": 0.0
+                }
+              },
+              "combined_analysis": {
+                "total_weighted_bullish": 111.3,
+                "total_weighted_bearish": 188.7,
+                "signal_determination": "Bearish based on weighted signal comparison"
+              }
+            }
+          },
+          "MSFT": {
+            "signal": "bullish",
+            "confidence": 75.3,
+            "reasoning": {
+              "insider_trading": {
+                "signal": "bullish",
+                "confidence": 75,
+                "metrics": {
+                  "total_trades": 1000,
+                  "bullish_trades": 753,
+                  "bearish_trades": 247,
+                  "weight": 0.3,
+                  "weighted_bullish": 225.9,
+                  "weighted_bearish": 74.1
+                }
+              },
+              "news_sentiment": {
+                "signal": "neutral",
+                "confidence": 0,
+                "metrics": {
+                  "total_articles": 0,
+                  "bullish_articles": 0,
+                  "bearish_articles": 0,
+                  "neutral_articles": 0,
+                  "weight": 0.7,
+                  "weighted_bullish": 0.0,
+                  "weighted_bearish": 0.0
+                }
+              },
+              "combined_analysis": {
+                "total_weighted_bullish": 225.9,
+                "total_weighted_bearish": 74.1,
+                "signal_determination": "Bullish based on weighted signal comparison"
+              }
+            }
+          }
+        },
+        "notification_sent": false,
+        "notification_decision": {
+          "should_notify": false,
+          "reason": "通知机制已禁用"
+        },
+        "status": "success"
+      }
+    },
+    "risk_analysis_results": {
+      "agent_id": "risk_management_agent",
+      "agent_name": "风险管理分析师",
+      "analysis_result": {
+        "AAPL": {
+          "remaining_position_limit": 19748.850511275734,
+          "current_price": 184.25,
+          "volatility_metrics": {
+            "daily_volatility": 0.012013607871492322,
+            "annualized_volatility": 0.1907101126597002,
+            "volatility_percentile": 50.0,
+            "data_points": 20
+          },
+          "reasoning": {
+            "portfolio_value": 100795.95999999999,
+            "current_position_value": 0.0,
+            "base_position_limit_pct": 0.19592898873402997,
+            "position_limit": 19748.850511275734,
+            "remaining_limit": 19748.850511275734,
+            "available_cash": 100795.95999999999,
+            "risk_adjustment": "Volatility-based limit: 19.6% (vs 20% baseline)"
+          }
+        },
+        "MSFT": {
+          "remaining_position_limit": 25198.989999999998,
+          "current_price": 370.6,
+          "volatility_metrics": {
+            "daily_volatility": 0.008769136303647717,
+            "annualized_volatility": 0.13920572323368027,
+            "volatility_percentile": 50.0,
+            "data_points": 20
+          },
+          "reasoning": {
+            "portfolio_value": 100795.95999999999,
+            "current_position_value": 0.0,
+            "base_position_limit_pct": 0.25,
+            "position_limit": 25198.989999999998,
+            "remaining_limit": 25198.989999999998,
+            "available_cash": 100795.95999999999,
+            "risk_adjustment": "Volatility-based limit: 25.0% (vs 20% baseline)"
+          }
+        }
+      },
+      "status": "success"
+    },
+    "portfolio_management_results": {
+      "agent_id": "portfolio_manager",
+      "agent_name": "投资组合管理者",
+      "final_decisions": {
+        "AAPL": {
+          "action": "hold",
+          "quantity": 0,
+          "confidence": 72.95,
+          "reasoning": "The signals for AAPL are mixed but predominantly bearish (valuation and sentiment analysts). Since there are no current positions, holding is the prudent choice until more favorable signals appear."
+        },
+        "MSFT": {
+          "action": "hold",
+          "quantity": 0,
+          "confidence": 37.15,
+          "reasoning": "The signals for MSFT are also mixed, with the technical analyst being neutral and the fundamentals, valuation, and sentiment analysts being bearish. Given the lack of current positions, holding is the safest course of action."
+        }
+      },
+      "execution_report": {
+        "executed_trades": {
+          "AAPL": {
+            "action": "hold",
+            "quantity": 0,
+            "executed_quantity": 0,
+            "price": 184.25
+          },
+          "MSFT": {
+            "action": "hold",
+            "quantity": 0,
+            "executed_quantity": 0,
+            "price": 370.6
+          }
+        },
+        "failed_trades": {},
+        "portfolio_changes": {
+          "positions_updated": [],
+          "new_positions": [],
+          "closed_positions": []
+        },
+        "cash_before": 100795.95999999999,
+        "cash_after": 100795.95999999999,
+        "total_portfolio_value": 100795.95999999999,
+        "execution_timestamp": "2025-08-27T15:24:17.868121"
+      },
+      "portfolio_summary": {
+        "total_value": 100795.96,
+        "cash": 100795.96,
+        "positions_value": 0.0,
+        "margin_used": 0.0
+      },
+      "communications_enabled": false,
+      "status": "success"
+    },
+    "communication_logs": {
+      "decisions": [],
+      "private_chats": [],
+      "meetings": [],
+      "notifications": [],
+      "communication_decisions": []
+    },
+    "final_report": {
+      "summary": {
+        "total_analysts": 4,
+        "successful_analyses": 4,
+        "failed_analyses": 0,
+        "notifications_sent": 0
+      },
+      "analyst_signals": {
+        "technical_analyst": {
+          "AAPL": {
+            "signal": "neutral",
+            "confidence": 0,
+            "reasoning": {
+              "trend_following": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "adx": 39.85307283226096,
+                  "trend_strength": 0.3985307283226096
+                }
+              },
+              "mean_reversion": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "z_score": 0.0,
+                  "price_vs_bb": -0.17810268505305688,
+                  "rsi_14": 24.38785504407447,
+                  "rsi_28": 0.0
+                }
+              },
+              "momentum": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "momentum_1m": 0.0,
+                  "momentum_3m": 0.0,
+                  "momentum_6m": 0.0,
+                  "volume_momentum": 1.06062572508298
+                }
+              },
+              "volatility": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "historical_volatility": 0.0,
+                  "volatility_regime": 0.0,
+                  "volatility_z_score": 0.0,
+                  "atr_ratio": 0.015514634619112224
+                }
+              },
+              "statistical_arbitrage": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "hurst_exponent": -1.8511255743987584e-15,
+                  "skewness": 0.0,
+                  "kurtosis": 0.0
+                }
+              }
+            }
+          },
+          "MSFT": {
+            "signal": "neutral",
+            "confidence": 16,
+            "reasoning": {
+              "trend_following": {
+                "signal": "bullish",
+                "confidence": 28,
+                "metrics": {
+                  "adx": 27.709797147216058,
+                  "trend_strength": 0.2770979714721606
+                }
+              },
+              "mean_reversion": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "z_score": 0.0,
+                  "price_vs_bb": 0.311736055114618,
+                  "rsi_14": 43.79514116874595,
+                  "rsi_28": 0.0
+                }
+              },
+              "momentum": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "momentum_1m": 0.0,
+                  "momentum_3m": 0.0,
+                  "momentum_6m": 0.0,
+                  "volume_momentum": 0.9003548916441253
+                }
+              },
+              "volatility": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "historical_volatility": 0.0,
+                  "volatility_regime": 0.0,
+                  "volatility_z_score": 0.0,
+                  "atr_ratio": 0.013383702104695097
+                }
+              },
+              "statistical_arbitrage": {
+                "signal": "neutral",
+                "confidence": 50,
+                "metrics": {
+                  "hurst_exponent": -1.8511255743987584e-15,
+                  "skewness": 0.0,
+                  "kurtosis": 0.0
+                }
+              }
+            }
+          }
+        },
+        "fundamentals_analyst": {
+          "AAPL": {
+            "signal": "neutral",
+            "confidence": 25.0,
+            "reasoning": {
+              "profitability_signal": {
+                "signal": "bullish",
+                "details": "ROE: 156.00%, Net Margin: 26.20%, Op Margin: 30.71%"
+              },
+              "growth_signal": {
+                "signal": "neutral",
+                "details": "Revenue Growth: 0.63%, Earnings Growth: 4.04%"
+              },
+              "financial_health_signal": {
+                "signal": "neutral",
+                "details": "Current Ratio: 1.07, D/E: 3.77"
+              },
+              "price_ratios_signal": {
+                "signal": "bearish",
+                "details": "P/E: 29.67, P/B: 40.41, P/S: 7.76"
+              }
+            }
+          },
+          "MSFT": {
+            "signal": "bearish",
+            "confidence": 50.0,
+            "reasoning": {
+              "profitability_signal": {
+                "signal": "bullish",
+                "details": "ROE: 38.40%, Net Margin: 36.30%, Op Margin: 45.53%"
+              },
+              "growth_signal": {
+                "signal": "bearish",
+                "details": "Revenue Growth: 4.25%, Earnings Growth: 7.06%"
+              },
+              "financial_health_signal": {
+                "signal": "neutral",
+                "details": "Current Ratio: 1.22, D/E: 0.97"
+              },
+              "price_ratios_signal": {
+                "signal": "bearish",
+                "details": "P/E: 33.86, P/B: 11.73, P/S: 12.28"
+              }
+            }
+          }
+        },
+        "valuation_analyst": {
+          "AAPL": {
+            "signal": "bearish",
+            "confidence": 100,
+            "reasoning": {
+              "dcf_analysis": {
+                "signal": "bearish",
+                "details": "Value: $1,643,697,181,345.77, Market Cap: $2,994,371,342,560.00, Gap: -45.1%, Weight: 35%"
+              },
+              "owner_earnings_analysis": {
+                "signal": "bearish",
+                "details": "Value: $740,793,685,723.28, Market Cap: $2,994,371,342,560.00, Gap: -75.3%, Weight: 35%"
+              },
+              "ev_ebitda_analysis": {
+                "signal": "neutral",
+                "details": "Value: $2,783,108,079,270.29, Market Cap: $2,994,371,342,560.00, Gap: -7.1%, Weight: 20%"
+              },
+              "residual_income_analysis": {
+                "signal": "bearish",
+                "details": "Value: $2,445,436,316,793.26, Market Cap: $2,994,371,342,560.00, Gap: -18.3%, Weight: 10%"
+              }
+            }
+          },
+          "MSFT": {
+            "signal": "bearish",
+            "confidence": 100,
+            "reasoning": {
+              "dcf_analysis": {
+                "signal": "bearish",
+                "details": "Value: $1,177,944,665,919.74, Market Cap: $2,794,827,926,197.00, Gap: -57.9%, Weight: 35%"
+              },
+              "owner_earnings_analysis": {
+                "signal": "bearish",
+                "details": "Value: $1,444,301,343,719.71, Market Cap: $2,794,827,926,197.00, Gap: -48.3%, Weight: 35%"
+              },
+              "ev_ebitda_analysis": {
+                "signal": "neutral",
+                "details": "Value: $2,558,535,404,105.90, Market Cap: $2,794,827,926,197.00, Gap: -8.5%, Weight: 20%"
+              },
+              "residual_income_analysis": {
+                "signal": "bearish",
+                "details": "Value: $1,072,142,955,932.10, Market Cap: $2,794,827,926,197.00, Gap: -61.6%, Weight: 10%"
+              }
+            }
+          }
+        },
+        "sentiment_analyst": {
+          "AAPL": {
+            "signal": "bearish",
+            "confidence": 62.9,
+            "reasoning": {
+              "insider_trading": {
+                "signal": "bearish",
+                "confidence": 63,
+                "metrics": {
+                  "total_trades": 1000,
+                  "bullish_trades": 371,
+                  "bearish_trades": 629,
+                  "weight": 0.3,
+                  "weighted_bullish": 111.3,
+                  "weighted_bearish": 188.7
+                }
+              },
+              "news_sentiment": {
+                "signal": "neutral",
+                "confidence": 0,
+                "metrics": {
+                  "total_articles": 0,
+                  "bullish_articles": 0,
+                  "bearish_articles": 0,
+                  "neutral_articles": 0,
+                  "weight": 0.7,
+                  "weighted_bullish": 0.0,
+                  "weighted_bearish": 0.0
+                }
+              },
+              "combined_analysis": {
+                "total_weighted_bullish": 111.3,
+                "total_weighted_bearish": 188.7,
+                "signal_determination": "Bearish based on weighted signal comparison"
+              }
+            }
+          },
+          "MSFT": {
+            "signal": "bullish",
+            "confidence": 75.3,
+            "reasoning": {
+              "insider_trading": {
+                "signal": "bullish",
+                "confidence": 75,
+                "metrics": {
+                  "total_trades": 1000,
+                  "bullish_trades": 753,
+                  "bearish_trades": 247,
+                  "weight": 0.3,
+                  "weighted_bullish": 225.9,
+                  "weighted_bearish": 74.1
+                }
+              },
+              "news_sentiment": {
+                "signal": "neutral",
+                "confidence": 0,
+                "metrics": {
+                  "total_articles": 0,
+                  "bullish_articles": 0,
+                  "bearish_articles": 0,
+                  "neutral_articles": 0,
+                  "weight": 0.7,
+                  "weighted_bullish": 0.0,
+                  "weighted_bearish": 0.0
+                }
+              },
+              "combined_analysis": {
+                "total_weighted_bullish": 225.9,
+                "total_weighted_bearish": 74.1,
+                "signal_determination": "Bullish based on weighted signal comparison"
+              }
+            }
+          }
+        }
+      },
+      "notification_activity": {
+        "total_notifications": 0,
+        "notifications_by_agent": {},
+        "recent_notifications": []
+      },
+      "errors": []
+    },
+    "analysis_timestamp": "2025-08-27T15:24:17.868224",
+    "tickers": [
+      "AAPL",
+      "MSFT"
+    ],
+    "date_range": {
+      "start": "2023-12-04",
+      "end": "2024-01-03"
+    },
+    "output_file": "/root/wuyue.wy/Project/IA/analysis_results_logs/multi_day_session_20250827_152337_daily_2024-01-03.json"
+  },
+  "analyst_memory": null,
+  "communication_logs": {
+    "decisions": [],
+    "private_chats": [],
+    "meetings": [],
+    "notifications": [],
+    "communication_decisions": []
+  },
+  "portfolio_snapshot": {
+    "cash": 100795.95999999999,
+    "margin_requirement": 0.1,
+    "margin_used": 0.0,
+    "positions": {
+      "AAPL": {
+        "long": 0,
+        "short": 0,
+        "long_cost_basis": 0.0,
+        "short_cost_basis": 0.0,
+        "short_margin_used": 0.0
+      },
+      "MSFT": {
+        "long": 0,
+        "short": 0,
+        "long_cost_basis": 0.0,
+        "short_cost_basis": 0.0,
+        "short_margin_used": 0.0
+      }
+    },
+    "realized_gains": {
+      "AAPL": {
+        "long": 0.0,
+        "short": 454.740000000001
+      },
+      "MSFT": {
+        "long": 0.0,
+        "short": 341.22000000000105
+      }
+    }
+  },
+  "metadata": {
+    "show_reasoning": false,
+    "model_name": "qwen-coder-plus",
+    "model_provider": "OpenAI",
+    "communication_enabled": false,
+    "notifications_enabled": false,
+    "max_communication_cycles": 1,
+    "session_id": "multi_day_session_20250827_152337",
+    "trading_date": "2024-01-03",
+    "day_number": 3,
+    "output_file": "/root/wuyue.wy/Project/IA/analysis_results_logs/multi_day_session_20250827_152337_daily_2024-01-03.json"
+  }
+}

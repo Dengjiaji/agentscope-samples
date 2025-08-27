@@ -1832,3 +1832,678 @@ TSLA：
 2025-08-27 14:17:59,648 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
 2025-08-27 14:18:50,251 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
 2025-08-27 14:19:36,911 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:22:39,888 - INFO - Registered agent: fundamentals_analyst
+2025-08-27 14:22:39,888 - INFO - Registered agent: sentiment_analyst
+2025-08-27 14:22:39,888 - INFO - Registered agent: technical_analyst
+2025-08-27 14:22:39,888 - INFO - Registered agent: valuation_analyst
+2025-08-27 14:22:39,888 - INFO - Registered agent: portfolio_manager
+2025-08-27 14:22:39,888 - INFO - 高级投资分析引擎初始化完成
+2025-08-27 14:22:57,465 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:22:57,653 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:23:07,143 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:23:07,144 - INFO - Agent fundamentals_analyst received notification from sentiment_analyst
+2025-08-27 14:23:07,144 - INFO - Agent technical_analyst received notification from sentiment_analyst
+2025-08-27 14:23:07,144 - INFO - Agent valuation_analyst received notification from sentiment_analyst
+2025-08-27 14:23:07,144 - INFO - Agent portfolio_manager received notification from sentiment_analyst
+2025-08-27 14:23:07,144 - INFO - Agent sentiment_analyst sent notification: 内部交易信号显示分化：MSFT 显著偏多（753/1000 笔看多，综合置信度75.3%），AAPL 偏空（629/1000 笔看空，综合置信度62.9%）。新闻情绪暂无数据（0篇），结论主要依赖内部交易，需二次验证。建议科技板块分析师尽快复核基本面与潜在催化，监控1-3个交易日内的价格/成交量与期权流，评估对现有持仓与对冲的短线影响。
+2025-08-27 14:23:07,145 - INFO - Broadcasted notification from sentiment_analyst to all agents
+2025-08-27 14:23:10,987 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:23:10,989 - INFO - Agent fundamentals_analyst received notification from valuation_analyst
+2025-08-27 14:23:10,989 - INFO - Agent sentiment_analyst received notification from valuation_analyst
+2025-08-27 14:23:10,989 - INFO - Agent technical_analyst received notification from valuation_analyst
+2025-08-27 14:23:10,989 - INFO - Agent portfolio_manager received notification from valuation_analyst
+2025-08-27 14:23:10,989 - INFO - Agent valuation_analyst sent notification: 估值警示：对AAPL与MSFT的四法综合估值均为偏空（置信度100）。AAPL：DCF -45%，所有者收益 -75%，剩余收益 -18%，EV/EBITDA -7%（中性）；MSFT：DCF -58%，所有者收益 -48%，剩余收益 -62%，EV/EBITDA -9%（中性）。两大权重股存在显著估值透支，若增长预期或折现率假设回归，组合回撤风险上升。请相关行业与组合分析师尽快复核关键假设（增长率、WACC、终值、SBC调整），评估持仓敞口与对冲需求，并进行情景压力测试（基线/温和下修/剧烈下修）。为避免重复，现合并为单一风险通知，暂无新增事件性催化。
+2025-08-27 14:23:10,989 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-27 14:24:01,542 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:24:19,080 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:24:25,564 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:24:35,867 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:24:46,193 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:25:15,306 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:26:24,460 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:28:39,928 - INFO - Registered agent: fundamentals_analyst
+2025-08-27 14:28:39,928 - INFO - Registered agent: sentiment_analyst
+2025-08-27 14:28:39,928 - INFO - Registered agent: technical_analyst
+2025-08-27 14:28:39,928 - INFO - Registered agent: valuation_analyst
+2025-08-27 14:28:39,928 - INFO - Registered agent: portfolio_manager
+2025-08-27 14:28:39,928 - INFO - 高级投资分析引擎初始化完成
+2025-08-27 14:28:59,327 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:29:05,268 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:29:05,269 - INFO - Agent sentiment_analyst received notification from fundamentals_analyst
+2025-08-27 14:29:05,269 - INFO - Agent technical_analyst received notification from fundamentals_analyst
+2025-08-27 14:29:05,269 - INFO - Agent valuation_analyst received notification from fundamentals_analyst
+2025-08-27 14:29:05,269 - INFO - Agent portfolio_manager received notification from fundamentals_analyst
+2025-08-27 14:29:05,269 - INFO - Agent fundamentals_analyst sent notification: MSFT 基本面信号偏空（置信度50%）：在盈利能力依然强劲（净利率36.30%，营业利润率45.53%）的同时，增速放缓（营收增长4.25%，盈利增长7.06%），估值显著偏高（P/E 33.86，P/S 12.28，P/B 11.73）。财务状况中性（流动比率1.22，D/E 0.97）。建议：1）审视对MSFT的仓位与估值假设；2）关注后续增长催化与指引风险；3）对高估值情景进行压力测试。AAPL 综合为中性（置信度25%），暂不触发提醒。
+2025-08-27 14:29:05,269 - INFO - Broadcasted notification from fundamentals_analyst to all agents
+2025-08-27 14:29:13,334 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:29:13,335 - INFO - Agent fundamentals_analyst received notification from sentiment_analyst
+2025-08-27 14:29:13,335 - INFO - Agent technical_analyst received notification from sentiment_analyst
+2025-08-27 14:29:13,335 - INFO - Agent valuation_analyst received notification from sentiment_analyst
+2025-08-27 14:29:13,335 - INFO - Agent portfolio_manager received notification from sentiment_analyst
+2025-08-27 14:29:13,335 - INFO - Agent sentiment_analyst sent notification: 内部交易数据显示明显分化：AAPL 净看空（629笔卖方 vs 371笔买方，综合信心 62.9%）；MSFT 净看多（753笔买方 vs 247笔卖方，综合信心 75.3%）。当前无相关新闻情绪样本（0篇），缺乏外部确认。建议纳入观察名单：AAPL 可能面临阶段性压力，MSFT 获得资金面支撑；在出现新闻或基本面催化前，谨慎评估仓位调整。
+2025-08-27 14:29:13,335 - INFO - Broadcasted notification from sentiment_analyst to all agents
+2025-08-27 14:29:16,777 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:29:16,778 - INFO - Agent fundamentals_analyst received notification from valuation_analyst
+2025-08-27 14:29:16,778 - INFO - Agent sentiment_analyst received notification from valuation_analyst
+2025-08-27 14:29:16,778 - INFO - Agent technical_analyst received notification from valuation_analyst
+2025-08-27 14:29:16,778 - INFO - Agent portfolio_manager received notification from valuation_analyst
+2025-08-27 14:29:16,778 - INFO - Agent valuation_analyst sent notification: 估值警示：对AAPL与MSFT的多模型估值均指向明显高估且总体信号为看空（信心100）。AAPL：DCF -45.1%、Owner Earnings -75.3%、EV/EBITDA -7.1%、Residual Income -18.3%，市值约2.99万亿美元，内在价值区间约0.74–2.78万亿美元。MSFT：DCF -57.9%、Owner Earnings -48.3%、EV/EBITDA -8.5%、Residual Income -61.6%，市值约2.79万亿美元，内在价值区间约1.07–2.56万亿美元。两大权重股在多框架下均显著高估，若增长放缓或估值回归，组合回撤风险上升。建议：1) 复核科技权重与集中度，进行情景与回撤压力测试；2) 评估分步降权或对冲（指数/相关期权）可行性与成本；3) 关注近期业绩指引、回购节奏与监管动态作为潜在催化。
+2025-08-27 14:29:16,778 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-27 14:30:00,990 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:30:10,590 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:30:20,809 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:30:28,140 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:30:36,658 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:31:07,077 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:31:54,117 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:33:10,668 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:34:42,604 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:35:29,046 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:36:26,038 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:37:00,633 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:37:38,340 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:38:35,014 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:38:58,715 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:39:09,689 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:39:35,564 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:40:53,709 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:40:53,972 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:40:53,972 - INFO - Retrying request to /chat/completions in 0.455861 seconds
+2025-08-27 14:40:54,653 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:40:54,653 - INFO - Retrying request to /chat/completions in 0.876078 seconds
+2025-08-27 14:40:55,728 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:40:57,029 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:40:57,030 - INFO - Retrying request to /chat/completions in 0.452202 seconds
+2025-08-27 14:40:57,321 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:40:57,321 - INFO - Retrying request to /chat/completions in 0.460443 seconds
+2025-08-27 14:40:57,704 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:40:57,705 - INFO - Retrying request to /chat/completions in 0.836323 seconds
+2025-08-27 14:40:57,738 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:40:57,739 - INFO - Retrying request to /chat/completions in 0.446772 seconds
+2025-08-27 14:40:57,959 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:40:57,959 - INFO - Retrying request to /chat/completions in 0.933905 seconds
+2025-08-27 14:40:58,404 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:40:58,405 - INFO - Retrying request to /chat/completions in 0.917619 seconds
+2025-08-27 14:40:58,719 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:40:59,199 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:40:59,882 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:40:59,883 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:40:59,884 - INFO - Retrying request to /chat/completions in 0.403851 seconds
+2025-08-27 14:41:00,463 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:00,463 - INFO - Retrying request to /chat/completions in 0.931638 seconds
+2025-08-27 14:41:01,558 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:01,758 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:01,758 - INFO - Retrying request to /chat/completions in 0.432960 seconds
+2025-08-27 14:41:01,795 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:01,795 - INFO - Retrying request to /chat/completions in 0.488785 seconds
+2025-08-27 14:41:01,799 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:01,799 - INFO - Retrying request to /chat/completions in 0.432852 seconds
+2025-08-27 14:41:01,819 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:01,819 - INFO - Retrying request to /chat/completions in 0.421497 seconds
+2025-08-27 14:41:02,363 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:02,363 - INFO - Retrying request to /chat/completions in 0.783438 seconds
+2025-08-27 14:41:02,420 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:02,420 - INFO - Retrying request to /chat/completions in 0.789739 seconds
+2025-08-27 14:41:02,424 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:02,425 - INFO - Retrying request to /chat/completions in 0.917639 seconds
+2025-08-27 14:41:02,465 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:02,465 - INFO - Retrying request to /chat/completions in 0.830903 seconds
+2025-08-27 14:41:03,318 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:03,379 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:03,470 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:03,483 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:03,483 - INFO - Retrying request to /chat/completions in 0.398192 seconds
+2025-08-27 14:41:03,546 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:03,546 - INFO - Retrying request to /chat/completions in 0.380886 seconds
+2025-08-27 14:41:03,587 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:03,644 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:03,644 - INFO - Retrying request to /chat/completions in 0.397800 seconds
+2025-08-27 14:41:03,764 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:03,764 - INFO - Retrying request to /chat/completions in 0.426151 seconds
+2025-08-27 14:41:04,055 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:04,055 - INFO - Retrying request to /chat/completions in 0.947015 seconds
+2025-08-27 14:41:04,118 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:04,119 - INFO - Retrying request to /chat/completions in 0.768590 seconds
+2025-08-27 14:41:04,266 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:04,266 - INFO - Retrying request to /chat/completions in 0.846438 seconds
+2025-08-27 14:41:04,361 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:04,361 - INFO - Retrying request to /chat/completions in 0.818969 seconds
+2025-08-27 14:41:05,063 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:05,161 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:05,250 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:05,250 - INFO - Retrying request to /chat/completions in 0.490786 seconds
+2025-08-27 14:41:05,294 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:05,323 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:05,324 - INFO - Retrying request to /chat/completions in 0.407682 seconds
+2025-08-27 14:41:05,355 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:05,494 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:05,494 - INFO - Retrying request to /chat/completions in 0.486844 seconds
+2025-08-27 14:41:05,537 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:05,537 - INFO - Retrying request to /chat/completions in 0.380651 seconds
+2025-08-27 14:41:05,901 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:05,901 - INFO - Retrying request to /chat/completions in 0.981009 seconds
+2025-08-27 14:41:05,916 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:05,916 - INFO - Retrying request to /chat/completions in 0.954813 seconds
+2025-08-27 14:41:06,092 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:06,092 - INFO - Retrying request to /chat/completions in 0.886513 seconds
+2025-08-27 14:41:06,195 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:06,195 - INFO - Retrying request to /chat/completions in 0.909268 seconds
+2025-08-27 14:41:07,050 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:07,066 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:07,159 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:07,266 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:07,482 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:07,482 - INFO - Retrying request to /chat/completions in 0.409560 seconds
+2025-08-27 14:41:08,059 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:08,059 - INFO - Retrying request to /chat/completions in 0.986088 seconds
+2025-08-27 14:41:09,219 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:09,390 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:09,390 - INFO - Retrying request to /chat/completions in 0.463056 seconds
+2025-08-27 14:41:10,024 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:10,025 - INFO - Retrying request to /chat/completions in 0.938211 seconds
+2025-08-27 14:41:11,131 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:11,304 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:11,305 - INFO - Retrying request to /chat/completions in 0.477548 seconds
+2025-08-27 14:41:11,950 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:11,951 - INFO - Retrying request to /chat/completions in 0.858647 seconds
+2025-08-27 14:41:12,993 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:13,214 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:13,215 - INFO - Retrying request to /chat/completions in 0.421746 seconds
+2025-08-27 14:41:13,836 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:13,836 - INFO - Retrying request to /chat/completions in 0.803949 seconds
+2025-08-27 14:41:14,829 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:16,486 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:16,486 - INFO - Retrying request to /chat/completions in 0.415486 seconds
+2025-08-27 14:41:16,714 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:16,714 - INFO - Retrying request to /chat/completions in 0.439471 seconds
+2025-08-27 14:41:17,070 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:17,071 - INFO - Retrying request to /chat/completions in 0.902197 seconds
+2025-08-27 14:41:17,331 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:17,332 - INFO - Retrying request to /chat/completions in 0.794334 seconds
+2025-08-27 14:41:18,013 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:18,013 - INFO - Retrying request to /chat/completions in 0.486601 seconds
+2025-08-27 14:41:18,132 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:18,324 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:18,676 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:18,676 - INFO - Retrying request to /chat/completions in 0.834470 seconds
+2025-08-27 14:41:18,725 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:18,725 - INFO - Retrying request to /chat/completions in 0.383987 seconds
+2025-08-27 14:41:19,279 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:19,279 - INFO - Retrying request to /chat/completions in 0.816518 seconds
+2025-08-27 14:41:19,681 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:20,266 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:20,481 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:20,482 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:20,482 - INFO - Retrying request to /chat/completions in 0.451122 seconds
+2025-08-27 14:41:20,482 - INFO - Retrying request to /chat/completions in 0.464751 seconds
+2025-08-27 14:41:20,528 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:20,528 - INFO - Retrying request to /chat/completions in 0.386975 seconds
+2025-08-27 14:41:20,530 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:20,530 - INFO - Retrying request to /chat/completions in 0.389970 seconds
+2025-08-27 14:41:21,094 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:21,094 - INFO - Retrying request to /chat/completions in 0.959724 seconds
+2025-08-27 14:41:21,106 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:21,106 - INFO - Retrying request to /chat/completions in 0.873618 seconds
+2025-08-27 14:41:21,120 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:21,120 - INFO - Retrying request to /chat/completions in 0.926992 seconds
+2025-08-27 14:41:21,121 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:21,121 - INFO - Retrying request to /chat/completions in 0.890608 seconds
+2025-08-27 14:41:22,181 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:22,186 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:22,238 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:22,256 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:22,357 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:22,357 - INFO - Retrying request to /chat/completions in 0.450057 seconds
+2025-08-27 14:41:22,407 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:22,407 - INFO - Retrying request to /chat/completions in 0.499739 seconds
+2025-08-27 14:41:22,424 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:22,424 - INFO - Retrying request to /chat/completions in 0.386106 seconds
+2025-08-27 14:41:22,483 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:22,483 - INFO - Retrying request to /chat/completions in 0.390937 seconds
+2025-08-27 14:41:23,010 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:23,010 - INFO - Retrying request to /chat/completions in 0.764944 seconds
+2025-08-27 14:41:23,013 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:23,014 - INFO - Retrying request to /chat/completions in 0.916565 seconds
+2025-08-27 14:41:23,074 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:23,074 - INFO - Retrying request to /chat/completions in 0.902184 seconds
+2025-08-27 14:41:23,075 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:23,075 - INFO - Retrying request to /chat/completions in 0.878578 seconds
+2025-08-27 14:41:23,994 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:24,100 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:24,142 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:24,152 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:24,191 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:24,191 - INFO - Retrying request to /chat/completions in 0.402166 seconds
+2025-08-27 14:41:24,283 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:24,283 - INFO - Retrying request to /chat/completions in 0.434826 seconds
+2025-08-27 14:41:24,310 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:24,310 - INFO - Retrying request to /chat/completions in 0.392274 seconds
+2025-08-27 14:41:24,360 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:24,361 - INFO - Retrying request to /chat/completions in 0.490946 seconds
+2025-08-27 14:41:24,793 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:24,794 - INFO - Retrying request to /chat/completions in 0.936112 seconds
+2025-08-27 14:41:24,867 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:24,867 - INFO - Retrying request to /chat/completions in 0.812530 seconds
+2025-08-27 14:41:24,890 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:24,890 - INFO - Retrying request to /chat/completions in 0.875850 seconds
+2025-08-27 14:41:25,050 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:25,050 - INFO - Retrying request to /chat/completions in 0.970967 seconds
+2025-08-27 14:41:25,844 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:25,917 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:25,953 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:26,214 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:26,446 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:41:26,446 - INFO - Retrying request to /chat/completions in 0.483480 seconds
+2025-08-27 14:49:20,058 - INFO - Registered agent: fundamentals_analyst
+2025-08-27 14:49:20,058 - INFO - Registered agent: sentiment_analyst
+2025-08-27 14:49:20,058 - INFO - Registered agent: technical_analyst
+2025-08-27 14:49:20,058 - INFO - Registered agent: valuation_analyst
+2025-08-27 14:49:20,058 - INFO - Registered agent: portfolio_manager
+2025-08-27 14:49:20,059 - INFO - 高级投资分析引擎初始化完成
+2025-08-27 14:49:28,960 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:28,960 - INFO - Retrying request to /chat/completions in 0.480537 seconds
+2025-08-27 14:49:29,142 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:29,142 - INFO - Retrying request to /chat/completions in 0.487230 seconds
+2025-08-27 14:49:29,562 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:29,562 - INFO - Retrying request to /chat/completions in 0.433746 seconds
+2025-08-27 14:49:29,609 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:29,609 - INFO - Retrying request to /chat/completions in 0.979494 seconds
+2025-08-27 14:49:29,799 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:29,799 - INFO - Retrying request to /chat/completions in 0.929131 seconds
+2025-08-27 14:49:30,164 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:30,164 - INFO - Retrying request to /chat/completions in 0.753188 seconds
+2025-08-27 14:49:30,760 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:30,890 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:31,081 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:31,894 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:31,894 - INFO - Retrying request to /chat/completions in 0.381816 seconds
+2025-08-27 14:49:32,454 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:32,454 - INFO - Retrying request to /chat/completions in 0.970063 seconds
+2025-08-27 14:49:33,621 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:33,837 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:33,837 - INFO - Retrying request to /chat/completions in 0.381334 seconds
+2025-08-27 14:49:33,851 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:33,852 - INFO - Retrying request to /chat/completions in 0.377298 seconds
+2025-08-27 14:49:33,856 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:33,856 - INFO - Retrying request to /chat/completions in 0.402901 seconds
+2025-08-27 14:49:33,861 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:33,861 - INFO - Retrying request to /chat/completions in 0.497120 seconds
+2025-08-27 14:49:34,385 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:34,386 - INFO - Retrying request to /chat/completions in 0.943218 seconds
+2025-08-27 14:49:34,396 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:34,396 - INFO - Retrying request to /chat/completions in 0.865676 seconds
+2025-08-27 14:49:34,431 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:34,431 - INFO - Retrying request to /chat/completions in 0.962356 seconds
+2025-08-27 14:49:34,530 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:34,530 - INFO - Retrying request to /chat/completions in 0.903443 seconds
+2025-08-27 14:49:35,484 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:35,503 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:35,560 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:35,612 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:35,653 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:35,653 - INFO - Retrying request to /chat/completions in 0.432191 seconds
+2025-08-27 14:49:35,689 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:35,689 - INFO - Retrying request to /chat/completions in 0.435785 seconds
+2025-08-27 14:49:35,746 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:35,746 - INFO - Retrying request to /chat/completions in 0.389070 seconds
+2025-08-27 14:49:35,789 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:35,789 - INFO - Retrying request to /chat/completions in 0.406988 seconds
+2025-08-27 14:49:36,263 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:36,263 - INFO - Retrying request to /chat/completions in 0.856411 seconds
+2025-08-27 14:49:36,294 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:36,294 - INFO - Retrying request to /chat/completions in 0.994336 seconds
+2025-08-27 14:49:36,361 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:36,361 - INFO - Retrying request to /chat/completions in 0.860128 seconds
+2025-08-27 14:49:36,383 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:36,383 - INFO - Retrying request to /chat/completions in 0.948487 seconds
+2025-08-27 14:49:37,295 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:37,397 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:37,460 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:37,477 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:37,477 - INFO - Retrying request to /chat/completions in 0.459919 seconds
+2025-08-27 14:49:37,516 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:37,582 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:37,582 - INFO - Retrying request to /chat/completions in 0.381033 seconds
+2025-08-27 14:49:37,631 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:37,632 - INFO - Retrying request to /chat/completions in 0.468371 seconds
+2025-08-27 14:49:37,695 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:37,695 - INFO - Retrying request to /chat/completions in 0.428526 seconds
+2025-08-27 14:49:38,107 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:38,107 - INFO - Retrying request to /chat/completions in 0.969665 seconds
+2025-08-27 14:49:38,140 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:38,140 - INFO - Retrying request to /chat/completions in 0.962346 seconds
+2025-08-27 14:49:38,269 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:38,269 - INFO - Retrying request to /chat/completions in 0.986133 seconds
+2025-08-27 14:49:38,292 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:38,292 - INFO - Retrying request to /chat/completions in 0.955692 seconds
+2025-08-27 14:49:39,247 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:39,265 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:39,416 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:49:39,420 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:50:48,717 - INFO - Registered agent: fundamentals_analyst
+2025-08-27 14:50:48,717 - INFO - Registered agent: sentiment_analyst
+2025-08-27 14:50:48,717 - INFO - Registered agent: technical_analyst
+2025-08-27 14:50:48,717 - INFO - Registered agent: valuation_analyst
+2025-08-27 14:50:48,717 - INFO - Registered agent: portfolio_manager
+2025-08-27 14:50:48,717 - INFO - 高级投资分析引擎初始化完成
+2025-08-27 14:50:56,115 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 404 Not Found"
+2025-08-27 14:50:56,378 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 404 Not Found"
+2025-08-27 14:50:57,405 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 404 Not Found"
+2025-08-27 14:50:59,481 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 404 Not Found"
+2025-08-27 14:50:59,714 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 404 Not Found"
+2025-08-27 14:50:59,801 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 404 Not Found"
+2025-08-27 14:50:59,819 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 404 Not Found"
+2025-08-27 14:50:59,950 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 404 Not Found"
+2025-08-27 14:50:59,956 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 404 Not Found"
+2025-08-27 14:51:00,089 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 404 Not Found"
+2025-08-27 14:51:00,119 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 404 Not Found"
+2025-08-27 14:51:00,217 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 404 Not Found"
+2025-08-27 14:51:00,313 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 404 Not Found"
+2025-08-27 14:51:02,000 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 404 Not Found"
+2025-08-27 14:51:02,150 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 404 Not Found"
+2025-08-27 14:51:02,378 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 404 Not Found"
+2025-08-27 14:51:02,624 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 404 Not Found"
+2025-08-27 14:51:02,711 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 404 Not Found"
+2025-08-27 14:51:02,791 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 404 Not Found"
+2025-08-27 14:51:03,028 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 404 Not Found"
+2025-08-27 14:51:04,307 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 404 Not Found"
+2025-08-27 14:51:31,279 - INFO - Registered agent: fundamentals_analyst
+2025-08-27 14:51:31,279 - INFO - Registered agent: sentiment_analyst
+2025-08-27 14:51:31,279 - INFO - Registered agent: technical_analyst
+2025-08-27 14:51:31,279 - INFO - Registered agent: valuation_analyst
+2025-08-27 14:51:31,279 - INFO - Registered agent: portfolio_manager
+2025-08-27 14:51:31,279 - INFO - 高级投资分析引擎初始化完成
+2025-08-27 14:51:39,638 - INFO - Registered agent: fundamentals_analyst
+2025-08-27 14:51:39,638 - INFO - Registered agent: sentiment_analyst
+2025-08-27 14:51:39,638 - INFO - Registered agent: technical_analyst
+2025-08-27 14:51:39,638 - INFO - Registered agent: valuation_analyst
+2025-08-27 14:51:39,639 - INFO - Registered agent: portfolio_manager
+2025-08-27 14:51:39,639 - INFO - 高级投资分析引擎初始化完成
+2025-08-27 14:51:49,439 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:51:49,440 - INFO - Retrying request to /chat/completions in 0.387139 seconds
+2025-08-27 14:51:49,613 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:51:49,613 - INFO - Retrying request to /chat/completions in 0.491505 seconds
+2025-08-27 14:51:50,571 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:51:50,572 - INFO - Retrying request to /chat/completions in 0.829163 seconds
+2025-08-27 14:51:55,591 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:51:59,614 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:51:59,615 - INFO - Agent sentiment_analyst received notification from fundamentals_analyst
+2025-08-27 14:51:59,615 - INFO - Agent technical_analyst received notification from fundamentals_analyst
+2025-08-27 14:51:59,615 - INFO - Agent valuation_analyst received notification from fundamentals_analyst
+2025-08-27 14:51:59,615 - INFO - Agent portfolio_manager received notification from fundamentals_analyst
+2025-08-27 14:51:59,615 - INFO - Agent fundamentals_analyst sent notification: MSFT 基本面信号偏空（置信度50%）：盈利能力依然强劲（ROE 38.4%、净利率36.3%、营运利润率45.53%），但增长放缓（营收同比+4.25%、盈利同比+7.06%），同时估值处于高位（P/E 33.86、P/S 12.28、P/B 11.73），财务健康中性（流动比率1.22、D/E 0.97）。在增长未明显提速的情形下，存在倍数压缩/估值回归风险。建议相关分析师复核持仓与情景假设，关注后续业绩指引、云与AI业务增速及资本开支节奏等潜在催化。
+2025-08-27 14:51:59,615 - INFO - Broadcasted notification from fundamentals_analyst to all agents
+2025-08-27 14:52:03,890 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:52:03,891 - INFO - Agent fundamentals_analyst received notification from sentiment_analyst
+2025-08-27 14:52:03,891 - INFO - Agent technical_analyst received notification from sentiment_analyst
+2025-08-27 14:52:03,891 - INFO - Agent valuation_analyst received notification from sentiment_analyst
+2025-08-27 14:52:03,891 - INFO - Agent portfolio_manager received notification from sentiment_analyst
+2025-08-27 14:52:03,891 - INFO - Agent sentiment_analyst sent notification: 内部交易信号显示：MSFT偏多（置信75.3%，约1000笔样本），AAPL偏空（置信62.9%，约1000笔样本）；当前新闻模块无有效样本，合成信号完全由内部交易驱动，可能存在数据时滞或周末效应。建议尽快复核新闻/事件源与数据完整性；在数据确认前将该信号视为早期指引，关注MSFT上行动能与AAPL下行风险，并设置后续触发条件以在新闻数据恢复或价格出现确认时更新判断。
+2025-08-27 14:52:03,891 - INFO - Broadcasted notification from sentiment_analyst to all agents
+2025-08-27 14:52:05,026 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:52:05,027 - INFO - Agent fundamentals_analyst received notification from valuation_analyst
+2025-08-27 14:52:05,027 - INFO - Agent sentiment_analyst received notification from valuation_analyst
+2025-08-27 14:52:05,027 - INFO - Agent technical_analyst received notification from valuation_analyst
+2025-08-27 14:52:05,027 - INFO - Agent portfolio_manager received notification from valuation_analyst
+2025-08-27 14:52:05,027 - INFO - Agent valuation_analyst sent notification: 基于最新多模型估值复核，AAPL 与 MSFT 同时触发强烈看空信号（置信度100）。相对市值存在显著高估：AAPL：DCF -45%，业主盈余 -75%，EV/EBITDA -7%（中性），剩余收益 -18%；MSFT：DCF -58%，业主盈余 -48%，EV/EBITDA -9%（中性），剩余收益 -62%。综合加权结论均为看空。含义：两大权重股一旦发生估值回归或增长预期下修，组合面临中高幅度回撤风险。建议：1) 复核关键假设（长期增长、WACC、回购节奏）；2) 开展情景/敏感性测试（增长放缓、利润率正常化、贴现率上行）；3) 评估当前敞口与对冲/减仓需求；4) 持续跟踪潜在催化（财报/指引、AI投入回报、监管进展、宏观利率）。为避免重复提醒，本通知合并覆盖两标的。
+2025-08-27 14:52:05,027 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-27 14:52:05,409 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:52:05,410 - INFO - Retrying request to /chat/completions in 0.430678 seconds
+2025-08-27 14:52:05,454 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:52:05,454 - INFO - Retrying request to /chat/completions in 0.449389 seconds
+2025-08-27 14:52:06,343 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:52:06,343 - INFO - Retrying request to /chat/completions in 0.972985 seconds
+2025-08-27 14:52:06,601 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:52:06,601 - INFO - Retrying request to /chat/completions in 0.452932 seconds
+2025-08-27 14:52:07,811 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2025-08-27 14:53:26,652 - INFO - Registered agent: fundamentals_analyst
+2025-08-27 14:53:26,652 - INFO - Registered agent: sentiment_analyst
+2025-08-27 14:53:26,652 - INFO - Registered agent: technical_analyst
+2025-08-27 14:53:26,652 - INFO - Registered agent: valuation_analyst
+2025-08-27 14:53:26,652 - INFO - Registered agent: portfolio_manager
+2025-08-27 14:53:26,652 - INFO - 高级投资分析引擎初始化完成
+2025-08-27 14:53:37,771 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:53:38,197 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:53:38,198 - INFO - Agent sentiment_analyst received notification from fundamentals_analyst
+2025-08-27 14:53:38,198 - INFO - Agent technical_analyst received notification from fundamentals_analyst
+2025-08-27 14:53:38,198 - INFO - Agent valuation_analyst received notification from fundamentals_analyst
+2025-08-27 14:53:38,199 - INFO - Agent portfolio_manager received notification from fundamentals_analyst
+2025-08-27 14:53:38,199 - INFO - Agent fundamentals_analyst sent notification: 对AAPL和MSFT的最新基本面分析结果显示，尽管AAPL在盈利能力方面表现强劲，但其价格比率信号显示为熊市，并且整体信号为中性。MSFT虽然盈利能力突出，但在增长信号和价格比率方面均显示为熊市，整体信号为熊市。这些结果可能对市场参与者产生影响，建议关注。
+2025-08-27 14:53:38,199 - INFO - Broadcasted notification from fundamentals_analyst to all agents
+2025-08-27 14:53:38,766 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:53:38,766 - INFO - Agent fundamentals_analyst received notification from valuation_analyst
+2025-08-27 14:53:38,766 - INFO - Agent sentiment_analyst received notification from valuation_analyst
+2025-08-27 14:53:38,766 - INFO - Agent technical_analyst received notification from valuation_analyst
+2025-08-27 14:53:38,767 - INFO - Agent portfolio_manager received notification from valuation_analyst
+2025-08-27 14:53:38,767 - INFO - Agent valuation_analyst sent notification: AAPL和MSFT的综合分析结果均为熊市信号，且所有分析方法均显示其市场价值显著低于当前市值。AAPL的综合价值与当前市值之间的差距达到-55.2%，而MSFT为-54.1%。这表明这两只股票可能存在重大下行风险。
+2025-08-27 14:53:38,767 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-27 14:53:45,247 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:53:51,371 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:53:52,037 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:53:59,303 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:54:00,389 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:54:08,154 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:54:13,917 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:54:19,769 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:54:23,185 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:54:30,031 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:54:34,317 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:57:35,669 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 500 Internal Server Error"
+2025-08-27 14:57:35,669 - INFO - Retrying request to /chat/completions in 0.468596 seconds
+2025-08-27 14:57:40,324 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:57:44,958 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:57:50,037 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:57:55,657 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:58:02,295 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:58:05,839 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:58:05,840 - INFO - Agent sentiment_analyst received notification from fundamentals_analyst
+2025-08-27 14:58:05,840 - INFO - Agent technical_analyst received notification from fundamentals_analyst
+2025-08-27 14:58:05,840 - INFO - Agent valuation_analyst received notification from fundamentals_analyst
+2025-08-27 14:58:05,840 - INFO - Agent portfolio_manager received notification from fundamentals_analyst
+2025-08-27 14:58:05,840 - INFO - Agent fundamentals_analyst sent notification: valuation_analyst指出AAPL和MSFT的综合分析结果显示市场价值显著低于当前市值，分别低估了55.2%和54.1%，存在重大下行风险。建议其他分析师关注并重新评估这两只股票。
+2025-08-27 14:58:05,840 - INFO - Broadcasted notification from fundamentals_analyst to all agents
+2025-08-27 14:58:07,205 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:58:07,206 - INFO - Agent fundamentals_analyst received notification from technical_analyst
+2025-08-27 14:58:07,206 - INFO - Agent sentiment_analyst received notification from technical_analyst
+2025-08-27 14:58:07,206 - INFO - Agent valuation_analyst received notification from technical_analyst
+2025-08-27 14:58:07,206 - INFO - Agent portfolio_manager received notification from technical_analyst
+2025-08-27 14:58:07,206 - INFO - Agent technical_analyst sent notification: 技术分析显示AAPL和MSFT均为中性信号，但基本面和技术面的综合分析提示存在重大下行风险。AAPL的综合价值与当前市值之间的差距达到-55.2%，MSFT为-54.1%。建议密切关注这两只股票的风险。
+2025-08-27 14:58:07,206 - INFO - Broadcasted notification from technical_analyst to all agents
+2025-08-27 14:58:11,185 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:58:28,653 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:58:28,654 - INFO - Agent fundamentals_analyst received notification from sentiment_analyst
+2025-08-27 14:58:28,654 - INFO - Agent technical_analyst received notification from sentiment_analyst
+2025-08-27 14:58:28,654 - INFO - Agent valuation_analyst received notification from sentiment_analyst
+2025-08-27 14:58:28,654 - INFO - Agent portfolio_manager received notification from sentiment_analyst
+2025-08-27 14:58:28,654 - INFO - Agent sentiment_analyst sent notification: 综合来自fundamentals_analyst、valuation_analyst和technical_analyst的分析结果，AAPL和MSFT均显示存在重大下行风险。AAPL的市场价值显著低于当前市值55.2%，MSFT为54.1%。尽管技术分析显示为中性信号，但基本面和技术面的综合分析提示重大下行风险。建议重新评估这两只股票。
+2025-08-27 14:58:28,654 - INFO - Broadcasted notification from sentiment_analyst to all agents
+2025-08-27 14:58:35,255 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:58:39,600 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:58:41,191 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:58:42,858 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:58:48,353 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:58:51,862 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:58:55,815 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:58:59,878 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:59:04,950 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:59:09,138 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:59:14,878 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:59:20,053 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:59:26,549 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:59:33,163 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:59:40,069 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:59:45,584 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:59:45,585 - INFO - Agent sentiment_analyst received notification from fundamentals_analyst
+2025-08-27 14:59:45,585 - INFO - Agent technical_analyst received notification from fundamentals_analyst
+2025-08-27 14:59:45,585 - INFO - Agent valuation_analyst received notification from fundamentals_analyst
+2025-08-27 14:59:45,585 - INFO - Agent portfolio_manager received notification from fundamentals_analyst
+2025-08-27 14:59:45,585 - INFO - Agent fundamentals_analyst sent notification: 综合fundamentals_analyst、valuation_analyst和technical_analyst的分析结果，AAPL和MSFT均显示存在重大下行风险。AAPL的市场价值显著低于当前市值55.2%，MSFT为54.1%。尽管技术分析显示为中性信号，但基本面和技术面的综合分析提示重大下行风险。建议重新评估这两只股票。
+2025-08-27 14:59:45,585 - INFO - Broadcasted notification from fundamentals_analyst to all agents
+2025-08-27 14:59:46,592 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:59:46,593 - INFO - Agent fundamentals_analyst received notification from valuation_analyst
+2025-08-27 14:59:46,593 - INFO - Agent sentiment_analyst received notification from valuation_analyst
+2025-08-27 14:59:46,593 - INFO - Agent technical_analyst received notification from valuation_analyst
+2025-08-27 14:59:46,593 - INFO - Agent portfolio_manager received notification from valuation_analyst
+2025-08-27 14:59:46,593 - INFO - Agent valuation_analyst sent notification: 综合来自fundamentals_analyst、valuation_analyst和technical_analyst的分析结果，AAPL和MSFT均显示存在重大下行风险。AAPL的市场价值显著低于当前市值55.2%，MSFT为54.1%。尽管技术分析显示为中性信号，但基本面和技术面的综合分析提示重大下行风险。建议重新评估这两只股票。
+2025-08-27 14:59:46,593 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-27 14:59:49,445 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:59:52,853 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:59:59,315 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:59:59,786 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:59:59,971 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:00:02,607 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:00:09,207 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:00:12,786 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:00:18,462 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:00:22,545 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:00:26,583 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:00:31,154 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:00:35,465 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:00:39,358 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:00:44,189 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:00:48,566 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:00:56,008 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:01:00,202 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:01:00,203 - INFO - Agent fundamentals_analyst received notification from technical_analyst
+2025-08-27 15:01:00,203 - INFO - Agent sentiment_analyst received notification from technical_analyst
+2025-08-27 15:01:00,203 - INFO - Agent valuation_analyst received notification from technical_analyst
+2025-08-27 15:01:00,203 - INFO - Agent portfolio_manager received notification from technical_analyst
+2025-08-27 15:01:00,203 - INFO - Agent technical_analyst sent notification: 综合来自fundamentals_analyst、valuation_analyst和technical_analyst的分析结果，AAPL和MSFT均显示存在重大下行风险。AAPL的市场价值显著低于当前市值55.2%，MSFT为54.1%。尽管AAPL的技术分析显示为熊市信号，MSFT为中性信号，但基本面和技术面的综合分析提示重大下行风险。建议重新评估这两只股票。
+2025-08-27 15:01:00,203 - INFO - Broadcasted notification from technical_analyst to all agents
+2025-08-27 15:01:01,550 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:01:01,551 - INFO - Agent sentiment_analyst received notification from fundamentals_analyst
+2025-08-27 15:01:01,551 - INFO - Agent technical_analyst received notification from fundamentals_analyst
+2025-08-27 15:01:01,551 - INFO - Agent valuation_analyst received notification from fundamentals_analyst
+2025-08-27 15:01:01,551 - INFO - Agent portfolio_manager received notification from fundamentals_analyst
+2025-08-27 15:01:01,551 - INFO - Agent fundamentals_analyst sent notification: 综合来自fundamentals_analyst、valuation_analyst和technical_analyst的分析结果，AAPL和MSFT均显示存在重大下行风险。AAPL的市场价值显著低于当前市值55.2%，MSFT为54.1%。尽管技术分析显示为中性信号，但基本面和技术面的综合分析提示重大下行风险。建议重新评估这两只股票。
+2025-08-27 15:01:01,551 - INFO - Broadcasted notification from fundamentals_analyst to all agents
+2025-08-27 15:01:02,165 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:01:02,166 - INFO - Agent fundamentals_analyst received notification from valuation_analyst
+2025-08-27 15:01:02,166 - INFO - Agent sentiment_analyst received notification from valuation_analyst
+2025-08-27 15:01:02,166 - INFO - Agent technical_analyst received notification from valuation_analyst
+2025-08-27 15:01:02,166 - INFO - Agent portfolio_manager received notification from valuation_analyst
+2025-08-27 15:01:02,166 - INFO - Agent valuation_analyst sent notification: AAPL和MSFT的综合分析结果显示市场价值显著低于当前市值，分别低估了55.2%和54.1%，存在重大下行风险。尽管技术分析显示为中性信号，但基本面和技术面的综合分析提示重大下行风险。建议重新评估这两只股票。
+2025-08-27 15:01:02,166 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-27 15:01:03,152 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:01:03,153 - INFO - Agent fundamentals_analyst received notification from sentiment_analyst
+2025-08-27 15:01:03,153 - INFO - Agent technical_analyst received notification from sentiment_analyst
+2025-08-27 15:01:03,153 - INFO - Agent valuation_analyst received notification from sentiment_analyst
+2025-08-27 15:01:03,153 - INFO - Agent portfolio_manager received notification from sentiment_analyst
+2025-08-27 15:01:03,153 - INFO - Agent sentiment_analyst sent notification: 综合fundamentals_analyst、valuation_analyst和technical_analyst的分析结果，AAPL和MSFT均显示存在重大下行风险。AAPL的市场价值显著低于当前市值55.2%，MSFT为54.1%。尽管AAPL的技术分析显示为熊市信号，MSFT为中性信号，但基本面和技术面的综合分析提示重大下行风险。建议重新评估这两只股票。
+2025-08-27 15:01:03,153 - INFO - Broadcasted notification from sentiment_analyst to all agents
+2025-08-27 15:01:09,892 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:01:14,739 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:01:15,210 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:01:20,404 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:01:24,249 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:01:28,007 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:01:35,923 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:01:39,486 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:02:25,668 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:08:32,051 - INFO - Registered agent: fundamentals_analyst
+2025-08-27 15:08:32,052 - INFO - Registered agent: sentiment_analyst
+2025-08-27 15:08:32,052 - INFO - Registered agent: technical_analyst
+2025-08-27 15:08:32,052 - INFO - Registered agent: valuation_analyst
+2025-08-27 15:08:32,052 - INFO - Registered agent: portfolio_manager
+2025-08-27 15:08:32,052 - INFO - 高级投资分析引擎初始化完成
+2025-08-27 15:08:43,250 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:08:47,704 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:08:47,705 - INFO - Agent fundamentals_analyst received notification from valuation_analyst
+2025-08-27 15:08:47,705 - INFO - Agent sentiment_analyst received notification from valuation_analyst
+2025-08-27 15:08:47,705 - INFO - Agent technical_analyst received notification from valuation_analyst
+2025-08-27 15:08:47,705 - INFO - Agent portfolio_manager received notification from valuation_analyst
+2025-08-27 15:08:47,705 - INFO - Agent valuation_analyst sent notification: AAPL和MSFT的综合分析结果显示均为熊市信号，且信心度为100%。各估值方法（DCF、Owner Earnings、Residual Income）均显示这些股票的价值显著低于当前市场资本化水平，特别是Owner Earnings和DCF分析中，价值缺口分别为AAPL的-75.3%和-45.1%，MSFT的-48.3%和-57.9%。EV/EBITDA分析虽为中性，但其价值也略低于市场资本化水平。建议关注这两只股票的重大风险。
+2025-08-27 15:08:47,705 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-27 15:08:58,668 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:08:59,041 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:09:09,152 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:09:10,041 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:09:10,488 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:09:13,764 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:09:19,067 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:09:24,816 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:09:32,215 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:09:36,270 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:09:43,224 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:09:51,205 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:09:55,851 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:10:03,560 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:10:09,630 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:10:14,614 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:10:22,331 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:10:27,306 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:10:27,307 - INFO - Agent fundamentals_analyst received notification from technical_analyst
+2025-08-27 15:10:27,307 - INFO - Agent sentiment_analyst received notification from technical_analyst
+2025-08-27 15:10:27,307 - INFO - Agent valuation_analyst received notification from technical_analyst
+2025-08-27 15:10:27,307 - INFO - Agent portfolio_manager received notification from technical_analyst
+2025-08-27 15:10:27,307 - INFO - Agent technical_analyst sent notification: 技术分析结果显示AAPL和MSFT的信号均为中性，但估值分析师的综合分析表明这两只股票存在重大风险，特别是Owner Earnings和DCF分析中显示出显著的价值缺口。建议关注这两只股票的重大风险。
+2025-08-27 15:10:27,307 - INFO - Broadcasted notification from technical_analyst to all agents
+2025-08-27 15:10:27,813 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:10:27,814 - INFO - Agent fundamentals_analyst received notification from valuation_analyst
+2025-08-27 15:10:27,814 - INFO - Agent sentiment_analyst received notification from valuation_analyst
+2025-08-27 15:10:27,814 - INFO - Agent technical_analyst received notification from valuation_analyst
+2025-08-27 15:10:27,814 - INFO - Agent portfolio_manager received notification from valuation_analyst
+2025-08-27 15:10:27,814 - INFO - Agent valuation_analyst sent notification: 根据最新的估值分析，AAPL和MSFT的综合信号均为熊市，且所有分析方法均显示显著的市场高估。建议关注这些公司的股价波动，并考虑相应的投资策略调整。
+2025-08-27 15:10:27,814 - INFO - Broadcasted notification from valuation_analyst to all agents
+2025-08-27 15:10:29,843 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:10:29,844 - INFO - Agent sentiment_analyst received notification from fundamentals_analyst
+2025-08-27 15:10:29,844 - INFO - Agent technical_analyst received notification from fundamentals_analyst
+2025-08-27 15:10:29,844 - INFO - Agent valuation_analyst received notification from fundamentals_analyst
+2025-08-27 15:10:29,844 - INFO - Agent portfolio_manager received notification from fundamentals_analyst
+2025-08-27 15:10:29,844 - INFO - Agent fundamentals_analyst sent notification: AAPL和MSFT的综合分析结果显示均为熊市信号，且信心度为100%。各估值方法（DCF、Owner Earnings、Residual Income）均显示这些股票的价值显著低于当前市场资本化水平，特别是Owner Earnings和DCF分析中，价值缺口分别为AAPL的-75.3%和-45.1%，MSFT的-48.3%和-57.9%。EV/EBITDA分析虽为中性，但其价值也略低于市场资本化水平。建议关注这两只股票的重大风险。
+2025-08-27 15:10:29,844 - INFO - Broadcasted notification from fundamentals_analyst to all agents
+2025-08-27 15:10:33,105 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:10:33,106 - INFO - Agent fundamentals_analyst received notification from sentiment_analyst
+2025-08-27 15:10:33,106 - INFO - Agent technical_analyst received notification from sentiment_analyst
+2025-08-27 15:10:33,106 - INFO - Agent valuation_analyst received notification from sentiment_analyst
+2025-08-27 15:10:33,106 - INFO - Agent portfolio_manager received notification from sentiment_analyst
+2025-08-27 15:10:33,106 - INFO - Agent sentiment_analyst sent notification: AAPL和MSFT的综合分析结果显示均为熊市信号，且信心度较高（AAPL为62.9%，MSFT为75.3%）。此外，估值分析师报告指出，各估值方法（DCF、Owner Earnings、Residual Income）均显示这两只股票的价值显著低于当前市场资本化水平。具体而言，Owner Earnings和DCF分析中，AAPL的价值缺口为-75.3%和-45.1%，MSFT的价值缺口为-48.3%和-57.9%。尽管EV/EBITDA分析为中性，但其价值也略低于市场资本化水平。建议关注这两只股票的重大风险。
+2025-08-27 15:10:33,106 - INFO - Broadcasted notification from sentiment_analyst to all agents
+2025-08-27 15:10:40,719 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:10:41,641 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:10:45,597 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:10:49,445 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:10:52,901 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:10:56,092 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:11:00,757 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:11:04,439 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:11:11,844 - INFO - Registered agent: fundamentals_analyst
+2025-08-27 15:11:11,844 - INFO - Registered agent: sentiment_analyst
+2025-08-27 15:11:11,844 - INFO - Registered agent: technical_analyst
+2025-08-27 15:11:11,844 - INFO - Registered agent: valuation_analyst
+2025-08-27 15:11:11,844 - INFO - Registered agent: portfolio_manager
+2025-08-27 15:11:11,844 - INFO - 高级投资分析引擎初始化完成
+2025-08-27 15:11:28,559 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:11:37,711 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:11:51,715 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:12:00,260 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:19:18,456 - INFO - Registered agent: fundamentals_analyst
+2025-08-27 15:19:18,456 - INFO - Registered agent: sentiment_analyst
+2025-08-27 15:19:18,456 - INFO - Registered agent: technical_analyst
+2025-08-27 15:19:18,456 - INFO - Registered agent: valuation_analyst
+2025-08-27 15:19:18,456 - INFO - Registered agent: portfolio_manager
+2025-08-27 15:19:18,456 - INFO - 高级投资分析引擎初始化完成
+2025-08-27 15:19:39,230 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:19:49,669 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:19:58,360 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:20:14,339 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:21:08,990 - INFO - Registered agent: fundamentals_analyst
+2025-08-27 15:21:08,990 - INFO - Registered agent: sentiment_analyst
+2025-08-27 15:21:08,990 - INFO - Registered agent: technical_analyst
+2025-08-27 15:21:08,990 - INFO - Registered agent: valuation_analyst
+2025-08-27 15:21:08,990 - INFO - Registered agent: portfolio_manager
+2025-08-27 15:21:08,991 - INFO - 高级投资分析引擎初始化完成
+2025-08-27 15:21:36,940 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:21:44,949 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:21:52,831 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:22:02,410 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:23:37,620 - INFO - Registered agent: fundamentals_analyst
+2025-08-27 15:23:37,620 - INFO - Registered agent: sentiment_analyst
+2025-08-27 15:23:37,621 - INFO - Registered agent: technical_analyst
+2025-08-27 15:23:37,621 - INFO - Registered agent: valuation_analyst
+2025-08-27 15:23:37,621 - INFO - Registered agent: portfolio_manager
+2025-08-27 15:23:37,621 - INFO - 高级投资分析引擎初始化完成
+2025-08-27 15:23:56,847 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:24:07,017 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:24:17,862 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 15:24:24,751 - INFO - HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"

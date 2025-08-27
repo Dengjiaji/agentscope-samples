@@ -354,7 +354,10 @@ class AdvancedInvestmentAnalysisEngine:
         portfolio_management_results = self.run_portfolio_management_with_communications(
             state, enable_communications
         )
-        print(portfolio_management_results)
+        print(portfolio_management_results.keys())
+        print(portfolio_management_results['portfolio_summary'])
+        # print(portfolio_management_results['final_execution_report'])
+        # print(portfolio_management_results['portfolio_summary'])
         # 生成最终报告
         final_report = self.generate_final_report(second_round_results, state)
         
@@ -702,7 +705,7 @@ class AdvancedInvestmentAnalysisEngine:
     def run_portfolio_management_with_communications(self, state: AgentState, 
                                                    enable_communications: bool = True) -> Dict[str, Any]:
         """运行投资组合管理（包含通信机制）"""
-        print("💼 执行投资组合管理决策...")
+        # print("💼 执行投资组合管理决策...")
         
         try:
             # 首先运行传统的投资组合管理
@@ -715,7 +718,7 @@ class AdvancedInvestmentAnalysisEngine:
             
             # 获取初始投资决策
             initial_decisions = self._extract_portfolio_decisions(state)
-            
+            print('initial_decisions',initial_decisions)
             if not initial_decisions:
                 print("⚠️ 未能获取初始投资决策")
                 return {
@@ -726,9 +729,6 @@ class AdvancedInvestmentAnalysisEngine:
                 }
             
             print("✅ 初始投资组合决策完成")
-            
-            # 执行交易决策
-            execution_report = self._execute_portfolio_trades(state, initial_decisions)
             
             # 如果启用通信机制
             if enable_communications:
@@ -817,11 +817,10 @@ class AdvancedInvestmentAnalysisEngine:
                         print("ℹ️ 本轮沟通未导致信号调整，结束循环")
                         break
                 
-                # 执行最终交易决策（如果与初始决策不同）
-                final_execution_report = None
-                if final_decisions != initial_decisions:
-                    print("\n💼 执行最终交易决策...")
-                    final_execution_report = self._execute_portfolio_trades(state, final_decisions)
+                # 执行最终交易决策
+                print("\n💼 执行最终交易决策...")
+                print('final_decisions',final_decisions)
+                final_execution_report = self._execute_portfolio_trades(state, final_decisions)
                 
                 # 计算portfolio摘要
                 portfolio_summary = self._calculate_portfolio_summary(state)
@@ -833,7 +832,6 @@ class AdvancedInvestmentAnalysisEngine:
                     "final_decisions": final_decisions,
                     "communication_decision": last_decision_dump,
                     "communication_results": communication_results,
-                    "initial_execution_report": execution_report,
                     "final_execution_report": final_execution_report,
                     "portfolio_summary": portfolio_summary,
                     "communications_enabled": True,
@@ -841,7 +839,10 @@ class AdvancedInvestmentAnalysisEngine:
                 }
             
             else:
-                # 不启用通信机制，直接返回初始决策
+                # 不启用通信机制，直接执行初始决策的交易
+                print("\n💼 执行初始交易决策...")
+                execution_report = self._execute_portfolio_trades(state, initial_decisions)
+                
                 # 计算portfolio摘要
                 portfolio_summary = self._calculate_portfolio_summary(state)
                 
