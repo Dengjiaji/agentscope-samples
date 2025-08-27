@@ -50,6 +50,9 @@ from src.agents.second_round_llm_analyst import (
 from src.agents.risk_manager import risk_management_agent
 from src.agents.portfolio_manager import portfolio_management_agent
 
+# 导入交易执行器
+from src.utils.trade_executor import execute_trading_decisions
+
 # 导入新的通信系统
 from src.communication.chat_tools import (
     communication_manager,
@@ -120,12 +123,28 @@ class AdvancedInvestmentAnalysisEngine:
         if not api_key or not openai_key:
             raise ValueError("缺少必要的API密钥，请检查环境变量设置")
         
-        # 初始化投资组合状态
+        # 初始化投资组合状态（参考ai-hedge-fund格式）
         initial_portfolio = {
             "cash": 100000.0,  # 初始现金10万
-            "positions": {},  # 初始无持仓
             "margin_requirement": 0.1,  # 10%保证金要求
-            "margin_used": 0.0  # 当前使用保证金
+            "margin_used": 0.0,  # 当前使用保证金
+            "positions": {
+                ticker: {
+                    "long": 0,  # 多头持仓股数
+                    "short": 0,  # 空头持仓股数
+                    "long_cost_basis": 0.0,  # 多头平均成本
+                    "short_cost_basis": 0.0,  # 空头平均成本
+                    "short_margin_used": 0.0,  # 空头使用的保证金
+                }
+                for ticker in tickers
+            },
+            "realized_gains": {
+                ticker: {
+                    "long": 0.0,  # 多头已实现盈亏
+                    "short": 0.0,  # 空头已实现盈亏
+                }
+                for ticker in tickers
+            }
         }
         
         state = AgentState(
@@ -335,7 +354,7 @@ class AdvancedInvestmentAnalysisEngine:
         portfolio_management_results = self.run_portfolio_management_with_communications(
             state, enable_communications
         )
-        
+        print(portfolio_management_results)
         # 生成最终报告
         final_report = self.generate_final_report(second_round_results, state)
         
@@ -708,6 +727,9 @@ class AdvancedInvestmentAnalysisEngine:
             
             print("✅ 初始投资组合决策完成")
             
+            # 执行交易决策
+            execution_report = self._execute_portfolio_trades(state, initial_decisions)
+            
             # 如果启用通信机制
             if enable_communications:
                 print("\n💬 启动高级通信机制...")
@@ -795,6 +817,12 @@ class AdvancedInvestmentAnalysisEngine:
                         print("ℹ️ 本轮沟通未导致信号调整，结束循环")
                         break
                 
+                # 执行最终交易决策（如果与初始决策不同）
+                final_execution_report = None
+                if final_decisions != initial_decisions:
+                    print("\n💼 执行最终交易决策...")
+                    final_execution_report = self._execute_portfolio_trades(state, final_decisions)
+                
                 return {
                     "agent_id": "portfolio_manager",
                     "agent_name": "投资组合管理者",
@@ -802,6 +830,8 @@ class AdvancedInvestmentAnalysisEngine:
                     "final_decisions": final_decisions,
                     "communication_decision": last_decision_dump,
                     "communication_results": communication_results,
+                    "initial_execution_report": execution_report,
+                    "final_execution_report": final_execution_report,
                     "communications_enabled": True,
                     "status": "success"
                 }
@@ -812,6 +842,7 @@ class AdvancedInvestmentAnalysisEngine:
                     "agent_id": "portfolio_manager",
                     "agent_name": "投资组合管理者",
                     "final_decisions": initial_decisions,
+                    "execution_report": execution_report,
                     "communications_enabled": False,
                     "status": "success"
                 }
@@ -927,6 +958,46 @@ class AdvancedInvestmentAnalysisEngine:
         except Exception as e:
             print(f"⚠️ 提取投资决策失败: {str(e)}")
             return {}
+    
+    def _execute_portfolio_trades(self, state: AgentState, decisions: Dict[str, Any]) -> Dict[str, Any]:
+        """执行投资组合交易决策"""
+        try:
+            # 获取当前价格数据
+            current_prices = state["data"].get("current_prices", {})
+            if not current_prices:
+                print("⚠️ 无法获取当前价格数据，跳过交易执行")
+                return {"status": "skipped", "reason": "缺少价格数据"}
+            
+            # 获取当前portfolio
+            portfolio = state["data"].get("portfolio", {})
+            if not portfolio:
+                print("⚠️ 无法获取投资组合数据，跳过交易执行")
+                return {"status": "skipped", "reason": "缺少投资组合数据"}
+            
+            # 执行交易
+            updated_portfolio, execution_report = execute_trading_decisions(
+                portfolio=portfolio,
+                pm_decisions=decisions,
+                current_prices=current_prices
+            )
+            
+            # 更新state中的portfolio
+            state["data"]["portfolio"] = updated_portfolio
+            
+            # 添加执行报告到state
+            if "execution_reports" not in state["data"]:
+                state["data"]["execution_reports"] = []
+            state["data"]["execution_reports"].append(execution_report)
+            
+            print(f"✅ 交易执行完成，执行了{len(execution_report.get('executed_trades', {}))}笔交易")
+            
+            return execution_report
+            
+        except Exception as e:
+            error_msg = f"交易执行失败: {str(e)}"
+            print(f"❌ {error_msg}")
+            print(f"错误详情: {traceback.format_exc()}")
+            return {"status": "error", "error": error_msg}
     
     def generate_final_report(self, analyst_results: Dict[str, Any], 
                             state: AgentState) -> Dict[str, Any]:
