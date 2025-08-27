@@ -225,7 +225,7 @@ class CommunicationManager:
                 llm = llm.bind(response_format={"type": "json_object"})
             elif hasattr(llm, 'with_config'):
                 llm = llm.with_config({"response_format": {"type": "json_object"}})
-            print(f"✅ JSON模式已启用 for {model_name}")
+            # print(f"✅ JSON模式已启用 for {model_name}")
         
         return llm
     
@@ -320,6 +320,7 @@ class CommunicationManager:
         
         conversation_history = []
         current_analyst_signal = analyst_signal.copy()
+        adjustments_made_counter = 0
         
         max_chars = self._get_max_chars(state)
         for round_num in range(max_rounds):
@@ -353,6 +354,7 @@ class CommunicationManager:
                 original_signal = current_analyst_signal
                 current_analyst_signal = analyst_response["adjusted_signal"]
                 print(f"📊 信号已调整: {analyst_response['signal_adjustment']}")
+                adjustments_made_counter += 1
                 
                 # 记录信号调整到记忆
                 if analyst_memory and communication_id:
@@ -394,7 +396,7 @@ class CommunicationManager:
         result = {
             "chat_history": conversation_history,
             "final_analyst_signal": current_analyst_signal,
-            "adjustments_made": len([h for h in conversation_history if "调整" in h.get("content", "")])
+            "adjustments_made": adjustments_made_counter
         }
         # 持久化写入日志
         payload = {
@@ -434,6 +436,7 @@ class CommunicationManager:
         
         current_signals = analyst_signals.copy()
         meeting_transcript = []
+        adjustments_made_counter = 0
         
         # 管理者开场
         opening_message = f"我们来讨论{topic}。请各位分析师分享你们的观点和分析结果。"
@@ -484,6 +487,7 @@ class CommunicationManager:
                     original_signal = current_signals[analyst_id]
                     current_signals[analyst_id] = analyst_response["adjusted_signal"]
                     print(f"📊 {analyst_id} 调整了信号")
+                    adjustments_made_counter += 1
                     
                     # 记录信号调整到记忆
                     if analyst_memory and analyst_id in communication_ids:
@@ -525,7 +529,7 @@ class CommunicationManager:
             "meeting_id": meeting_id,
             "transcript": meeting_transcript,
             "final_signals": current_signals,
-            "adjustments_made": len([t for t in meeting_transcript if "调整" in t.get("content", "")])
+            "adjustments_made": adjustments_made_counter
         }
         # 持久化写入日志
         payload = {

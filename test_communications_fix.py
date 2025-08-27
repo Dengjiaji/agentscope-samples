@@ -32,7 +32,8 @@ def test_communications():
             start_date=start_date,
             end_date=end_date,
             parallel=False,  # 使用串行模式便于调试
-            enable_communications=True
+            enable_communications=True,
+            enable_notifications=True  # 默认启用通知
         )
         
         print("✅ 通信系统测试成功!")

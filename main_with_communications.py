@@ -147,7 +147,7 @@ class AdvancedInvestmentAnalysisEngine:
                 }
             },
             metadata={
-                "show_reasoning": True,
+                "show_reasoning": False,  # 默认不显示详细推理，通过参数控制
                 "model_name": model_name,
                 "model_provider": "OpenAI",
                 "communication_enabled": True
@@ -213,33 +213,38 @@ class AdvancedInvestmentAnalysisEngine:
                     )
                     analyst_memory.complete_analysis_session(session_id, analysis_result)
                 
-                # 判断是否需要发送通知
-                notification_decision = should_send_notification(
-                    agent_id=agent_id,
-                    analysis_result=analysis_result,
-                    agent_memory=agent_memory,
-                    state=state
-                )
-                
-                # 处理通知决策（使用线程锁保护）
-                if notification_decision.get("should_notify", False):
-                    print(f"📢 {agent_name} 决定发送通知...")
+                # 判断是否需要发送通知（可选）
+                notifications_enabled = state["metadata"].get("notifications_enabled", True)
+                if notifications_enabled:
+                    notification_decision = should_send_notification(
+                        agent_id=agent_id,
+                        analysis_result=analysis_result,
+                        agent_memory=agent_memory,
+                        state=state
+                    )
                     
-                    # 使用线程锁保护通知系统的全局状态
-                    with self._notification_lock:
-                        notification_id = notification_system.broadcast_notification(
-                            sender_agent=agent_id,
-                            content=notification_decision["content"],
-                            urgency=notification_decision.get("urgency", "medium"),
-                            category=notification_decision.get("category", "general")
-                        )
-                    
-                    print(f"✅ 通知已发送 (ID: {notification_id})")
-                    print(f"📝 通知内容: {notification_decision['content']}")
+                    # 处理通知决策（使用线程锁保护）
+                    if notification_decision.get("should_notify", False):
+                        print(f"📢 {agent_name} 决定发送通知...")
+                        
+                        # 使用线程锁保护通知系统的全局状态
+                        with self._notification_lock:
+                            notification_id = notification_system.broadcast_notification(
+                                sender_agent=agent_id,
+                                content=notification_decision["content"],
+                                urgency=notification_decision.get("urgency", "medium"),
+                                category=notification_decision.get("category", "general")
+                            )
+                        
+                        print(f"✅ 通知已发送 (ID: {notification_id})")
+                        print(f"📝 通知内容: {notification_decision['content']}")
+                    else:
+                        print(f"ℹ️ {agent_name} 决定不发送通知")
+                        if "reason" in notification_decision:
+                            print(f"📝 原因: {notification_decision['reason']}")
                 else:
-                    print(f"ℹ️ {agent_name} 决定不发送通知")
-                    if "reason" in notification_decision:
-                        print(f"📝 原因: {notification_decision['reason']}")
+                    print(f"⚡ {agent_name} 跳过通知机制（已禁用）")
+                    notification_decision = {"should_notify": False, "reason": "通知机制已禁用"}
                 
                 return {
                     "agent_id": agent_id,
@@ -269,22 +274,42 @@ class AdvancedInvestmentAnalysisEngine:
             }
     
     def run_full_analysis_with_communications(self, tickers: List[str], start_date: str, end_date: str, 
-                                            parallel: bool = True, enable_communications: bool = True) -> Dict[str, Any]:
-        """运行带通信机制的完整分析流程"""
-        print("🚀 开始高级投资分析会话（包含通信机制）")
-        print("=" * 70)
-        print(f"📈 分析股票: {', '.join(tickers)}")
-        print(f"📅 时间范围: {start_date} 至 {end_date}")
-        print(f"🔄 执行模式: {'并行' if parallel else '串行'}")
-        print(f"💬 通信功能: {'启用' if enable_communications else '禁用'}")
-        print("=" * 70)
+                                            parallel: bool = True, enable_communications: bool = True, enable_notifications: bool = True, state=None) -> Dict[str, Any]:
+        """运行带通信机制的完整分析流程
         
-        # 创建基础状态
-        state = self.create_base_state(tickers, start_date, end_date)
-        state["metadata"]["communication_enabled"] = enable_communications
-        # 提前确定本次会话的输出文件路径，供通信过程落盘复用
-        output_file = f"/root/wuyue.wy/Project/IA/analysis_results_logs/communications_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        state["metadata"]["output_file"] = output_file
+        Args:
+            tickers: 股票代码列表
+            start_date: 开始日期
+            end_date: 结束日期
+            parallel: 是否并行执行
+            enable_communications: 是否启用通信机制
+            enable_notifications: 是否启用通知机制
+            state: 预创建的状态对象（用于多日模式中的状态继承）
+        """
+        # 创建或使用提供的状态
+        if state is None:
+            print("🚀 开始高级投资分析会话（包含通信机制）")
+            print("=" * 70)
+            print(f"📈 分析股票: {', '.join(tickers)}")
+            print(f"📅 时间范围: {start_date} 至 {end_date}")
+            print(f"🔄 执行模式: {'并行' if parallel else '串行'}")
+            print(f"💬 通信功能: {'启用' if enable_communications else '禁用'}")
+            print(f"🔔 通知功能: {'启用' if enable_notifications else '禁用'}")
+            print("=" * 70)
+
+            # 创建基础状态
+            state = self.create_base_state(tickers, start_date, end_date)
+            state["metadata"]["communication_enabled"] = enable_communications
+            state["metadata"]["notifications_enabled"] = enable_notifications
+            # 提前确定本次会话的输出文件路径，供通信过程落盘复用
+            output_file = f"/root/wuyue.wy/Project/IA/analysis_results_logs/communications_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            state["metadata"]["output_file"] = output_file
+        else:
+            # 使用提供的状态，但更新基础数据
+            state["data"]["tickers"] = tickers
+            state["data"]["start_date"] = start_date
+            state["data"]["end_date"] = end_date
+            print(f"📅 继续多日分析: {start_date} 至 {end_date}")
         
         # 第一步：运行所有分析师（第一轮）
         if parallel:
@@ -292,9 +317,14 @@ class AdvancedInvestmentAnalysisEngine:
         else:
             analyst_results = self.run_analysts_sequential(state)
         
-        # 第二步：基于通知的第二轮分析
-        print("\n🔄 开始第二轮分析（基于通知和第一轮结果）...")
-        second_round_results = self.run_second_round_analysis(analyst_results, state, parallel)
+        # 第二步：基于通知的第二轮分析（可选）
+        notifications_enabled = state["metadata"].get("notifications_enabled", True)
+        if notifications_enabled:
+            print("\n🔄 开始第二轮分析（基于通知和第一轮结果）...")
+            second_round_results = self.run_second_round_analysis(analyst_results, state, parallel)
+        else:
+            print("\n⚡ 跳过第二轮分析（通知机制已禁用）- 直接使用第一轮结果")
+            second_round_results = analyst_results  # 直接使用第一轮结果
         
         # 第三步：风险管理分析
         print("\n⚠️ 开始风险管理分析...")
@@ -681,30 +711,47 @@ class AdvancedInvestmentAnalysisEngine:
             # 如果启用通信机制
             if enable_communications:
                 print("\n💬 启动高级通信机制...")
-                
-                # 获取分析师信号
-                analyst_signals = {}
-                for agent_id in self.core_analysts.keys():
-                    if agent_id in state["data"]["analyst_signals"]:
-                        analyst_signals[agent_id] = state["data"]["analyst_signals"][agent_id]
-                
-                # 决定通信策略
-                communication_decision = communication_manager.decide_communication_strategy(
-                    manager_signals=initial_decisions,
-                    analyst_signals=analyst_signals,
-                    state=state
-                )
-                
-                # 记录通信决策
-                state["data"]["communication_logs"]["communication_decisions"].append({
-                    "timestamp": datetime.now().isoformat(),
-                    "decision": communication_decision.model_dump()
-                })
+                max_cycles = 3
+                try:
+                    max_cycles = int(state["metadata"].get("max_communication_cycles", 3))
+                except Exception:
+                    max_cycles = 3
                 
                 final_decisions = initial_decisions
+                last_decision_dump = None
                 communication_results = {}
                 
-                if communication_decision.should_communicate:
+                for cycle in range(1, max_cycles + 1):
+                    print(f"\n🛎️ 沟通循环 第{cycle}/{max_cycles} 轮")
+                    # 获取分析师信号（每轮刷新）
+                    analyst_signals = {}
+                    for agent_id in self.core_analysts.keys():
+                        if agent_id in state["data"]["analyst_signals"]:
+                            analyst_signals[agent_id] = state["data"]["analyst_signals"][agent_id]
+                    
+                    # 决定通信策略
+                    communication_decision = communication_manager.decide_communication_strategy(
+                        manager_signals=final_decisions,
+                        analyst_signals=analyst_signals,
+                        state=state
+                    )
+                    last_decision_dump = communication_decision.model_dump()
+                    
+                    # 记录通信决策
+                    # 确保 communication_decisions 字段存在
+                    if "communication_decisions" not in state["data"]["communication_logs"]:
+                        state["data"]["communication_logs"]["communication_decisions"] = []
+                    
+                    state["data"]["communication_logs"]["communication_decisions"].append({
+                        "timestamp": datetime.now().isoformat(),
+                        "decision": last_decision_dump
+                    })
+                    
+                    if not communication_decision.should_communicate:
+                        print("📝 决定不进行额外通信")
+                        print(f"💭 原因: {communication_decision.reasoning}")
+                        break
+                    
                     print(f"📞 选择通信类型: {communication_decision.communication_type}")
                     print(f"📋 讨论话题: {communication_decision.discussion_topic}")
                     print(f"🎯 目标分析师: {', '.join(communication_decision.target_analysts)}")
@@ -714,12 +761,13 @@ class AdvancedInvestmentAnalysisEngine:
                         communication_results = self.conduct_private_chats(
                             communication_decision, analyst_signals, state
                         )
-                        
                     elif communication_decision.communication_type == "meeting":
                         # 进行会议
                         communication_results = self.conduct_meeting(
                             communication_decision, analyst_signals, state
                         )
+                    else:
+                        communication_results = {}
                     
                     # 如果有信号调整，重新运行投资组合决策
                     if communication_results.get("signals_adjusted", False):
@@ -728,32 +776,31 @@ class AdvancedInvestmentAnalysisEngine:
                         # 更新分析师信号
                         updated_signals = communication_results.get("updated_signals", {})
                         for agent_id, updated_signal in updated_signals.items():
-                            state["data"]["analyst_signals"][f"{agent_id}_post_communication"] = updated_signal
+                            state["data"]["analyst_signals"][f"{agent_id}_post_communication_cycle{cycle}"] = updated_signal
                         
                         # 重新运行投资组合管理
-                        final_portfolio_result = portfolio_management_agent(state, agent_id="portfolio_manager_final")
+                        final_portfolio_result = portfolio_management_agent(state, agent_id=f"portfolio_manager_after_cycle_{cycle}")
                         
                         if final_portfolio_result and "messages" in final_portfolio_result:
                             state["messages"] = final_portfolio_result["messages"]
                             state["data"] = final_portfolio_result["data"]
                         
-                        final_decisions = self._extract_portfolio_decisions(state, agent_name="portfolio_manager_final")
-                        
-                        if final_decisions:
-                            print("✅ 基于通信结果的最终投资决策完成")
+                        new_final_decisions = self._extract_portfolio_decisions(state, agent_name=f"portfolio_manager_after_cycle_{cycle}")
+                        if new_final_decisions:
+                            final_decisions = new_final_decisions
+                            print("✅ 基于通信结果的投资决策已更新")
                         else:
-                            print("⚠️ 最终决策生成失败，使用初始决策")
-                            final_decisions = initial_decisions
-                else:
-                    print("📝 决定不进行额外通信")
-                    print(f"💭 原因: {communication_decision.reasoning}")
+                            print("⚠️ 决策更新失败，保留上一轮决策")
+                    else:
+                        print("ℹ️ 本轮沟通未导致信号调整，结束循环")
+                        break
                 
                 return {
                     "agent_id": "portfolio_manager",
                     "agent_name": "投资组合管理者",
                     "initial_decisions": initial_decisions,
                     "final_decisions": final_decisions,
-                    "communication_decision": communication_decision.model_dump(),
+                    "communication_decision": last_decision_dump,
                     "communication_results": communication_results,
                     "communications_enabled": True,
                     "status": "success"
@@ -1062,7 +1109,8 @@ def main():
         results = engine.run_full_analysis_with_communications(
             tickers, start_date, end_date, 
             parallel=parallel, 
-            enable_communications=enable_communications
+            enable_communications=enable_communications,
+            enable_notifications=True  # 默认启用通知
         )
         
         # 打印摘要
@@ -1142,7 +1190,8 @@ def interactive_mode():
                 results = engine.run_full_analysis_with_communications(
                     tickers, start_date, end_date, 
                     parallel=parallel,
-                    enable_communications=enable_communications
+                    enable_communications=enable_communications,
+                    enable_notifications=True  # 默认启用通知
                 )
                 engine.print_session_summary(results)
                 

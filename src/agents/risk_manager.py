@@ -45,7 +45,7 @@ def risk_management_agent(state: AgentState, agent_id: str = "risk_management_ag
 
         prices_df = prices_to_df(prices)
         
-        if not prices_df.empty and len(prices_df) > 1:
+        if not prices_df.empty and len(prices_df) >= 1:
             current_price = prices_df["close"].iloc[-1]
             current_prices[ticker] = current_price
             
