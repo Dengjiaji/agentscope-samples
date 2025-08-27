@@ -1822,3 +1822,13 @@ TSLA：
 2025-08-27 14:05:14,157 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
 2025-08-27 14:06:36,391 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
 2025-08-27 14:07:27,962 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:15:07,008 - INFO - Registered agent: fundamentals_analyst
+2025-08-27 14:15:07,008 - INFO - Registered agent: sentiment_analyst
+2025-08-27 14:15:07,008 - INFO - Registered agent: technical_analyst
+2025-08-27 14:15:07,008 - INFO - Registered agent: valuation_analyst
+2025-08-27 14:15:07,008 - INFO - Registered agent: portfolio_manager
+2025-08-27 14:15:07,009 - INFO - 高级投资分析引擎初始化完成
+2025-08-27 14:16:41,455 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:17:59,648 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:18:50,251 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-27 14:19:36,911 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"

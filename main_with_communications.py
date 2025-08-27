@@ -823,6 +823,9 @@ class AdvancedInvestmentAnalysisEngine:
                     print("\n💼 执行最终交易决策...")
                     final_execution_report = self._execute_portfolio_trades(state, final_decisions)
                 
+                # 计算portfolio摘要
+                portfolio_summary = self._calculate_portfolio_summary(state)
+                
                 return {
                     "agent_id": "portfolio_manager",
                     "agent_name": "投资组合管理者",
@@ -832,17 +835,22 @@ class AdvancedInvestmentAnalysisEngine:
                     "communication_results": communication_results,
                     "initial_execution_report": execution_report,
                     "final_execution_report": final_execution_report,
+                    "portfolio_summary": portfolio_summary,
                     "communications_enabled": True,
                     "status": "success"
                 }
             
             else:
                 # 不启用通信机制，直接返回初始决策
+                # 计算portfolio摘要
+                portfolio_summary = self._calculate_portfolio_summary(state)
+                
                 return {
                     "agent_id": "portfolio_manager",
                     "agent_name": "投资组合管理者",
                     "final_decisions": initial_decisions,
                     "execution_report": execution_report,
+                    "portfolio_summary": portfolio_summary,
                     "communications_enabled": False,
                     "status": "success"
                 }
@@ -998,6 +1006,54 @@ class AdvancedInvestmentAnalysisEngine:
             print(f"❌ {error_msg}")
             print(f"错误详情: {traceback.format_exc()}")
             return {"status": "error", "error": error_msg}
+    
+    def _calculate_portfolio_summary(self, state: AgentState) -> Dict[str, Any]:
+        """计算投资组合摘要信息"""
+        try:
+            portfolio = state["data"].get("portfolio", {})
+            current_prices = state["data"].get("current_prices", {})
+            
+            if not portfolio or not current_prices:
+                return {
+                    "total_value": 0,
+                    "cash": 0,
+                    "positions_value": 0,
+                    "error": "缺少portfolio或价格数据"
+                }
+            
+            cash = portfolio.get("cash", 0)
+            positions = portfolio.get("positions", {})
+            
+            # 计算持仓市值
+            positions_value = 0
+            for ticker, position in positions.items():
+                if ticker in current_prices:
+                    price = current_prices[ticker]
+                    # 多头持仓价值
+                    long_value = position.get("long", 0) * price
+                    # 空头持仓未实现盈亏 = 空头股数 * (空头成本 - 当前价格)
+                    short_shares = position.get("short", 0)
+                    short_cost_basis = position.get("short_cost_basis", 0)
+                    short_unrealized_pnl = short_shares * (short_cost_basis - price)
+                    
+                    positions_value += long_value + short_unrealized_pnl
+            
+            total_value = cash + positions_value
+            
+            return {
+                "total_value": round(total_value, 2),
+                "cash": round(cash, 2),
+                "positions_value": round(positions_value, 2),
+                "margin_used": portfolio.get("margin_used", 0)
+            }
+            
+        except Exception as e:
+            return {
+                "total_value": 0,
+                "cash": 0,
+                "positions_value": 0,
+                "error": f"计算portfolio摘要失败: {str(e)}"
+            }
     
     def generate_final_report(self, analyst_results: Dict[str, Any], 
                             state: AgentState) -> Dict[str, Any]:
