@@ -28,6 +28,19 @@ def portfolio_management_agent(state: AgentState, agent_id: str = "portfolio_man
     portfolio = state["data"]["portfolio"]
     analyst_signals = state["data"]["analyst_signals"]
     tickers = state["data"]["tickers"]
+    
+    # Debug: Print available analyst signals
+    print(f"🔍 投资组合管理器收到的分析师信号键: {list(analyst_signals.keys())}")
+    for agent_key, signals in analyst_signals.items():
+        if not agent_key.startswith("risk_management_agent"):
+            if isinstance(signals, dict):
+                if "ticker_signals" in signals:
+                    print(f"  📊 {agent_key}: 第二轮格式，包含 {len(signals['ticker_signals'])} 个ticker信号")
+                else:
+                    ticker_keys = [k for k in signals.keys() if k in tickers]
+                    print(f"  📊 {agent_key}: 第一轮格式，包含ticker: {ticker_keys}")
+            else:
+                print(f"  ⚠️ {agent_key}: 未知格式 - {type(signals)}")
 
     # Get position limits, current prices, and signals for every ticker
     position_limits = {}
@@ -59,8 +72,26 @@ def portfolio_management_agent(state: AgentState, agent_id: str = "portfolio_man
         ticker_signals = {}
         for agent, signals in analyst_signals.items():
             # Skip all risk management agents (they have different signal structure)
-            if not agent.startswith("risk_management_agent") and ticker in signals:
+            if agent.startswith("risk_management_agent"):
+                continue
+                
+            # Handle two types of signal formats:
+            # 1. First round format: {ticker: {signal, confidence, reasoning}}
+            # 2. Second round format: {ticker_signals: [{ticker, signal, confidence, reasoning}]}
+            
+            if ticker in signals:
+                # First round format
                 ticker_signals[agent] = {"signal": signals[ticker]["signal"], "confidence": signals[ticker]["confidence"]}
+                print(f"  ✅ 从 {agent} 获取 {ticker} 的第一轮信号: {signals[ticker]['signal']}")
+            elif "ticker_signals" in signals:
+                # Second round format - search through ticker_signals list
+                for ts in signals["ticker_signals"]:
+                    if ts.get("ticker") == ticker:
+                        ticker_signals[agent] = {"signal": ts["signal"], "confidence": ts["confidence"]}
+                        print(f"  ✅ 从 {agent} 获取 {ticker} 的第二轮信号: {ts['signal']}")
+                        break
+        
+        print(f"📈 {ticker} 收集到的信号数量: {len(ticker_signals)}")
         signals_by_ticker[ticker] = ticker_signals
 
     # Add current_prices to the state data so it's available throughout the workflow

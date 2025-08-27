@@ -451,6 +451,12 @@ class CommunicationManager:
         for round_num in range(max_rounds):
             print(f"\n🏢 会议第{round_num + 1}轮发言:")
             
+            # 调试：打印当前会议记录状态
+            if round_num > 0:
+                print(f"📝 当前会议记录条数: {len(meeting_transcript)}")
+                if meeting_transcript:
+                    print(f"📝 最后一条记录: {meeting_transcript[-1]}")
+            
             # 每个分析师发言
             for analyst_id in analyst_ids:
                 analyst_response = self._get_analyst_meeting_response(
@@ -660,12 +666,6 @@ class CommunicationManager:
 你的完整记忆和分析历史：
 {full_context}
 
-这是第{round_num}轮发言。基于你的记忆和分析历史，请：
-1. 分享你的观点和分析（可以引用你之前的分析过程和结论）
-2. 回应其他与会者的观点
-3. 如果听到有说服力的论据，基于新信息考虑调整你的信号
-4. 保持你作为{analyst_id}的专业特色和一致性
-
 你当前的分析信号：
 {current_signal}
 
@@ -680,13 +680,23 @@ class CommunicationManager:
             
             ("human", """会议话题：{topic}
 
-会议记录：
+这是第{round_num}轮发言。
+
+会议记录（重要！请仔细阅读并回应）：
 {meeting_transcript}
 
 其他分析师的信号：
 {other_signals}
 
-请基于你的完整记忆和专业背景发言。""")
+发言要求：
+1. 如果这是第1轮：分享你的观点和分析依据
+2. 如果这是第2轮或更多：
+   - 必须明确回应前面轮次中其他分析师的具体观点
+   - 说明你是否同意或不同意他们的分析，并给出理由
+   - 基于讨论内容考虑是否需要调整你的信号
+   - 避免重复第1轮的发言内容
+
+请基于会议记录和讨论内容发言，展现真正的互动和思辨过程。""")
         ])
         
         messages = prompt_template.format_messages(

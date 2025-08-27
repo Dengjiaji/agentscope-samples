@@ -157,10 +157,77 @@ class AnalystMemory:
             
             # 更新当前信号（兼容两种结构：单ticker 或 多ticker列表）
             printed_any = False
-            # 情况1：批量结构，形如 { analyst_id, analyst_name, ticker_signals: [ {ticker, signal, ...}, ...] }
-            if isinstance(adjusted_signal, dict) and isinstance(adjusted_signal.get("ticker_signals"), list):
-                for ts in adjusted_signal.get("ticker_signals", []):
-                    ticker_code = (ts or {}).get("ticker")
+            # 情况1：新格式 - 分离的ticker_signals, new_signals, new_confidences列表
+            if (isinstance(adjusted_signal, dict) and 
+                isinstance(adjusted_signal.get("ticker_signals"), list) and
+                isinstance(adjusted_signal.get("new_signals"), list) and
+                isinstance(adjusted_signal.get("new_confidences"), list)):
+                
+                ticker_list = adjusted_signal.get("ticker_signals", [])
+                signal_list = adjusted_signal.get("new_signals", [])
+                confidence_list = adjusted_signal.get("new_confidences", [])
+                
+                # 确保三个列表长度一致
+                min_len = min(len(ticker_list), len(signal_list), len(confidence_list))
+                
+                for i in range(min_len):
+                    ticker_code = ticker_list[i]
+                    signal = signal_list[i]
+                    confidence = confidence_list[i]
+                    
+                    # 构建完整的信号对象
+                    signal_obj = {
+                        "ticker": ticker_code,
+                        "signal": signal,
+                        "confidence": confidence,
+                        "reasoning": f"通信调整: {reasoning}"
+                    }
+                    
+                    # 更新最新信号
+                    self.current_signals[ticker_code] = signal_obj
+                    # 记录历史
+                    self.signal_history.append({
+                        "timestamp": datetime.now().isoformat(),
+                        "communication_id": communication_id,
+                        "communication_type": communication.communication_type,
+                        "ticker": ticker_code,
+                        "signal": signal_obj,
+                        "adjustment_reason": reasoning
+                    })
+                    print(f"🔄 {self.analyst_name} 调整了信号: {ticker_code} -> {signal} ({confidence}%)")
+                    printed_any = True
+            
+            # 情况2：传统批量结构，形如 { analyst_id, analyst_name, ticker_signals: [ {ticker, signal, ...}, ...] }
+            elif isinstance(adjusted_signal, dict) and isinstance(adjusted_signal.get("ticker_signals"), list):
+                ticker_signals_list = adjusted_signal.get("ticker_signals", [])
+                for ts in ticker_signals_list:
+                    # 处理可能的数据类型：字典、字符串（JSON）、或其他
+                    if isinstance(ts, dict):
+                        # 正常的字典格式
+                        ticker_code = ts.get("ticker")
+                    elif isinstance(ts, str):
+                        # 字符串格式，可能是序列化的JSON
+                        try:
+                            # 尝试解析JSON字符串
+                            import json
+                            parsed_ts = json.loads(ts)
+                            if isinstance(parsed_ts, list) and len(parsed_ts) > 0:
+                                # 如果解析出来是列表，取第一个元素
+                                ts = parsed_ts[0] if isinstance(parsed_ts[0], dict) else parsed_ts[0]
+                                ticker_code = ts.get("ticker") if isinstance(ts, dict) else None
+                            elif isinstance(parsed_ts, dict):
+                                ts = parsed_ts
+                                ticker_code = ts.get("ticker")
+                            else:
+                                print(f"⚠️ 无法处理的ticker_signals格式: {ts}")
+                                continue
+                        except (json.JSONDecodeError, AttributeError, KeyError) as e:
+                            print(f"⚠️ 解析ticker_signals JSON失败: {str(e)}, 内容: {ts}")
+                            continue
+                    else:
+                        print(f"⚠️ 未知的ticker_signals元素类型: {type(ts)}, 内容: {ts}")
+                        continue
+                    
                     if not ticker_code:
                         continue
                     # 更新最新信号
@@ -177,7 +244,7 @@ class AnalystMemory:
                     print(f"🔄 {self.analyst_name} 调整了信号: {ticker_code}")
                     printed_any = True
             
-            # 情况2：单ticker结构，形如 { ticker: "AAPL", signal: "bearish", ... }
+            # 情况3：单ticker结构，形如 { ticker: "AAPL", signal: "bearish", ... }
             if not printed_any and isinstance(adjusted_signal, dict):
                 ticker_code = adjusted_signal.get("ticker")
                 if ticker_code:

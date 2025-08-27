@@ -183,7 +183,9 @@ def should_send_notification(agent_id: str, analysis_result: Dict,
 3. 是否有与其他分析师相关的重要信息
 4. 避免发送重复或不重要的通知
 
-如果需要发送通知，请使用以下JSON格式回复：
+请严格按照以下JSON格式回复，不要包含任何额外的文字说明：
+
+如果需要发送通知：
 {{
     "should_notify": true,
     "content": "通知内容",
@@ -191,11 +193,13 @@ def should_send_notification(agent_id: str, analysis_result: Dict,
     "category": "market_alert/risk_warning/opportunity/policy_update/general"
 }}
 
-如果不需要发送通知，请回复：
+如果不需要发送通知：
 {{
     "should_notify": false,
     "reason": "不发送通知的原因"
 }}
+
+重要：回复内容必须是纯JSON格式，不要添加任何解释文字或markdown标记。
 """
     
     # 获取LLM模型
@@ -203,13 +207,58 @@ def should_send_notification(agent_id: str, analysis_result: Dict,
     # print(state['metadata'])
     model = get_model(model_name=state["metadata"]['model_name'],model_provider=state['metadata']['model_provider'],api_keys=state['data']['api_keys'])
     
-    # 调用LLM
-    response = model.invoke([HumanMessage(content=prompt)])
+    # 设置最大重试次数
+    max_retries = 3
     
-    # 解析响应
-    decision = json.loads(response.content)
-    
-    return decision
+    for attempt in range(max_retries):
+        try:
+            # 调用LLM
+            response = model.invoke([HumanMessage(content=prompt)])
+            
+            # 调试：打印LLM的原始响应
+            print(f"🔍 {agent_id} LLM通知决策原始响应 (尝试 {attempt + 1}/{max_retries}): '{response.content}'")
+            
+            # 解析响应
+            decision = json.loads(response.content)
+            print(f"✅ {agent_id} JSON解析成功")
+            return decision
+            
+        except json.JSONDecodeError as e:
+            print(f"⚠️ {agent_id} 通知决策JSON解析失败 (尝试 {attempt + 1}/{max_retries}): {str(e)}")
+            print(f"📝 原始响应内容: '{response.content}'")
+            
+            if attempt < max_retries - 1:
+                print(f"🔄 正在重试...")
+                # 修改prompt，强调JSON格式要求
+                prompt += f"""
+
+注意：请务必严格按照JSON格式回复，不要包含任何额外的文字说明。
+上一次回复格式有误：{response.content}
+请重新生成正确的JSON格式回复。"""
+            else:
+                # 最后一次尝试失败，返回默认决策
+                print(f"❌ {agent_id} 达到最大重试次数，使用备用决策")
+                fallback_decision = {
+                    "should_notify": False,
+                    "reason": f"LLM响应解析失败，已重试{max_retries}次: {str(e)}"
+                }
+                print(f"🔧 使用备用决策: {fallback_decision}")
+                return fallback_decision
+                
+        except Exception as e:
+            print(f"⚠️ {agent_id} 通知决策处理出现未知错误 (尝试 {attempt + 1}/{max_retries}): {str(e)}")
+            
+            if attempt < max_retries - 1:
+                print(f"🔄 正在重试...")
+            else:
+                # 最后一次尝试失败，返回默认决策
+                print(f"❌ {agent_id} 达到最大重试次数，使用备用决策")
+                fallback_decision = {
+                    "should_notify": False,
+                    "reason": f"通知决策处理失败，已重试{max_retries}次: {str(e)}"
+                }
+                print(f"🔧 使用备用决策: {fallback_decision}")
+                return fallback_decision
         
  
 
