@@ -6,6 +6,7 @@ Agent通知系统
 
 import json
 import logging
+import re
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
@@ -116,6 +117,82 @@ class NotificationSystem:
         return self.agent_memories.get(agent_id)
 
 
+def robust_json_parse(text: str) -> Dict[str, Any]:
+    """
+    鲁棒的JSON解析函数，支持多种格式
+    
+    Args:
+        text: 要解析的文本，可能包含markdown代码块或其他格式
+        
+    Returns:
+        解析后的字典
+        
+    Raises:
+        json.JSONDecodeError: 如果无法解析JSON
+    """
+    # 去除首尾空白字符
+    text = text.strip()
+    
+    # 尝试直接解析（最常见的情况）
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    
+    # 尝试提取markdown代码块中的JSON
+    # 匹配 ```json ... ``` 或 ``` ... ``` 格式
+    json_code_block_patterns = [
+        r'```json\s*\n(.*?)\n```',  # ```json ... ```
+        r'```\s*\n(.*?)\n```',     # ``` ... ```
+        r'```json(.*?)```',        # ```json...``` (无换行)
+        r'```(.*?)```'             # ```...``` (无换行)
+    ]
+    
+    for pattern in json_code_block_patterns:
+        match = re.search(pattern, text, re.DOTALL)
+        if match:
+            json_content = match.group(1).strip()
+            try:
+                return json.loads(json_content)
+            except json.JSONDecodeError:
+                continue
+    
+    # 尝试查找JSON对象模式 {...}
+    json_object_pattern = r'\{.*?\}'
+    match = re.search(json_object_pattern, text, re.DOTALL)
+    if match:
+        json_content = match.group(0)
+        try:
+            return json.loads(json_content)
+        except json.JSONDecodeError:
+            pass
+    
+    # 尝试查找更复杂的JSON对象（支持嵌套）
+    # 使用简单的大括号匹配
+    start_idx = text.find('{')
+    if start_idx != -1:
+        brace_count = 0
+        end_idx = start_idx
+        for i, char in enumerate(text[start_idx:], start_idx):
+            if char == '{':
+                brace_count += 1
+            elif char == '}':
+                brace_count -= 1
+                if brace_count == 0:
+                    end_idx = i + 1
+                    break
+        
+        if brace_count == 0:  # 找到完整的JSON对象
+            json_content = text[start_idx:end_idx]
+            try:
+                return json.loads(json_content)
+            except json.JSONDecodeError:
+                pass
+    
+    # 如果所有方法都失败，抛出原始错误
+    raise json.JSONDecodeError("Unable to parse JSON from text", text, 0)
+
+
 # 全局通知系统实例
 notification_system = NotificationSystem()
 
@@ -218,8 +295,8 @@ def should_send_notification(agent_id: str, analysis_result: Dict,
             # 调试：打印LLM的原始响应
             print(f"🔍 {agent_id} LLM通知决策原始响应 (尝试 {attempt + 1}/{max_retries}): '{response.content}'")
             
-            # 解析响应
-            decision = json.loads(response.content)
+            # 使用鲁棒的JSON解析
+            decision = robust_json_parse(response.content)
             print(f"✅ {agent_id} JSON解析成功")
             return decision
             

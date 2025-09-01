@@ -5,11 +5,11 @@
 
 import json
 import uuid
+import re
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 from pydantic import BaseModel, Field
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
-
 
 class AnalysisSession(BaseModel):
     """分析会话记录"""
@@ -142,6 +142,38 @@ class AnalystMemory:
             communication.messages.append(message)
             self.last_active_time = datetime.now()
     
+    def _extract_ticker_signals_from_malformed_string(self, malformed_str: str) -> List[Dict[str, Any]]:
+        """从格式错误的字符串中提取ticker信号"""
+        import json
+        import re
+        
+        try:
+            # 处理类似 'ticker_signals: [{"ticker": "AAPL"...}]' 的字符串
+            if 'ticker_signals:' in malformed_str:
+                # 提取方括号内的内容
+                match = re.search(r'ticker_signals:\s*\[(.*)\]', malformed_str, re.DOTALL)
+                if match:
+                    json_content = match.group(1)
+                    
+                    # 修复可能的引号问题
+                    json_content = json_content.replace('\\"', '"')
+                    
+                    # 构建完整的JSON数组
+                    json_str = f'[{json_content}]'
+                    
+                    # 解析JSON
+                    parsed = json.loads(json_str)
+                    print(f"✅ 成功修复格式错误的ticker_signals: {len(parsed)} 个信号")
+                    return parsed
+                    
+        except json.JSONDecodeError as e:
+            print(f"⚠️ 修复ticker_signals失败: {str(e)}")
+            print(f"📝 原始内容: {malformed_str[:200]}...")
+        except Exception as e:
+            print(f"⚠️ 处理ticker_signals时出错: {str(e)}")
+        
+        return []
+
     def record_signal_adjustment(self, communication_id: str, original_signal: Dict[str, Any], 
                                adjusted_signal: Dict[str, Any], reasoning: str):
         """记录信号调整"""
@@ -157,112 +189,94 @@ class AnalystMemory:
             
             # 更新当前信号（兼容两种结构：单ticker 或 多ticker列表）
             printed_any = False
-            # 情况1：新格式 - 分离的ticker_signals, new_signals, new_confidences列表
-            if (isinstance(adjusted_signal, dict) and 
-                isinstance(adjusted_signal.get("ticker_signals"), list) and
-                isinstance(adjusted_signal.get("new_signals"), list) and
-                isinstance(adjusted_signal.get("new_confidences"), list)):
+            # 情况1：检查是否为标准格式 - ticker_signals包含字典对象列表
+            if (isinstance(adjusted_signal, dict) and isinstance(adjusted_signal.get("ticker_signals"), list)):
                 
-                ticker_list = adjusted_signal.get("ticker_signals", [])
-                signal_list = adjusted_signal.get("new_signals", [])
-                confidence_list = adjusted_signal.get("new_confidences", [])
-                
-                # 确保三个列表长度一致
-                min_len = min(len(ticker_list), len(signal_list), len(confidence_list))
-                
-                for i in range(min_len):
-                    ticker_code = ticker_list[i]
-                    signal = signal_list[i]
-                    confidence = confidence_list[i]
-                    
-                    # 构建完整的信号对象
-                    signal_obj = {
-                        "ticker": ticker_code,
-                        "signal": signal,
-                        "confidence": confidence,
-                        "reasoning": f"通信调整: {reasoning}"
-                    }
-                    
-                    # 更新最新信号
-                    self.current_signals[ticker_code] = signal_obj
-                    # 记录历史
-                    self.signal_history.append({
-                        "timestamp": datetime.now().isoformat(),
-                        "communication_id": communication_id,
-                        "communication_type": communication.communication_type,
-                        "ticker": ticker_code,
-                        "signal": signal_obj,
-                        "adjustment_reason": reasoning
-                    })
-                    print(f"🔄 {self.analyst_name} 调整了信号: {ticker_code} -> {signal} ({confidence}%)")
-                    printed_any = True
-            
-            # 情况2：传统批量结构，形如 { analyst_id, analyst_name, ticker_signals: [ {ticker, signal, ...}, ...] }
-            elif isinstance(adjusted_signal, dict) and isinstance(adjusted_signal.get("ticker_signals"), list):
                 ticker_signals_list = adjusted_signal.get("ticker_signals", [])
-                for ts in ticker_signals_list:
-                    # 处理可能的数据类型：字典、字符串（JSON）、或其他
-                    if isinstance(ts, dict):
-                        # 正常的字典格式
-                        ticker_code = ts.get("ticker")
-                    elif isinstance(ts, str):
-                        # 字符串格式，可能是序列化的JSON
-                        try:
-                            # 尝试解析JSON字符串
-                            import json
-                            parsed_ts = json.loads(ts)
-                            if isinstance(parsed_ts, list) and len(parsed_ts) > 0:
-                                # 如果解析出来是列表，取第一个元素
-                                ts = parsed_ts[0] if isinstance(parsed_ts[0], dict) else parsed_ts[0]
-                                ticker_code = ts.get("ticker") if isinstance(ts, dict) else None
-                            elif isinstance(parsed_ts, dict):
-                                ts = parsed_ts
-                                ticker_code = ts.get("ticker")
-                            else:
-                                print(f"⚠️ 无法处理的ticker_signals格式: {ts}")
-                                continue
-                        except (json.JSONDecodeError, AttributeError, KeyError) as e:
-                            print(f"⚠️ 解析ticker_signals JSON失败: {str(e)}, 内容: {ts}")
-                            continue
-                    else:
-                        print(f"⚠️ 未知的ticker_signals元素类型: {type(ts)}, 内容: {ts}")
-                        continue
+                
+                # 检查第一个元素是否为字典（标准格式）
+                if ticker_signals_list and isinstance(ticker_signals_list[0], dict):
+                    # 标准格式：直接处理
+                    for signal_obj in ticker_signals_list:
+                        ticker_code = signal_obj.get("ticker")
+                        if ticker_code:
+                            self.current_signals[ticker_code] = signal_obj
+                            self.signal_history.append({
+                                "timestamp": datetime.now().isoformat(),
+                                "communication_id": communication_id,
+                                "communication_type": communication.communication_type,
+                                "ticker": ticker_code,
+                                "signal": signal_obj,
+                                "adjustment_reason": reasoning
+                            })
+                            signal_str = signal_obj.get("signal", "unknown")
+                            confidence_str = signal_obj.get("confidence", "unknown")
+                            print(f"🔄 {self.analyst_name} 调整了信号: {ticker_code} -> {signal_str} ({confidence_str}%)")
+                            printed_any = True
                     
-                    if not ticker_code:
-                        continue
-                    # 更新最新信号
-                    self.current_signals[ticker_code] = ts
-                    # 记录历史
-                    self.signal_history.append({
-                        "timestamp": datetime.now().isoformat(),
-                        "communication_id": communication_id,
-                        "communication_type": communication.communication_type,
-                        "ticker": ticker_code,
-                        "signal": ts,
-                        "adjustment_reason": reasoning
-                    })
-                    print(f"🔄 {self.analyst_name} 调整了信号: {ticker_code}")
-                    printed_any = True
+                # 如果不是标准格式，尝试修复格式错误
+                else:
+                    ticker_signals_list = adjusted_signal.get("ticker_signals", [])
+                    
+                    # 检查是否为格式错误的字符串数组
+                    if ticker_signals_list and isinstance(ticker_signals_list[0], str):
+                        malformed_str = ticker_signals_list[0]
+                        
+                        # 尝试修复格式错误的字符串
+                        repaired_signals = self._extract_ticker_signals_from_malformed_string(malformed_str)
+                        
+                        if repaired_signals:
+                            # 成功修复，处理修复后的信号
+                            for signal_obj in repaired_signals:
+                                ticker_code = signal_obj.get("ticker")
+                                if ticker_code:
+                                    self.current_signals[ticker_code] = signal_obj
+                                    self.signal_history.append({
+                                        "timestamp": datetime.now().isoformat(),
+                                        "communication_id": communication_id,
+                                        "communication_type": communication.communication_type,
+                                        "ticker": ticker_code,
+                                        "signal": signal_obj,
+                                        "adjustment_reason": reasoning
+                                    })
+                                    signal_str = signal_obj.get("signal", "unknown")
+                                    confidence_str = signal_obj.get("confidence", "unknown")
+                                    print(f"🔧 {self.analyst_name} 修复并调整了信号: {ticker_code} -> {signal_str} ({confidence_str}%)")
+                                    printed_any = True
+                        else:
+                            # 修复失败
+                            print(f"⚠️ {self.analyst_name} 使用了无法修复的信号格式，已跳过")
+                            print(f"📝 错误格式内容: {malformed_str[:100]}...")
+                            printed_any = True
+                    else:
+                        # 其他类型的非标准格式
+                        print(f"⚠️ {self.analyst_name} 使用了非标准信号调整格式，已跳过")
+                        print(f"📝 非标准格式内容: {ticker_signals_list}")
+                        printed_any = True
             
-            # 情况3：单ticker结构，形如 { ticker: "AAPL", signal: "bearish", ... }
-            if not printed_any and isinstance(adjusted_signal, dict):
+            # 情况2：单ticker结构（保留向后兼容性）
+            if not printed_any and isinstance(adjusted_signal, dict) and adjusted_signal.get("ticker"):
                 ticker_code = adjusted_signal.get("ticker")
-                if ticker_code:
-                    self.current_signals[ticker_code] = adjusted_signal
-                    self.signal_history.append({
-                        "timestamp": datetime.now().isoformat(),
-                        "communication_id": communication_id,
-                        "communication_type": communication.communication_type,
-                        "ticker": ticker_code,
-                        "signal": adjusted_signal,
-                        "adjustment_reason": reasoning
-                    })
-                    print(f"🔄 {self.analyst_name} 调整了信号: {ticker_code}")
-                    printed_any = True
+                self.current_signals[ticker_code] = adjusted_signal
+                self.signal_history.append({
+                    "timestamp": datetime.now().isoformat(),
+                    "communication_id": communication_id,
+                    "communication_type": communication.communication_type,
+                    "ticker": ticker_code,
+                    "signal": adjusted_signal,
+                    "adjustment_reason": reasoning
+                })
+                signal_str = adjusted_signal.get("signal", "unknown")
+                confidence_str = adjusted_signal.get("confidence", "unknown")
+                print(f"🔄 {self.analyst_name} 调整了信号: {ticker_code} -> {signal_str} ({confidence_str}%)")
+                printed_any = True
             
-            # 情况3：无法提取ticker，做降级打印
+            # 其他任何格式都标记为非标准格式
             if not printed_any:
-                print(f"🔄 {self.analyst_name} 调整了信号: unknown")
+                print(f"⚠️ {self.analyst_name} 使用了完全不支持的信号格式，已跳过")
+                print(f"📝 格式类型: {type(adjusted_signal)}")
+                if isinstance(adjusted_signal, dict):
+                    print(f"📝 包含的键: {list(adjusted_signal.keys())}")
     
     def complete_communication(self, communication_id: str):
         """完成通信"""

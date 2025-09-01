@@ -800,14 +800,18 @@ class AdvancedInvestmentAnalysisEngine:
                         for agent_id, updated_signal in updated_signals.items():
                             state["data"]["analyst_signals"][f"{agent_id}_post_communication_cycle{cycle}"] = updated_signal
                         
-                        # 重新运行投资组合管理
-                        final_portfolio_result = portfolio_management_agent(state, agent_id=f"portfolio_manager_after_cycle_{cycle}")
+                        # 重新运行风险管理分析（确保有最新的价格和限额数据）
+                        print("🔄 重新运行风险管理分析...")
+                        risk_analysis_results = self.run_risk_management_analysis(state)
+                        
+                        # 重新运行投资组合管理（使用标准agent_id以便访问风险管理数据）
+                        final_portfolio_result = portfolio_management_agent(state, agent_id="portfolio_manager")
                         
                         if final_portfolio_result and "messages" in final_portfolio_result:
                             state["messages"] = final_portfolio_result["messages"]
                             state["data"] = final_portfolio_result["data"]
                         
-                        new_final_decisions = self._extract_portfolio_decisions(state, agent_name=f"portfolio_manager_after_cycle_{cycle}")
+                        new_final_decisions = self._extract_portfolio_decisions(state, agent_name="portfolio_manager")
                         if new_final_decisions:
                             final_decisions = new_final_decisions
                             print("✅ 基于通信结果的投资决策已更新")

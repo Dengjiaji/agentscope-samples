@@ -61,12 +61,24 @@ def portfolio_management_agent(state: AgentState, agent_id: str = "portfolio_man
         risk_data = analyst_signals.get(risk_manager_id, {}).get(ticker, {})
         position_limits[ticker] = risk_data.get("remaining_position_limit", 0)
         current_prices[ticker] = risk_data.get("current_price", 0)
+        
+        # Debug: Print risk management data
+        print(f"🔍 {ticker} 风险管理数据:")
+        print(f"  💰 position_limit: ${position_limits[ticker]:.2f}")
+        print(f"  💲 current_price: ${current_prices[ticker]:.2f}")
+        if risk_data.get("reasoning"):
+            reasoning = risk_data["reasoning"]
+            print(f"  📊 portfolio_value: ${reasoning.get('portfolio_value', 0):.2f}")
+            print(f"  💵 available_cash: ${reasoning.get('available_cash', 0):.2f}")
+            print(f"  📈 position_limit_pct: {reasoning.get('base_position_limit_pct', 0):.1%}")
 
         # Calculate maximum shares allowed based on position limit and price
         if current_prices[ticker] > 0:
             max_shares[ticker] = int(position_limits[ticker] / current_prices[ticker])
+            print(f"  📊 max_shares: {max_shares[ticker]} 股")
         else:
             max_shares[ticker] = 0
+            print(f"  ⚠️ 价格为0，max_shares设为0")
 
         # Get signals for the ticker
         ticker_signals = {}

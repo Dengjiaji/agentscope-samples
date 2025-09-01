@@ -422,6 +422,10 @@ class MultiDayManager:
             total_return = df['cumulative_return'].iloc[-1]
             volatility = df['daily_return'].std() * (252 ** 0.5) * 100  # 年化波动率
             
+            # 计算年化收益率（与夏普比率计算方式一致）
+            # 使用日收益率的均值乘以252个交易日
+            annualized_return = df['daily_return'].mean() * 252 * 100  # 转换为百分比
+            
             # 最大回撤
             rolling_max = df['total_value'].cummax()
             drawdown = (df['total_value'] - rolling_max) / rolling_max * 100
@@ -431,12 +435,18 @@ class MultiDayManager:
             excess_returns = df['daily_return'] - 0.04/252
             sharpe_ratio = excess_returns.mean() / excess_returns.std() * (252 ** 0.5) if excess_returns.std() > 0 else 0
             
+            # 计算交易期间年数
+            trading_days = len(df)
+            trading_period_years = trading_days / 252  # 252个交易日为一年
+            
             return {
-                "total_return_pct": round(total_return, 2),
+                "total_return_pct": round(total_return, 2),  # 保留总收益率供参考
+                "annualized_return_pct": round(annualized_return, 2),  # 年化收益率（基于日均收益率）
                 "annualized_volatility_pct": round(volatility, 2),
                 "max_drawdown_pct": round(max_drawdown, 2),
                 "sharpe_ratio": round(sharpe_ratio, 3),
-                "total_trading_days": len(df),
+                "total_trading_days": trading_days,
+                "trading_period_years": round(trading_period_years, 2),  # 交易期间年数
                 "start_value": df['total_value'].iloc[0],
                 "end_value": df['total_value'].iloc[-1]
             }

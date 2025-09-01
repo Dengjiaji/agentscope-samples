@@ -233,10 +233,12 @@ def main():
         if "performance_analysis" in results and "error" not in results["performance_analysis"]:
             perf = results["performance_analysis"]
             print(f"\n📈 绩效指标:")
-            print(f"   💰 总收益率: {perf['total_return_pct']}%")
+            print(f"   💰 年化收益率: {perf['annualized_return_pct']}%")
             print(f"   📊 年化波动率: {perf['annualized_volatility_pct']}%")
             print(f"   📉 最大回撤: {perf['max_drawdown_pct']}%")
             print(f"   ⚡ 夏普比率: {perf['sharpe_ratio']}")
+            print(f"   📅 交易期间: {perf['trading_period_years']} 年 ({perf['total_trading_days']} 交易日)")
+            print(f"   📊 总收益率: {perf['total_return_pct']}% (期间累计)")
         
         print(f"\n📁 详细结果已保存到: {args.output_dir}")
         print(f"   📄 汇总报告: {results.get('session_id', 'unknown')}_summary.json")

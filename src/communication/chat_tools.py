@@ -454,8 +454,8 @@ class CommunicationManager:
             # 调试：打印当前会议记录状态
             if round_num > 0:
                 print(f"📝 当前会议记录条数: {len(meeting_transcript)}")
-                if meeting_transcript:
-                    print(f"📝 最后一条记录: {meeting_transcript[-1]}")
+                # if meeting_transcript:
+                #     print(f"📝 最后一条记录: {meeting_transcript[-1]}")
             
             # 每个分析师发言
             for analyst_id in analyst_ids:
@@ -579,11 +579,27 @@ class CommunicationManager:
 如果需要调整信号，请在回应中明确说明调整内容和原因。
 
 请必须以JSON格式返回你的回应，严格按照以下JSON结构，不要包含任何其他文本：
+
+重要：ticker_signals必须是对象数组，不是字符串数组！
+
 {{
   "response": "你的回应内容",
   "signal_adjustment": true/false,
-  "adjusted_signal": {{...}} // 如果有调整的话
+  "adjusted_signal": {{
+    "analyst_id": "{analyst_id}",
+    "analyst_name": "你的分析师名称",
+    "ticker_signals": [
+      {{"ticker": "AAPL", "signal": "bearish", "confidence": 85, "reasoning": "调整原因"}},
+      {{"ticker": "MSFT", "signal": "neutral", "confidence": 70, "reasoning": "调整原因"}}
+    ]
+  }}
 }}
+
+禁止使用这种错误格式：
+{{"ticker_signals": ["ticker_signals: [...]"]}}
+
+必须使用正确格式：
+{{"ticker_signals": [{{"ticker": "AAPL", "signal": "bearish", "confidence": 85}}]}}
 
 注意：请将上述"response"字段的文字内容控制在不超过{max_chars}字。"""),
             
@@ -670,11 +686,27 @@ class CommunicationManager:
 {current_signal}
 
 请必须以JSON格式返回你的回应，严格按照以下JSON结构，不要包含任何其他文本：
+
+重要：ticker_signals必须是对象数组，不是字符串数组！
+
 {{
   "response": "你的发言内容",
   "signal_adjustment": true/false,
-  "adjusted_signal": {{...}} // 如果有调整的话
+  "adjusted_signal": {{
+    "analyst_id": "{analyst_id}",
+    "analyst_name": "你的分析师名称",
+    "ticker_signals": [
+      {{"ticker": "AAPL", "signal": "bearish", "confidence": 85, "reasoning": "调整原因"}},
+      {{"ticker": "MSFT", "signal": "neutral", "confidence": 70, "reasoning": "调整原因"}}
+    ]
+  }}
 }}
+
+禁止使用这种错误格式：
+{{"ticker_signals": ["ticker_signals: [...]"]}}
+
+必须使用正确格式：
+{{"ticker_signals": [{{"ticker": "AAPL", "signal": "bearish", "confidence": 85}}]}}
 
 注意：请将上述"response"字段的文字内容控制在不超过{max_chars}字。"""),
             
