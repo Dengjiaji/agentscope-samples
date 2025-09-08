@@ -18,10 +18,10 @@ from copy import deepcopy
 import threading
 
 # 添加项目路径
-sys.path.append('/root/wuyue.wy/Project/IA')
+sys.path.append('/home/wuyue23/Project/IA')
 
 # 加载环境变量
-load_dotenv('/root/wuyue.wy/Project/IA/.env')
+load_dotenv('/home/wuyue23/Project/IA/.env')
 
 from src.graph.state import AgentState
 from langchain_core.messages import HumanMessage
@@ -853,7 +853,7 @@ def main():
             "date_range": results["date_range"]
         }
         
-        output_file = f"/root/wuyue.wy/Project/IA/analysis_results_logs/analysis_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        output_file = f"/home/wuyue23/Project/IA/analysis_results_logs/analysis_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(results_to_save, f, ensure_ascii=False, indent=2, default=str)
         

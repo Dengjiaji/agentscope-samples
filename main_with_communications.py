@@ -18,10 +18,10 @@ from copy import deepcopy
 import threading
 
 # 添加项目路径
-sys.path.append('/root/wuyue.wy/Project/IA')
+sys.path.append('/home/wuyue23/Project/IA')
 
 # 加载环境变量
-load_dotenv('/root/wuyue.wy/Project/IA/.env')
+load_dotenv('/home/wuyue23/Project/IA/.env')
 
 from src.graph.state import AgentState
 from langchain_core.messages import HumanMessage
@@ -321,7 +321,7 @@ class AdvancedInvestmentAnalysisEngine:
             state["metadata"]["communication_enabled"] = enable_communications
             state["metadata"]["notifications_enabled"] = enable_notifications
             # 提前确定本次会话的输出文件路径，供通信过程落盘复用
-            output_file = f"/root/wuyue.wy/Project/IA/analysis_results_logs/communications_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            output_file = f"/home/wuyue23/Project/IA/analysis_results_logs/communications_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
             state["metadata"]["output_file"] = output_file
         else:
             # 使用提供的状态，但更新基础数据
@@ -1261,12 +1261,12 @@ def main():
         }
         
         # 创建目录
-        os.makedirs("/root/wuyue.wy/Project/IA/analysis_results_logs", exist_ok=True)
+        os.makedirs("/home/wuyue23/Project/IA/analysis_results_logs", exist_ok=True)
         
         # 使用会话开始时确定的输出文件，确保通信过程与最终保存一致
         output_file = results.get("output_file") or state["metadata"].get("output_file")
         if not output_file:
-            output_file = f"/root/wuyue.wy/Project/IA/analysis_results_logs/communications_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            output_file = f"/home/wuyue23/Project/IA/analysis_results_logs/communications_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(results_to_save, f, ensure_ascii=False, indent=2, default=str)
         

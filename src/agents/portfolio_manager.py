@@ -34,6 +34,7 @@ def portfolio_management_agent(state: AgentState, agent_id: str = "portfolio_man
     for agent_key, signals in analyst_signals.items():
         if not agent_key.startswith("risk_management_agent"):
             if isinstance(signals, dict):
+                #format_second_round_result_for_state 因为第二轮结果经过这个函数有一个特定的格式
                 if "ticker_signals" in signals:
                     print(f"  📊 {agent_key}: 第二轮格式，包含 {len(signals['ticker_signals'])} 个ticker信号")
                 else:

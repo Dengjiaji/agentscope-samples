@@ -273,7 +273,7 @@ class MultiDayManager:
                     previous_state = self.load_previous_state(current_date_str)
                     self.restore_state_to_engine(previous_state, daily_state)
                 
-                # 执行当日完整分析流程
+                # 执行当日完整分析流程 
                 daily_results = self.engine.run_full_analysis_with_communications(
                     tickers=tickers,
                     start_date=lookback_start,
