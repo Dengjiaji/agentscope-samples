@@ -26,11 +26,13 @@ load_dotenv('/home/wuyue23/Project/IA/.env')
 from src.graph.state import AgentState
 from langchain_core.messages import HumanMessage
 
-# 导入所有四个核心分析师
-from src.agents.fundamentals import fundamentals_analyst_agent
-from src.agents.sentiment import sentiment_analyst_agent
-from src.agents.technicals import technical_analyst_agent
-from src.agents.valuation import valuation_analyst_agent
+# 导入所有四个核心分析师 - 使用智能LLM版本
+from src.agents.intelligent_analysts import (
+    intelligent_fundamentals_analyst_agent,
+    intelligent_technical_analyst_agent,
+    intelligent_sentiment_analyst_agent,
+    intelligent_valuation_analyst_agent
+)
 
 # 导入通知系统
 from src.communication.notification_system import (
@@ -79,24 +81,24 @@ class AdvancedInvestmentAnalysisEngine:
         self._notification_lock = threading.Lock()
         self.core_analysts = {
             'fundamentals_analyst': {
-                'name': '基本面分析师',
-                'agent_func': fundamentals_analyst_agent,
-                'description': '专注于财务数据和公司基本面分析'
+                'name': '基本面分析师 (LLM智能选择)',
+                'agent_func': intelligent_fundamentals_analyst_agent,
+                'description': '使用LLM智能选择分析工具，专注于财务数据和公司基本面分析'
             },
             'sentiment_analyst': {
-                'name': '情绪分析师', 
-                'agent_func': sentiment_analyst_agent,
-                'description': '分析市场情绪和新闻舆论'
+                'name': '情绪分析师 (LLM智能选择)', 
+                'agent_func': intelligent_sentiment_analyst_agent,
+                'description': '使用LLM智能选择分析工具，分析市场情绪和新闻舆论'
             },
             'technical_analyst': {
-                'name': '技术分析师',
-                'agent_func': technical_analyst_agent, 
-                'description': '专注于技术指标和图表分析'
+                'name': '技术分析师 (LLM智能选择)',
+                'agent_func': intelligent_technical_analyst_agent, 
+                'description': '使用LLM智能选择分析工具，专注于技术指标和图表分析'
             },
             'valuation_analyst': {
-                'name': '估值分析师',
-                'agent_func': valuation_analyst_agent,
-                'description': '专注于公司估值和价值评估'
+                'name': '估值分析师 (LLM智能选择)',
+                'agent_func': intelligent_valuation_analyst_agent,
+                'description': '使用LLM智能选择分析工具，专注于公司估值和价值评估'
             }
         }
         
