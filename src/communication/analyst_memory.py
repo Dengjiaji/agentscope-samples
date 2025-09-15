@@ -473,6 +473,16 @@ class AnalystMemoryManager:
             }
         }
 
+    def reset_analyst_memory(self, analyst_id: str, analyst_name: str | None = None):
+        """重置指定分析师的记忆（用于OKR淘汰/新入职）。
+        如果未提供名称，将尝试沿用旧名称；若不存在则以analyst_id作为名称注册。
+        """
+        old = self.analysts.get(analyst_id)
+        name = analyst_name or (old.analyst_name if old else analyst_id)
+        # 直接用新的实例覆盖
+        self.analysts[analyst_id] = AnalystMemory(analyst_id, name)
+        print(f"已重置分析师记忆: {analyst_id} ({name})")
+
 
 # 创建全局记忆管理器
 memory_manager = AnalystMemoryManager()

@@ -54,13 +54,19 @@ from src.agents.portfolio_manager import portfolio_management_agent
 
 # 设置日志
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.WARNING,  # 从INFO改为WARNING，减少日志输出
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('investment_analysis.log'),
         logging.StreamHandler()
     ]
 )
+
+# 禁用HTTP请求相关的详细日志
+logging.getLogger('httpx').setLevel(logging.WARNING)
+logging.getLogger('openai').setLevel(logging.WARNING)
+logging.getLogger('urllib3').setLevel(logging.WARNING)
+logging.getLogger('requests').setLevel(logging.WARNING)
 
 
 class InvestmentAnalysisEngine:

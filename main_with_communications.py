@@ -62,14 +62,14 @@ from src.communication.chat_tools import (
 )
 from src.communication.analyst_memory import memory_manager
 
-# 设置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('investment_analysis_communications.log'),
-        logging.StreamHandler()
-    ]
+# 导入日志配置
+from src.utils.logging_config import setup_logging
+
+# 设置安静模式日志（禁用HTTP请求等详细输出）
+setup_logging(
+    level=logging.WARNING,
+    log_file='investment_analysis_communications.log',
+    quiet_mode=True
 )
 
 

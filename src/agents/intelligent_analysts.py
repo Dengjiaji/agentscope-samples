@@ -56,14 +56,15 @@ def _run_intelligent_analyst(state: AgentState, agent_id: str, analyst_instance)
     api_key = get_api_key_from_state(state, "FINANCIAL_DATASETS_API_KEY")
     
     # 简化的API密钥获取验证
-    print(f"API密钥状态: {'有效' if api_key else '无效'}")
+    # print(f"API密钥状态: {'有效' if api_key else '无效'}")  # 已禁用
     
     # 如果仍然无效，尝试环境变量作为后备
     if not api_key:
         import os
         api_key = os.getenv("FINANCIAL_DATASETS_API_KEY")
         if api_key:
-            print(f"使用环境变量API密钥")
+            # print(f"使用环境变量API密钥")  # 已禁用
+            pass  # 添加pass语句以避免缩进错误
         else:
             print(f"错误: 无法获取FINANCIAL_DATASETS_API_KEY，工具执行将失败")
     
@@ -112,7 +113,7 @@ def _run_intelligent_analyst(state: AgentState, agent_id: str, analyst_instance)
                             loop = asyncio.new_event_loop()
                             asyncio.set_event_loop(loop)
                             
-                            print(f"{analyst_instance.analyst_persona} 创建新的事件循环进行异步分析")
+                            # print(f"{analyst_instance.analyst_persona} 创建新的事件循环进行异步分析")  # 已禁用
                             result = loop.run_until_complete(
                                 analyst_instance.analyze_with_llm_tool_selection(
                                     ticker, end_date, api_key, start_date, llm, analysis_objective
@@ -126,7 +127,7 @@ def _run_intelligent_analyst(state: AgentState, agent_id: str, analyst_instance)
                             asyncio.set_event_loop(None)
                             
                         except Exception as async_error:
-                            print(f"警告: 异步调用失败，降级到同步版本: {async_error}")
+                            # print(f"警告: 异步调用失败，降级到同步版本: {async_error}")  # 已禁用
                             result = _sync_analyze_with_llm_tool_selection(
                                 analyst_instance, ticker, end_date, api_key, start_date, llm, 
                                 analysis_objective, market_conditions
@@ -206,7 +207,8 @@ def _sync_analyze_with_llm_tool_selection(analyst_instance, ticker: str, end_dat
         
         # 2. 执行选定的工具
         if not api_key:
-            print(f"错误: {analyst_instance.analyst_persona} API密钥无效，工具执行将失败")
+            # print(f"错误: {analyst_instance.analyst_persona} API密钥无效，工具执行将失败")  # 已禁用
+            pass  # 添加pass语句以避免缩进错误
             
         tool_results = analyst_instance.tool_selector.execute_selected_tools(
             selection_result["selected_tools"],

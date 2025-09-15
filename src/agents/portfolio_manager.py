@@ -200,6 +200,7 @@ def generate_trading_decision(
               - current_prices: current prices for each ticker
               - margin_requirement: current margin requirement for short positions (e.g., 0.5 means 50%)
               - total_margin_used: total margin currently in use
+              - analyst_weights: performance-based weights for each analyst (if available)
               """,
             ),
             (
@@ -219,6 +220,8 @@ def generate_trading_decision(
               Current Positions: {portfolio_positions}
               Current Margin Requirement: {margin_requirement}
               Total Margin Used: {total_margin_used}
+
+              {analyst_weights_info}
 
               IMPORTANT DECISION RULES:
               - If you currently hold LONG shares of a ticker (long > 0), you can:
@@ -256,6 +259,30 @@ def generate_trading_decision(
         ]
     )
 
+    # 获取分析师权重信息
+    analyst_weights = state.get("data", {}).get("analyst_weights", {})
+    okr_state = state.get("data", {}).get("okr_state", {})
+ # 格式化分析师权重信息 analyst_weights_info = ""
+    if analyst_weights:
+        analyst_weights_info = "分析师绩效权重 (基于最近投资信号准确性):\n"
+        # 按权重排序
+        sorted_weights = sorted(analyst_weights.items(), key=lambda x: x[1], reverse=True)
+        for analyst_id, weight in sorted_weights:
+            # 检查是否是新员工
+            new_hire_info = ""
+            if okr_state and okr_state.get("new_hires", {}).get(analyst_id):
+                new_hire_info = " (新入职分析师)"
+            
+            # 权重条形图
+            bar_length = int(weight * 20)  # 最大20个字符
+            bar = "█" * bar_length + "░" * (20 - bar_length)
+            
+            analyst_weights_info += f"  {analyst_id}: {weight:.3f} {bar}{new_hire_info}\n"
+        
+        analyst_weights_info += "\n💡 建议根据权重高低来考虑不同分析师建议的重要性。权重高的分析师建议应获得更多关注。"
+    else:
+        analyst_weights_info = "分析师权重信息: 不可用 (所有分析师建议权重相等)"
+    print('******************************',analyst_weights_info,'******************************')
     # Generate the prompt
     prompt_data = {
         "signals_by_ticker": json.dumps(signals_by_ticker, indent=2),
@@ -265,6 +292,7 @@ def generate_trading_decision(
         "portfolio_positions": json.dumps(portfolio.get("positions", {}), indent=2),
         "margin_requirement": f"{portfolio.get('margin_requirement', 0):.2f}",
         "total_margin_used": f"{portfolio.get('margin_used', 0):.2f}",
+        "analyst_weights_info": analyst_weights_info,
     }
     
     prompt = template.invoke(prompt_data)

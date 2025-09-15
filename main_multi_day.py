@@ -125,6 +125,11 @@ def main():
         action="store_true",
         help="显示分析师的详细推理过程（会产生大量输出）"
     )
+    parser.add_argument(
+        "--enable-okr",
+        action="store_true",
+        help="启用OKR声誉机制（每5个交易日复盘赋权、每30日淘汰/新入职）"
+    )
     
     args = parser.parse_args()
     
@@ -167,12 +172,7 @@ def main():
     
     # 计算分析天数
     total_days = (end_date_obj - start_date_obj).days + 1
-    if total_days > 365:
-        print(f"⚠️ 警告: 分析时间跨度较长 ({total_days} 天)，这可能需要很长时间")
-        response = input("是否继续? (y/N): ")
-        if response.lower() != 'y':
-            print("取消分析")
-            sys.exit(0)
+   
     
     # 打印配置信息
     print("🔧 多日策略分析配置:")
@@ -187,6 +187,7 @@ def main():
     print(f"   📁 输出目录: {args.output_dir}")
     print(f"   📦 数据预取: {'禁用' if args.disable_data_prefetch else '启用'}")
     print(f"   🔍 详细推理: {'启用' if args.show_reasoning else '禁用'}")
+    print(f"   🏁 OKR机制: {'启用' if args.enable_okr else '禁用'}")
     
     if args.dry_run:
         print("\n🧪 干运行模式 - 配置验证完成，未执行实际分析")
@@ -202,7 +203,8 @@ def main():
             engine=engine,
             base_output_dir=args.output_dir,
             max_communication_cycles=args.max_comm_cycles,
-            prefetch_data=not args.disable_data_prefetch
+            prefetch_data=not args.disable_data_prefetch,
+            okr_enabled=args.enable_okr
         )
         
         # 执行多日策略分析

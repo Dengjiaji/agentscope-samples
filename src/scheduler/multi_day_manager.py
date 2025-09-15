@@ -18,6 +18,8 @@ from src.tools.api import (
     get_insider_trades,
     get_company_news,
 )
+from src.communication.analyst_memory import memory_manager
+from src.okr.okr_manager import OKRManager
 
 
 class MultiDayManager:
@@ -28,7 +30,8 @@ class MultiDayManager:
         engine,  # AdvancedInvestmentAnalysisEngine实例
         base_output_dir: str = "/root/wuyue.wy/Project/IA/analysis_results_logs/",
         max_communication_cycles: int = 3,
-        prefetch_data: bool = True
+        prefetch_data: bool = True,
+        okr_enabled: bool = False
     ):
         """
         初始化多日管理器
@@ -43,6 +46,7 @@ class MultiDayManager:
         self.base_output_dir = base_output_dir
         self.max_communication_cycles = max_communication_cycles
         self.prefetch_data = prefetch_data
+        self.okr_enabled = okr_enabled
         
         # 状态追踪
         self.session_id = None
@@ -50,6 +54,7 @@ class MultiDayManager:
         self.analyst_memory_state = None
         self.communication_logs_state = None
         self.portfolio_state = None
+        self.okr_manager = None  # 将在需要时初始化
         
         # 确保输出目录存在
         os.makedirs(base_output_dir, exist_ok=True)
@@ -111,7 +116,8 @@ class MultiDayManager:
             "analyst_memory": state.get("data", {}).get("analyst_memory"),
             "communication_logs": complete_comm_logs,
             "portfolio_snapshot": state.get("data", {}).get("portfolio"),
-            "metadata": state.get("metadata", {})
+            "metadata": state.get("metadata", {}),
+            "okr_state": state.get("data", {}).get("okr_state")
         }
         
         try:
@@ -180,8 +186,29 @@ class MultiDayManager:
         # 恢复投资组合状态（关键：保持仓位连续性）
         if previous_state.get("portfolio_snapshot"):
             current_state["data"]["portfolio"] = previous_state["portfolio_snapshot"]
+        
+        # 恢复OKR状态
+        if previous_state.get("okr_state") and self.okr_enabled:
+            if self.okr_manager is None:
+                # 从保存的数据恢复OKR管理器
+                analyst_ids = list(self.engine.core_analysts.keys())
+                self.okr_manager = OKRManager(analyst_ids)
+            # 导入OKR数据到管理器
+            okr_data = previous_state["okr_state"]
+            if okr_data:
+                self.okr_manager.import_okr_data(okr_data)
+            if "data" in current_state:
+                current_state["data"]["okr_state"] = previous_state["okr_state"]
             
         print(f"已恢复前一交易日状态")
+
+    def _init_okr_manager(self):
+        """初始化OKR管理器"""
+        if self.okr_manager is None and self.okr_enabled:
+            analyst_ids = list(self.engine.core_analysts.keys())
+            self.okr_manager = OKRManager(analyst_ids)
+            print(f"OKR管理器已初始化，管理 {len(analyst_ids)} 个分析师")
+
     
     def run_multi_day_strategy(
         self,
@@ -273,6 +300,25 @@ class MultiDayManager:
                     previous_state = self.load_previous_state(current_date_str)
                     self.restore_state_to_engine(previous_state, daily_state)
                 
+                # OKR：在运行分析前，基于过往数据更新权重，并注入到state中
+                if self.okr_enabled:
+                    self._init_okr_manager()
+                    
+                    # 每5个交易日（i基于0）更新一次权重，使其作用于下一阶段（当前日）
+                    if (i % 5) == 0 and i > 0:
+                        weights = self.okr_manager.update_weights_5day_review(current_date_str)
+                        print(f"OKR：更新分析师权重 {weights}")
+                    
+                    # 每30个交易日进行一次OKR评估与记忆重置
+                    if (i % 30) == 0 and i > 0:
+                        eliminated_analyst = self.okr_manager.perform_30day_okr_evaluation(current_date_str)
+                        if eliminated_analyst:
+                            print(f"OKR评估：淘汰并重置 {eliminated_analyst}，标记为新入职分析师")
+                    
+                    # 注入到state供后续提示使用
+                    daily_state.setdefault("data", {})["okr_state"] = self.okr_manager.export_okr_data()
+                    daily_state["data"]["analyst_weights"] = self.okr_manager.get_analyst_weights_for_prompt()
+                
                 # 执行当日完整分析流程 
                 daily_results = self.engine.run_full_analysis_with_communications(
                     tickers=tickers,
@@ -282,6 +328,17 @@ class MultiDayManager:
                     enable_notifications=enable_notifications,
                     state=daily_state
                 )
+                
+                # OKR：记录今日信号（分数在未来日补全）
+                if self.okr_enabled and self.okr_manager:
+                    try:
+                        # 记录今日分析师信号到OKR管理器
+                        analyst_signals = daily_state.get("data", {}).get("analyst_signals", {})
+                        self.okr_manager.record_daily_signals(current_date_str, analyst_signals)
+                        # 将最新OKR状态保存在daily_state中，便于跨日持久化
+                        daily_state["data"]["okr_state"] = self.okr_manager.export_okr_data()
+                    except Exception as e:
+                        print(f"警告: 记录OKR信号失败: {e}")
                 
                 # 保存当日状态
                 self.save_daily_state(current_date_str, daily_results, daily_state)
