@@ -26,11 +26,13 @@ load_dotenv('/home/wuyue23/Project/IA/.env')
 from src.graph.state import AgentState
 from langchain_core.messages import HumanMessage
 
-# 导入所有四个核心分析师
-from src.agents.fundamentals import fundamentals_analyst_agent
-from src.agents.sentiment import sentiment_analyst_agent
-from src.agents.technicals import technical_analyst_agent
-from src.agents.valuation import valuation_analyst_agent
+# 导入所有四个核心分析师 - 使用智能LLM版本
+from src.agents.intelligent_analysts import (
+    intelligent_fundamentals_analyst_agent,
+    intelligent_technical_analyst_agent,
+    intelligent_sentiment_analyst_agent,
+    intelligent_valuation_analyst_agent
+)
 
 # 导入通知系统
 from src.communication.notification_system import (
@@ -69,24 +71,24 @@ class InvestmentAnalysisEngine:
         self._notification_lock = threading.Lock()
         self.core_analysts = {
             'fundamentals_analyst': {
-                'name': '基本面分析师',
-                'agent_func': fundamentals_analyst_agent,
-                'description': '专注于财务数据和公司基本面分析'
+                'name': '基本面分析师 (LLM智能选择)',
+                'agent_func': intelligent_fundamentals_analyst_agent,
+                'description': '使用LLM智能选择分析工具，专注于财务数据和公司基本面分析'
             },
             'sentiment_analyst': {
-                'name': '情绪分析师', 
-                'agent_func': sentiment_analyst_agent,
-                'description': '分析市场情绪和新闻舆论'
+                'name': '情绪分析师 (LLM智能选择)', 
+                'agent_func': intelligent_sentiment_analyst_agent,
+                'description': '使用LLM智能选择分析工具，分析市场情绪和新闻舆论'
             },
             'technical_analyst': {
-                'name': '技术分析师',
-                'agent_func': technical_analyst_agent, 
-                'description': '专注于技术指标和图表分析'
+                'name': '技术分析师 (LLM智能选择)',
+                'agent_func': intelligent_technical_analyst_agent, 
+                'description': '使用LLM智能选择分析工具，专注于技术指标和图表分析'
             },
             'valuation_analyst': {
-                'name': '估值分析师',
-                'agent_func': valuation_analyst_agent,
-                'description': '专注于公司估值和价值评估'
+                'name': '估值分析师 (LLM智能选择)',
+                'agent_func': intelligent_valuation_analyst_agent,
+                'description': '使用LLM智能选择分析工具，专注于公司估值和价值评估'
             }
         }
         
@@ -142,7 +144,7 @@ class InvestmentAnalysisEngine:
         agent_name = agent_info['name']
         agent_func = agent_info['agent_func']
         
-        print(f"\n🔄 开始执行 {agent_name} 分析...")
+        print(f"\n开始执行 {agent_name} 分析...")
         
         try:
             # 获取agent的通知记忆
@@ -164,8 +166,8 @@ class InvestmentAnalysisEngine:
             analysis_result = state['data']['analyst_signals'].get(agent_id, {})
             
             if analysis_result:
-                print(f"✅ {agent_name} 分析完成")
-                # print(f"📊 分析结果: {json.dumps(analysis_result, ensure_ascii=False, indent=2)}")
+                print(f"{agent_name} 分析完成")
+                # print(f"分析结果: {json.dumps(analysis_result, ensure_ascii=False, indent=2)}")
                 
                 # 判断是否需要发送通知
                 notification_decision = should_send_notification(
@@ -177,7 +179,7 @@ class InvestmentAnalysisEngine:
                 
                 # 处理通知决策（使用线程锁保护）
                 if notification_decision.get("should_notify", False):
-                    print(f"📢 {agent_name} 决定发送通知...")
+                    print(f"{agent_name} 决定发送通知...")
                     
                     # 使用线程锁保护通知系统的全局状态
                     with self._notification_lock:
@@ -188,12 +190,12 @@ class InvestmentAnalysisEngine:
                             category=notification_decision.get("category", "general")
                         )
                     
-                    print(f"✅ 通知已发送 (ID: {notification_id})")
-                    print(f"📝 通知内容: {notification_decision['content']}")
+                    print(f"通知已发送 (ID: {notification_id})")
+                    print(f"通知内容: {notification_decision['content']}")
                 else:
-                    print(f"ℹ️ {agent_name} 决定不发送通知")
+                    print(f"{agent_name} 决定不发送通知")
                     if "reason" in notification_decision:
-                        print(f"📝 原因: {notification_decision['reason']}")
+                        print(f"原因: {notification_decision['reason']}")
                 
                 return {
                     "agent_id": agent_id,
@@ -204,7 +206,7 @@ class InvestmentAnalysisEngine:
                     "status": "success"
                 }
             else:
-                print(f"⚠️ {agent_name} 未返回分析结果")
+                print(f"警告: {agent_name} 未返回分析结果")
                 return {
                     "agent_id": agent_id,
                     "agent_name": agent_name,
@@ -212,7 +214,7 @@ class InvestmentAnalysisEngine:
                 }
                 
         except Exception as e:
-            print(f"❌ {agent_name} 执行失败: {str(e)}")
+            print(f"错误: {agent_name} 执行失败: {str(e)}")
             print("完整错误信息:")
             traceback.print_exc()
             return {
@@ -225,11 +227,11 @@ class InvestmentAnalysisEngine:
     def run_full_analysis(self, tickers: List[str], start_date: str, end_date: str, 
                          parallel: bool = True) -> Dict[str, Any]:
         """运行完整的分析流程"""
-        print("🚀 开始投资分析会话")
+        print("开始投资分析会话")
         print("=" * 60)
-        print(f"📈 分析股票: {', '.join(tickers)}")
-        print(f"📅 时间范围: {start_date} 至 {end_date}")
-        print(f"🔄 执行模式: {'并行' if parallel else '串行'}")
+        print(f"分析股票: {', '.join(tickers)}")
+        print(f"时间范围: {start_date} 至 {end_date}")
+        print(f"执行模式: {'并行' if parallel else '串行'}")
         print("=" * 60)
         
         # 创建基础状态
@@ -243,15 +245,15 @@ class InvestmentAnalysisEngine:
             analyst_results = self.run_analysts_sequential(state)
         
         # 第二轮分析：基于通知和第一轮结果的修正
-        print("\n🔄 开始第二轮分析（基于通知和第一轮结果）...")
+        print("\n开始第二轮分析（基于通知和第一轮结果）...")
         second_round_results = self.run_second_round_analysis(analyst_results, state, parallel)
         
         # 第三步：风险管理分析
-        print("\n⚠️ 开始风险管理分析...")
+        print("\n开始风险管理分析...")
         risk_analysis_results = self.run_risk_management_analysis(state)
         
         # 第四步：投资组合管理决策
-        print("\n💼 开始投资组合管理决策...")
+        print("\n开始投资组合管理决策...")
         portfolio_management_results = self.run_portfolio_management_analysis(state)
         
         # 生成最终报告
@@ -284,7 +286,7 @@ class InvestmentAnalysisEngine:
     
     def run_analysts_parallel(self, state: AgentState) -> Dict[str, Any]:
         """并行执行所有分析师"""
-        print("🚀 启动并行分析...")
+        print("启动并行分析...")
         start_time = datetime.now()
         
         # 为每个分析师创建独立的状态副本，避免并发冲突
@@ -318,14 +320,14 @@ class InvestmentAnalysisEngine:
                     analyst_results[agent_id] = result
                     completed_count += 1
                     
-                    print(f"✅ {agent_name} 完成 ({completed_count}/4)")
+                    print(f"{agent_name} 完成 ({completed_count}/4)")
                     
                     # 合并分析结果到主状态
                     if result.get("status") == "success" and "analysis_result" in result:
                         state["data"]["analyst_signals"][agent_id] = result["analysis_result"]
                     
                 except Exception as e:
-                    print(f"❌ {agent_name} 执行出错: {str(e)}")
+                    print(f"错误: {agent_name} 执行出错: {str(e)}")
                     analyst_results[agent_id] = {
                         "agent_id": agent_id,
                         "agent_name": agent_name,
@@ -335,7 +337,7 @@ class InvestmentAnalysisEngine:
         
         end_time = datetime.now()
         execution_time = (end_time - start_time).total_seconds()
-        print(f"\n⏱️ 并行执行完成，总耗时: {execution_time:.2f} 秒")
+        print(f"\n并行执行完成，总耗时: {execution_time:.2f} 秒")
         print("=" * 40)
         
         return analyst_results
@@ -358,7 +360,7 @@ class InvestmentAnalysisEngine:
     def run_second_round_analysis(self, first_round_results: Dict[str, Any], 
                                 state: AgentState, parallel: bool = True) -> Dict[str, Any]:
         """运行第二轮分析：基于第一轮结果和通知的修正"""
-        print("📊 准备第二轮分析数据...")
+        print("准备第二轮分析数据...")
         
         # 1. 生成第一轮的final_report
         first_round_report = self.generate_final_report(first_round_results, state)
@@ -377,7 +379,7 @@ class InvestmentAnalysisEngine:
     
     def run_second_round_parallel(self, first_round_report: Dict, state: AgentState) -> Dict[str, Any]:
         """并行执行第二轮分析"""
-        print("🚀 启动第二轮并行分析...")
+        print("启动第二轮并行分析...")
         start_time = datetime.now()
         
         # 为每个分析师创建独立的状态副本
@@ -414,14 +416,14 @@ class InvestmentAnalysisEngine:
                     second_round_results[agent_id] = result
                     completed_count += 1
                     
-                    print(f"✅ {agent_name} 第二轮分析完成 ({completed_count}/4)")
+                    print(f"{agent_name} 第二轮分析完成 ({completed_count}/4)")
                     
                     # 合并分析结果到主状态
                     if result.get("status") == "success" and "analysis_result" in result:
                         state["data"]["analyst_signals"][agent_id] = result["analysis_result"]
                     
                 except Exception as e:
-                    print(f"❌ {agent_name} 第二轮分析出错: {str(e)}")
+                    print(f"错误: {agent_name} 第二轮分析出错: {str(e)}")
                     second_round_results[agent_id] = {
                         "agent_id": agent_id,
                         "agent_name": agent_name,
@@ -431,7 +433,7 @@ class InvestmentAnalysisEngine:
         
         end_time = datetime.now()
         execution_time = (end_time - start_time).total_seconds()
-        print(f"\n⏱️ 第二轮并行分析完成，总耗时: {execution_time:.2f} 秒")
+        print(f"\n第二轮并行分析完成，总耗时: {execution_time:.2f} 秒")
         print("=" * 40)
         
         return second_round_results
@@ -456,7 +458,7 @@ class InvestmentAnalysisEngine:
         """运行单个分析师的第二轮LLM分析"""
         agent_name = agent_info['name']
         
-        print(f"\n🤖 {agent_name} 开始第二轮LLM分析...")
+        print(f"\n{agent_name} 开始第二轮LLM分析...")
         
         try:
             # 提取需要的数据
@@ -490,7 +492,7 @@ class InvestmentAnalysisEngine:
             # 存储到状态中
             state["data"]["analyst_signals"][f"{agent_id}_round2"] = analysis_result
             
-            print(f"✅ {agent_name} 第二轮LLM分析完成")
+            print(f"{agent_name} 第二轮LLM分析完成")
             
             print(llm_analysis.ticker_signals)
             # 显示每个ticker的信号
@@ -499,7 +501,7 @@ class InvestmentAnalysisEngine:
                 emoji = signal_emoji.get(ticker_signal.signal, "❓")
                 print(f"  {emoji} {ticker_signal.ticker}: {ticker_signal.signal.upper()} "
                       f"(信心度: {ticker_signal.confidence}%)")
-                print(f"     💭 理由: {ticker_signal.reasoning}")
+                print(f"     理由: {ticker_signal.reasoning}")
             
             return {
                 "agent_id": agent_id,
@@ -511,7 +513,7 @@ class InvestmentAnalysisEngine:
             }
             
         except Exception as e:
-            print(f"❌ {agent_name} 第二轮LLM分析失败: {str(e)}")
+            print(f"错误: {agent_name} 第二轮LLM分析失败: {str(e)}")
             import traceback
             traceback.print_exc()
             
@@ -543,7 +545,7 @@ class InvestmentAnalysisEngine:
     def generate_final_report(self, analyst_results: Dict[str, Any], 
                             state: AgentState) -> Dict[str, Any]:
         """生成最终分析报告"""
-        print("\n📋 生成最终分析报告...")
+        print("\n生成最终分析报告...")
         
         # 统计分析结果
         successful_analyses = [r for r in analyst_results.values() if r["status"] == "success"]
@@ -574,7 +576,7 @@ class InvestmentAnalysisEngine:
                       for r in failed_analyses]
         }
         
-        print("✅ 最终报告生成完成")
+        print("最终报告生成完成")
         return report
     
     def generate_notification_summary(self) -> Dict[str, Any]:
@@ -611,7 +613,7 @@ class InvestmentAnalysisEngine:
     
     def run_risk_management_analysis(self, state: AgentState) -> Dict[str, Any]:
         """运行风险管理分析"""
-        print("⚠️ 执行风险管理分析...")
+        print("执行风险管理分析...")
         
         try:
             # 执行风险管理分析
@@ -621,7 +623,7 @@ class InvestmentAnalysisEngine:
             risk_analysis = state["data"]["analyst_signals"].get("risk_management_agent", {})
             
             if risk_analysis:
-                print("✅ 风险管理分析完成")
+                print("风险管理分析完成")
                 print(risk_analysis)
                 # 显示每个ticker的风险分析
                 for ticker, risk_data in risk_analysis.items():
@@ -630,10 +632,10 @@ class InvestmentAnalysisEngine:
                     vol_metrics = risk_data.get("volatility_metrics", {})
                     annualized_vol = vol_metrics.get("annualized_volatility", 0)
                     
-                    print(f"  📊 {ticker}:")
-                    print(f"     💰 可投资额度: ${remaining_limit:.0f}")
-                    print(f"     💲 当前价格: ${current_price:.2f}")
-                    print(f"     📈 年化波动率: {annualized_vol:.1%}")
+                    print(f"  {ticker}:")
+                    print(f"     可投资额度: ${remaining_limit:.0f}")
+                    print(f"     当前价格: ${current_price:.2f}")
+                    print(f"     年化波动率: {annualized_vol:.1%}")
                 
                 return {
                     "agent_id": "risk_management_agent",
@@ -642,7 +644,7 @@ class InvestmentAnalysisEngine:
                     "status": "success"
                 }
             else:
-                print("⚠️ 风险管理分析未返回结果")
+                print("警告: 风险管理分析未返回结果")
                 return {
                     "agent_id": "risk_management_agent",
                     "agent_name": "风险管理分析师", 
@@ -650,7 +652,7 @@ class InvestmentAnalysisEngine:
                 }
                 
         except Exception as e:
-            print(f"❌ 风险管理分析失败: {str(e)}")
+            print(f"错误: 风险管理分析失败: {str(e)}")
             import traceback
             traceback.print_exc()
             return {
@@ -662,7 +664,7 @@ class InvestmentAnalysisEngine:
     
     def run_portfolio_management_analysis(self, state: AgentState) -> Dict[str, Any]:
         """运行投资组合管理分析"""
-        print("💼 执行投资组合管理决策...")
+        print("执行投资组合管理决策...")
         
         try:
             # 执行投资组合管理
@@ -673,19 +675,19 @@ class InvestmentAnalysisEngine:
                 state["messages"] = portfolio_result["messages"]
                 state["data"] = portfolio_result["data"]
             
-            print(f"📨 执行后Messages数量: {len(state['messages'])}")
+            print(f"执行后Messages数量: {len(state['messages'])}")
             
             # 获取投资决策结果
             # portfolio_manager将结果保存在messages中，我们需要从最后一条message中提取
             if state["messages"]:
                 last_message = state["messages"][-1]
-                print(f"🔍 最后一条消息的name: '{getattr(last_message, 'name', 'NO_NAME')}'")
+                print(f"最后一条消息的name: '{getattr(last_message, 'name', 'NO_NAME')}'")
                 
                 if hasattr(last_message, 'name') and last_message.name == "portfolio_manager":
                     try:
                         portfolio_decisions = json.loads(last_message.content)
                         
-                        print("✅ 投资组合管理决策完成")
+                        print("投资组合管理决策完成")
                         print(portfolio_decisions)
                         # 显示每个ticker的投资决策
                         for ticker, decision in portfolio_decisions.items():
@@ -702,9 +704,9 @@ class InvestmentAnalysisEngine:
                             
                             print(f"  {emoji} {ticker}: {action.upper()}")
                             if quantity > 0:
-                                print(f"     🔢 数量: {quantity} 股")
-                            print(f"     🎯 信心度: {confidence:.1f}%")
-                            print(f"     💭 理由: {reasoning}")
+                                print(f"     数量: {quantity} 股")
+                            print(f"     信心度: {confidence:.1f}%")
+                            print(f"     理由: {reasoning}")
                         
                         return {
                             "agent_id": "portfolio_manager",
@@ -714,7 +716,7 @@ class InvestmentAnalysisEngine:
                         }
                         
                     except json.JSONDecodeError as e:
-                        print(f"⚠️ 解析投资决策结果失败: {str(e)}")
+                        print(f"警告: 解析投资决策结果失败: {str(e)}")
                         print(f"原始内容: {last_message.content}")
                         return {
                             "agent_id": "portfolio_manager",
@@ -723,7 +725,7 @@ class InvestmentAnalysisEngine:
                             "status": "parsing_error"
                         }
                 else:
-                    print(f"⚠️ 最后一条消息不是来自portfolio_manager")
+                    print(f"警告: 最后一条消息不是来自portfolio_manager")
                     print(f"   实际name: '{getattr(last_message, 'name', 'NO_NAME')}'")
                     return {
                         "agent_id": "portfolio_manager",
@@ -732,7 +734,7 @@ class InvestmentAnalysisEngine:
                         "status": "message_mismatch"
                     }
             else:
-                print("⚠️ 没有找到任何消息")
+                print("警告: 没有找到任何消息")
                 return {
                     "agent_id": "portfolio_manager",
                     "agent_name": "投资组合管理者",
@@ -741,7 +743,7 @@ class InvestmentAnalysisEngine:
                 }
                 
         except Exception as e:
-            print(f"❌ 投资组合管理决策失败: {str(e)}")
+            print(f"错误: 投资组合管理决策失败: {str(e)}")
             import traceback
             traceback.print_exc()
             return {
@@ -754,37 +756,37 @@ class InvestmentAnalysisEngine:
     def print_session_summary(self, results: Dict[str, Any]):
         """打印会话摘要"""
         print("\n" + "=" * 60)
-        print("📊 投资分析会话摘要")
+        print("投资分析会话摘要")
         print("=" * 60)
         
         report = results["final_report"]
         summary = report["summary"]
         
-        print(f"📈 分析股票: {', '.join(results['tickers'])}")
+        print(f"分析股票: {', '.join(results['tickers'])}")
         print(f"⏰ 分析时间: {results['analysis_timestamp']}")
-        print(f"✅ 最终成功分析: {summary['successful_analyses']}/{summary['total_analysts']}")
-        print(f"📢 发送通知: {summary['notifications_sent']} 条")
+        print(f"最终成功分析: {summary['successful_analyses']}/{summary['total_analysts']}")
+        print(f"发送通知: {summary['notifications_sent']} 条")
         
         # 显示两轮分析信息
         if 'first_round_results' in results:
             first_round_success = len([r for r in results['first_round_results'].values() if r.get('status') == 'success'])
-            print(f"🔄 第一轮分析: {first_round_success}/{len(results['first_round_results'])} 成功")
+            print(f"第一轮分析: {first_round_success}/{len(results['first_round_results'])} 成功")
         
         if 'final_analyst_results' in results:
             second_round_success = len([r for r in results['final_analyst_results'].values() if r.get('status') == 'success'])
-            print(f"🔄 第二轮分析: {second_round_success}/{len(results['final_analyst_results'])} 成功")
+            print(f"第二轮分析: {second_round_success}/{len(results['final_analyst_results'])} 成功")
         
         # 显示风险管理分析结果
         if 'risk_analysis_results' in results:
             risk_status = results['risk_analysis_results'].get('status', 'unknown')
             risk_emoji = "✅" if risk_status == "success" else "❌"
-            print(f"⚠️ 风险管理分析: {risk_emoji} {risk_status}")
+            print(f"风险管理分析: {risk_status}")
         
         # 显示投资组合管理结果 
         if 'portfolio_management_results' in results:
             portfolio_status = results['portfolio_management_results'].get('status', 'unknown')
             portfolio_emoji = "✅" if portfolio_status == "success" else "❌"
-            print(f"💼 投资组合管理: {portfolio_emoji} {portfolio_status}")
+            print(f"投资组合管理: {portfolio_status}")
             
             # 如果成功，显示投资决策摘要
             if portfolio_status == "success" and 'analysis_result' in results['portfolio_management_results']:
@@ -794,19 +796,19 @@ class InvestmentAnalysisEngine:
                     action = decision.get('action', 'hold')
                     actions_count[action] = actions_count.get(action, 0) + 1
                 
-                print("     📊 投资决策摘要:")
+                print("     投资决策摘要:")
                 for action, count in actions_count.items():
                     action_emoji = {"buy": "📈", "sell": "📉", "short": "📉", "cover": "📈", "hold": "⏸️"}
                     emoji = action_emoji.get(action, "❓")
                     print(f"       {emoji} {action.upper()}: {count} 支股票")
         
         if summary["failed_analyses"] > 0:
-            print(f"❌ 失败分析: {summary['failed_analyses']}")
+            print(f"失败分析: {summary['failed_analyses']}")
         
         # 打印通知活动
         notification_activity = report["notification_activity"]
         if notification_activity["total_notifications"] > 0:
-            print(f"\n📬 通知活动:")
+            print(f"\n通知活动:")
             for agent, count in notification_activity["notifications_by_agent"].items():
                 agent_name = self.core_analysts.get(agent, {}).get('name', agent)
                 print(f"  - {agent_name}: {count} 条通知")
@@ -830,10 +832,10 @@ def main():
         for arg in sys.argv[1:]:
             if arg == "--sequential":
                 parallel = False
-                print("📝 使用串行模式")
+                print("使用串行模式")
             elif arg == "--parallel":
                 parallel = True
-                print("📝 使用并行模式")
+                print("使用并行模式")
     
     try:
         # 运行完整分析
@@ -857,17 +859,17 @@ def main():
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(results_to_save, f, ensure_ascii=False, indent=2, default=str)
         
-        print(f"\n💾 详细结果已保存到: {output_file}")
-        print(f"📋 保存内容: 第一轮分析、第二轮分析、风险管理、投资组合管理（不包含final_report汇总）")
+        print(f"\n详细结果已保存到: {output_file}")
+        print(f"保存内容: 第一轮分析、第二轮分析、风险管理、投资组合管理（不包含final_report汇总）")
         
     except Exception as e:
-        print(f"❌ 主程序执行失败: {str(e)}")
+        print(f"错误: 主程序执行失败: {str(e)}")
         traceback.print_exc()
 
 
 def interactive_mode():
     """交互式模式"""
-    print("\n🎮 投资分析系统 - 交互式模式")
+    print("\n投资分析系统 - 交互式模式")
     print("=" * 50)
     
     engine = InvestmentAnalysisEngine()
@@ -884,7 +886,7 @@ def interactive_mode():
             choice = input("请输入选择: ").strip().lower()
             
             if choice == 'q':
-                print("👋 退出系统")
+                print("退出系统")
                 break
             elif choice == '1':
                 # 获取用户输入
@@ -892,7 +894,7 @@ def interactive_mode():
                 tickers = [t.strip().upper() for t in tickers_input.split(',') if t.strip()]
                 
                 if not tickers:
-                    print("❌ 请输入有效的股票代码")
+                    print("错误: 请输入有效的股票代码")
                     continue
                 
                 start_date = input("请输入开始日期(YYYY-MM-DD): ").strip()
@@ -908,7 +910,7 @@ def interactive_mode():
                 
             elif choice == '2':
                 # 查看通知历史
-                print("\n📬 全局通知历史:")
+                print("\n全局通知历史:")
                 for notification in notification_system.global_notifications[-10:]:  # 最近10条
                     print(f"  {notification.timestamp.strftime('%H:%M:%S')} - "
                           f"{notification.sender_agent}: {notification.content}")
@@ -918,17 +920,17 @@ def interactive_mode():
                 agent_id = input("请输入agent ID (fundamentals_analyst/sentiment_analyst/technical_analyst/valuation_analyst): ").strip()
                 memory = notification_system.get_agent_memory(agent_id)
                 if memory:
-                    print(f"\n🧠 {agent_id} 的通知记忆:")
+                    print(f"\n{agent_id} 的通知记忆:")
                     for notification in memory.notifications[-5:]:  # 最近5条
                         print(f"  收到: {notification.timestamp.strftime('%H:%M:%S')} - "
                               f"{notification.sender_agent}: {notification.content}")
                 else:
-                    print(f"❌ 未找到agent: {agent_id}")
+                    print(f"错误: 未找到agent: {agent_id}")
             else:
                 print("无效选择，请重试")
                 
         except KeyboardInterrupt:
-            print("\n👋 退出系统")
+            print("\n退出系统")
             break
         except Exception as e:
             print(f"执行错误: {str(e)}")

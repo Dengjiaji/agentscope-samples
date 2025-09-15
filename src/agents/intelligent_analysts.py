@@ -56,16 +56,16 @@ def _run_intelligent_analyst(state: AgentState, agent_id: str, analyst_instance)
     api_key = get_api_key_from_state(state, "FINANCIAL_DATASETS_API_KEY")
     
     # 简化的API密钥获取验证
-    print(f"🔑 API密钥状态: {'✅ 有效' if api_key else '❌ 无效'}")
+    print(f"API密钥状态: {'有效' if api_key else '无效'}")
     
     # 如果仍然无效，尝试环境变量作为后备
     if not api_key:
         import os
         api_key = os.getenv("FINANCIAL_DATASETS_API_KEY")
         if api_key:
-            print(f"🔄 使用环境变量API密钥")
+            print(f"使用环境变量API密钥")
         else:
-            print(f"❌ 无法获取FINANCIAL_DATASETS_API_KEY，工具执行将失败")
+            print(f"错误: 无法获取FINANCIAL_DATASETS_API_KEY，工具执行将失败")
     
     # 获取LLM
     llm = None
@@ -76,7 +76,7 @@ def _run_intelligent_analyst(state: AgentState, agent_id: str, analyst_instance)
             api_keys=state['data']['api_keys']
         )
     except Exception as e:
-        print(f"⚠️ 无法获取LLM模型，将使用默认工具选择: {e}")
+        print(f"警告: 无法获取LLM模型，将使用默认工具选择: {e}")
     
     # 执行分析
     analysis_results = {}
@@ -100,7 +100,7 @@ def _run_intelligent_analyst(state: AgentState, agent_id: str, analyst_instance)
                         loop = asyncio.get_running_loop()
                         # 如果成功获取到运行中的事件循环，说明我们在异步上下文中
                         # 这种情况下不能使用 run_until_complete，需要使用同步版本
-                        print(f"🔄 {analyst_instance.analyst_persona} 检测到运行中的事件循环，使用同步版本进行分析")
+                        print(f"{analyst_instance.analyst_persona} 检测到运行中的事件循环，使用同步版本进行分析")
                         result = _sync_analyze_with_llm_tool_selection(
                             analyst_instance, ticker, end_date, api_key, start_date, llm, 
                             analysis_objective, market_conditions
@@ -112,28 +112,27 @@ def _run_intelligent_analyst(state: AgentState, agent_id: str, analyst_instance)
                             loop = asyncio.new_event_loop()
                             asyncio.set_event_loop(loop)
                             
-                            print(f"🔄 {analyst_instance.analyst_persona} 创建新的事件循环进行异步分析")
+                            print(f"{analyst_instance.analyst_persona} 创建新的事件循环进行异步分析")
                             result = loop.run_until_complete(
                                 analyst_instance.analyze_with_llm_tool_selection(
                                     ticker, end_date, api_key, start_date, llm, analysis_objective
                                 )
                             )
                             
-                            # 显示异步分析结果
-                            _display_analysis_summary(analyst_instance.analyst_persona, ticker, result)
+                            # 异步分析完成（摘要将在同步函数中统一显示）
                             
                             # 清理事件循环
                             loop.close()
                             asyncio.set_event_loop(None)
                             
                         except Exception as async_error:
-                            print(f"⚠️ 异步调用失败，降级到同步版本: {async_error}")
+                            print(f"警告: 异步调用失败，降级到同步版本: {async_error}")
                             result = _sync_analyze_with_llm_tool_selection(
                                 analyst_instance, ticker, end_date, api_key, start_date, llm, 
                                 analysis_objective, market_conditions
                             )
                 except Exception as e:
-                    print(f"⚠️ 事件循环处理失败，使用同步版本: {e}")
+                    print(f"警告: 事件循环处理失败，使用同步版本: {e}")
                     result = _sync_analyze_with_llm_tool_selection(
                         analyst_instance, ticker, end_date, api_key, start_date, llm, 
                         analysis_objective, market_conditions
@@ -190,7 +189,7 @@ def _sync_analyze_with_llm_tool_selection(analyst_instance, ticker: str, end_dat
     try:
         # 1. 使用LLM选择工具
         if llm:
-            print(f"🤖 {analyst_instance.analyst_persona} 使用LLM智能选择工具...")
+            print(f"{analyst_instance.analyst_persona} 使用LLM智能选择工具...")
             print(f"   市场条件: {market_conditions}")
             selection_result = _sync_select_tools_with_llm(
                 analyst_instance.tool_selector, llm, analyst_instance.analyst_persona, 
@@ -198,7 +197,7 @@ def _sync_analyze_with_llm_tool_selection(analyst_instance, ticker: str, end_dat
             )
             print(f"   LLM选择策略: {selection_result.get('analysis_strategy', 'N/A')}")
         else:
-            print(f"⚠️ {analyst_instance.analyst_persona} 使用默认工具选择 (无LLM)")
+            print(f"警告: {analyst_instance.analyst_persona} 使用默认工具选择 (无LLM)")
             # 降级到默认选择
             selection_result = analyst_instance.tool_selector._get_default_tool_selection(analyst_instance.analyst_persona)
         
@@ -207,7 +206,7 @@ def _sync_analyze_with_llm_tool_selection(analyst_instance, ticker: str, end_dat
         
         # 2. 执行选定的工具
         if not api_key:
-            print(f"❌ {analyst_instance.analyst_persona} API密钥无效，工具执行将失败")
+            print(f"错误: {analyst_instance.analyst_persona} API密钥无效，工具执行将失败")
             
         tool_results = analyst_instance.tool_selector.execute_selected_tools(
             selection_result["selected_tools"],
@@ -235,7 +234,7 @@ def _sync_analyze_with_llm_tool_selection(analyst_instance, ticker: str, end_dat
             "signal": combined_result["signal"],
             "confidence": combined_result["confidence"],
             "tool_selection": {
-                "selection_strategy": selection_result["analysis_strategy"],
+                "analysis_strategy": selection_result["analysis_strategy"],
                 "market_considerations": selection_result["market_considerations"],
                 "selected_tools": selection_result["selected_tools"],
                 "tool_count": selection_result["tool_count"]
@@ -293,14 +292,14 @@ def _sync_select_tools_with_llm(tool_selector, llm, analyst_persona: str, ticker
         analyst_persona, ticker, market_conditions, analysis_objective
     )
     
-    print(f"🤖 LLM提示词长度: {len(prompt)} 字符")
+    print(f"LLM提示词长度: {len(prompt)} 字符")
     
     try:
         # 调用LLM
         messages = [HumanMessage(content=prompt)]
-        print(f"🤖 正在调用LLM进行工具选择...")
+        print(f"正在调用LLM进行工具选择...")
         response = llm.invoke(messages)
-        print(f"🤖 LLM响应长度: {len(response.content)} 字符")
+        print(f"LLM响应长度: {len(response.content)} 字符")
         
         # 解析响应
         response_text = response.content.strip()
@@ -317,17 +316,17 @@ def _sync_select_tools_with_llm(tool_selector, llm, analyst_persona: str, ticker
             json_text = response_text[json_start:json_end]
         
         # 解析JSON
-        print(f"🤖 提取的JSON文本: {json_text[:200]}...")
+        print(f"提取的JSON文本: {json_text[:200]}...")
         selection_result = json.loads(json_text)
-        print(f"🤖 JSON解析成功，包含 {len(selection_result.get('selected_tools', []))} 个工具")
+        print(f"JSON解析成功，包含 {len(selection_result.get('selected_tools', []))} 个工具")
         
         # 验证和规范化结果
         normalized_result = tool_selector._validate_and_normalize_selection(selection_result)
-        print(f"🤖 工具选择验证完成")
+        print(f"工具选择验证完成")
         return normalized_result
         
     except Exception as e:
-        print(f"⚠️ LLM工具选择失败: {str(e)}")
+        print(f"警告: LLM工具选择失败: {str(e)}")
         # 降级到默认选择策略
         return tool_selector._get_default_tool_selection(analyst_persona)
 
@@ -335,15 +334,16 @@ def _sync_select_tools_with_llm(tool_selector, llm, analyst_persona: str, ticker
 def _display_analysis_summary(analyst_name: str, ticker: str, analysis_result: Dict[str, Any]):
     """统一显示分析摘要 - 适用于同步和异步版本"""
     print(f"\n{'='*50}")
-    print(f"📋 {analyst_name} | {ticker} 分析摘要")
+    print(f"{analyst_name} | {ticker} 分析摘要")
     print(f"{'='*50}")
     
-    # 工具选择信息
+    # 工具选择信息（增加兜底策略文本）
     if "tool_selection" in analysis_result:
         tool_selection = analysis_result["tool_selection"]
-        print(f"🎯 分析策略: {tool_selection.get('analysis_strategy', 'N/A')}")
+        analysis_strategy_text = tool_selection.get('analysis_strategy') or "基于当前市场环境与分析目标，优先采用所列工具并按权重综合信号。"
+        print(f"分析策略: {analysis_strategy_text}")
         print(f"🌍 市场考虑: {tool_selection.get('market_considerations', 'N/A')}")
-        print(f"🔧 选择工具: {tool_selection.get('tool_count', 0)}个")
+        print(f"选择工具: {tool_selection.get('tool_count', 0)}个")
         
         # 显示选择的工具
         if "selected_tools" in tool_selection:
@@ -356,9 +356,10 @@ def _display_analysis_summary(analyst_name: str, ticker: str, analysis_result: D
         tool_analysis = analysis_result["tool_analysis"]
         successful = tool_analysis.get("successful_tools", 0)
         failed = tool_analysis.get("failed_tools", 0)
-        
-        print(f"\n📊 执行结果: ✅{successful}个成功  ❌{failed}个失败")
-        
+        if failed == 0:
+            print(f"\n执行结果: {successful}个成功")
+        else:
+            print(f"\n执行结果: {successful}个成功  {failed}个失败")
         # 显示每个工具的结果
         tool_results = tool_analysis.get("tool_results", [])
         for result in tool_results:
@@ -369,14 +370,14 @@ def _display_analysis_summary(analyst_name: str, ticker: str, analysis_result: D
                 print(f"   {signal_emoji} {result.get('tool_name', 'Unknown'):<20} {result.get('signal', 'unknown').upper():<8} {confidence:>3}% {conf_bar}")
             else:
                 error_short = result.get('error', 'Unknown')[:30] + "..." if len(result.get('error', '')) > 30 else result.get('error', 'Unknown')
-                print(f"   ❌ {result.get('tool_name', 'Unknown'):<20} 失败: {error_short}")
+                print(f"   失败: {result.get('tool_name', 'Unknown'):<20} {error_short}")
     
     # 最终信号
     final_signal = analysis_result.get('signal', 'unknown')
     final_confidence = analysis_result.get('confidence', 0)
     signal_emoji = {"bullish": "🟢", "bearish": "🔴", "neutral": "⚪"}.get(final_signal, "❓")
     
-    print(f"\n🎯 最终信号: {signal_emoji} {final_signal.upper()} (置信度: {final_confidence}%)")
+    print(f"\n最终信号: {final_signal.upper()} (置信度: {final_confidence}%)")
     
     # 信号权重分解
     if "tool_analysis" in analysis_result and "combination_details" in analysis_result["tool_analysis"]:
@@ -388,9 +389,9 @@ def _display_analysis_summary(analyst_name: str, ticker: str, analysis_result: D
             total_w = breakdown.get('total_weight', 1)
             
             if total_w > 0:
-                print(f"📈 权重分布:")
+                print(f"权重分布:")
                 print(f"   🟢 看涨: {(bullish_w/total_w)*100:5.1f}% {'█' * int((bullish_w/total_w)*20)}")
-                print(f"   🔴 看跌: {(bearish_w/total_w)*100:5.1f}% {'█' * int((bearish_w/total_w)*20)}")
+                print(f"   看跌: {(bearish_w/total_w)*100:5.1f}% {'█' * int((bearish_w/total_w)*20)}")
                 print(f"   ⚪ 中性: {(neutral_w/total_w)*100:5.1f}% {'█' * int((neutral_w/total_w)*20)}")
     
     print(f"{'='*50}\n")

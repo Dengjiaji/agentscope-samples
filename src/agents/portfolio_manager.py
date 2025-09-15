@@ -30,18 +30,18 @@ def portfolio_management_agent(state: AgentState, agent_id: str = "portfolio_man
     tickers = state["data"]["tickers"]
     
     # Debug: Print available analyst signals
-    print(f"🔍 投资组合管理器收到的分析师信号键: {list(analyst_signals.keys())}")
+    print(f"投资组合管理器收到的分析师信号键: {list(analyst_signals.keys())}")
     for agent_key, signals in analyst_signals.items():
         if not agent_key.startswith("risk_management_agent"):
             if isinstance(signals, dict):
                 #format_second_round_result_for_state 因为第二轮结果经过这个函数有一个特定的格式
                 if "ticker_signals" in signals:
-                    print(f"  📊 {agent_key}: 第二轮格式，包含 {len(signals['ticker_signals'])} 个ticker信号")
+                    print(f"  {agent_key}: 第二轮格式，包含 {len(signals['ticker_signals'])} 个ticker信号")
                 else:
                     ticker_keys = [k for k in signals.keys() if k in tickers]
-                    print(f"  📊 {agent_key}: 第一轮格式，包含ticker: {ticker_keys}")
+                    print(f"  {agent_key}: 第一轮格式，包含ticker: {ticker_keys}")
             else:
-                print(f"  ⚠️ {agent_key}: 未知格式 - {type(signals)}")
+                print(f"  警告: {agent_key}: 未知格式 - {type(signals)}")
 
     # Get position limits, current prices, and signals for every ticker
     position_limits = {}
@@ -64,22 +64,22 @@ def portfolio_management_agent(state: AgentState, agent_id: str = "portfolio_man
         current_prices[ticker] = risk_data.get("current_price", 0)
         
         # Debug: Print risk management data
-        print(f"🔍 {ticker} 风险管理数据:")
-        print(f"  💰 position_limit: ${position_limits[ticker]:.2f}")
-        print(f"  💲 current_price: ${current_prices[ticker]:.2f}")
+        print(f"{ticker} 风险管理数据:")
+        print(f"  position_limit: ${position_limits[ticker]:.2f}")
+        print(f"  current_price: ${current_prices[ticker]:.2f}")
         if risk_data.get("reasoning"):
             reasoning = risk_data["reasoning"]
-            print(f"  📊 portfolio_value: ${reasoning.get('portfolio_value', 0):.2f}")
-            print(f"  💵 available_cash: ${reasoning.get('available_cash', 0):.2f}")
-            print(f"  📈 position_limit_pct: {reasoning.get('base_position_limit_pct', 0):.1%}")
+            print(f"  portfolio_value: ${reasoning.get('portfolio_value', 0):.2f}")
+            print(f"  available_cash: ${reasoning.get('available_cash', 0):.2f}")
+            print(f"  position_limit_pct: {reasoning.get('base_position_limit_pct', 0):.1%}")
 
         # Calculate maximum shares allowed based on position limit and price
         if current_prices[ticker] > 0:
             max_shares[ticker] = int(position_limits[ticker] / current_prices[ticker])
-            print(f"  📊 max_shares: {max_shares[ticker]} 股")
+            print(f"  max_shares: {max_shares[ticker]} 股")
         else:
             max_shares[ticker] = 0
-            print(f"  ⚠️ 价格为0，max_shares设为0")
+            print(f"  警告: 价格为0，max_shares设为0")
 
         # Get signals for the ticker
         ticker_signals = {}
@@ -95,16 +95,20 @@ def portfolio_management_agent(state: AgentState, agent_id: str = "portfolio_man
             if ticker in signals:
                 # First round format
                 ticker_signals[agent] = {"signal": signals[ticker]["signal"], "confidence": signals[ticker]["confidence"]}
-                print(f"  ✅ 从 {agent} 获取 {ticker} 的第一轮信号: {signals[ticker]['signal']}")
+                print(f"  从 {agent} 获取 {ticker} 的第一轮信号: {signals[ticker]['signal']}")
             elif "ticker_signals" in signals:
                 # Second round format - search through ticker_signals list
                 for ts in signals["ticker_signals"]:
-                    if ts.get("ticker") == ticker:
+                    # Handle case where ts might be a string instead of dict
+                    if isinstance(ts, str):
+                        print(f"  警告: 跳过字符串格式的信号: {ts[:100]}...")
+                        continue
+                    elif isinstance(ts, dict) and ts.get("ticker") == ticker:
                         ticker_signals[agent] = {"signal": ts["signal"], "confidence": ts["confidence"]}
-                        print(f"  ✅ 从 {agent} 获取 {ticker} 的第二轮信号: {ts['signal']}")
+                        print(f"  从 {agent} 获取 {ticker} 的第二轮信号: {ts['signal']}")
                         break
         
-        print(f"📈 {ticker} 收集到的信号数量: {len(ticker_signals)}")
+        print(f"{ticker} 收集到的信号数量: {len(ticker_signals)}")
         signals_by_ticker[ticker] = ticker_signals
 
     # Add current_prices to the state data so it's available throughout the workflow

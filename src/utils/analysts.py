@@ -6,14 +6,17 @@ from src.agents.ben_graham import ben_graham_agent
 from src.agents.bill_ackman import bill_ackman_agent
 from src.agents.cathie_wood import cathie_wood_agent
 from src.agents.charlie_munger import charlie_munger_agent
-from src.agents.fundamentals import fundamentals_analyst_agent
+# 使用智能LLM版本的核心分析师
+from src.agents.intelligent_analysts import (
+    intelligent_fundamentals_analyst_agent,
+    intelligent_technical_analyst_agent,
+    intelligent_sentiment_analyst_agent,
+    intelligent_valuation_analyst_agent
+)
 from src.agents.michael_burry import michael_burry_agent
 from src.agents.phil_fisher import phil_fisher_agent
 from src.agents.peter_lynch import peter_lynch_agent
-from src.agents.sentiment import sentiment_analyst_agent
 from src.agents.stanley_druckenmiller import stanley_druckenmiller_agent
-from src.agents.technicals import technical_analyst_agent
-from src.agents.valuation import valuation_analyst_agent
 from src.agents.warren_buffett import warren_buffett_agent
 from src.agents.rakesh_jhunjhunwala import rakesh_jhunjhunwala_agent
 
@@ -108,34 +111,34 @@ ANALYST_CONFIG = {
         "order": 10,
     },
     "technical_analyst": {
-        "display_name": "Technical Analyst",
-        "description": "Chart Pattern Specialist",
-        "investing_style": "Focuses on chart patterns and market trends to make investment decisions, often using technical indicators and price action analysis.",
-        "agent_func": technical_analyst_agent,
+        "display_name": "Technical Analyst (LLM智能选择)",
+        "description": "Chart Pattern Specialist with AI Tool Selection",
+        "investing_style": "Uses LLM to intelligently select technical analysis tools, focusing on chart patterns and market trends to make investment decisions through AI-enhanced analysis.",
+        "agent_func": intelligent_technical_analyst_agent,
         "type": "analyst",
         "order": 11,
     },
     "fundamentals_analyst": {
-        "display_name": "Fundamentals Analyst",
-        "description": "Financial Statement Specialist",
-        "investing_style": "Delves into financial statements and economic indicators to assess the intrinsic value of companies through fundamental analysis.",
-        "agent_func": fundamentals_analyst_agent,
+        "display_name": "Fundamentals Analyst (LLM智能选择)",
+        "description": "Financial Statement Specialist with AI Tool Selection",
+        "investing_style": "Uses LLM to intelligently select fundamental analysis tools, delving into financial statements and economic indicators to assess intrinsic value through AI-enhanced analysis.",
+        "agent_func": intelligent_fundamentals_analyst_agent,
         "type": "analyst",
         "order": 12,
     },
     "sentiment_analyst": {
-        "display_name": "Sentiment Analyst",
-        "description": "Market Sentiment Specialist",
-        "investing_style": "Gauges market sentiment and investor behavior to predict market movements and identify opportunities through behavioral analysis.",
-        "agent_func": sentiment_analyst_agent,
+        "display_name": "Sentiment Analyst (LLM智能选择)",
+        "description": "Market Sentiment Specialist with AI Tool Selection",
+        "investing_style": "Uses LLM to intelligently select sentiment analysis tools, gauging market sentiment and investor behavior to predict market movements through AI-enhanced behavioral analysis.",
+        "agent_func": intelligent_sentiment_analyst_agent,
         "type": "analyst",
         "order": 13,
     },
     "valuation_analyst": {
-        "display_name": "Valuation Analyst",
-        "description": "Company Valuation Specialist",
-        "investing_style": "Specializes in determining the fair value of companies, using various valuation models and financial metrics for investment decisions.",
-        "agent_func": valuation_analyst_agent,
+        "display_name": "Valuation Analyst (LLM智能选择)",
+        "description": "Company Valuation Specialist with AI Tool Selection",
+        "investing_style": "Uses LLM to intelligently select valuation analysis tools, specializing in determining fair value of companies using various AI-selected models and financial metrics.",
+        "agent_func": intelligent_valuation_analyst_agent,
         "type": "analyst",
         "order": 14,
     },

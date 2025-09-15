@@ -5,11 +5,21 @@ Agent通知系统
 """
 
 import json
-import logging
-import re
+import math
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
+import re
+try:
+    import numpy as _np  # 类型清洗用，可选
+except Exception:
+    _np = None
+try:
+    import pandas as _pd  # 类型清洗用，可选
+except Exception:
+    _pd = None
+import logging
+import re
 from langchain_core.tools import tool
 from langchain_core.messages import HumanMessage
 from src.graph.state import AgentState
@@ -116,6 +126,65 @@ class NotificationSystem:
         """获取agent的通知记忆"""
         return self.agent_memories.get(agent_id)
 
+
+def _make_json_safe(obj: Any) -> Any:
+    """将对象递归转换为可JSON序列化的原生类型。
+    - numpy整/浮/布尔 -> int/float/bool
+    - pandas/NumPy NaN/NaT -> None
+    - datetime -> isoformat 字符串
+    - dict/list/tuple 递归处理
+    其他不可序列化对象 -> str(obj)
+    """
+    # None与基础类型
+    if obj is None or isinstance(obj, (str, int, float, bool)):
+        # 处理float中的nan/inf
+        if isinstance(obj, float):
+            if math.isnan(obj) or math.isinf(obj):
+                return None
+        return obj
+
+    # datetime
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+
+    # numpy 标量
+    if _np is not None:
+        if isinstance(obj, (_np.integer,)):
+            return int(obj)
+        if isinstance(obj, (_np.floating,)):
+            val = float(obj)
+            return None if math.isnan(val) or math.isinf(val) else val
+        if isinstance(obj, (_np.bool_,)):
+            return bool(obj)
+        if obj is _np.nan:
+            return None
+
+    # pandas 标量
+    if _pd is not None:
+        try:
+            if _pd.isna(obj):
+                return None
+        except Exception:
+            pass
+
+    # 容器类型
+    if isinstance(obj, dict):
+        return {str(_make_json_safe(k)): _make_json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple, set)):
+        return [_make_json_safe(v) for v in obj]
+
+    # 兜底：尝试获取__dict__
+    if hasattr(obj, "__dict__"):
+        try:
+            return _make_json_safe(vars(obj))
+        except Exception:
+            pass
+
+    # 最后兜底：转字符串
+    try:
+        return str(obj)
+    except Exception:
+        return None
 
 def robust_json_parse(text: str) -> Dict[str, Any]:
     """
@@ -249,7 +318,7 @@ def should_send_notification(agent_id: str, analysis_result: Dict,
 你是一个{agent_id}，刚刚完成了分析并得到以下结果：
 
 分析结果：
-{json.dumps(analysis_result, ensure_ascii=False, indent=2)}
+{json.dumps(_make_json_safe(analysis_result), ensure_ascii=False, indent=2)}
 
 你最近收到的通知：
 {notifications_context}

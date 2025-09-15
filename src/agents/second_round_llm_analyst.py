@@ -10,8 +10,8 @@ from langchain_core.messages import HumanMessage
 
 from ..graph.state import AgentState
 from ..utils.llm import call_llm
+from ..utils.json_utils import quiet_json_dumps
 from ..models.second_round_signals import SecondRoundAnalysis, AnalystPersona, TickerSignal
-import json
 from src.communication.cfg import ANALYST_PERSONAS
 
 
@@ -128,8 +128,8 @@ def run_second_round_llm_analysis(
         decision_style=persona.decision_style,
         risk_preference=persona.risk_preference,
         tickers=", ".join(tickers),
-        first_round_analysis=json.dumps(first_round_analysis, ensure_ascii=False, indent=2),
-        overall_summary=json.dumps(overall_summary, ensure_ascii=False, indent=2),
+        first_round_analysis=quiet_json_dumps(first_round_analysis, ensure_ascii=False, indent=2),
+        overall_summary=quiet_json_dumps(overall_summary, ensure_ascii=False, indent=2),
         notifications=notifications_str,
         pipeline_info = persona.pipeline_config,
         agent_id=agent_id  

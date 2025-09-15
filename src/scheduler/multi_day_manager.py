@@ -63,7 +63,7 @@ class MultiDayManager:
         if not self.prefetch_data:
             return
             
-        print(f"\n📦 预取数据中 ({start_date} 到 {end_date})...")
+        print(f"\n预取数据中 ({start_date} 到 {end_date})...")
         
         # 扩展数据获取范围，确保有足够的历史数据
         end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
@@ -85,9 +85,9 @@ class MultiDayManager:
                 get_company_news(ticker, end_date, start_date=start_date, limit=1000)
                 
             except Exception as e:
-                print(f"⚠️ 预取 {ticker} 数据时出错: {e}")
+                print(f"警告: 预取 {ticker} 数据时出错: {e}")
                 
-        print("✅ 数据预取完成")
+        print("数据预取完成")
     
     def save_daily_state(self, date_str: str, results: Dict[str, Any], state: Dict[str, Any]):
         """保存单日状态到文件"""
@@ -118,7 +118,7 @@ class MultiDayManager:
             with open(daily_file, 'w', encoding='utf-8') as f:
                 json.dump(daily_state, f, ensure_ascii=False, indent=2, default=str)
         except Exception as e:
-            print(f"⚠️ 保存日状态失败 {date_str}: {e}")
+            print(f"警告: 保存日状态失败 {date_str}: {e}")
     
     def load_previous_state(self, date_str: str) -> Optional[Dict[str, Any]]:
         """加载前一日的状态"""
@@ -137,7 +137,7 @@ class MultiDayManager:
             with open(latest_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except Exception as e:
-            print(f"⚠️ 加载前状态失败: {e}")
+            print(f"警告: 加载前状态失败: {e}")
             return None
     
     def restore_state_to_engine(self, previous_state: Dict[str, Any], current_state: Dict[str, Any]):
@@ -181,7 +181,7 @@ class MultiDayManager:
         if previous_state.get("portfolio_snapshot"):
             current_state["data"]["portfolio"] = previous_state["portfolio_snapshot"]
             
-        print(f"✅ 已恢复前一交易日状态")
+        print(f"已恢复前一交易日状态")
     
     def run_multi_day_strategy(
         self,
@@ -211,9 +211,9 @@ class MultiDayManager:
         
         # 初始化会话
         self.session_id = self.create_session_id()
-        print(f"🚀 开始多日策略分析 (会话ID: {self.session_id})")
-        print(f"📅 时间范围: {start_date} 到 {end_date}")
-        print(f"📊 分析标的: {', '.join(tickers)}")
+        print(f"开始多日策略分析 (会话ID: {self.session_id})")
+        print(f"时间范围: {start_date} 到 {end_date}")
+        print(f"分析标的: {', '.join(tickers)}")
         
         # 预取数据
         if self.prefetch_data:
@@ -225,7 +225,7 @@ class MultiDayManager:
         if len(trading_dates) == 0:
             raise ValueError(f"指定日期范围内无交易日: {start_date} 到 {end_date}")
         
-        print(f"📈 共 {len(trading_dates)} 个交易日待分析")
+        print(f"共 {len(trading_dates)} 个交易日待分析")
         
         # 初始化汇总统计
         total_days = len(trading_dates)
@@ -237,7 +237,7 @@ class MultiDayManager:
         for i, current_date in enumerate(trading_dates):
             current_date_str = current_date.strftime("%Y-%m-%d")
             print(f"\n{'='*60}")
-            print(f"📅 第 {i+1}/{total_days} 日分析: {current_date_str}")
+            print(f"第 {i+1}/{total_days} 日分析: {current_date_str}")
             print(f"{'='*60}")
             
             # 发送进度更新
@@ -295,7 +295,7 @@ class MultiDayManager:
                     "output_file": daily_output_file
                 })
                 
-                print(f"✅ {current_date_str} 分析完成")
+                print(f"{current_date_str} 分析完成")
                 
                 # 发送单日结果
                 if progress_callback:
@@ -307,12 +307,29 @@ class MultiDayManager:
                     })
                 
             except Exception as e:
-                print(f"❌ {current_date_str} 分析失败: {str(e)}")
+                import traceback
+                error_msg = str(e)
+                full_traceback = traceback.format_exc()
+                
+                # 检查是否是JSON序列化相关错误
+                is_json_error = ("JSON" in error_msg and "serializable" in error_msg) or \
+                               ("Object of type" in error_msg and "is not JSON serializable" in error_msg)
+                
+                if is_json_error:
+                    # JSON序列化错误应该已经被我们的修复处理了，如果还出现说明有遗漏
+                    print(f"警告: {current_date_str} 发现未处理的JSON序列化问题:")
+                    print(f"   错误: {error_msg}")
+                    print("   建议检查是否有遗漏的json.dumps调用需要替换为quiet_json_dumps")
+                else:
+                    # 其他真正的业务逻辑错误
+                    print(f"错误: {current_date_str} 分析失败: {error_msg}")
+                
                 failed_days += 1
                 self.daily_results.append({
                     "date": current_date_str,
                     "status": "failed",
-                    "error": str(e),
+                    "error": error_msg,
+                    "full_traceback": full_traceback,
                     "output_file": None
                 })
                 
@@ -331,10 +348,10 @@ class MultiDayManager:
         # 生成多日汇总报告
         summary_results = self.generate_multi_day_summary()
         
-        print(f"\n🏁 多日策略分析完成!")
-        print(f"✅ 成功: {successful_days} 日")
-        print(f"❌ 失败: {failed_days} 日")
-        print(f"📊 成功率: {successful_days/total_days*100:.1f}%")
+        print(f"\n多日策略分析完成!")
+        print(f"成功: {successful_days} 日")
+        print(f"失败: {failed_days} 日")
+        print(f"成功率: {successful_days/total_days*100:.1f}%")
         
         return summary_results
     
@@ -397,9 +414,9 @@ class MultiDayManager:
         try:
             with open(summary_file, 'w', encoding='utf-8') as f:
                 json.dump(summary, f, ensure_ascii=False, indent=2, default=str)
-            print(f"📄 多日汇总报告已保存: {summary_file}")
+            print(f"多日汇总报告已保存: {summary_file}")
         except Exception as e:
-            print(f"⚠️ 保存汇总报告失败: {e}")
+            print(f"警告: 保存汇总报告失败: {e}")
         
         return summary
     

@@ -69,7 +69,7 @@ class AnalystMemory:
         self.total_analyses += 1
         self.last_active_time = datetime.now()
         
-        print(f"📝 {self.analyst_name} 开始新会话: {session_type} (ID: {session.session_id[:8]}...)")
+        print(f"{self.analyst_name} 开始新会话: {session_type} (ID: {session.session_id[:8]}...)")
         return session.session_id
     
     def add_analysis_message(self, session_id: str, role: str, content: str, 
@@ -110,7 +110,7 @@ class AnalystMemory:
                             "signal": ticker_signal
                         })
             
-            print(f"✅ {self.analyst_name} 完成会话: {session.session_type}")
+            print(f"{self.analyst_name} 完成会话: {session.session_type}")
     
     def start_communication(self, communication_type: str, participants: List[str], 
                           topic: str) -> str:
@@ -125,7 +125,7 @@ class AnalystMemory:
         self.total_communications += 1
         self.last_active_time = datetime.now()
         
-        print(f"💬 {self.analyst_name} 开始通信: {communication_type} (ID: {communication.communication_id[:8]}...)")
+        print(f"{self.analyst_name} 开始通信: {communication_type} (ID: {communication.communication_id[:8]}...)")
         return communication.communication_id
     
     def add_communication_message(self, communication_id: str, speaker: str, 
@@ -148,7 +148,7 @@ class AnalystMemory:
         import re
         
         try:
-            # 处理类似 'ticker_signals: [{"ticker": "AAPL"...}]' 的字符串
+            # 方法1: 处理类似 'ticker_signals: [{"ticker": "AAPL"...}]' 的字符串
             if 'ticker_signals:' in malformed_str:
                 # 提取方括号内的内容
                 match = re.search(r'ticker_signals:\s*\[(.*)\]', malformed_str, re.DOTALL)
@@ -163,14 +163,57 @@ class AnalystMemory:
                     
                     # 解析JSON
                     parsed = json.loads(json_str)
-                    print(f"✅ 成功修复格式错误的ticker_signals: {len(parsed)} 个信号")
+                    print(f"成功修复格式错误的ticker_signals: {len(parsed)} 个信号")
                     return parsed
+            
+            # 方法2: 处理直接的JSON对象字符串（从终端选择中看到的格式）
+            # 例如: '{"ticker": "AAPL", "signal": "bearish", "confidence": 85, "reasoning": "..."}'
+            if malformed_str.strip().startswith('{') and 'ticker' in malformed_str and 'signal' in malformed_str:
+                try:
+                    # 尝试直接解析为JSON对象
+                    parsed_obj = json.loads(malformed_str)
+                    if isinstance(parsed_obj, dict) and 'ticker' in parsed_obj:
+                        print(f"成功解析单个ticker信号对象")
+                        return [parsed_obj]
+                except json.JSONDecodeError:
+                    # 如果JSON解析失败，尝试处理Python字典格式
+                    try:
+                        # 将Python字典格式转换为JSON格式（单引号转双引号）
+                        json_str = malformed_str.replace("'", '"')
+                        # 处理可能的True/False/None
+                        json_str = json_str.replace('True', 'true').replace('False', 'false').replace('None', 'null')
+                        
+                        parsed_obj = json.loads(json_str)
+                        if isinstance(parsed_obj, dict) and 'ticker' in parsed_obj:
+                            print(f"成功修复Python字典格式的ticker信号对象")
+                            return [parsed_obj]
+                    except json.JSONDecodeError:
+                        pass
+            
+            # 方法3: 尝试提取多个JSON对象（用逗号分隔）
+            if '{' in malformed_str and 'ticker' in malformed_str:
+                # 查找所有看起来像JSON对象的部分
+                json_objects = []
+                # 使用正则表达式找到所有 {"ticker": "XXX", ...} 的模式
+                pattern = r'\{"ticker":\s*"[^"]+",.*?\}'
+                matches = re.findall(pattern, malformed_str, re.DOTALL)
+                
+                for match in matches:
+                    try:
+                        obj = json.loads(match)
+                        json_objects.append(obj)
+                    except json.JSONDecodeError:
+                        continue
+                
+                if json_objects:
+                    print(f"成功提取了{len(json_objects)}个ticker信号对象")
+                    return json_objects
                     
         except json.JSONDecodeError as e:
-            print(f"⚠️ 修复ticker_signals失败: {str(e)}")
-            print(f"📝 原始内容: {malformed_str[:200]}...")
+            print(f"警告: 修复ticker_signals失败: {str(e)}")
+            print(f"原始内容: {malformed_str[:200]}...")
         except Exception as e:
-            print(f"⚠️ 处理ticker_signals时出错: {str(e)}")
+            print(f"警告: 处理ticker_signals时出错: {str(e)}")
         
         return []
 
@@ -211,7 +254,7 @@ class AnalystMemory:
                             })
                             signal_str = signal_obj.get("signal", "unknown")
                             confidence_str = signal_obj.get("confidence", "unknown")
-                            print(f"🔄 {self.analyst_name} 调整了信号: {ticker_code} -> {signal_str} ({confidence_str}%)")
+                            print(f"{self.analyst_name} 调整了信号: {ticker_code} -> {signal_str} ({confidence_str}%)")
                             printed_any = True
                     
                 # 如果不是标准格式，尝试修复格式错误
@@ -241,17 +284,17 @@ class AnalystMemory:
                                     })
                                     signal_str = signal_obj.get("signal", "unknown")
                                     confidence_str = signal_obj.get("confidence", "unknown")
-                                    print(f"🔧 {self.analyst_name} 修复并调整了信号: {ticker_code} -> {signal_str} ({confidence_str}%)")
+                                    print(f"{self.analyst_name} 修复并调整了信号: {ticker_code} -> {signal_str} ({confidence_str}%)")
                                     printed_any = True
                         else:
                             # 修复失败
-                            print(f"⚠️ {self.analyst_name} 使用了无法修复的信号格式，已跳过")
-                            print(f"📝 错误格式内容: {malformed_str[:100]}...")
+                            print(f"警告: {self.analyst_name} 使用了无法修复的信号格式，已跳过")
+                            print(f"错误格式内容: {malformed_str}...")
                             printed_any = True
                     else:
                         # 其他类型的非标准格式
-                        print(f"⚠️ {self.analyst_name} 使用了非标准信号调整格式，已跳过")
-                        print(f"📝 非标准格式内容: {ticker_signals_list}")
+                        print(f"警告: {self.analyst_name} 使用了非标准信号调整格式，已跳过")
+                        print(f"非标准格式内容: {ticker_signals_list}")
                         printed_any = True
             
             # 情况2：单ticker结构（保留向后兼容性）
@@ -268,15 +311,15 @@ class AnalystMemory:
                 })
                 signal_str = adjusted_signal.get("signal", "unknown")
                 confidence_str = adjusted_signal.get("confidence", "unknown")
-                print(f"🔄 {self.analyst_name} 调整了信号: {ticker_code} -> {signal_str} ({confidence_str}%)")
+                print(f"{self.analyst_name} 调整了信号: {ticker_code} -> {signal_str} ({confidence_str}%)")
                 printed_any = True
             
             # 其他任何格式都标记为非标准格式
             if not printed_any:
-                print(f"⚠️ {self.analyst_name} 使用了完全不支持的信号格式，已跳过")
-                print(f"📝 格式类型: {type(adjusted_signal)}")
+                print(f"警告: {self.analyst_name} 使用了完全不支持的信号格式，已跳过")
+                print(f"格式类型: {type(adjusted_signal)}")
                 if isinstance(adjusted_signal, dict):
-                    print(f"📝 包含的键: {list(adjusted_signal.keys())}")
+                    print(f"包含的键: {list(adjusted_signal.keys())}")
     
     def complete_communication(self, communication_id: str):
         """完成通信"""
@@ -284,7 +327,7 @@ class AnalystMemory:
         if communication:
             communication.end_time = datetime.now()
             communication.status = "completed"
-            print(f"✅ {self.analyst_name} 完成通信: {communication.communication_type}")
+            print(f"{self.analyst_name} 完成通信: {communication.communication_type}")
     
     def get_full_context_for_communication(self, tickers: List[str] = None) -> str:
         """获取用于通信的完整上下文"""
@@ -407,7 +450,7 @@ class AnalystMemoryManager:
         """注册分析师"""
         if analyst_id not in self.analysts:
             self.analysts[analyst_id] = AnalystMemory(analyst_id, analyst_name)
-            print(f"🧠 注册分析师记忆: {analyst_name}")
+            print(f"注册分析师记忆: {analyst_name}")
     
     def get_analyst_memory(self, analyst_id: str) -> Optional[AnalystMemory]:
         """获取分析师记忆"""

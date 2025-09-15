@@ -212,7 +212,7 @@ class IntelligentAnalystBase:
                 "signal": combined_result["signal"],
                 "confidence": combined_result["confidence"],
                 "tool_selection": {
-                    "selection_strategy": selection_result["analysis_strategy"],
+                    "analysis_strategy": selection_result["analysis_strategy"],
                     "market_considerations": selection_result["market_considerations"],
                     "selected_tools": selection_result["selected_tools"],
                     "tool_count": selection_result["tool_count"]

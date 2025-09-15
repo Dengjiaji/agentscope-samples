@@ -14,6 +14,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 
 from src.llm.models import get_model
 from src.utils.api_key import get_api_key_from_state
+from src.utils.json_utils import quiet_json_dumps
 from .analyst_memory import memory_manager
 
 
@@ -202,9 +203,9 @@ class CommunicationManager:
         try:
             with open(log_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
-            print("✅ 已将沟通结果写入日志文件")
+            print("已将沟通结果写入日志文件")
         except Exception as e:
-            print(f"❌ 写入沟通日志失败: {e}")
+            print(f"错误: 写入沟通日志失败: {e}")
     
     def _get_llm_model(self, state, use_json_mode=False):
         """获取LLM模型实例"""
@@ -225,7 +226,7 @@ class CommunicationManager:
                 llm = llm.bind(response_format={"type": "json_object"})
             elif hasattr(llm, 'with_config'):
                 llm = llm.with_config({"response_format": {"type": "json_object"}})
-            # print(f"✅ JSON模式已启用 for {model_name}")
+            # print(f"JSON模式已启用 for {model_name}")
         
         return llm
     
@@ -274,7 +275,7 @@ class CommunicationManager:
         
         # 调用LLM
         messages = prompt_template.format_messages(
-            analyst_signals=json.dumps(signals_summary, ensure_ascii=False, indent=2),
+            analyst_signals=quiet_json_dumps(signals_summary, ensure_ascii=False, indent=2),
             max_chars=self._get_max_chars(state)
         )
         
@@ -284,16 +285,37 @@ class CommunicationManager:
         # 调用模型
         response = llm.invoke(messages)
         
-        # 直接解析JSON（不捕获异常）
-        decision_data = json.loads(response.content)
-        return CommunicationDecision(**decision_data)
+        # 使用更健壮的JSON解析方法
+        try:
+            # 首先尝试直接解析
+            decision_data = json.loads(response.content)
+            return CommunicationDecision(**decision_data)
+        except json.JSONDecodeError as e:
+            print(f"警告: 通信决策JSON解析失败: {str(e)}")
+            print(f"响应内容: {response.content[:200]}...")
+            
+            # 使用备用解析方法
+            parsed_response = self._extract_and_clean_json(response.content)
+            if parsed_response:
+                print("使用备用方法成功解析通信决策JSON")
+                return CommunicationDecision(**parsed_response)
+            else:
+                print("错误: 所有通信决策JSON解析方法都失败，返回默认决策")
+                # 返回默认不通信决策
+                return CommunicationDecision(
+                    should_communicate=False,
+                    communication_type="none",
+                    target_analysts=[],
+                    discussion_topic="解析失败",
+                    reasoning="LLM响应解析失败，默认不进行通信"
+                )
     
     def conduct_private_chat(self, manager_id: str, analyst_id: str, 
                            topic: str, analyst_signal: Dict[str, Any], 
                            state, max_rounds: int = 3) -> Dict[str, Any]:
         """进行私聊"""
-        print(f"💬 开始私聊: {manager_id} <-> {analyst_id}")
-        print(f"📋 话题: {topic}")
+        print(f"开始私聊: {manager_id} <-> {analyst_id}")
+        print(f"话题: {topic}")
         
         # 在分析师记忆中记录通信开始
         analyst_memory = memory_manager.get_analyst_memory(analyst_id)
@@ -306,7 +328,7 @@ class CommunicationManager:
             )
         
         # 开始私聊
-        initial_message = f"关于{topic}，我想和你讨论一下你的分析结果。你目前的信号是：{json.dumps(analyst_signal, ensure_ascii=False)}"
+        initial_message = f"关于{topic}，我想和你讨论一下你的分析结果。你目前的信号是：{quiet_json_dumps(analyst_signal, ensure_ascii=False)}"
         
         chat_id = self.private_chat_system.start_private_chat(
             manager_id, analyst_id, initial_message
@@ -324,7 +346,7 @@ class CommunicationManager:
         
         max_chars = self._get_max_chars(state)
         for round_num in range(max_rounds):
-            print(f"\n💬 私聊第{round_num + 1}轮:")
+            print(f"\n私聊第{round_num + 1}轮:")
             
             # 分析师回应
             analyst_response = self._get_analyst_chat_response(
@@ -353,7 +375,7 @@ class CommunicationManager:
             if analyst_response.get("signal_adjustment") and analyst_response.get("adjusted_signal"):
                 original_signal = current_analyst_signal
                 current_analyst_signal = analyst_response["adjusted_signal"]
-                print(f"📊 信号已调整: {analyst_response['signal_adjustment']}")
+                print(f"信号已调整: {analyst_response['signal_adjustment']}")
                 adjustments_made_counter += 1
                 
                 # 记录信号调整到记忆
@@ -387,7 +409,7 @@ class CommunicationManager:
                         communication_id, manager_id, manager_response
                     )
         
-        print("✅ 私聊结束")
+        print("私聊结束")
         
         # 完成通信记录
         if analyst_memory and communication_id:
@@ -413,9 +435,9 @@ class CommunicationManager:
                        state, max_rounds: int = 2) -> Dict[str, Any]:
         """进行会议"""
         meeting_id = str(uuid.uuid4())
-        print(f"🏢 开始会议: {meeting_id}")
-        print(f"📋 话题: {topic}")
-        print(f"👥 参与者: {', '.join([manager_id] + analyst_ids)}")
+        print(f"开始会议: {meeting_id}")
+        print(f"话题: {topic}")
+        print(f"参与者: {', '.join([manager_id] + analyst_ids)}")
         
         # 为每个分析师记录会议开始
         communication_ids = {}
@@ -449,13 +471,13 @@ class CommunicationManager:
         
         max_chars = self._get_max_chars(state)
         for round_num in range(max_rounds):
-            print(f"\n🏢 会议第{round_num + 1}轮发言:")
+            print(f"\n会议第{round_num + 1}轮发言:")
             
             # 调试：打印当前会议记录状态
             if round_num > 0:
-                print(f"📝 当前会议记录条数: {len(meeting_transcript)}")
+                print(f"当前会议记录条数: {len(meeting_transcript)}")
                 # if meeting_transcript:
-                #     print(f"📝 最后一条记录: {meeting_transcript[-1]}")
+                #     print(f"最后一条记录: {meeting_transcript[-1]}")
             
             # 每个分析师发言
             for analyst_id in analyst_ids:
@@ -478,8 +500,8 @@ class CommunicationManager:
                     "round": round_num + 1
                 })
                 
-                # print(f"🗣️ {analyst_id}: {analyst_response['response']}") 
-                print(f"🗣️ {analyst_id}: {analyst_response}")
+                # print(f"{analyst_id}: {analyst_response['response']}") 
+                print(f"{analyst_id}: {analyst_response}")
 
                 # 记录发言到分析师记忆
                 analyst_memory = memory_manager.get_analyst_memory(analyst_id)
@@ -492,7 +514,7 @@ class CommunicationManager:
                 if analyst_response.get("signal_adjustment") and analyst_response.get("adjusted_signal"):
                     original_signal = current_signals[analyst_id]
                     current_signals[analyst_id] = analyst_response["adjusted_signal"]
-                    print(f"📊 {analyst_id} 调整了信号")
+                    print(f"{analyst_id} 调整了信号")
                     adjustments_made_counter += 1
                     
                     # 记录信号调整到记忆
@@ -519,10 +541,10 @@ class CommunicationManager:
             "round": "summary"
         })
         
-        print(f"📋 会议总结: {summary}")
+        print(f"会议总结: {summary}")
         
         self.meeting_system.end_meeting(meeting_id)
-        print("✅ 会议结束")
+        print("会议结束")
         
         # 完成所有分析师的通信记录
         for analyst_id in analyst_ids:
@@ -614,7 +636,7 @@ class CommunicationManager:
         messages = prompt_template.format_messages(
             analyst_id=analyst_id,
             full_context=full_context,
-            current_signal=json.dumps(current_signal, ensure_ascii=False),
+            current_signal=quiet_json_dumps(current_signal, ensure_ascii=False),
             topic=topic,
             conversation_history=self._format_conversation_history(conversation_history),
             max_chars=self._get_max_chars(state)
@@ -626,8 +648,26 @@ class CommunicationManager:
         # 调用模型
         response = llm.invoke(messages)
         
-        # 直接解析JSON（不捕获异常）
-        return json.loads(response.content)
+        # 使用更健壮的JSON解析方法
+        try:
+            # 首先尝试直接解析
+            return json.loads(response.content)
+        except json.JSONDecodeError as e:
+            print(f"警告: 分析师聊天响应JSON解析失败: {str(e)}")
+            print(f"响应内容: {response.content[:200]}...")
+            
+            # 使用备用解析方法
+            parsed_response = self._extract_and_clean_json(response.content)
+            if parsed_response:
+                print("使用备用方法成功解析分析师聊天响应JSON")
+                return parsed_response
+            else:
+                print("错误: 所有分析师聊天响应JSON解析方法都失败")
+                # 返回默认响应
+                return {
+                    "response": "解析响应失败，使用默认回应",
+                    "signal_adjustment": False
+                }
     
     def _get_manager_chat_response(self, manager_id: str, analyst_id: str,
                                  conversation_history: List[Dict],
@@ -651,7 +691,7 @@ class CommunicationManager:
         
         messages = prompt_template.format_messages(
             conversation_history=self._format_conversation_history(conversation_history),
-            current_signal=json.dumps(current_signal, ensure_ascii=False),
+            current_signal=quiet_json_dumps(current_signal, ensure_ascii=False),
             max_chars=self._get_max_chars(state)
         )
         
@@ -735,10 +775,10 @@ class CommunicationManager:
             analyst_id=analyst_id,
             full_context=full_context,
             round_num=round_num,
-            current_signal=json.dumps(current_signal, ensure_ascii=False),
+            current_signal=quiet_json_dumps(current_signal, ensure_ascii=False),
             topic=topic,
             meeting_transcript=self._format_meeting_transcript(meeting_transcript),
-            other_signals=json.dumps({k: v for k, v in all_signals.items() if k != analyst_id}, ensure_ascii=False, indent=2),
+            other_signals=quiet_json_dumps({k: v for k, v in all_signals.items() if k != analyst_id}, ensure_ascii=False, indent=2),
             max_chars=self._get_max_chars(state)
         )
         
@@ -748,8 +788,26 @@ class CommunicationManager:
         # 调用模型
         response = llm.invoke(messages)
         
-        # 直接解析JSON（不捕获异常）
-        return json.loads(response.content)
+        # 使用更健壮的JSON解析方法
+        try:
+            # 首先尝试直接解析
+            return json.loads(response.content)
+        except json.JSONDecodeError as e:
+            print(f"警告: 分析师会议响应JSON解析失败: {str(e)}")
+            print(f"响应内容: {response.content[:200]}...")
+            
+            # 使用备用解析方法
+            parsed_response = self._extract_and_clean_json(response.content)
+            if parsed_response:
+                print("使用备用方法成功解析分析师会议响应JSON")
+                return parsed_response
+            else:
+                print("错误: 所有分析师会议响应JSON解析方法都失败")
+                # 返回默认响应
+                return {
+                    "response": "解析响应失败，使用默认回应",
+                    "signal_adjustment": False
+                }
     
     def _get_manager_meeting_summary(self, manager_id: str, 
                                    meeting_transcript: List[Dict],
@@ -772,7 +830,7 @@ class CommunicationManager:
         
         messages = prompt_template.format_messages(
             meeting_transcript=self._format_meeting_transcript(meeting_transcript),
-            final_signals=json.dumps(final_signals, ensure_ascii=False, indent=2),
+            final_signals=quiet_json_dumps(final_signals, ensure_ascii=False, indent=2),
             max_chars=self._get_max_chars(state)
         )
         
