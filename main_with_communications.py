@@ -655,7 +655,7 @@ class AdvancedInvestmentAnalysisEngine:
                     print(f"  {ticker}:")
                     print(f"     风险等级: {risk_level.upper()}")
                     print(f"     风险评分: {risk_score}/100")
-                    print(f"     当前价格: ${current_price:.2f}")
+                    # print(f"     当前价格: ${current_price:.2f}")
                     print(f"     年化波动率: {annualized_vol:.1%}")
                     print(f"     风险评估: {risk_assessment}")
                 
@@ -993,7 +993,6 @@ class AdvancedInvestmentAnalysisEngine:
     def generate_final_report(self, analyst_results: Dict[str, Any], 
                             state: AgentState) -> Dict[str, Any]:
         """生成最终分析报告"""
-        print("\n生成最终分析报告...")
         
         # 统计分析结果
         successful_analyses = [r for r in analyst_results.values() if r["status"] == "success"]
@@ -1024,7 +1023,6 @@ class AdvancedInvestmentAnalysisEngine:
                       for r in failed_analyses]
         }
         
-        print("最终报告生成完成")
         return report
     
     def generate_notification_summary(self) -> Dict[str, Any]:

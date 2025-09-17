@@ -211,7 +211,7 @@ def generate_trading_decision(
             analyst_weights_info += f"  {analyst_id}: {weight:.3f} {bar}{new_hire_info}\n"
         
         analyst_weights_info += "\n💡 建议根据权重高低来考虑不同分析师建议的重要性。权重高的分析师建议应获得更多关注。"
-    print('******************************',analyst_weights_info,'******************************')
+    # print('******************************',analyst_weights_info,'******************************')
     # Generate the prompt
     prompt_data = {
         "signals_by_ticker": json.dumps(signals_by_ticker, indent=2),

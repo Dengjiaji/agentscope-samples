@@ -57,13 +57,13 @@ def combine_tool_signals(tool_results: List[Dict[str, Any]], weights: Optional[D
         组合后的信号结果
     """
     if not tool_results:
-        return {"signal": "neutral", "confidence": 0, "reasoning": "No tool results provided"}
+        return {"signal": "neutral", "reasoning": "No tool results provided"}
     
     # 过滤掉有错误的结果
     valid_results = [result for result in tool_results if "error" not in result]
     
     if not valid_results:
-        return {"signal": "neutral", "confidence": 0, "reasoning": "No valid tool results"}
+        return {"signal": "neutral", "reasoning": "No valid tool results"}
     
     # 如果没有提供权重，使用均等权重
     if weights is None:
@@ -81,10 +81,9 @@ def combine_tool_signals(tool_results: List[Dict[str, Any]], weights: Optional[D
         tool_name = f"tool_{i}"
         weight = weights.get(tool_name, 1.0)
         signal = result.get("signal", "neutral")
-        confidence = result.get("confidence", 0) / 100.0  # 转换为0-1范围
         
-        # 按置信度调整权重
-        adjusted_weight = weight * confidence
+        # 使用原始权重（不再按置信度调整）
+        adjusted_weight = weight
         total_weight += weight
         
         if signal == "bullish":
@@ -97,7 +96,6 @@ def combine_tool_signals(tool_results: List[Dict[str, Any]], weights: Optional[D
         signal_details.append({
             "tool": tool_name,
             "signal": signal,
-            "confidence": result.get("confidence", 0),
             "weight": weight,
             "adjusted_weight": round(adjusted_weight, 3)
         })
@@ -105,17 +103,13 @@ def combine_tool_signals(tool_results: List[Dict[str, Any]], weights: Optional[D
     # 确定最终信号
     if bullish_weight > bearish_weight and bullish_weight > neutral_weight:
         final_signal = "bullish"
-        final_confidence = round((bullish_weight / max(total_weight, 0.01)) * 100)
     elif bearish_weight > bullish_weight and bearish_weight > neutral_weight:
         final_signal = "bearish"
-        final_confidence = round((bearish_weight / max(total_weight, 0.01)) * 100)
     else:
         final_signal = "neutral"
-        final_confidence = round((neutral_weight / max(total_weight, 0.01)) * 100)
     
     return {
         "signal": final_signal,
-        "confidence": final_confidence,
         "tool_count": len(valid_results),
         "signal_breakdown": {
             "bullish_weight": round(bullish_weight, 3),
@@ -154,7 +148,7 @@ def analyze_profitability(ticker: str, end_date: str, api_key: str) -> Dict[str,
         )
         
         if not financial_metrics:
-            return {"error": "No financial metrics found", "signal": "neutral", "confidence": 0}
+            return {"error": "No financial metrics found", "signal": "neutral"}
         
         metrics = financial_metrics[0]
         
@@ -175,9 +169,9 @@ def analyze_profitability(ticker: str, end_date: str, api_key: str) -> Dict[str,
         for metric, threshold, description in thresholds:
             if metric is not None and metric > threshold:
                 score += 1
-                details.append(f"✅ {description}: {metric:.2%}")
+                details.append(f"{description}: {metric:.2%}")
             else:
-                details.append(f"❌ {description}: {metric:.2%}" if metric else f"❌ {description}: N/A")
+                details.append(f"{description}: {metric:.2%}" if metric else f"{description}: N/A")
         
         # 生成信号
         if score >= 2:
@@ -187,11 +181,8 @@ def analyze_profitability(ticker: str, end_date: str, api_key: str) -> Dict[str,
         else:
             signal = "neutral"
             
-        confidence = round((score / len(thresholds)) * 100)
-        
         return {
             "signal": signal,
-            "confidence": confidence,
             "score": score,
             "max_score": len(thresholds),
             "metrics": {
@@ -204,7 +195,7 @@ def analyze_profitability(ticker: str, end_date: str, api_key: str) -> Dict[str,
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral", "confidence": 0}
+        return {"error": str(e), "signal": "neutral"}
 
 
 @tool
@@ -230,7 +221,7 @@ def analyze_growth(ticker: str, end_date: str, api_key: str) -> Dict[str, Any]:
         )
         
         if not financial_metrics:
-            return {"error": "No financial metrics found", "signal": "neutral", "confidence": 0}
+            return {"error": "No financial metrics found", "signal": "neutral"}
         
         metrics = financial_metrics[0]
         
@@ -251,9 +242,9 @@ def analyze_growth(ticker: str, end_date: str, api_key: str) -> Dict[str, Any]:
         for metric, threshold, description in thresholds:
             if metric is not None and metric > threshold:
                 score += 1
-                details.append(f"✅ {description}: {metric:.2%}")
+                details.append(f"{description}: {metric:.2%}")
             else:
-                details.append(f"❌ {description}: {metric:.2%}" if metric else f"❌ {description}: N/A")
+                details.append(f"{description}: {metric:.2%}" if metric else f"{description}: N/A")
         
         # 生成信号
         if score >= 2:
@@ -263,11 +254,9 @@ def analyze_growth(ticker: str, end_date: str, api_key: str) -> Dict[str, Any]:
         else:
             signal = "neutral"
             
-        confidence = round((score / len(thresholds)) * 100)
         
         return {
             "signal": signal,
-            "confidence": confidence,
             "score": score,
             "max_score": len(thresholds),
             "metrics": {
@@ -280,7 +269,7 @@ def analyze_growth(ticker: str, end_date: str, api_key: str) -> Dict[str, Any]:
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral", "confidence": 0}
+        return {"error": str(e), "signal": "neutral"}
 
 
 @tool  
@@ -306,7 +295,7 @@ def analyze_financial_health(ticker: str, end_date: str, api_key: str) -> Dict[s
         )
         
         if not financial_metrics:
-            return {"error": "No financial metrics found", "signal": "neutral", "confidence": 0}
+            return {"error": "No financial metrics found", "signal": "neutral"}
         
         metrics = financial_metrics[0]
         
@@ -322,24 +311,24 @@ def analyze_financial_health(ticker: str, end_date: str, api_key: str) -> Dict[s
         # 流动性评估
         if current_ratio and current_ratio > 1.5:
             score += 1
-            details.append(f"✅ 流动性良好: Current Ratio = {current_ratio:.2f}")
+            details.append(f"流动性良好: Current Ratio = {current_ratio:.2f}")
         else:
-            details.append(f"❌ 流动性不足: Current Ratio = {current_ratio:.2f}" if current_ratio else "❌ 流动性不足: Current Ratio = N/A")
+            details.append(f"流动性不足: Current Ratio = {current_ratio:.2f}" if current_ratio else "流动性不足: Current Ratio = N/A")
             
         # 债务水平评估
         if debt_to_equity and debt_to_equity < 0.5:
             score += 1
-            details.append(f"✅ 债务水平保守: D/E = {debt_to_equity:.2f}")
+            details.append(f"债务水平保守: D/E = {debt_to_equity:.2f}")
         else:
-            details.append(f"❌ 债务水平较高: D/E = {debt_to_equity:.2f}" if debt_to_equity else "❌ 债务水平较高: D/E = N/A")
+            details.append(f"债务水平较高: D/E = {debt_to_equity:.2f}" if debt_to_equity else "债务水平较高: D/E = N/A")
             
         # 现金流评估
         if (free_cash_flow_per_share and earnings_per_share and 
             free_cash_flow_per_share > earnings_per_share * 0.8):
             score += 1
-            details.append(f"✅ 现金流转换良好: FCF/EPS = {free_cash_flow_per_share/earnings_per_share:.2f}")
+            details.append(f"现金流转换良好: FCF/EPS = {free_cash_flow_per_share/earnings_per_share:.2f}")
         else:
-            details.append("❌ 现金流转换不佳")
+            details.append("现金流转换不佳")
         
         # 生成信号
         if score >= 2:
@@ -349,11 +338,9 @@ def analyze_financial_health(ticker: str, end_date: str, api_key: str) -> Dict[s
         else:
             signal = "neutral"
             
-        confidence = round((score / 3) * 100)
         
         return {
             "signal": signal,
-            "confidence": confidence,
             "score": score,
             "max_score": 3,
             "metrics": {
@@ -367,7 +354,7 @@ def analyze_financial_health(ticker: str, end_date: str, api_key: str) -> Dict[s
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral", "confidence": 0}
+        return {"error": str(e), "signal": "neutral"}
 
 
 @tool
@@ -393,7 +380,7 @@ def analyze_valuation_ratios(ticker: str, end_date: str, api_key: str) -> Dict[s
         )
         
         if not financial_metrics:
-            return {"error": "No financial metrics found", "signal": "neutral", "confidence": 0}
+            return {"error": "No financial metrics found", "signal": "neutral"}
         
         metrics = financial_metrics[0]
         
@@ -414,9 +401,9 @@ def analyze_valuation_ratios(ticker: str, end_date: str, api_key: str) -> Dict[s
         for metric, threshold, description in thresholds:
             if metric is not None and metric > threshold:
                 overvalued_score += 1
-                details.append(f"❌ 估值偏高: {description.split('<')[0]}= {metric:.2f}")
+                details.append(f"估值偏高: {description.split('<')[0]}= {metric:.2f}")
             else:
-                details.append(f"✅ 估值合理: {description.split('<')[0]}= {metric:.2f}" if metric else f"⚠️ {description.split('<')[0]}= N/A")
+                details.append(f"估值合理: {description.split('<')[0]}= {metric:.2f}" if metric else f"{description.split('<')[0]}= N/A")
         
         # 生成信号 (高估值越多越bearish)
         if overvalued_score >= 2:
@@ -426,11 +413,9 @@ def analyze_valuation_ratios(ticker: str, end_date: str, api_key: str) -> Dict[s
         else:
             signal = "neutral"
             
-        confidence = round((abs(overvalued_score - 1.5) / 1.5) * 100)
         
         return {
             "signal": signal,
-            "confidence": confidence,
             "overvalued_score": overvalued_score,
             "max_score": len(thresholds),
             "metrics": {
@@ -443,7 +428,7 @@ def analyze_valuation_ratios(ticker: str, end_date: str, api_key: str) -> Dict[s
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral", "confidence": 0}
+        return {"error": str(e), "signal": "neutral"}
 
 
 # ===================== 技术分析工具 =====================
@@ -474,7 +459,7 @@ def analyze_trend_following(ticker: str, start_date: str, end_date: str, api_key
         prices = get_prices(ticker=ticker, start_date=extended_start_date, end_date=end_date, api_key=api_key)
         
         if not prices:
-            return {"error": "No price data found", "signal": "neutral", "confidence": 0}
+            return {"error": "No price data found", "signal": "neutral"}
         
         prices_df = prices_to_df(prices)
         
@@ -483,12 +468,11 @@ def analyze_trend_following(ticker: str, start_date: str, end_date: str, api_key
             return {
                 "error": f"Insufficient data for trend analysis: only {len(prices_df)} days available, need at least 10", 
                 "signal": "neutral", 
-                "confidence": 0,
                 "data_range": f"Attempted to fetch data from {extended_start_date} to {end_date}"
             }
         elif len(prices_df) < 20:
             # 如果数据不足20天但超过10天，降级处理但继续分析
-            print(f"⚠️ 警告: 趋势分析数据不足，仅有{len(prices_df)}天数据，建议至少20天")
+            print(f"警告: 趋势分析数据不足，仅有{len(prices_df)}天数据，建议至少20天")
         
         # 计算移动平均线 - 根据数据长度调整窗口
         data_length = len(prices_df)
@@ -520,24 +504,24 @@ def analyze_trend_following(ticker: str, start_date: str, end_date: str, api_key
         # 1. 价格vs移动平均线
         if current_price > sma_20 > sma_50:
             signals.append("bullish")
-            details.append(f"✅ 价格位于均线上方: {current_price:.2f} > SMA20({sma_20:.2f}) > SMA50({sma_50:.2f})")
+            details.append(f"价格位于均线上方: {current_price:.2f} > SMA20({sma_20:.2f}) > SMA50({sma_50:.2f})")
         elif current_price < sma_20 < sma_50:
             signals.append("bearish")
-            details.append(f"❌ 价格位于均线下方: {current_price:.2f} < SMA20({sma_20:.2f}) < SMA50({sma_50:.2f})")
+            details.append(f"价格位于均线下方: {current_price:.2f} < SMA20({sma_20:.2f}) < SMA50({sma_50:.2f})")
         else:
             signals.append("neutral")
-            details.append(f"⚠️ 价格与均线交织: {current_price:.2f}, SMA20({sma_20:.2f}), SMA50({sma_50:.2f})")
+            details.append(f"价格与均线交织: {current_price:.2f}, SMA20({sma_20:.2f}), SMA50({sma_50:.2f})")
         
         # 2. MACD信号
         if macd > macd_signal and macd_histogram > 0:
             signals.append("bullish")
-            details.append(f"✅ MACD看涨: MACD({macd:.4f}) > Signal({macd_signal:.4f})")
+            details.append(f"MACD看涨: MACD({macd:.4f}) > Signal({macd_signal:.4f})")
         elif macd < macd_signal and macd_histogram < 0:
             signals.append("bearish")
-            details.append(f"❌ MACD看跌: MACD({macd:.4f}) < Signal({macd_signal:.4f})")
+            details.append(f"MACD看跌: MACD({macd:.4f}) < Signal({macd_signal:.4f})")
         else:
             signals.append("neutral")
-            details.append(f"⚠️ MACD中性: MACD({macd:.4f}), Signal({macd_signal:.4f})")
+            details.append(f"MACD中性: MACD({macd:.4f}), Signal({macd_signal:.4f})")
         
         # 3. 短期趋势
         recent_prices = prices_df['close'].tail(5).values
@@ -545,13 +529,13 @@ def analyze_trend_following(ticker: str, start_date: str, end_date: str, api_key
             trend_slope = np.polyfit(range(len(recent_prices)), recent_prices, 1)[0]
             if trend_slope > 0:
                 signals.append("bullish")
-                details.append(f"✅ 短期上升趋势: 斜率 {trend_slope:.4f}")
+                details.append(f"短期上升趋势: 斜率 {trend_slope:.4f}")
             elif trend_slope < 0:
                 signals.append("bearish")
-                details.append(f"❌ 短期下降趋势: 斜率 {trend_slope:.4f}")
+                details.append(f"短期下降趋势: 斜率 {trend_slope:.4f}")
             else:
                 signals.append("neutral")
-                details.append("⚠️ 短期趋势平稳")
+                details.append("短期趋势平稳")
         
         # 综合信号
         bullish_count = signals.count("bullish")
@@ -564,11 +548,9 @@ def analyze_trend_following(ticker: str, start_date: str, end_date: str, api_key
         else:
             final_signal = "neutral"
             
-        confidence = round((max(bullish_count, bearish_count) / len(signals)) * 100)
         
         return {
             "signal": final_signal,
-            "confidence": confidence,
             "metrics": {
                 "current_price": current_price,
                 "sma_20": sma_20,
@@ -588,7 +570,7 @@ def analyze_trend_following(ticker: str, start_date: str, end_date: str, api_key
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral", "confidence": 0}
+        return {"error": str(e), "signal": "neutral"}
 
 
 @tool
@@ -616,7 +598,7 @@ def analyze_mean_reversion(ticker: str, start_date: str, end_date: str, api_key:
         prices = get_prices(ticker=ticker, start_date=extended_start_date, end_date=end_date, api_key=api_key)
         
         if not prices:
-            return {"error": "No price data found", "signal": "neutral", "confidence": 0}
+            return {"error": "No price data found", "signal": "neutral"}
         
         prices_df = prices_to_df(prices)
         
@@ -624,11 +606,10 @@ def analyze_mean_reversion(ticker: str, start_date: str, end_date: str, api_key:
             return {
                 "error": f"Insufficient data for mean reversion analysis: only {len(prices_df)} days available, need at least 5", 
                 "signal": "neutral", 
-                "confidence": 0,
                 "data_range": f"Attempted to fetch data from {extended_start_date} to {end_date}"
             }
         elif len(prices_df) < 20:
-            print(f"⚠️ 警告: 均值回归分析数据不足，仅有{len(prices_df)}天数据，建议至少20天")
+            print(f"警告: 均值回归分析数据不足，仅有{len(prices_df)}天数据，建议至少20天")
         
         # 计算布林带 - 根据数据长度调整窗口
         window = min(20, len(prices_df) - 2)
@@ -657,36 +638,36 @@ def analyze_mean_reversion(ticker: str, start_date: str, end_date: str, api_key:
         # 1. 布林带信号
         if current_price <= lower_band:
             signals.append("bullish")  # 超卖，可能反弹
-            details.append(f"✅ 价格触及下轨，超卖: {current_price:.2f} <= {lower_band:.2f}")
+            details.append(f"价格触及下轨，超卖: {current_price:.2f} <= {lower_band:.2f}")
         elif current_price >= upper_band:
             signals.append("bearish")  # 超买，可能回调
-            details.append(f"❌ 价格触及上轨，超买: {current_price:.2f} >= {upper_band:.2f}")
+            details.append(f"价格触及上轨，超买: {current_price:.2f} >= {upper_band:.2f}")
         else:
             signals.append("neutral")
-            details.append(f"⚠️ 价格在布林带内: {lower_band:.2f} < {current_price:.2f} < {upper_band:.2f}")
+            details.append(f"价格在布林带内: {lower_band:.2f} < {current_price:.2f} < {upper_band:.2f}")
         
         # 2. RSI信号
         if rsi <= 30:
             signals.append("bullish")  # 超卖
-            details.append(f"✅ RSI超卖: {rsi:.2f} <= 30")
+            details.append(f"RSI超卖: {rsi:.2f} <= 30")
         elif rsi >= 70:
             signals.append("bearish")  # 超买
-            details.append(f"❌ RSI超买: {rsi:.2f} >= 70")
+            details.append(f"RSI超买: {rsi:.2f} >= 70")
         else:
             signals.append("neutral")
-            details.append(f"⚠️ RSI正常: {rsi:.2f}")
+            details.append(f"RSI正常: {rsi:.2f}")
         
         # 3. 价格偏离度
         price_deviation = (current_price - sma) / sma * 100
         if price_deviation <= -5:  # 低于均线5%以上
             signals.append("bullish")
-            details.append(f"✅ 价格大幅偏离均线下方: {price_deviation:.2f}%")
+            details.append(f"价格大幅偏离均线下方: {price_deviation:.2f}%")
         elif price_deviation >= 5:  # 高于均线5%以上
             signals.append("bearish")
-            details.append(f"❌ 价格大幅偏离均线上方: {price_deviation:.2f}%")
+            details.append(f"价格大幅偏离均线上方: {price_deviation:.2f}%")
         else:
             signals.append("neutral")
-            details.append(f"⚠️ 价格接近均线: 偏离 {price_deviation:.2f}%")
+            details.append(f"价格接近均线: 偏离 {price_deviation:.2f}%")
         
         # 综合信号
         bullish_count = signals.count("bullish")
@@ -699,11 +680,9 @@ def analyze_mean_reversion(ticker: str, start_date: str, end_date: str, api_key:
         else:
             final_signal = "neutral"
             
-        confidence = round((max(bullish_count, bearish_count) / len(signals)) * 100)
         
         return {
             "signal": final_signal,
-            "confidence": confidence,
             "metrics": {
                 "current_price": current_price,
                 "sma": sma,
@@ -722,7 +701,7 @@ def analyze_mean_reversion(ticker: str, start_date: str, end_date: str, api_key:
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral", "confidence": 0}
+        return {"error": str(e), "signal": "neutral"}
 
 
 @tool
@@ -750,7 +729,7 @@ def analyze_momentum(ticker: str, start_date: str, end_date: str, api_key: str) 
         prices = get_prices(ticker=ticker, start_date=extended_start_date, end_date=end_date, api_key=api_key)
         
         if not prices:
-            return {"error": "No price data found", "signal": "neutral", "confidence": 0}
+            return {"error": "No price data found", "signal": "neutral"}
         
         prices_df = prices_to_df(prices)
         
@@ -758,11 +737,10 @@ def analyze_momentum(ticker: str, start_date: str, end_date: str, api_key: str) 
             return {
                 "error": f"Insufficient data for momentum analysis: only {len(prices_df)} days available, need at least 5", 
                 "signal": "neutral", 
-                "confidence": 0,
                 "data_range": f"Attempted to fetch data from {extended_start_date} to {end_date}"
             }
         elif len(prices_df) < 20:
-            print(f"⚠️ 警告: 动量分析数据不足，仅有{len(prices_df)}天数据，建议至少20天")
+            print(f"警告: 动量分析数据不足，仅有{len(prices_df)}天数据，建议至少20天")
         
         # 计算收益率
         prices_df['returns'] = prices_df['close'].pct_change()
@@ -792,35 +770,35 @@ def analyze_momentum(ticker: str, start_date: str, end_date: str, api_key: str) 
         # 1. 短期动量(5日)
         if momentum_5 > 0.02:  # 5日涨幅超过2%
             signals.append("bullish")
-            details.append(f"✅ 短期动量强劲: 5日涨幅 {momentum_5*100:.2f}%")
+            details.append(f"短期动量强劲: 5日涨幅 {momentum_5*100:.2f}%")
         elif momentum_5 < -0.02:  # 5日跌幅超过2%
             signals.append("bearish")
-            details.append(f"❌ 短期动量疲弱: 5日跌幅 {momentum_5*100:.2f}%")
+            details.append(f"短期动量疲弱: 5日跌幅 {momentum_5*100:.2f}%")
         else:
             signals.append("neutral")
-            details.append(f"⚠️ 短期动量平稳: 5日变化 {momentum_5*100:.2f}%")
+            details.append(f"短期动量平稳: 5日变化 {momentum_5*100:.2f}%")
         
         # 2. 中期动量(10日)
         if momentum_10 > 0.05:  # 10日涨幅超过5%
             signals.append("bullish")
-            details.append(f"✅ 中期动量强劲: 10日涨幅 {momentum_10*100:.2f}%")
+            details.append(f"中期动量强劲: 10日涨幅 {momentum_10*100:.2f}%")
         elif momentum_10 < -0.05:  # 10日跌幅超过5%
             signals.append("bearish")
-            details.append(f"❌ 中期动量疲弱: 10日跌幅 {momentum_10*100:.2f}%")
+            details.append(f"中期动量疲弱: 10日跌幅 {momentum_10*100:.2f}%")
         else:
             signals.append("neutral")
-            details.append(f"⚠️ 中期动量平稳: 10日变化 {momentum_10*100:.2f}%")
+            details.append(f"中期动量平稳: 10日变化 {momentum_10*100:.2f}%")
         
         # 3. 长期动量(20日)
         if momentum_20 > 0.10:  # 20日涨幅超过10%
             signals.append("bullish")
-            details.append(f"✅ 长期动量强劲: 20日涨幅 {momentum_20*100:.2f}%")
+            details.append(f"长期动量强劲: 20日涨幅 {momentum_20*100:.2f}%")
         elif momentum_20 < -0.10:  # 20日跌幅超过10%
             signals.append("bearish")
-            details.append(f"❌ 长期动量疲弱: 20日跌幅 {momentum_20*100:.2f}%")
+            details.append(f"长期动量疲弱: 20日跌幅 {momentum_20*100:.2f}%")
         else:
             signals.append("neutral")
-            details.append(f"⚠️ 长期动量平稳: 20日变化 {momentum_20*100:.2f}%")
+            details.append(f"长期动量平稳: 20日变化 {momentum_20*100:.2f}%")
         
         # 综合信号
         bullish_count = signals.count("bullish")
@@ -833,11 +811,9 @@ def analyze_momentum(ticker: str, start_date: str, end_date: str, api_key: str) 
         else:
             final_signal = "neutral"
             
-        confidence = round((max(bullish_count, bearish_count) / len(signals)) * 100)
         
         return {
             "signal": final_signal,
-            "confidence": confidence,
             "metrics": {
                 "current_price": current_price,
                 "momentum_5d_pct": round(momentum_5 * 100, 2),
@@ -855,7 +831,7 @@ def analyze_momentum(ticker: str, start_date: str, end_date: str, api_key: str) 
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral", "confidence": 0}
+        return {"error": str(e), "signal": "neutral"}
 
 
 @tool
@@ -883,7 +859,7 @@ def analyze_volatility(ticker: str, start_date: str, end_date: str, api_key: str
         prices = get_prices(ticker=ticker, start_date=extended_start_date, end_date=end_date, api_key=api_key)
         
         if not prices:
-            return {"error": "No price data found", "signal": "neutral", "confidence": 0}
+            return {"error": "No price data found", "signal": "neutral"}
         
         prices_df = prices_to_df(prices)
         
@@ -891,11 +867,10 @@ def analyze_volatility(ticker: str, start_date: str, end_date: str, api_key: str
             return {
                 "error": f"Insufficient data for volatility analysis: only {len(prices_df)} days available, need at least 5", 
                 "signal": "neutral", 
-                "confidence": 0,
                 "data_range": f"Attempted to fetch data from {extended_start_date} to {end_date}"
             }
         elif len(prices_df) < 20:
-            print(f"⚠️ 警告: 波动率分析数据不足，仅有{len(prices_df)}天数据，建议至少20天")
+            print(f"警告: 波动率分析数据不足，仅有{len(prices_df)}天数据，建议至少20天")
         
         # 计算收益率
         prices_df['returns'] = prices_df['close'].pct_change()
@@ -925,35 +900,35 @@ def analyze_volatility(ticker: str, start_date: str, end_date: str, api_key: str
         # 1. 波动率趋势
         if current_vol_10 > current_vol_20 > current_vol_60:
             signals.append("bearish")  # 波动率上升通常是风险信号
-            details.append("❌ 波动率持续上升，风险增加")
+            details.append("波动率持续上升，风险增加")
         elif current_vol_10 < current_vol_20 < current_vol_60:
             signals.append("bullish")  # 波动率下降，风险降低
-            details.append("✅ 波动率持续下降，风险降低")
+            details.append("波动率持续下降，风险降低")
         else:
             signals.append("neutral")
-            details.append("⚠️ 波动率变化不明显")
+            details.append("波动率变化不明显")
         
         # 2. 波动率水平
         if current_vol_20 > 0.40:  # 年化波动率超过40%
             signals.append("bearish")
-            details.append(f"❌ 高波动率环境: {current_vol_20*100:.1f}%")
+            details.append(f"高波动率环境: {current_vol_20*100:.1f}%")
         elif current_vol_20 < 0.15:  # 年化波动率低于15%
             signals.append("bullish")
-            details.append(f"✅ 低波动率环境: {current_vol_20*100:.1f}%")
+            details.append(f"低波动率环境: {current_vol_20*100:.1f}%")
         else:
             signals.append("neutral")
-            details.append(f"⚠️ 中等波动率: {current_vol_20*100:.1f}%")
+            details.append(f"中等波动率: {current_vol_20*100:.1f}%")
         
         # 3. 波动率百分位数
         if vol_20_percentile > 80:
             signals.append("bearish")
-            details.append(f"❌ 波动率处于高位: {vol_20_percentile:.1f}百分位")
+            details.append(f"波动率处于高位: {vol_20_percentile:.1f}百分位")
         elif vol_20_percentile < 20:
             signals.append("bullish")
-            details.append(f"✅ 波动率处于低位: {vol_20_percentile:.1f}百分位")
+            details.append(f"波动率处于低位: {vol_20_percentile:.1f}百分位")
         else:
             signals.append("neutral")
-            details.append(f"⚠️ 波动率正常: {vol_20_percentile:.1f}百分位")
+            details.append(f"波动率正常: {vol_20_percentile:.1f}百分位")
         
         # 综合信号
         bullish_count = signals.count("bullish")
@@ -966,11 +941,9 @@ def analyze_volatility(ticker: str, start_date: str, end_date: str, api_key: str
         else:
             final_signal = "neutral"
             
-        confidence = round((max(bullish_count, bearish_count) / len(signals)) * 100)
         
         return {
             "signal": final_signal,
-            "confidence": confidence,
             "metrics": {
                 "current_price": current_price,
                 "volatility_10d": round(current_vol_10 * 100, 2),
@@ -988,7 +961,7 @@ def analyze_volatility(ticker: str, start_date: str, end_date: str, api_key: str
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral", "confidence": 0}
+        return {"error": str(e), "signal": "neutral"}
 
 
 # ===================== 情绪分析工具 =====================
@@ -1021,7 +994,6 @@ def analyze_insider_trading(ticker: str, end_date: str, api_key: str, start_date
             # 当没有内部交易数据时，返回中性信号而不是错误
             return {
                 "signal": "neutral",
-                "confidence": 0,
                 "metrics": {
                     "total_trades": 0,
                     "buy_trades": 0,
@@ -1041,7 +1013,6 @@ def analyze_insider_trading(ticker: str, end_date: str, api_key: str, start_date
         if len(transaction_shares) == 0:
             return {
                 "signal": "neutral",
-                "confidence": 0,
                 "metrics": {
                     "total_trades": len(insider_trades),
                     "buy_trades": 0,
@@ -1072,14 +1043,9 @@ def analyze_insider_trading(ticker: str, end_date: str, api_key: str, start_date
         else:
             signal = "neutral"
             
-        # 计算置信度
-        trade_dominance = max(buy_trades, sell_trades) / max(total_trades, 1)
-        volume_dominance = max(total_buy_volume, total_sell_volume) / max(total_buy_volume + total_sell_volume, 1)
-        confidence = round((trade_dominance * 0.5 + volume_dominance * 0.5) * 100)
         
         return {
             "signal": signal,
-            "confidence": confidence,
             "metrics": {
                 "total_trades": total_trades,
                 "buy_trades": buy_trades,
@@ -1100,7 +1066,7 @@ def analyze_insider_trading(ticker: str, end_date: str, api_key: str, start_date
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral", "confidence": 0}
+        return {"error": str(e), "signal": "neutral"}
 
 
 @tool
@@ -1131,7 +1097,6 @@ def analyze_news_sentiment(ticker: str, end_date: str, api_key: str, start_date:
             # 当没有新闻数据时，返回中性信号而不是错误
             return {
                 "signal": "neutral", 
-                "confidence": 0,
                 "metrics": {
                     "total_articles": 0,
                     "positive_articles": 0,
@@ -1152,7 +1117,6 @@ def analyze_news_sentiment(ticker: str, end_date: str, api_key: str, start_date:
             # 当情绪数据无效时，也返回中性信号
             return {
                 "signal": "neutral", 
-                "confidence": 0,
                 "metrics": {
                     "total_articles": len(company_news),
                     "positive_articles": 0,
@@ -1183,12 +1147,9 @@ def analyze_news_sentiment(ticker: str, end_date: str, api_key: str, start_date:
             signal = "neutral"
             dominant_count = max(positive_count, negative_count)
             
-        # 计算置信度
-        confidence = round((dominant_count / total_count) * 100) if total_count > 0 else 0
         
         return {
             "signal": signal,
-            "confidence": confidence,
             "metrics": {
                 "total_articles": total_count,
                 "positive_articles": positive_count,
@@ -1208,7 +1169,7 @@ def analyze_news_sentiment(ticker: str, end_date: str, api_key: str, start_date:
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral", "confidence": 0}
+        return {"error": str(e), "signal": "neutral"}
 
 
 # ===================== 估值分析工具 =====================
@@ -1237,7 +1198,7 @@ def dcf_valuation_analysis(ticker: str, end_date: str, api_key: str) -> Dict[str
         )
         
         if not financial_metrics:
-            return {"error": "No financial metrics found", "signal": "neutral", "confidence": 0}
+            return {"error": "No financial metrics found", "signal": "neutral"}
         
         most_recent = financial_metrics[0]
         
@@ -1252,16 +1213,16 @@ def dcf_valuation_analysis(ticker: str, end_date: str, api_key: str) -> Dict[str
         )
         
         if not line_items:
-            return {"error": "No cash flow data found", "signal": "neutral", "confidence": 0}
+            return {"error": "No cash flow data found", "signal": "neutral"}
         
         current_fcf = line_items[0].free_cash_flow
         if not current_fcf or current_fcf <= 0:
-            return {"error": "Invalid free cash flow data", "signal": "neutral", "confidence": 0}
+            return {"error": "Invalid free cash flow data", "signal": "neutral"}
         
         # 获取市值
         market_cap = get_market_cap(ticker, end_date, api_key=api_key)
         if not market_cap:
-            return {"error": "Market cap unavailable", "signal": "neutral", "confidence": 0}
+            return {"error": "Market cap unavailable", "signal": "neutral"}
         
         # DCF估值计算
         growth_rate = most_recent.earnings_growth or 0.05
@@ -1294,11 +1255,9 @@ def dcf_valuation_analysis(ticker: str, end_date: str, api_key: str) -> Dict[str
         else:
             signal = "neutral"
         
-        confidence = min(abs(value_gap) / 0.30 * 100, 100)
         
         return {
             "signal": signal,
-            "confidence": round(confidence),
             "valuation": {
                 "enterprise_value": enterprise_value,
                 "market_cap": market_cap,
@@ -1318,7 +1277,7 @@ def dcf_valuation_analysis(ticker: str, end_date: str, api_key: str) -> Dict[str
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral", "confidence": 0}
+        return {"error": str(e), "signal": "neutral"}
 
 
 @tool
@@ -1345,7 +1304,7 @@ def owner_earnings_valuation_analysis(ticker: str, end_date: str, api_key: str) 
         )
         
         if not financial_metrics:
-            return {"error": "No financial metrics found", "signal": "neutral", "confidence": 0}
+            return {"error": "No financial metrics found", "signal": "neutral"}
         
         most_recent = financial_metrics[0]
         
@@ -1365,7 +1324,7 @@ def owner_earnings_valuation_analysis(ticker: str, end_date: str, api_key: str) 
         )
         
         if len(line_items) < 2:
-            return {"error": "Insufficient financial data", "signal": "neutral", "confidence": 0}
+            return {"error": "Insufficient financial data", "signal": "neutral"}
         
         current, previous = line_items[0], line_items[1]
         
@@ -1378,12 +1337,12 @@ def owner_earnings_valuation_analysis(ticker: str, end_date: str, api_key: str) 
         owner_earnings = net_income + depreciation - capex - wc_change
         
         if owner_earnings <= 0:
-            return {"error": "Negative owner earnings", "signal": "neutral", "confidence": 0}
+            return {"error": "Negative owner earnings", "signal": "neutral"}
         
         # 获取市值
         market_cap = get_market_cap(ticker, end_date, api_key=api_key)
         if not market_cap:
-            return {"error": "Market cap unavailable", "signal": "neutral", "confidence": 0}
+            return {"error": "Market cap unavailable", "signal": "neutral"}
         
         # 估值计算
         growth_rate = most_recent.earnings_growth or 0.05
@@ -1417,11 +1376,9 @@ def owner_earnings_valuation_analysis(ticker: str, end_date: str, api_key: str) 
         else:
             signal = "neutral"
         
-        confidence = min(abs(value_gap) / 0.40 * 100, 100)
         
         return {
             "signal": signal,
-            "confidence": round(confidence),
             "valuation": {
                 "intrinsic_value": intrinsic_value,
                 "market_cap": market_cap,
@@ -1448,7 +1405,7 @@ def owner_earnings_valuation_analysis(ticker: str, end_date: str, api_key: str) 
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral", "confidence": 0}
+        return {"error": str(e), "signal": "neutral"}
 
 
 @tool  
@@ -1475,21 +1432,21 @@ def ev_ebitda_valuation_analysis(ticker: str, end_date: str, api_key: str) -> Di
         )
         
         if not financial_metrics:
-            return {"error": "No financial metrics found", "signal": "neutral", "confidence": 0}
+            return {"error": "No financial metrics found", "signal": "neutral"}
         
         most_recent = financial_metrics[0]
         
         # 检查必需数据
         if not (most_recent.enterprise_value and most_recent.enterprise_value_to_ebitda_ratio):
-            return {"error": "Missing EV/EBITDA data", "signal": "neutral", "confidence": 0}
+            return {"error": "Missing EV/EBITDA data", "signal": "neutral"}
         
         if most_recent.enterprise_value_to_ebitda_ratio <= 0:
-            return {"error": "Invalid EV/EBITDA ratio", "signal": "neutral", "confidence": 0}
+            return {"error": "Invalid EV/EBITDA ratio", "signal": "neutral"}
         
         # 获取市值
         market_cap = get_market_cap(ticker, end_date, api_key=api_key)
         if not market_cap:
-            return {"error": "Market cap unavailable", "signal": "neutral", "confidence": 0}
+            return {"error": "Market cap unavailable", "signal": "neutral"}
         
         # 计算当前EBITDA
         current_ebitda = most_recent.enterprise_value / most_recent.enterprise_value_to_ebitda_ratio
@@ -1502,7 +1459,7 @@ def ev_ebitda_valuation_analysis(ticker: str, end_date: str, api_key: str) -> Di
         ]
         
         if len(valid_multiples) < 3:
-            return {"error": "Insufficient historical data", "signal": "neutral", "confidence": 0}
+            return {"error": "Insufficient historical data", "signal": "neutral"}
         
         median_multiple = median(valid_multiples)
         current_multiple = most_recent.enterprise_value_to_ebitda_ratio
@@ -1530,11 +1487,9 @@ def ev_ebitda_valuation_analysis(ticker: str, end_date: str, api_key: str) -> Di
         else:
             signal = "neutral"
         
-        confidence = min((abs(value_gap) + abs(multiple_discount)) / 0.40 * 100, 100)
         
         return {
             "signal": signal,
-            "confidence": round(confidence),
             "valuation": {
                 "implied_equity_value": implied_equity_value,
                 "market_cap": market_cap,
@@ -1556,7 +1511,7 @@ def ev_ebitda_valuation_analysis(ticker: str, end_date: str, api_key: str) -> Di
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral", "confidence": 0}
+        return {"error": str(e), "signal": "neutral"}
 
 
 @tool
@@ -1583,7 +1538,7 @@ def residual_income_valuation_analysis(ticker: str, end_date: str, api_key: str)
         )
         
         if not financial_metrics:
-            return {"error": "No financial metrics found", "signal": "neutral", "confidence": 0}
+            return {"error": "No financial metrics found", "signal": "neutral"}
         
         most_recent = financial_metrics[0]
         
@@ -1598,19 +1553,19 @@ def residual_income_valuation_analysis(ticker: str, end_date: str, api_key: str)
         )
         
         if not line_items or not line_items[0].net_income:
-            return {"error": "No net income data", "signal": "neutral", "confidence": 0}
+            return {"error": "No net income data", "signal": "neutral"}
         
         net_income = line_items[0].net_income
         
         # 获取市值
         market_cap = get_market_cap(ticker, end_date, api_key=api_key)
         if not market_cap:
-            return {"error": "Market cap unavailable", "signal": "neutral", "confidence": 0}
+            return {"error": "Market cap unavailable", "signal": "neutral"}
         
         # 检查必需数据
         pb_ratio = most_recent.price_to_book_ratio
         if not pb_ratio or pb_ratio <= 0:
-            return {"error": "Invalid P/B ratio", "signal": "neutral", "confidence": 0}
+            return {"error": "Invalid P/B ratio", "signal": "neutral"}
         
         # 计算账面价值
         book_value = market_cap / pb_ratio
@@ -1626,7 +1581,7 @@ def residual_income_valuation_analysis(ticker: str, end_date: str, api_key: str)
         initial_residual_income = net_income - cost_of_equity * book_value
         
         if initial_residual_income <= 0:
-            return {"error": "Negative residual income", "signal": "neutral", "confidence": 0}
+            return {"error": "Negative residual income", "signal": "neutral"}
         
         # 计算未来剩余收益现值
         pv_residual_income = 0.0
@@ -1653,11 +1608,9 @@ def residual_income_valuation_analysis(ticker: str, end_date: str, api_key: str)
         else:
             signal = "neutral"
         
-        confidence = min(abs(value_gap) / 0.35 * 100, 100)
         
         return {
             "signal": signal,
-            "confidence": round(confidence),
             "valuation": {
                 "intrinsic_value": intrinsic_value,
                 "market_cap": market_cap,
@@ -1680,4 +1633,4 @@ def residual_income_valuation_analysis(ticker: str, end_date: str, api_key: str)
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral", "confidence": 0}
+        return {"error": str(e), "signal": "neutral"}
