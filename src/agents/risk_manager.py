@@ -7,24 +7,29 @@ import numpy as np
 import pandas as pd
 from src.utils.api_key import get_api_key_from_state
 
+
+# 只提供风险评估信息，包括：
+# risk_level: 风险等级 ("low", "medium", "high", "very_high")
+# risk_score: 风险评分 (0-100)
+# volatility_info: 波动率详细信息
+# risk_assessment: 风险评估描述
+# 不再提供: 投资方向建议，专注于纯粹的风险分析
+
 ##### Risk Management Agent #####
 def risk_management_agent(state: AgentState, agent_id: str = "risk_management_agent"):
-    """Controls position sizing based on volatility-adjusted risk factors for multiple tickers."""
-    portfolio = state["data"]["portfolio"]
+    """基于波动率风险因子分析，为每只股票提供风险评估信息"""
     data = state["data"]
     tickers = data["tickers"]
     api_key = get_api_key_from_state(state, "FINANCIAL_DATASETS_API_KEY")
     
-    # Initialize risk analysis for each ticker
+    # 初始化风险分析结果 - 只提供风险评估信息
     risk_analysis = {}
-    current_prices = {}  # Store prices here to avoid redundant API calls
-    volatility_data = {}  # Store volatility metrics
+    volatility_data = {}  # 存储波动率指标
+    current_prices = {}  # 存储当前价格
 
-    # First, fetch prices and calculate volatility for all relevant tickers
-    all_tickers = set(tickers) | set(portfolio.get("positions", {}).keys())
-    
-    for ticker in all_tickers:
-        progress.update_status(agent_id, ticker, "Fetching price data and calculating volatility")
+    # 获取股票的价格和波动率数据
+    for ticker in tickers:
+        progress.update_status(agent_id, ticker, "获取价格数据并计算波动率")
         
         prices = get_prices(
             ticker=ticker,
@@ -34,11 +39,12 @@ def risk_management_agent(state: AgentState, agent_id: str = "risk_management_ag
         )
 
         if not prices:
-            progress.update_status(agent_id, ticker, "Warning: No price data found")
+            progress.update_status(agent_id, ticker, "警告: 未找到价格数据")
+            current_prices[ticker] = 0.0  # 无价格数据时设为0
             volatility_data[ticker] = {
-                "daily_volatility": 0.05,  # Default fallback volatility (5% daily)
+                "daily_volatility": 0.05,  # 默认日波动率5%
                 "annualized_volatility": 0.05 * np.sqrt(252),
-                "volatility_percentile": 100,  # Assume high risk if no data
+                "volatility_percentile": 100,  # 假设高风险
                 "data_points": 0
             }
             continue
@@ -46,21 +52,22 @@ def risk_management_agent(state: AgentState, agent_id: str = "risk_management_ag
         prices_df = prices_to_df(prices)
         
         if not prices_df.empty and len(prices_df) >= 1:
+            # 获取最新价格（最后一个交易日的收盘价）
             current_price = prices_df["close"].iloc[-1]
             current_prices[ticker] = current_price
             
-            # Calculate volatility metrics
+            # 计算波动率指标
             volatility_metrics = calculate_volatility_metrics(prices_df)
             volatility_data[ticker] = volatility_metrics
             
             progress.update_status(
                 agent_id, 
                 ticker, 
-                f"Price: {current_price:.2f}, Ann. Vol: {volatility_metrics['annualized_volatility']:.1%}"
+                f"价格: {current_price:.2f}, 年化波动率: {volatility_metrics['annualized_volatility']:.1%}"
             )
         else:
-            progress.update_status(agent_id, ticker, "Warning: Insufficient price data")
-            current_prices[ticker] = 0
+            progress.update_status(agent_id, ticker, "警告: 价格数据不足")
+            current_prices[ticker] = 0.0  # 价格数据不足时设为0
             volatility_data[ticker] = {
                 "daily_volatility": 0.05,
                 "annualized_volatility": 0.05 * np.sqrt(252),
@@ -68,82 +75,52 @@ def risk_management_agent(state: AgentState, agent_id: str = "risk_management_ag
                 "data_points": len(prices_df) if not prices_df.empty else 0
             }
 
-    # Calculate total portfolio value based on current market prices (Net Liquidation Value)
-    total_portfolio_value = portfolio.get("cash", 0.0)
-    
-    for ticker, position in portfolio.get("positions", {}).items():
-        if ticker in current_prices:
-            # Add market value of long positions
-            total_portfolio_value += position.get("long", 0) * current_prices[ticker]
-            # Subtract market value of short positions
-            total_portfolio_value -= position.get("short", 0) * current_prices[ticker]
-    
-    progress.update_status(agent_id, None, f"Total portfolio value: {total_portfolio_value:.2f}")
-
-    # Calculate volatility-adjusted risk limits for each ticker
+    # 为每只股票生成风险评估信息
     for ticker in tickers:
-        progress.update_status(agent_id, ticker, "Calculating volatility-adjusted position limits")
+        progress.update_status(agent_id, ticker, "生成风险评估信息")
         
-        if ticker not in current_prices or current_prices[ticker] <= 0:
-            progress.update_status(agent_id, ticker, "Failed: No valid price data")
+        vol_data = volatility_data.get(ticker, {})
+        if not vol_data:
+            progress.update_status(agent_id, ticker, "失败: 无有效波动率数据")
             risk_analysis[ticker] = {
-                "remaining_position_limit": 0.0,
-                "current_price": 0.0,
-                "reasoning": {
-                    "error": "Missing price data for risk calculation"
-                }
+                "risk_level": "unknown",
+                "risk_score": 0,
+                "current_price": float(current_prices.get(ticker, 0.0)),  # 当前股价
+                "volatility_info": {},
+                "risk_assessment": "缺少波动率数据，无法进行风险分析"
             }
             continue
             
-        current_price = current_prices[ticker]
-        vol_data = volatility_data.get(ticker, {})
+        annualized_vol = vol_data.get("annualized_volatility", 0.25)
+        vol_percentile = vol_data.get("volatility_percentile", 50)
+        daily_vol = vol_data.get("daily_volatility", 0.025)
+        data_points = vol_data.get("data_points", 0)
         
-        # Calculate current market value of this position
-        position = portfolio.get("positions", {}).get(ticker, {})
-        long_value = position.get("long", 0) * current_price
-        short_value = position.get("short", 0) * current_price
-        current_position_value = abs(long_value - short_value)  # Use absolute exposure
-        
-        # Calculate volatility-adjusted position limit
-        vol_adjusted_limit = calculate_volatility_adjusted_limit(
-            vol_data.get("annualized_volatility", 0.25)
+        # 生成风险评估信息（不包含投资方向建议）
+        risk_level, risk_score, assessment = generate_risk_assessment(
+            ticker, annualized_vol, vol_percentile, daily_vol, data_points
         )
         
-        position_limit = total_portfolio_value * vol_adjusted_limit
-        
-        # Calculate remaining limit for this position
-        remaining_position_limit = position_limit - current_position_value
-        
-        # Ensure we don't exceed available cash
-        max_position_size = min(remaining_position_limit, portfolio.get("cash", 0))
-        
         risk_analysis[ticker] = {
-            "remaining_position_limit": float(max_position_size),
-            "current_price": float(current_price),
-            "volatility_metrics": {
-                "daily_volatility": float(vol_data.get("daily_volatility", 0.05)),
-                "annualized_volatility": float(vol_data.get("annualized_volatility", 0.25)),
-                "volatility_percentile": float(vol_data.get("volatility_percentile", 100)),
-                "data_points": int(vol_data.get("data_points", 0))
+            "risk_level": risk_level,  # "low", "medium", "high", "very_high"
+            "risk_score": risk_score,  # 0-100的风险评分
+            "current_price": float(current_prices.get(ticker, 0.0)),  # 当前股价
+            "volatility_info": {
+                "annualized_volatility": annualized_vol,
+                "daily_volatility": daily_vol,
+                "volatility_percentile": vol_percentile,
+                "data_points": data_points
             },
-            "reasoning": {
-                "portfolio_value": float(total_portfolio_value),
-                "current_position_value": float(current_position_value),
-                "base_position_limit_pct": float(vol_adjusted_limit),
-                "position_limit": float(position_limit),
-                "remaining_limit": float(remaining_position_limit),
-                "available_cash": float(portfolio.get("cash", 0)),
-                "risk_adjustment": f"Volatility-based limit: {vol_adjusted_limit:.1%} (vs 20% baseline)"
-            },
+            "risk_assessment": assessment
         }
         
         progress.update_status(
             agent_id, 
             ticker, 
-            f"Vol-adjusted limit: {vol_adjusted_limit:.1%}, Available: ${max_position_size:.0f}"
+            f"风险等级: {risk_level.upper()}, 风险评分: {risk_score}"
         )
 
-    progress.update_status(agent_id, None, "Done")
+    progress.update_status(agent_id, None, "完成")
 
     message = HumanMessage(
         content=json.dumps(risk_analysis),
@@ -151,9 +128,9 @@ def risk_management_agent(state: AgentState, agent_id: str = "risk_management_ag
     )
 
     if state["metadata"]["show_reasoning"]:
-        show_agent_reasoning(risk_analysis, "Volatility-Adjusted Risk Management Agent")
+        show_agent_reasoning(risk_analysis, "风险管理评估分析")
 
-    # Add the signal to the analyst_signals list
+    # 将信号添加到analyst_signals列表
     state["data"]["analyst_signals"][agent_id] = risk_analysis
 
     return {
@@ -210,32 +187,69 @@ def calculate_volatility_metrics(prices_df: pd.DataFrame, lookback_days: int = 6
     }
 
 
-def calculate_volatility_adjusted_limit(annualized_volatility: float) -> float:
+def generate_risk_assessment(ticker: str, annualized_vol: float, vol_percentile: float, 
+                           daily_vol: float, data_points: int) -> tuple:
     """
-    Calculate position limit as percentage of portfolio based on volatility.
+    基于波动率生成风险评估信息（不包含投资建议）
     
-    Logic:
-    - Low volatility (<15%): Up to 25% allocation
-    - Medium volatility (15-30%): 15-20% allocation  
-    - High volatility (>30%): 10-15% allocation
-    - Very high volatility (>50%): Max 10% allocation
+    Args:
+        ticker: 股票代码
+        annualized_vol: 年化波动率
+        vol_percentile: 波动率百分位数
+        daily_vol: 日波动率
+        data_points: 数据点数量
+        
+    Returns:
+        tuple: (risk_level, risk_score, assessment)
     """
-    base_limit = 0.20  # 20% baseline
     
-    if annualized_volatility < 0.15:  # Low volatility
-        # Allow higher allocation for stable stocks
-        vol_multiplier = 1.25  # Up to 25%
-    elif annualized_volatility < 0.30:  # Medium volatility  
-        # Standard allocation with slight adjustment based on volatility
-        vol_multiplier = 1.0 - (annualized_volatility - 0.15) * 0.5  # 20% -> 12.5%
-    elif annualized_volatility < 0.50:  # High volatility
-        # Reduce allocation significantly
-        vol_multiplier = 0.75 - (annualized_volatility - 0.30) * 0.5  # 15% -> 5%
-    else:  # Very high volatility (>50%)
-        # Minimum allocation for very risky stocks
-        vol_multiplier = 0.50  # Max 10%
+    # 基于波动率的风险等级评估
+    if annualized_vol < 0.15:  # 低波动率 < 15%
+        risk_level = "low"
+        base_score = 25
+        if vol_percentile < 30:  # 当前波动率处于历史低位
+            risk_score = base_score - 10  # 进一步降低风险评分
+            assessment = f"低风险股票，年化波动率{annualized_vol:.1%}，当前处于历史低波动率水平，价格相对稳定"
+        else:
+            risk_score = base_score
+            assessment = f"低风险股票，年化波动率{annualized_vol:.1%}，价格波动相对温和"
+            
+    elif annualized_vol < 0.30:  # 中等波动率 15-30%
+        risk_level = "medium"
+        base_score = 50
+        if vol_percentile > 70:  # 波动率上升趋势
+            risk_score = base_score + 15
+            assessment = f"中等风险股票，年化波动率{annualized_vol:.1%}，当前波动率上升，风险增加"
+        elif vol_percentile < 30:  # 波动率下降趋势
+            risk_score = base_score - 10
+            assessment = f"中等风险股票，年化波动率{annualized_vol:.1%}，当前波动率下降，风险相对降低"
+        else:
+            risk_score = base_score
+            assessment = f"中等风险股票，年化波动率{annualized_vol:.1%}，价格波动处于正常水平"
+            
+    elif annualized_vol < 0.50:  # 高波动率 30-50%
+        risk_level = "high"
+        base_score = 75
+        if vol_percentile > 80:  # 波动率极高
+            risk_score = base_score + 15
+            assessment = f"高风险股票，年化波动率{annualized_vol:.1%}，当前处于历史高波动率水平，价格波动剧烈"
+        else:
+            risk_score = base_score
+            assessment = f"高风险股票，年化波动率{annualized_vol:.1%}，价格波动较大，需谨慎投资"
+            
+    else:  # 极高波动率 > 50%
+        risk_level = "very_high"
+        risk_score = 90
+        assessment = f"极高风险股票，年化波动率{annualized_vol:.1%}，价格波动极大，投资风险极高"
     
-    # Apply bounds to ensure reasonable limits
-    vol_multiplier = max(0.25, min(1.25, vol_multiplier))  # 5% to 25% range
+    # 根据数据质量调整评估
+    if data_points < 10:
+        assessment += f"（注意：仅基于{data_points}个数据点，评估可靠性有限）"
+        risk_score = min(risk_score + 10, 100)  # 数据不足时提高风险评分
     
-    return base_limit * vol_multiplier
+    # 确保风险评分在合理范围内
+    risk_score = max(0, min(100, risk_score))
+    
+    return risk_level, risk_score, assessment
+
+

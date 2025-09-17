@@ -114,14 +114,6 @@ class InvestmentAnalysisEngine:
         if not api_key or not openai_key:
             raise ValueError("缺少必要的API密钥，请检查环境变量设置")
         
-        # 初始化投资组合状态
-        initial_portfolio = {
-            "cash": 100000.0,  # 初始现金10万
-            "positions": {},  # 初始无持仓
-            "margin_requirement": 0.1,  # 50%保证金要求
-            "margin_used": 0.0  # 当前使用保证金
-        }
-        
         state = AgentState(
             messages=[HumanMessage(content="Investment analysis session")],
             data={
@@ -129,7 +121,6 @@ class InvestmentAnalysisEngine:
                 "start_date": start_date,
                 "end_date": end_date,
                 "analyst_signals": {},
-                "portfolio": initial_portfolio,
                 "api_keys": {
                     'FINANCIAL_DATASETS_API_KEY': api_key,
                     'OPENAI_API_KEY': openai_key,

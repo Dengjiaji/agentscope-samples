@@ -12,7 +12,7 @@ import argparse
 import asyncio
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
-
+import pandas as pd 
 from main_with_communications import AdvancedInvestmentAnalysisEngine
 from src.scheduler.multi_day_manager import MultiDayManager
 
@@ -233,14 +233,20 @@ def main():
         
         # 绩效指标
         if "performance_analysis" in results and "error" not in results["performance_analysis"]:
-            perf = results["performance_analysis"]
-            print(f"\n📈 绩效指标:")
-            print(f"   💰 年化收益率: {perf['annualized_return_pct']}%")
-            print(f"   📊 年化波动率: {perf['annualized_volatility_pct']}%")
-            print(f"   📉 最大回撤: {perf['max_drawdown_pct']}%")
-            print(f"   ⚡ 夏普比率: {perf['sharpe_ratio']}")
-            print(f"   📅 交易期间: {perf['trading_period_years']} 年 ({perf['total_trading_days']} 交易日)")
-            print(f"   📊 总收益率: {perf['total_return_pct']}% (期间累计)")
+            perf = results["performance_analysis"]['individual_stocks']
+            for ticker in perf.keys():
+                print('股票 performance:',ticker)
+                print(pd.DataFrame(perf[ticker],index=[0]).T)
+                # print(f"\n📈 绩效指标:")
+                
+                # print(f"   💰 年化收益率: {perf['annualized_return_pct']}%")
+                # print(f"   💰 日均收益率: {perf['total_return_pct']}%")
+                # print(f"   📊 年化波动率: {perf['annualized_volatility_pct']}%")
+                # print(f"   📉 最大回撤: {perf['max_drawdown_pct']}%")
+                # print(f"   ⚡ 夏普比率: {perf['sharpe_ratio']}")
+                # print(f"   📅 交易期间: {perf['trading_period_years']} 年 ({perf['total_trading_days']} 交易日)")
+                # print(f"   📊 总收益率: {perf['total_return_pct']}% ")
+
         
         print(f"\n📁 详细结果已保存到: {args.output_dir}")
         print(f"   📄 汇总报告: {results.get('session_id', 'unknown')}_summary.json")

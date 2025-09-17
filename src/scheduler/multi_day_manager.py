@@ -10,6 +10,17 @@ from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from typing import Dict, List, Optional, Any, Callable
 from pathlib import Path
+import pdb
+# 尝试导入美国交易日历包
+try:
+    import pandas_market_calendars as mcal
+    US_TRADING_CALENDAR_AVAILABLE = True
+except ImportError:
+    try:
+        import exchange_calendars as xcals
+        US_TRADING_CALENDAR_AVAILABLE = True
+    except ImportError:
+        US_TRADING_CALENDAR_AVAILABLE = False
 
 from src.tools.api import (
     get_price_data,
@@ -53,7 +64,6 @@ class MultiDayManager:
         self.daily_results = []
         self.analyst_memory_state = None
         self.communication_logs_state = None
-        self.portfolio_state = None
         self.okr_manager = None  # 将在需要时初始化
         
         # 确保输出目录存在
@@ -62,6 +72,42 @@ class MultiDayManager:
     def create_session_id(self) -> str:
         """生成会话ID"""
         return f"multi_day_session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    
+    def get_us_trading_dates(self, start_date: str, end_date: str) -> pd.DatetimeIndex:
+        """
+        获取美国股市交易日序列
+        
+        Args:
+            start_date: 开始日期 (YYYY-MM-DD)
+            end_date: 结束日期 (YYYY-MM-DD)
+            
+        Returns:
+            pd.DatetimeIndex: 交易日序列
+        """
+        if US_TRADING_CALENDAR_AVAILABLE:
+            try:
+                # 优先尝试使用 pandas_market_calendars
+                if 'mcal' in globals():
+                    nyse = mcal.get_calendar('NYSE')
+                    trading_dates = nyse.valid_days(start_date=start_date, end_date=end_date)
+                    print(f"✅ 使用NYSE交易日历 (pandas_market_calendars)")
+                    return trading_dates
+                
+                # 备选：使用 exchange_calendars
+                elif 'xcals' in globals():
+                    nyse = xcals.get_calendar('XNYS')  # NYSE的ISO代码
+                    trading_dates = nyse.sessions_in_range(start_date, end_date)
+                    print(f"✅ 使用NYSE交易日历 (exchange_calendars)")
+                    return trading_dates
+                    
+            except Exception as e:
+                print(f"⚠️ 美国交易日历获取失败，回退到简单工作日: {e}")
+        else:
+            print(f"⚠️ 未安装美国交易日历包，使用简单工作日")
+            print(f"   建议安装: pip install pandas_market_calendars")
+        
+        # 回退到原来的简单工作日方法
+        return pd.date_range(start_date, end_date, freq="B")
     
     def prefetch_all_data(self, tickers: List[str], start_date: str, end_date: str):
         """预取多日分析所需的所有数据"""
@@ -115,7 +161,6 @@ class MultiDayManager:
             "results": results,
             "analyst_memory": state.get("data", {}).get("analyst_memory"),
             "communication_logs": complete_comm_logs,
-            "portfolio_snapshot": state.get("data", {}).get("portfolio"),
             "metadata": state.get("metadata", {}),
             "okr_state": state.get("data", {}).get("okr_state")
         }
@@ -183,9 +228,7 @@ class MultiDayManager:
             if "communication_decisions" not in comm_logs:
                 comm_logs["communication_decisions"] = []
         
-        # 恢复投资组合状态（关键：保持仓位连续性）
-        if previous_state.get("portfolio_snapshot"):
-            current_state["data"]["portfolio"] = previous_state["portfolio_snapshot"]
+        # 投资组合状态已移除，不再需要恢复仓位
         
         # 恢复OKR状态
         if previous_state.get("okr_state") and self.okr_enabled:
@@ -246,8 +289,8 @@ class MultiDayManager:
         if self.prefetch_data:
             self.prefetch_all_data(tickers, start_date, end_date)
         
-        # 生成交易日序列（跳过周末）
-        trading_dates = pd.date_range(start_date, end_date, freq="B")
+        # 生成美国股市交易日序列（考虑节假日）
+        trading_dates = self.get_us_trading_dates(start_date, end_date)
         
         if len(trading_dates) == 0:
             raise ValueError(f"指定日期范围内无交易日: {start_date} 到 {end_date}")
@@ -341,7 +384,7 @@ class MultiDayManager:
                         print(f"警告: 记录OKR信号失败: {e}")
                 
                 # 保存当日状态
-                self.save_daily_state(current_date_str, daily_results, daily_state)
+                # self.save_daily_state(current_date_str, daily_results, daily_state)
                 
                 # 记录成功
                 successful_days += 1
@@ -448,6 +491,15 @@ class MultiDayManager:
                     "notifications_count": len(comm_logs.get("notifications", []))
                 })
         
+        # 获取股票列表（从第一个成功的结果中提取）
+        tickers = []
+        for daily_result in successful_results:
+            results = daily_result.get("results", {})
+            portfolio_results = results.get("portfolio_management_results", {})
+            if "final_decisions" in portfolio_results:
+                tickers = list(portfolio_results["final_decisions"].keys())
+                break
+        # pdb.set_trace()
         # 生成汇总结果
         summary = {
             "session_id": self.session_id,
@@ -464,7 +516,9 @@ class MultiDayManager:
                 "portfolio_values": portfolio_values,
                 "communication_stats": communication_stats
             },
-            "performance_analysis": self.calculate_performance_metrics(portfolio_values)
+            "performance_analysis": {
+                "individual_stocks": self.calculate_individual_stock_performance(successful_results, tickers) if tickers else {}
+            }
         }
         
         # 保存汇总文件
@@ -478,7 +532,7 @@ class MultiDayManager:
         return summary
     
     def calculate_performance_metrics(self, portfolio_values: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """计算多日绩效指标"""
+        """计算多日绩效指标 - 基于简化的日收益率方法"""
         if len(portfolio_values) < 2:
             return {"error": "数据不足，无法计算绩效指标"}
         
@@ -488,42 +542,159 @@ class MultiDayManager:
             df['date'] = pd.to_datetime(df['date'])
             df = df.set_index('date').sort_index()
             
-            # 计算收益率
+            # 简化计算：直接使用日收益率
+            # 假设每日决策都是基于单位资产，收益率直接等于价格变化率
             df['daily_return'] = df['total_value'].pct_change()
-            df['cumulative_return'] = (df['total_value'] / df['total_value'].iloc[0] - 1) * 100
+            df['cumulative_return'] = (1 + df['daily_return']).cumprod() - 1
             
             # 基础指标
-            total_return = df['cumulative_return'].iloc[-1]
+            total_return = df['cumulative_return'].iloc[-1] * 100  # 转换为百分比
+            mean_daily_return = df['daily_return'].mean()
             volatility = df['daily_return'].std() * (252 ** 0.5) * 100  # 年化波动率
             
-            # 计算年化收益率（与夏普比率计算方式一致）
-            # 使用日收益率的均值乘以252个交易日
-            annualized_return = df['daily_return'].mean() * 252 * 100  # 转换为百分比
+            # 年化收益率（基于日均收益率）
+            annualized_return = mean_daily_return * 252 * 100
             
-            # 最大回撤
-            rolling_max = df['total_value'].cummax()
-            drawdown = (df['total_value'] - rolling_max) / rolling_max * 100
+            # 最大回撤（基于累计收益率）
+            cumulative_returns = (1 + df['daily_return']).cumprod()
+            rolling_max = cumulative_returns.cummax()
+            drawdown = (cumulative_returns - rolling_max) / rolling_max * 100
             max_drawdown = drawdown.min()
             
             # 夏普比率（假设无风险利率4%）
             excess_returns = df['daily_return'] - 0.04/252
             sharpe_ratio = excess_returns.mean() / excess_returns.std() * (252 ** 0.5) if excess_returns.std() > 0 else 0
             
-            # 计算交易期间年数
+            # 计算交易期间
             trading_days = len(df)
             trading_period_years = trading_days / 252  # 252个交易日为一年
             
             return {
-                "total_return_pct": round(total_return, 2),  # 保留总收益率供参考
-                "annualized_return_pct": round(annualized_return, 2),  # 年化收益率（基于日均收益率）
+                "total_return_pct": round(total_return, 2),
+                "annualized_return_pct": round(annualized_return, 2),
                 "annualized_volatility_pct": round(volatility, 2),
                 "max_drawdown_pct": round(max_drawdown, 2),
                 "sharpe_ratio": round(sharpe_ratio, 3),
                 "total_trading_days": trading_days,
-                "trading_period_years": round(trading_period_years, 2),  # 交易期间年数
+                "trading_period_years": round(trading_period_years, 2),
+                "mean_daily_return_pct": round(mean_daily_return * 100, 4),  # 新增：日均收益率
                 "start_value": df['total_value'].iloc[0],
                 "end_value": df['total_value'].iloc[-1]
             }
             
         except Exception as e:
             return {"error": f"绩效计算失败: {str(e)}"}
+    
+    def calculate_individual_stock_performance(self, daily_results: List[Dict[str, Any]], tickers: List[str]) -> Dict[str, Dict[str, Any]]:
+        """计算每只股票的单独绩效指标（基于方向信号）"""
+        stock_performance = {}
+        
+        for ticker in tickers:
+            try:
+                # 收集该股票的每日决策和收益数据
+                daily_decisions = []
+                daily_returns = []
+                
+                for daily_result in daily_results:
+                    if daily_result["status"] != "success":
+                        continue
+                        
+                    results = daily_result.get("results", {})
+                    portfolio_results = results.get("portfolio_management_results", {})
+                    
+                    # 从最终决策中提取方向信号
+                    final_decisions = portfolio_results.get("final_decisions", {})
+                    if ticker in final_decisions:
+                        decision = final_decisions[ticker]
+                        action = decision.get("action", "hold")
+                        confidence = decision.get("confidence", 0)
+                        
+                        daily_decisions.append({
+                            "date": daily_result["date"],
+                            "action": action,
+                            "confidence": confidence
+                        })
+                        
+                        # 基于方向信号计算日收益率
+                        daily_return = self._calculate_stock_daily_return_from_signal(
+                            ticker, daily_result["date"], action
+                        )
+                        daily_returns.append(daily_return)
+                
+                if len(daily_returns) > 1:
+                    # 计算该股票的绩效指标
+                    returns_series = pd.Series(daily_returns)
+                    
+                    # 计算累计收益率
+                    cumulative_returns = (1 + returns_series).cumprod()
+                    total_return = cumulative_returns.iloc[-1] - 1
+                    
+                    # 计算最大回撤
+                    rolling_max = cumulative_returns.cummax()
+                    drawdowns = (cumulative_returns - rolling_max) / rolling_max
+                    max_drawdown = drawdowns.min()
+                    
+                    # 计算夏普比率（假设无风险利率4%）
+                    excess_returns = returns_series - 0.04/252
+                    sharpe_ratio = excess_returns.mean() / excess_returns.std() * (252 ** 0.5) if excess_returns.std() > 0 else 0
+                    
+                    stock_performance[ticker] = {
+                        "total_return_pct": round(total_return * 100, 4),
+                        "mean_daily_return_pct": round(returns_series.mean() * 100, 4),
+                        "annualized_return_pct": round(returns_series.mean() * 252 * 100, 2),
+                        "volatility_pct": round(returns_series.std() * (252 ** 0.5) * 100, 2),
+                        "sharpe_ratio": round(sharpe_ratio, 3),
+                        "max_drawdown_pct": round(max_drawdown * 100, 2),
+                        "total_decisions": len(daily_decisions),
+                        "long_decisions": len([d for d in daily_decisions if d["action"] == "long"]),
+                        "short_decisions": len([d for d in daily_decisions if d["action"] == "short"]),
+                        "hold_decisions": len([d for d in daily_decisions if d["action"] == "hold"]),
+                        "avg_confidence": round(sum(d["confidence"] for d in daily_decisions) / len(daily_decisions), 2) if daily_decisions else 0,
+                        "win_rate": round(len([r for r in daily_returns if r > 0]) / len(daily_returns) * 100, 2),
+                        "trading_days": len(daily_returns)
+                    }
+                else:
+                    stock_performance[ticker] = {
+                        "error": "数据不足，无法计算该股票绩效指标"
+                    }
+                    
+            except Exception as e:
+                stock_performance[ticker] = {
+                    "error": f"计算股票 {ticker} 绩效失败: {str(e)}"
+                }
+        
+        return stock_performance
+    
+    def _calculate_stock_daily_return_from_signal(self, ticker: str, date: str, action: str) -> float:
+        """基于方向信号计算单只股票的日收益率"""
+        # 获取该股票的价格数据（获取更大范围以确保有足够数据计算收益率）
+        from datetime import datetime, timedelta
+        
+        prices_df = pd.read_csv(f'/home/wuyue23/Project/IA/src/data/ret_data/{ticker}.csv')
+        
+        if prices_df.empty:
+            print(f"警告: 无法获取 {ticker} 在 {date} 的价格数据，使用模拟收益率")
+            return self._fallback_simulated_return(ticker, date, action)
+        
+        # 计算日收益率
+        prices_df['ret'] = prices_df['close'].pct_change()
+        
+        # 查找指定日期的收益率
+        target_date = pd.to_datetime(date).date()
+        prices_df.index = pd.to_datetime(prices_df['Date']).dt.date
+        # pdb.set_trace()
+        # 找到最接近目标日期的收益率
+        market_return = prices_df.loc[target_date, 'ret']
+        
+        
+        # 根据交易方向计算最终收益率
+        if action == "long":
+            return float(market_return)  # 做多：获得市场收益率
+        elif action == "short":
+            return float(-market_return)  # 做空：获得市场收益率的相反收益
+        else:  # hold
+            return 0.0  # 持有：无收益
+                
+   
+    
+

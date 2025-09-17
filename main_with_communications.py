@@ -125,29 +125,6 @@ class AdvancedInvestmentAnalysisEngine:
         if not api_key or not openai_key:
             raise ValueError("缺少必要的API密钥，请检查环境变量设置")
         
-        # 初始化投资组合状态（参考ai-hedge-fund格式）
-        initial_portfolio = {
-            "cash": 100000.0,  # 初始现金10万
-            "margin_requirement": 0.1,  # 10%保证金要求
-            "margin_used": 0.0,  # 当前使用保证金
-            "positions": {
-                ticker: {
-                    "long": 0,  # 多头持仓股数
-                    "short": 0,  # 空头持仓股数
-                    "long_cost_basis": 0.0,  # 多头平均成本
-                    "short_cost_basis": 0.0,  # 空头平均成本
-                    "short_margin_used": 0.0,  # 空头使用的保证金
-                }
-                for ticker in tickers
-            },
-            "realized_gains": {
-                ticker: {
-                    "long": 0.0,  # 多头已实现盈亏
-                    "short": 0.0,  # 空头已实现盈亏
-                }
-                for ticker in tickers
-            }
-        }
         
         state = AgentState(
             messages=[HumanMessage(content="Advanced investment analysis session with communications")],
@@ -156,7 +133,6 @@ class AdvancedInvestmentAnalysisEngine:
                 "start_date": start_date,
                 "end_date": end_date,
                 "analyst_signals": {},
-                "portfolio": initial_portfolio,
                 "communication_logs": {
                     "private_chats": [],
                     "meetings": [],
@@ -316,7 +292,6 @@ class AdvancedInvestmentAnalysisEngine:
             print(f"执行模式: {'并行' if parallel else '串行'}")
             print(f"通信功能: {'启用' if enable_communications else '禁用'}")
             print(f"通知功能: {'启用' if enable_notifications else '禁用'}")
-            print("=" * 70)
 
             # 创建基础状态
             state = self.create_base_state(tickers, start_date, end_date)
@@ -356,8 +331,8 @@ class AdvancedInvestmentAnalysisEngine:
         portfolio_management_results = self.run_portfolio_management_with_communications(
             state, enable_communications
         )
-        print(portfolio_management_results.keys())
-        print(portfolio_management_results['portfolio_summary'])
+        # print(portfolio_management_results.keys())
+        # print(portfolio_management_results['portfolio_summary'])
         # print(portfolio_management_results['final_execution_report'])
         # print(portfolio_management_results['portfolio_summary'])
         # 生成最终报告
@@ -670,15 +645,19 @@ class AdvancedInvestmentAnalysisEngine:
                 
                 # 显示每个ticker的风险分析
                 for ticker, risk_data in risk_analysis.items():
-                    remaining_limit = risk_data.get("remaining_position_limit", 0)
+                    risk_level = risk_data.get("risk_level", "unknown")
+                    risk_score = risk_data.get("risk_score", 0)
                     current_price = risk_data.get("current_price", 0)
-                    vol_metrics = risk_data.get("volatility_metrics", {})
-                    annualized_vol = vol_metrics.get("annualized_volatility", 0)
+                    vol_info = risk_data.get("volatility_info", {})
+                    annualized_vol = vol_info.get("annualized_volatility", 0)
+                    risk_assessment = risk_data.get("risk_assessment", "")
                     
                     print(f"  {ticker}:")
-                    print(f"     可投资额度: ${remaining_limit:.0f}")
+                    print(f"     风险等级: {risk_level.upper()}")
+                    print(f"     风险评分: {risk_score}/100")
                     print(f"     当前价格: ${current_price:.2f}")
                     print(f"     年化波动率: {annualized_vol:.1%}")
+                    print(f"     风险评估: {risk_assessment}")
                 
                 return {
                     "agent_id": "risk_management_agent",
@@ -717,7 +696,7 @@ class AdvancedInvestmentAnalysisEngine:
             if portfolio_result and "messages" in portfolio_result:
                 state["messages"] = portfolio_result["messages"]
                 state["data"] = portfolio_result["data"]
-            
+
             # 获取初始投资决策
             initial_decisions = self._extract_portfolio_decisions(state)
             print('initial_decisions',initial_decisions)
@@ -828,8 +807,8 @@ class AdvancedInvestmentAnalysisEngine:
                 print('final_decisions',final_decisions)
                 final_execution_report = self._execute_portfolio_trades(state, final_decisions)
                 
-                # 计算portfolio摘要
-                portfolio_summary = self._calculate_portfolio_summary(state)
+                # 生成简化的摘要信息
+                portfolio_summary = {"status": "signal_based_analysis"}
                 
                 return {
                     "agent_id": "portfolio_manager",
@@ -849,8 +828,8 @@ class AdvancedInvestmentAnalysisEngine:
                 print("\n执行初始交易决策...")
                 execution_report = self._execute_portfolio_trades(state, initial_decisions)
                 
-                # 计算portfolio摘要
-                portfolio_summary = self._calculate_portfolio_summary(state)
+                # 生成简化的摘要信息
+                portfolio_summary = {"status": "signal_based_analysis"}
                 
                 return {
                     "agent_id": "portfolio_manager",
@@ -983,28 +962,25 @@ class AdvancedInvestmentAnalysisEngine:
                 print("警告: 无法获取当前价格数据，跳过交易执行")
                 return {"status": "skipped", "reason": "缺少价格数据"}
             
-            # 获取当前portfolio
-            portfolio = state["data"].get("portfolio", {})
-            if not portfolio:
-                print("警告: 无法获取投资组合数据，跳过交易执行")
-                return {"status": "skipped", "reason": "缺少投资组合数据"}
+            # 检查是否有有效的价格数据（价格大于0）
+            valid_prices = {ticker: price for ticker, price in current_prices.items() if price > 0}
+            if not valid_prices:
+                print("警告: 所有价格数据无效（价格为0或负数），跳过交易执行")
+                print(f"价格数据: {current_prices}")
+                return {"status": "skipped", "reason": "无有效价格数据"}
             
-            # 执行交易
-            updated_portfolio, execution_report = execute_trading_decisions(
-                portfolio=portfolio,
+            # 执行交易决策（记录方向信号）
+            execution_report = execute_trading_decisions(
                 pm_decisions=decisions,
-                current_prices=current_prices
+                current_date=state["data"].get("end_date")
             )
-            
-            # 更新state中的portfolio
-            state["data"]["portfolio"] = updated_portfolio
             
             # 添加执行报告到state
             if "execution_reports" not in state["data"]:
                 state["data"]["execution_reports"] = []
             state["data"]["execution_reports"].append(execution_report)
             
-            print(f"交易执行完成，执行了{len(execution_report.get('executed_trades', {}))}笔交易")
+            print(f"信号记录完成，记录了{execution_report.get('total_signals', 0)}个方向信号")
             
             return execution_report
             
@@ -1013,54 +989,6 @@ class AdvancedInvestmentAnalysisEngine:
             print(f"错误: {error_msg}")
             print(f"错误详情: {traceback.format_exc()}")
             return {"status": "error", "error": error_msg}
-    
-    def _calculate_portfolio_summary(self, state: AgentState) -> Dict[str, Any]:
-        """计算投资组合摘要信息"""
-        try:
-            portfolio = state["data"].get("portfolio", {})
-            current_prices = state["data"].get("current_prices", {})
-            
-            if not portfolio or not current_prices:
-                return {
-                    "total_value": 0,
-                    "cash": 0,
-                    "positions_value": 0,
-                    "error": "缺少portfolio或价格数据"
-                }
-            
-            cash = portfolio.get("cash", 0)
-            positions = portfolio.get("positions", {})
-            
-            # 计算持仓市值
-            positions_value = 0
-            for ticker, position in positions.items():
-                if ticker in current_prices:
-                    price = current_prices[ticker]
-                    # 多头持仓价值
-                    long_value = position.get("long", 0) * price
-                    # 空头持仓未实现盈亏 = 空头股数 * (空头成本 - 当前价格)
-                    short_shares = position.get("short", 0)
-                    short_cost_basis = position.get("short_cost_basis", 0)
-                    short_unrealized_pnl = short_shares * (short_cost_basis - price)
-                    
-                    positions_value += long_value + short_unrealized_pnl
-            
-            total_value = cash + positions_value
-            
-            return {
-                "total_value": round(total_value, 2),
-                "cash": round(cash, 2),
-                "positions_value": round(positions_value, 2),
-                "margin_used": portfolio.get("margin_used", 0)
-            }
-            
-        except Exception as e:
-            return {
-                "total_value": 0,
-                "cash": 0,
-                "positions_value": 0,
-                "error": f"计算portfolio摘要失败: {str(e)}"
-            }
     
     def generate_final_report(self, analyst_results: Dict[str, Any], 
                             state: AgentState) -> Dict[str, Any]:

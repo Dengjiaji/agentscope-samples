@@ -10,8 +10,7 @@ from src.utils.llm import call_llm
 
 
 class PortfolioDecision(BaseModel):
-    action: Literal["buy", "sell", "short", "cover", "hold"]
-    quantity: int = Field(description="Number of shares to trade")
+    action: Literal["long", "short", "hold"]
     confidence: float = Field(description="Confidence in the decision, between 0.0 and 100.0")
     reasoning: str = Field(description="Reasoning for the decision")
 
@@ -22,80 +21,61 @@ class PortfolioManagerOutput(BaseModel):
 
 ##### Portfolio Management Agent #####
 def portfolio_management_agent(state: AgentState, agent_id: str = "portfolio_manager"):
-    """Makes final trading decisions and generates orders for multiple tickers"""
+    """基于分析师信号做出最终投资方向决策"""
 
-    # Get the portfolio and analyst signals
-    portfolio = state["data"]["portfolio"]
+    # Get analyst signals
     analyst_signals = state["data"]["analyst_signals"]
     tickers = state["data"]["tickers"]
     
     # Debug: Print available analyst signals
     print(f"投资组合管理器收到的分析师信号键: {list(analyst_signals.keys())}")
     for agent_key, signals in analyst_signals.items():
-        if not agent_key.startswith("risk_management_agent"):
-            if isinstance(signals, dict):
-                #format_second_round_result_for_state 因为第二轮结果经过这个函数有一个特定的格式
-                if "ticker_signals" in signals:
-                    print(f"  {agent_key}: 第二轮格式，包含 {len(signals['ticker_signals'])} 个ticker信号")
-                else:
-                    ticker_keys = [k for k in signals.keys() if k in tickers]
-                    print(f"  {agent_key}: 第一轮格式，包含ticker: {ticker_keys}")
+        if isinstance(signals, dict):
+            #format_second_round_result_for_state 因为第二轮结果经过这个函数有一个特定的格式
+            if "ticker_signals" in signals:
+                print(f"  {agent_key}: 第二轮格式，包含 {len(signals['ticker_signals'])} 个ticker信号")
             else:
-                print(f"  警告: {agent_key}: 未知格式 - {type(signals)}")
+                ticker_keys = [k for k in signals.keys() if k in tickers]
+                print(f"  {agent_key}: 第一轮格式，包含ticker: {ticker_keys}")
+        else:
+            print(f"  警告: {agent_key}: 未知格式 - {type(signals)}")
 
-    # Get position limits, current prices, and signals for every ticker
-    position_limits = {}
-    current_prices = {}
-    max_shares = {}
+    # Collect signals for every ticker
     signals_by_ticker = {}
+    current_prices = {}
+
     for ticker in tickers:
-        progress.update_status(agent_id, ticker, "Processing analyst signals")
+        progress.update_status(agent_id, ticker, "收集分析师信号")
 
-        # Get position limits and current prices for the ticker
-        # Find the corresponding risk manager for this portfolio manager
-        if agent_id.startswith("portfolio_manager_"):
-            suffix = agent_id.split('_')[-1]
-            risk_manager_id = f"risk_management_agent_{suffix}"
-        else:
-            risk_manager_id = "risk_management_agent"  # Fallback for CLI
-        
-        risk_data = analyst_signals.get(risk_manager_id, {}).get(ticker, {})
-        position_limits[ticker] = risk_data.get("remaining_position_limit", 0)
-        current_prices[ticker] = risk_data.get("current_price", 0)
-        
-        # Debug: Print risk management data
-        print(f"{ticker} 风险管理数据:")
-        print(f"  position_limit: ${position_limits[ticker]:.2f}")
-        print(f"  current_price: ${current_prices[ticker]:.2f}")
-        if risk_data.get("reasoning"):
-            reasoning = risk_data["reasoning"]
-            print(f"  portfolio_value: ${reasoning.get('portfolio_value', 0):.2f}")
-            print(f"  available_cash: ${reasoning.get('available_cash', 0):.2f}")
-            print(f"  position_limit_pct: {reasoning.get('base_position_limit_pct', 0):.1%}")
-
-        # Calculate maximum shares allowed based on position limit and price
-        if current_prices[ticker] > 0:
-            max_shares[ticker] = int(position_limits[ticker] / current_prices[ticker])
-            print(f"  max_shares: {max_shares[ticker]} 股")
-        else:
-            max_shares[ticker] = 0
-            print(f"  警告: 价格为0，max_shares设为0")
-
-        # Get signals for the ticker
+        # Get signals for the ticker from all analysts
         ticker_signals = {}
         for agent, signals in analyst_signals.items():
-            # Skip all risk management agents (they have different signal structure)
-            if agent.startswith("risk_management_agent"):
-                continue
-                
-            # Handle two types of signal formats:
-            # 1. First round format: {ticker: {signal, confidence, reasoning}}
-            # 2. Second round format: {ticker_signals: [{ticker, signal, confidence, reasoning}]}
+            # Handle different agent types and signal formats:
+            # 1. Risk management agent: {ticker: {risk_level, risk_score, risk_assessment, ...}}
+            # 2. First round format: {ticker: {signal, confidence, reasoning}}
+            # 3. Second round format: {ticker_signals: [{ticker, signal, confidence, reasoning}]}
             
-            if ticker in signals:
-                # First round format
-                ticker_signals[agent] = {"signal": signals[ticker]["signal"], "confidence": signals[ticker]["confidence"]}
-                print(f"  从 {agent} 获取 {ticker} 的第一轮信号: {signals[ticker]['signal']}")
+            if agent.startswith("risk_management_agent"):
+                # Risk management agent - extract risk information
+                if ticker in signals:
+                    risk_info = signals[ticker]
+                    ticker_signals[agent] = {
+                        "type": "risk_assessment",
+                        "risk_level": risk_info.get("risk_level", "unknown"),
+                        "risk_score": risk_info.get("risk_score", 50),
+                        "risk_assessment": risk_info.get("risk_assessment", "")
+                    }
+                    current_prices[ticker] = risk_info.get("current_price", 0)
+                    print(f"  从 {agent} 获取 {ticker} 的风险评估: {risk_info.get('risk_level', 'unknown')} (评分: {risk_info.get('risk_score', 50)})")
+            elif ticker in signals:
+                # First round format - analyst signals
+                if "signal" in signals[ticker] and "confidence" in signals[ticker]:
+                    ticker_signals[agent] = {
+                        "type": "investment_signal", 
+                        "signal": signals[ticker]["signal"], 
+                        "confidence": signals[ticker]["confidence"]
+                    }
+                    print(f"  从 {agent} 获取 {ticker} 的投资信号: {signals[ticker]['signal']}")
             elif "ticker_signals" in signals:
                 # Second round format - search through ticker_signals list
                 for ts in signals["ticker_signals"]:
@@ -104,25 +84,23 @@ def portfolio_management_agent(state: AgentState, agent_id: str = "portfolio_man
                         print(f"  警告: 跳过字符串格式的信号: {ts[:100]}...")
                         continue
                     elif isinstance(ts, dict) and ts.get("ticker") == ticker:
-                        ticker_signals[agent] = {"signal": ts["signal"], "confidence": ts["confidence"]}
-                        print(f"  从 {agent} 获取 {ticker} 的第二轮信号: {ts['signal']}")
+                        ticker_signals[agent] = {
+                            "type": "investment_signal",
+                            "signal": ts["signal"], 
+                            "confidence": ts["confidence"]
+                        }
+                        print(f"  从 {agent} 获取 {ticker} 的投资信号: {ts['signal']}")
                         break
         
         print(f"{ticker} 收集到的信号数量: {len(ticker_signals)}")
         signals_by_ticker[ticker] = ticker_signals
-
-    # Add current_prices to the state data so it's available throughout the workflow
     state["data"]["current_prices"] = current_prices
-
-    progress.update_status(agent_id, None, "Generating trading decisions")
+    progress.update_status(agent_id, None, "生成投资方向决策")
 
     # Generate the trading decision
     result = generate_trading_decision(
         tickers=tickers,
         signals_by_ticker=signals_by_ticker,
-        current_prices=current_prices,
-        max_shares=max_shares,
-        portfolio=portfolio,
         agent_id=agent_id,
         state=state,
     )
@@ -148,105 +126,57 @@ def portfolio_management_agent(state: AgentState, agent_id: str = "portfolio_man
 def generate_trading_decision(
     tickers: list[str],
     signals_by_ticker: dict[str, dict],
-    current_prices: dict[str, float],
-    max_shares: dict[str, int],
-    portfolio: dict[str, float],
     agent_id: str,
     state: AgentState,
 ) -> PortfolioManagerOutput:
-    """Attempts to get a decision from the LLM with retry logic"""
+    """基于分析师信号生成投资方向决策"""
     # Create the prompt template
     template = ChatPromptTemplate.from_messages(
         [
             (
                 "system",
-                """You are a portfolio manager making final trading decisions based on multiple tickers.
+                """你是一个投资组合管理者，需要基于多个分析师的信号做出最终的投资方向决策。
 
-              IMPORTANT: You are managing an existing portfolio with current positions. The portfolio_positions shows:
-              - "long": number of shares currently held long
-              - "short": number of shares currently held short
-              - "long_cost_basis": average price paid for long shares
-              - "short_cost_basis": average price received for short shares
-              
-              Trading Rules:
-              - For long positions:
-                * Only buy if you have available cash
-                * Only sell if you currently hold long shares of that ticker
-                * Sell quantity must be ≤ current long position shares
-                * Buy quantity must be ≤ max_shares for that ticker
-              
-              - For short positions:
-                * Only short if you have available margin (position value × margin requirement)
-                * Only cover if you currently have short shares of that ticker
-                * Cover quantity must be ≤ current short position shares
-                * Short quantity must respect margin requirements
-              
-              - The max_shares values are pre-calculated to respect position limits
-              - Consider both long and short opportunities based on signals
-              - Maintain appropriate risk management with both long and short exposure
+              重要说明：
+              - 你的任务是为每只股票决定投资方向：long（看多）、short（看空）或hold（观望）
+              - 不需要考虑具体的投资数量，只需要决定方向
+              - 每个决策都是基于单位资产（比如1股）进行的
+              - 需要综合考虑所有分析师的意见，包括他们的置信度
 
-              Available Actions:
-              - "buy": Open or add to long position
-              - "sell": Close or reduce long position (only if you currently hold long shares)
-              - "short": Open or add to short position
-              - "cover": Close or reduce short position (only if you currently hold short shares)
-              - "hold": Maintain current position without any changes (quantity should be 0 for hold)
+              可用的投资方向：
+              - "long": 看多该股票，预期价格上涨
+              - "short": 看空该股票，预期价格下跌  
+              - "hold": 观望，不进行操作
 
-              Inputs:
-              - signals_by_ticker: dictionary of ticker → signals
-              - max_shares: maximum shares allowed per ticker
-              - portfolio_cash: current cash in portfolio
-              - portfolio_positions: current positions (both long and short)
-              - current_prices: current prices for each ticker
-              - margin_requirement: current margin requirement for short positions (e.g., 0.5 means 50%)
-              - total_margin_used: total margin currently in use
-              - analyst_weights: performance-based weights for each analyst (if available)
+              输入信息：
+              - signals_by_ticker: 每只股票对应的分析师信号字典
+              - analyst_weights: 基于绩效的分析师权重（如果可用）
+              - 风险管理器提供风险评估信息（risk_level, risk_score等），不包含投资建议
               """,
             ),
             (
                 "human",
-                """Based on the team's analysis, make your trading decisions for each ticker.
+                """基于团队的分析，为每只股票做出投资方向决策。
 
-              Here are the signals by ticker:
+              各股票的分析师信号：
               {signals_by_ticker}
 
-              Current Prices:
-              {current_prices}
+              {analyst_weights_info}{analyst_weights_separator}
 
-              Maximum Shares Allowed For Purchases:
-              {max_shares}
+              决策规则：
+              - 综合考虑所有分析师的信号和置信度
+              - 权重高的分析师意见应该获得更多考虑
+              - 当分析师意见分歧较大时，选择hold观望
+              - 当多数分析师意见一致且置信度高时，跟随主流意见
+              - 风险管理器的风险评估信息应该作为重要参考，高风险股票需要更谨慎的决策
 
-              Portfolio Cash: {portfolio_cash}
-              Current Positions: {portfolio_positions}
-              Current Margin Requirement: {margin_requirement}
-              Total Margin Used: {total_margin_used}
-
-              {analyst_weights_info}
-
-              IMPORTANT DECISION RULES:
-              - If you currently hold LONG shares of a ticker (long > 0), you can:
-                * HOLD: Keep your current position (quantity = 0)
-                * SELL: Reduce/close your long position (quantity = shares to sell)
-                * BUY: Add to your long position (quantity = additional shares to buy)
-                
-              - If you currently hold SHORT shares of a ticker (short > 0), you can:
-                * HOLD: Keep your current position (quantity = 0)
-                * COVER: Reduce/close your short position (quantity = shares to cover)
-                * SHORT: Add to your short position (quantity = additional shares to short)
-                
-              - If you currently hold NO shares of a ticker (long = 0, short = 0), you can:
-                * HOLD: Stay out of the position (quantity = 0)
-                * BUY: Open a new long position (quantity = shares to buy)
-                * SHORT: Open a new short position (quantity = shares to short)
-
-              Output strictly in JSON with the following structure:
+              请严格按照以下JSON格式输出：
               {{
                 "decisions": {{
                   "TICKER1": {{
-                    "action": "buy/sell/short/cover/hold",
-                    "quantity": integer,
-                    "confidence": float between 0 and 100,
-                    "reasoning": "string explaining your decision considering current position"
+                    "action": "long/short/hold",
+                    "confidence": 0到100之间的浮点数,
+                    "reasoning": "详细说明你的决策理由，包括如何综合各分析师意见"
                   }},
                   "TICKER2": {{
                     ...
@@ -262,7 +192,8 @@ def generate_trading_decision(
     # 获取分析师权重信息
     analyst_weights = state.get("data", {}).get("analyst_weights", {})
     okr_state = state.get("data", {}).get("okr_state", {})
- # 格式化分析师权重信息 analyst_weights_info = ""
+    # 格式化分析师权重信息
+    analyst_weights_info = ""
     if analyst_weights:
         analyst_weights_info = "分析师绩效权重 (基于最近投资信号准确性):\n"
         # 按权重排序
@@ -280,26 +211,19 @@ def generate_trading_decision(
             analyst_weights_info += f"  {analyst_id}: {weight:.3f} {bar}{new_hire_info}\n"
         
         analyst_weights_info += "\n💡 建议根据权重高低来考虑不同分析师建议的重要性。权重高的分析师建议应获得更多关注。"
-    else:
-        analyst_weights_info = "分析师权重信息: 不可用 (所有分析师建议权重相等)"
     print('******************************',analyst_weights_info,'******************************')
     # Generate the prompt
     prompt_data = {
         "signals_by_ticker": json.dumps(signals_by_ticker, indent=2),
-        "current_prices": json.dumps(current_prices, indent=2),
-        "max_shares": json.dumps(max_shares, indent=2),
-        "portfolio_cash": f"{portfolio.get('cash', 0):.2f}",
-        "portfolio_positions": json.dumps(portfolio.get("positions", {}), indent=2),
-        "margin_requirement": f"{portfolio.get('margin_requirement', 0):.2f}",
-        "total_margin_used": f"{portfolio.get('margin_used', 0):.2f}",
         "analyst_weights_info": analyst_weights_info,
+        "analyst_weights_separator": "\n" if analyst_weights_info else "",
     }
     
     prompt = template.invoke(prompt_data)
 
     # Create default factory for PortfolioManagerOutput
     def create_default_portfolio_output():
-        return PortfolioManagerOutput(decisions={ticker: PortfolioDecision(action="hold", quantity=0, confidence=0.0, reasoning="Default decision: hold") for ticker in tickers})
+        return PortfolioManagerOutput(decisions={ticker: PortfolioDecision(action="hold", confidence=0.0, reasoning="Default decision: hold") for ticker in tickers})
 
     return call_llm(
         prompt=prompt,

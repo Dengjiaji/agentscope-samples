@@ -111,11 +111,13 @@ def print_trading_output(result: dict) -> None:
         # Print Trading Decision Table
         action = decision.get("action", "").upper()
         action_color = {
+            "LONG": Fore.GREEN,
+            "SHORT": Fore.RED,
+            "HOLD": Fore.YELLOW,
+            # 保持向后兼容
             "BUY": Fore.GREEN,
             "SELL": Fore.RED,
-            "HOLD": Fore.YELLOW,
             "COVER": Fore.GREEN,
-            "SHORT": Fore.RED,
         }.get(action, Fore.WHITE)
 
         # Get reasoning and format it
@@ -138,15 +140,28 @@ def print_trading_output(result: dict) -> None:
             if current_line:
                 wrapped_reasoning += current_line
 
-        decision_data = [
-            ["Action", f"{action_color}{action}{Style.RESET_ALL}"],
-            ["Quantity", f"{action_color}{decision.get('quantity')}{Style.RESET_ALL}"],
-            [
-                "Confidence",
-                f"{Fore.WHITE}{decision.get('confidence'):.1f}%{Style.RESET_ALL}",
-            ],
-            ["Reasoning", f"{Fore.WHITE}{wrapped_reasoning}{Style.RESET_ALL}"],
-        ]
+        # 根据新的决策格式调整显示内容
+        if "quantity" in decision:
+            # 旧格式：包含数量
+            decision_data = [
+                ["Action", f"{action_color}{action}{Style.RESET_ALL}"],
+                ["Quantity", f"{action_color}{decision.get('quantity')}{Style.RESET_ALL}"],
+                [
+                    "Confidence",
+                    f"{Fore.WHITE}{decision.get('confidence'):.1f}%{Style.RESET_ALL}",
+                ],
+                ["Reasoning", f"{Fore.WHITE}{wrapped_reasoning}{Style.RESET_ALL}"],
+            ]
+        else:
+            # 新格式：只有方向决策
+            decision_data = [
+                ["Action", f"{action_color}{action}{Style.RESET_ALL}"],
+                [
+                    "Confidence",
+                    f"{Fore.WHITE}{decision.get('confidence'):.1f}%{Style.RESET_ALL}",
+                ],
+                ["Reasoning", f"{Fore.WHITE}{wrapped_reasoning}{Style.RESET_ALL}"],
+            ]
         
         print(f"\n{Fore.WHITE}{Style.BRIGHT}TRADING DECISION:{Style.RESET_ALL} [{Fore.CYAN}{ticker}{Style.RESET_ALL}]")
         print(tabulate(decision_data, tablefmt="grid", colalign=("left", "left")))
@@ -165,22 +180,45 @@ def print_trading_output(result: dict) -> None:
     for ticker, decision in decisions.items():
         action = decision.get("action", "").upper()
         action_color = {
+            "LONG": Fore.GREEN,
+            "SHORT": Fore.RED,
+            "HOLD": Fore.YELLOW,
+            # 保持向后兼容
             "BUY": Fore.GREEN,
             "SELL": Fore.RED,
-            "HOLD": Fore.YELLOW,
             "COVER": Fore.GREEN,
-            "SHORT": Fore.RED,
         }.get(action, Fore.WHITE)
-        portfolio_data.append(
-            [
-                f"{Fore.CYAN}{ticker}{Style.RESET_ALL}",
-                f"{action_color}{action}{Style.RESET_ALL}",
-                f"{action_color}{decision.get('quantity')}{Style.RESET_ALL}",
-                f"{Fore.WHITE}{decision.get('confidence'):.1f}%{Style.RESET_ALL}",
-            ]
-        )
+        
+        # 根据新旧格式调整显示内容
+        if "quantity" in decision:
+            # 旧格式：包含数量
+            portfolio_data.append(
+                [
+                    f"{Fore.CYAN}{ticker}{Style.RESET_ALL}",
+                    f"{action_color}{action}{Style.RESET_ALL}",
+                    f"{action_color}{decision.get('quantity')}{Style.RESET_ALL}",
+                    f"{Fore.WHITE}{decision.get('confidence'):.1f}%{Style.RESET_ALL}",
+                ]
+            )
+        else:
+            # 新格式：只有方向决策
+            portfolio_data.append(
+                [
+                    f"{Fore.CYAN}{ticker}{Style.RESET_ALL}",
+                    f"{action_color}{action}{Style.RESET_ALL}",
+                    f"{Fore.WHITE}{decision.get('confidence'):.1f}%{Style.RESET_ALL}",
+                ]
+            )
 
-    headers = [f"{Fore.WHITE}Ticker", "Action", "Quantity", "Confidence"]
+    # 根据数据格式调整表头
+    if portfolio_data and len(portfolio_data[0]) == 4:
+        # 旧格式：包含数量列
+        headers = [f"{Fore.WHITE}Ticker", "Action", "Quantity", "Confidence"]
+        colalign = ("left", "center", "right", "right")
+    else:
+        # 新格式：只有方向决策
+        headers = [f"{Fore.WHITE}Ticker", "Action", "Confidence"]
+        colalign = ("left", "center", "right")
     
     # Print the portfolio summary table
     print(
@@ -188,7 +226,7 @@ def print_trading_output(result: dict) -> None:
             portfolio_data,
             headers=headers,
             tablefmt="grid",
-            colalign=("left", "center", "right", "right"),
+            colalign=colalign,
         )
     )
     
@@ -304,6 +342,98 @@ def print_backtest_results(table_rows: list) -> None:
     print("\n" * 4)
 
 
+def print_individual_stock_performance(stock_performance: dict) -> None:
+    """打印每只股票的单独绩效指标"""
+    if not stock_performance:
+        print(f"{Fore.YELLOW}没有单只股票绩效数据{Style.RESET_ALL}")
+        return
+    
+    print(f"\n{Fore.WHITE}{Style.BRIGHT}单只股票绩效分析:{Style.RESET_ALL}")
+    print(f"{Fore.WHITE}{Style.BRIGHT}{'=' * 60}{Style.RESET_ALL}")
+    
+    # 准备表格数据
+    table_data = []
+    
+    for ticker, performance in stock_performance.items():
+        if "error" in performance:
+            table_data.append([
+                f"{Fore.CYAN}{ticker}{Style.RESET_ALL}",
+                f"{Fore.RED}错误{Style.RESET_ALL}",
+                "-", "-", "-", "-", "-", "-", "-"
+            ])
+            continue
+            
+        # 格式化绩效数据
+        total_return = performance.get("total_return_pct", 0)
+        mean_daily_return = performance.get("mean_daily_return_pct", 0)
+        volatility = performance.get("volatility_pct", 0)
+        sharpe = performance.get("sharpe_ratio", 0)
+        max_dd = performance.get("max_drawdown_pct", 0)
+        
+        # 决策统计
+        total_decisions = performance.get("total_decisions", 0)
+        long_decisions = performance.get("long_decisions", 0)
+        short_decisions = performance.get("short_decisions", 0)
+        hold_decisions = performance.get("hold_decisions", 0)
+        avg_confidence = performance.get("avg_confidence", 0)
+        
+        # 颜色编码
+        return_color = Fore.GREEN if total_return >= 0 else Fore.RED
+        sharpe_color = Fore.GREEN if sharpe >= 0 else Fore.RED
+        
+        table_data.append([
+            f"{Fore.CYAN}{ticker}{Style.RESET_ALL}",
+            f"{return_color}{total_return:+.2f}%{Style.RESET_ALL}",
+            f"{Fore.WHITE}{mean_daily_return:+.4f}%{Style.RESET_ALL}",
+            f"{Fore.YELLOW}{volatility:.2f}%{Style.RESET_ALL}",
+            f"{sharpe_color}{sharpe:.3f}{Style.RESET_ALL}",
+            f"{Fore.RED}{max_dd:.2f}%{Style.RESET_ALL}",
+            f"{Fore.WHITE}{total_decisions}{Style.RESET_ALL}",
+            f"{Fore.GREEN}{long_decisions}{Style.RESET_ALL}/{Fore.RED}{short_decisions}{Style.RESET_ALL}/{Fore.BLUE}{hold_decisions}{Style.RESET_ALL}",
+            f"{Fore.WHITE}{avg_confidence:.1f}%{Style.RESET_ALL}"
+        ])
+    
+    headers = [
+        f"{Fore.WHITE}股票",
+        "总收益",
+        "日均收益",
+        "波动率",
+        "夏普比率",
+        "最大回撤",
+        "总决策",
+        "Long/Short/Hold",
+        "平均信心"
+    ]
+    
+    print(
+        tabulate(
+            table_data,
+            headers=headers,
+            tablefmt="grid",
+            colalign=(
+                "left",   # 股票
+                "right",  # 总收益
+                "right",  # 日均收益
+                "right",  # 波动率
+                "right",  # 夏普比率
+                "right",  # 最大回撤
+                "center", # 总决策
+                "center", # Long/Short/Hold
+                "right",  # 平均信心
+            ),
+        )
+    )
+    
+    print(f"\n{Fore.YELLOW}说明:{Style.RESET_ALL}")
+    print(f"- 总收益: 整个分析期间的累计收益率")
+    print(f"- 日均收益: 平均每日收益率")
+    print(f"- 波动率: 年化波动率")
+    print(f"- 夏普比率: 风险调整后收益指标")
+    print(f"- 最大回撤: 从峰值到谷值的最大跌幅")
+    print(f"- Long/Short/Hold: 做多/做空/持有决策次数")
+    print(f"- 平均信心: 决策的平均置信度")
+
+
 def format_backtest_row(
     date: str,
     ticker: str,
@@ -327,11 +457,13 @@ def format_backtest_row(
     """Format a row for the backtest results table"""
     # Color the action
     action_color = {
+        "LONG": Fore.GREEN,
+        "SHORT": Fore.RED,
+        "HOLD": Fore.WHITE,
+        # 保持向后兼容
         "BUY": Fore.GREEN,
         "COVER": Fore.GREEN,
         "SELL": Fore.RED,
-        "SHORT": Fore.RED,
-        "HOLD": Fore.WHITE,
     }.get(action.upper(), Fore.WHITE)
 
     if is_summary:
