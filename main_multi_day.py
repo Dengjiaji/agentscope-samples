@@ -13,7 +13,7 @@ import asyncio
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 import pandas as pd 
-from main_with_communications import AdvancedInvestmentAnalysisEngine
+from advanced_investment_engine import AdvancedInvestmentAnalysisEngine
 from src.scheduler.multi_day_manager import MultiDayManager
 
 

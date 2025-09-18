@@ -7,7 +7,8 @@ from langchain_core.messages import HumanMessage
 from langchain_core.tools import BaseTool
 from typing import Dict, Any, List, Optional
 import json
-
+import pdb
+import numpy as np
 # 导入所有可用的分析工具
 from src.tools.analysis_tools_unified import (
     # 基本面工具
@@ -36,7 +37,15 @@ from src.tools.analysis_tools_unified import (
     combine_tool_signals
 )
 
-
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super().default(obj)
 class LLMToolSelector:
     """基于LLM的智能工具选择器"""
     
@@ -171,14 +180,14 @@ class LLMToolSelector:
         for key, value in market_conditions.items():
             market_context.append(f"- {key}: {value}")
         market_text = "\n".join(market_context) if market_context else "- 无特殊市场条件信息"
-        
+
+# **当前市场环境**:
+# {market_text}
         prompt = f"""
 你是一位专业的{analyst_persona}，需要为股票{ticker}选择合适的分析工具进行投资分析。
 
 **分析目标**: {analysis_objective}
 
-**当前市场环境**:
-{market_text}
 
 **可用分析工具**:
 {tools_text}
@@ -188,8 +197,8 @@ class LLMToolSelector:
 
 **任务要求**:
 1. 根据你的专业背景和当前市场环境，从上述工具中选择3-6个最适合的工具
-2. 为每个选择的工具分配权重（总和为1.0），权重应反映该工具在你的分析框架中的重要性
-3. 简要说明选择这些工具的原因
+2. 简要说明选择这些工具的原因
+3. 说明你将如何综合这些工具的结果来形成最终判断
 
 **输出格式**（必须严格按照JSON格式）:
 ```json
@@ -197,11 +206,11 @@ class LLMToolSelector:
     "selected_tools": [
         {{
             "tool_name": "工具名称",
-            "weight": 0.xx,
             "reason": "选择原因"
         }}
     ],
     "analysis_strategy": "整体分析策略说明",
+    "synthesis_approach": "如何综合工具结果的方法",
     "market_considerations": "市场环境考虑因素"
 }}
 ```
@@ -311,31 +320,19 @@ class LLMToolSelector:
         
         # 验证工具名称
         valid_tools = []
-        total_weight = 0
         
         for tool_selection in selected_tools:
             tool_name = tool_selection.get("tool_name")
-            weight = tool_selection.get("weight", 0)
             
             if tool_name in self.all_available_tools:
                 valid_tools.append(tool_selection)
-                total_weight += weight
             else:
                 print(f"⚠️ 无效工具名称: {tool_name}")
-        
-        # 规范化权重
-        if total_weight > 0:
-            for tool in valid_tools:
-                tool["weight"] = tool["weight"] / total_weight
-        else:
-            # 如果权重都是0，平均分配
-            weight_per_tool = 1.0 / len(valid_tools) if valid_tools else 0
-            for tool in valid_tools:
-                tool["weight"] = weight_per_tool
         
         return {
             "selected_tools": valid_tools,
             "analysis_strategy": selection_result.get("analysis_strategy", "LLM生成的分析策略"),
+            "synthesis_approach": selection_result.get("synthesis_approach", "基于工具结果综合判断"),
             "market_considerations": selection_result.get("market_considerations", "基于当前市场环境的考虑"),
             "tool_count": len(valid_tools)
         }
@@ -345,26 +342,26 @@ class LLMToolSelector:
         
         default_selections = {
             "基本面分析师": [
-                {"tool_name": "analyze_profitability", "weight": 0.3, "reason": "盈利能力是基本面分析核心"},
-                {"tool_name": "analyze_growth", "weight": 0.25, "reason": "成长性决定长期投资价值"},
-                {"tool_name": "analyze_financial_health", "weight": 0.25, "reason": "财务健康度评估投资风险"},
-                {"tool_name": "analyze_valuation_ratios", "weight": 0.2, "reason": "估值比率判断价格合理性"}
+                {"tool_name": "analyze_profitability", "reason": "盈利能力是基本面分析核心"},
+                {"tool_name": "analyze_growth", "reason": "成长性决定长期投资价值"},
+                {"tool_name": "analyze_financial_health", "reason": "财务健康度评估投资风险"},
+                {"tool_name": "analyze_valuation_ratios", "reason": "估值比率判断价格合理性"}
             ],
             "技术分析师": [
-                {"tool_name": "analyze_trend_following", "weight": 0.3, "reason": "趋势是技术分析的核心"},
-                {"tool_name": "analyze_momentum", "weight": 0.3, "reason": "动量分析捕捉价格动能"},
-                {"tool_name": "analyze_mean_reversion", "weight": 0.25, "reason": "均值回归识别反转机会"},
-                {"tool_name": "analyze_volatility", "weight": 0.15, "reason": "波动率评估市场风险"}
+                {"tool_name": "analyze_trend_following", "reason": "趋势是技术分析的核心"},
+                {"tool_name": "analyze_momentum", "reason": "动量分析捕捉价格动能"},
+                {"tool_name": "analyze_mean_reversion", "reason": "均值回归识别反转机会"},
+                {"tool_name": "analyze_volatility", "reason": "波动率评估市场风险"}
             ],
             "情绪分析师": [
-                {"tool_name": "analyze_news_sentiment", "weight": 0.6, "reason": "新闻情绪反映市场预期"},
-                {"tool_name": "analyze_insider_trading", "weight": 0.4, "reason": "内部交易显示内部信心"}
+                {"tool_name": "analyze_news_sentiment", "reason": "新闻情绪反映市场预期"},
+                {"tool_name": "analyze_insider_trading", "reason": "内部交易显示内部信心"}
             ],
             "估值分析师": [
-                {"tool_name": "dcf_valuation_analysis", "weight": 0.35, "reason": "DCF是估值的金标准"},
-                {"tool_name": "owner_earnings_valuation_analysis", "weight": 0.35, "reason": "所有者收益更保守实用"},
-                {"tool_name": "ev_ebitda_valuation_analysis", "weight": 0.2, "reason": "倍数估值提供相对视角"},
-                {"tool_name": "residual_income_valuation_analysis", "weight": 0.1, "reason": "剩余收益模型补充分析"}
+                {"tool_name": "dcf_valuation_analysis", "reason": "DCF是估值的金标准"},
+                {"tool_name": "owner_earnings_valuation_analysis", "reason": "所有者收益更保守实用"},
+                {"tool_name": "ev_ebitda_valuation_analysis", "reason": "倍数估值提供相对视角"},
+                {"tool_name": "residual_income_valuation_analysis", "reason": "剩余收益模型补充分析"}
             ]
         }
         
@@ -373,6 +370,7 @@ class LLMToolSelector:
         return {
             "selected_tools": selected_tools,
             "analysis_strategy": f"默认{analyst_persona}分析策略",
+            "synthesis_approach": "基于工具结果综合判断",
             "market_considerations": "使用默认工具组合",
             "tool_count": len(selected_tools)
         }
@@ -385,7 +383,6 @@ class LLMToolSelector:
         
         for tool_selection in selected_tools:
             tool_name = tool_selection["tool_name"]
-            weight = tool_selection["weight"]
             
             if tool_name not in self.all_available_tools:
                 continue
@@ -409,7 +406,6 @@ class LLMToolSelector:
                 # 执行工具
                 result = tool.invoke(tool_params)
                 result["tool_name"] = tool_name
-                result["assigned_weight"] = weight
                 result["selection_reason"] = tool_selection.get("reason", "")
                 
                 tool_results.append(result)
@@ -418,7 +414,6 @@ class LLMToolSelector:
                 print(f"❌ 工具 {tool_name} 执行失败: {str(e)}")
                 error_result = {
                     "tool_name": tool_name,
-                    "assigned_weight": weight,
                     "error": str(e),
                     "signal": "neutral",
                     "confidence": 0,
@@ -428,12 +423,74 @@ class LLMToolSelector:
         
         return tool_results
     
-    def combine_tool_results(self, tool_results: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """组合工具结果"""
+    def synthesize_results_with_llm(self, tool_results: List[Dict[str, Any]], 
+                                   selection_result: Dict[str, Any], 
+                                   llm, ticker: str, analyst_persona: str) -> Dict[str, Any]:
+        """使用LLM综合工具结果，生成最终的信号和置信度"""
         
-        # 使用assigned_weight作为权重
-        weights = {}
-        for i, result in enumerate(tool_results):
-            weights[f"tool_{i}"] = result.get("assigned_weight", 1.0)
+        # 准备工具结果摘要
+        tool_summaries = []
+        for result in tool_results:
+            if "error" not in result:
+                tool_summary = {
+                    "tool_name": result.get("tool_name", "unknown"),
+                    "signal": result.get("signal", "neutral"),
+                    "key_metrics": result.get("metrics", result.get("valuation", {})),
+                    "selection_reason": result.get("selection_reason", "")
+                }
+                tool_summaries.append(tool_summary)
         
-        return combine_tool_signals(tool_results, weights)
+        # 构建LLM提示
+        prompt = f"""
+作为专业的{analyst_persona}，你需要综合以下工具的分析结果，给出最终的投资信号和置信度。
+
+股票: {ticker}
+分析策略: {selection_result.get('analysis_strategy', '')}
+综合方法: {selection_result.get('synthesis_approach', '')}
+
+工具分析结果:
+{json.dumps(tool_summaries, indent=2, ensure_ascii=False, cls=NumpyEncoder)}
+
+请基于你的专业判断，综合这些工具结果，给出最终的投资建议。
+
+输出格式（JSON）:
+{{
+    "signal": "bullish/bearish/neutral",
+    "confidence": 0-100之间的整数,
+    "reasoning": "详细的综合判断理由，说明如何权衡各工具结果",
+    "tool_impact_analysis": "各工具对最终判断的影响分析"
+}}
+"""
+        
+        from langchain_core.messages import HumanMessage
+        messages = [HumanMessage(content=prompt)]
+        response = llm.invoke(messages)
+        
+        # 解析响应
+        response_text = response.content.strip()
+        # 尝试提取JSON
+        if "```json" in response_text:
+            json_start = response_text.find("```json") + 7
+            json_end = response_text.find("```", json_start)
+            json_text = response_text[json_start:json_end].strip()
+        else:
+            json_start = response_text.find("{")
+            json_end = response_text.rfind("}") + 1
+            json_text = response_text[json_start:json_end]
+        
+        synthesis_result = json.loads(json_text)
+        
+        # 验证结果
+        signal = synthesis_result.get("signal", "neutral")
+        confidence = max(0, min(100, synthesis_result.get("confidence", 50)))
+        # pdb.set_trace()
+        return {
+            "signal": signal,
+            "confidence": confidence,
+            "reasoning": synthesis_result.get("reasoning", "基于工具结果的综合判断"),
+            "tool_impact_analysis": synthesis_result.get("tool_impact_analysis", ""),
+            "synthesis_method": "llm_based"
+        }
+            
+    
+ 

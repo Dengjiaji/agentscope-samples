@@ -45,81 +45,150 @@ def normalize_pandas(data):
         return safe_float(data)
 
 
-def combine_tool_signals(tool_results: List[Dict[str, Any]], weights: Optional[Dict[str, float]] = None) -> Dict[str, Any]:
+def combine_tool_signals_with_llm(tool_results: List[Dict[str, Any]], 
+                                 analyst_persona: str, 
+                                 ticker: str,
+                                 llm=None) -> Dict[str, Any]:
     """
-    组合多个工具的信号结果
+    使用LLM综合判断多个工具的分析结果
     
     Args:
         tool_results: 工具结果列表
-        weights: 权重字典(可选)
+        analyst_persona: 分析师角色
+        ticker: 股票代码
+        llm: LLM模型实例
         
     Returns:
-        组合后的信号结果
+        LLM综合判断后的信号结果
     """
     if not tool_results:
-        return {"signal": "neutral", "reasoning": "No tool results provided"}
+        return {"signal": "neutral", "confidence": 0, "reasoning": "No tool results provided"}
     
     # 过滤掉有错误的结果
     valid_results = [result for result in tool_results if "error" not in result]
     
     if not valid_results:
-        return {"signal": "neutral", "reasoning": "No valid tool results"}
+        return {"signal": "neutral", "confidence": 0, "reasoning": "No valid tool results"}
     
-    # 如果没有提供权重，使用均等权重
-    if weights is None:
-        weights = {f"tool_{i}": 1.0 for i in range(len(valid_results))}
     
-    # 计算加权信号
-    bullish_weight = 0
-    bearish_weight = 0
-    neutral_weight = 0
-    total_weight = 0
+    # 构建LLM综合分析的prompt
+    synthesis_prompt = _build_synthesis_prompt(valid_results, analyst_persona, ticker)
     
-    signal_details = []
+    # 调用LLM进行综合分析
+    from langchain_core.messages import HumanMessage
+    response = llm.invoke([HumanMessage(content=synthesis_prompt)])
     
-    for i, result in enumerate(valid_results):
-        tool_name = f"tool_{i}"
-        weight = weights.get(tool_name, 1.0)
-        signal = result.get("signal", "neutral")
+    # 解析LLM响应
+    result = _parse_llm_synthesis_response(response.content, valid_results)
+    return result
+       
+
+def _build_synthesis_prompt(tool_results: List[Dict[str, Any]], 
+                           analyst_persona: str, 
+                           ticker: str) -> str:
+    """构建LLM综合分析的prompt"""
+    
+    # 构建工具结果摘要
+    tool_summaries = []
+    for i, result in enumerate(tool_results, 1):
+        tool_name = result.get("tool_name", f"工具{i}")
+        signal = result.get("signal", "unknown")
+        reasoning = result.get("reasoning", "无推理信息")
+        metrics = result.get("metrics", {})
         
-        # 使用原始权重（不再按置信度调整）
-        adjusted_weight = weight
-        total_weight += weight
+        summary = f"""
+**工具{i}: {tool_name}**
+- 信号: {signal.upper()}
+- 分析推理: {reasoning}"""
         
-        if signal == "bullish":
-            bullish_weight += adjusted_weight
-        elif signal == "bearish":
-            bearish_weight += adjusted_weight
-        else:
-            neutral_weight += adjusted_weight
-            
-        signal_details.append({
-            "tool": tool_name,
-            "signal": signal,
-            "weight": weight,
-            "adjusted_weight": round(adjusted_weight, 3)
-        })
+        # 添加关键指标
+        if metrics:
+            key_metrics = []
+            for key, value in metrics.items():
+                if isinstance(value, (int, float)):
+                    key_metrics.append(f"{key}: {value:.2f}")
+                else:
+                    key_metrics.append(f"{key}: {value}")
+            if key_metrics:
+                summary += f"\n- 关键指标: {', '.join(key_metrics[:5])}"  # 只显示前5个
+        
+        tool_summaries.append(summary)
     
-    # 确定最终信号
-    if bullish_weight > bearish_weight and bullish_weight > neutral_weight:
-        final_signal = "bullish"
-    elif bearish_weight > bullish_weight and bearish_weight > neutral_weight:
-        final_signal = "bearish"
+    tools_text = "\n".join(tool_summaries)
+    
+    prompt = f"""
+你是一位专业的{analyst_persona}，需要综合分析以下工具的结果，对股票{ticker}给出最终的投资信号和置信度。
+
+**分析工具结果**:
+{tools_text}
+
+**你的任务**:
+1. 仔细分析每个工具的信号和推理
+2. 考虑工具结果之间的一致性和分歧
+3. 根据你作为{analyst_persona}的专业判断，权衡各个工具的重要性
+4. 综合得出最终的投资信号(bullish/bearish/neutral)和置信度(0-100)
+
+**输出要求**（必须严格按照JSON格式）:
+```json
+{{
+    "signal": "bullish/bearish/neutral",
+    "confidence": 85,
+    "reasoning": "详细的综合分析推理，解释为什么得出这个结论",
+    "tool_analysis": {{
+        "consistent_signals": ["一致的工具信号"],
+        "conflicting_signals": ["冲突的工具信号"], 
+        "key_factors": ["影响决策的关键因素"],
+        "risk_considerations": ["需要考虑的风险因素"]
+    }},
+    "synthesis_method": "说明你是如何综合这些工具结果的"
+}}
+```
+
+请基于你的专业经验和判断，给出最终的综合分析结果。
+"""
+    return prompt
+
+
+def _parse_llm_synthesis_response(response_content: str, tool_results: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """解析LLM综合分析的响应"""
+    import json
+    import re
+    
+        # 尝试从    响应中提取JSON
+    json_match = re.search(r'```json\s*(.*?)\s*```', response_content, re.DOTALL)
+    if json_match:
+        json_str = json_match.group(1)
     else:
-        final_signal = "neutral"
+        # 如果没有找到```json```标记，尝试直接解析整个响应
+        json_str = response_content.strip()
+    
+    result = json.loads(json_str)
+    
+    # 验证必需字段
+    signal = result.get("signal", "neutral").lower()
+    if signal not in ["bullish", "bearish", "neutral"]:
+        signal = "neutral"
+    
+    confidence = result.get("confidence", 50)
+    if not isinstance(confidence, (int, float)) or confidence < 0 or confidence > 100:
+        confidence = 50
     
     return {
-        "signal": final_signal,
-        "tool_count": len(valid_results),
-        "signal_breakdown": {
-            "bullish_weight": round(bullish_weight, 3),
-            "bearish_weight": round(bearish_weight, 3),
-            "neutral_weight": round(neutral_weight, 3),
-            "total_weight": round(total_weight, 3)
-        },
-        "tool_details": signal_details,
-        "reasoning": f"基于{len(valid_results)}个工具的加权信号组合"
+        "signal": signal,
+        "confidence": int(confidence),
+        "reasoning": result.get("reasoning", "LLM综合分析结果"),
+        "tool_analysis": result.get("tool_analysis", {}),
+        "synthesis_method": result.get("synthesis_method", "LLM综合判断"),
+        "tool_count": len(tool_results),
+        "llm_enhanced": True
     }
+        
+
+
+# 保持向后兼容的旧函数名
+def combine_tool_signals(tool_results: List[Dict[str, Any]], weights: Optional[Dict[str, float]] = None) -> Dict[str, Any]:
+    """向后兼容的函数，建议使用combine_tool_signals_with_llm"""
+    return _fallback_combine_signals([r for r in tool_results if "error" not in r])
 
 
 # ===================== 基本面分析工具 =====================

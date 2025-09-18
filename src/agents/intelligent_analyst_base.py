@@ -78,10 +78,9 @@ class IntelligentAnalystBase:
                 tool_name = result.get("tool_name", "unknown")
                 signal = result.get("signal", "unknown")
                 confidence = result.get("confidence", 0)
-                weight = result.get("assigned_weight", 0)
                 reason = result.get("selection_reason", "")
                 
-                tool_summary.append(f"- **{tool_name}**: {signal} (置信度: {confidence}%, 权重: {weight:.1%})")
+                tool_summary.append(f"- **{tool_name}**: {signal} (置信度: {confidence}%)")
                 if reason:
                     tool_summary.append(f"  选择理由: {reason}")
                 if 'reasoning' in result:
@@ -165,97 +164,95 @@ class IntelligentAnalystBase:
         
         progress.update_status(f"{self.analyst_persona.lower()}_agent", ticker, "开始智能工具选择")
         
-        try:
-            # 1. 生成市场条件（这里需要从外部传入state或其他方式获取）
-            market_conditions = {
-                "analysis_date": end_date,
-                "volatility_regime": "normal",
-                "interest_rate": "normal", 
-                "market_sentiment": "neutral"
-            }
-            
-            # 2. 使用LLM选择工具
-            if llm:
-                selection_result = await self.tool_selector.select_tools_with_llm(
-                    llm, self.analyst_persona, ticker, market_conditions, analysis_objective
-                )
-            else:
-                # 降级到默认选择
-                selection_result = self.tool_selector._get_default_tool_selection(self.analyst_persona)
-            
-            progress.update_status(f"{self.analyst_persona.lower()}_agent", ticker, 
-                                 f"选择了{selection_result['tool_count']}个工具")
-            
-            # 3. 执行选定的工具
-            tool_results = self.tool_selector.execute_selected_tools(
-                selection_result["selected_tools"],
-                ticker=ticker,
-                api_key=api_key,
-                start_date=start_date,
-                end_date=end_date
+        # 1. 生成市场条件（这里需要从外部传入state或其他方式获取）
+        market_conditions = {
+            "analysis_date": end_date,
+            "volatility_regime": "normal",
+            "interest_rate": "normal", 
+            "market_sentiment": "neutral"
+        }
+        
+        # 2. 使用LLM选择工具
+
+        selection_result = await self.tool_selector.select_tools_with_llm(
+            llm, self.analyst_persona, ticker, market_conditions, analysis_objective
+        )
+        
+        progress.update_status(f"{self.analyst_persona.lower()}_agent", ticker, 
+                                f"选择了{selection_result['tool_count']}个工具")
+        
+        # 3. 执行选定的工具
+        tool_results = self.tool_selector.execute_selected_tools(
+            selection_result["selected_tools"],
+            ticker=ticker,
+            api_key=api_key,
+            start_date=start_date,
+            end_date=end_date
+        )
+
+        # 4. 使用LLM综合判断工具结果
+        progress.update_status(f"{self.analyst_persona.lower()}_agent", ticker, "LLM综合分析信号")
+        combined_result = self.tool_selector.synthesize_results_with_llm(
+            tool_results, 
+            selection_result,
+            llm,
+            ticker,
+            self.analyst_persona
+        )
+        # 显示llm prompt合并之后的信号结果
+        # print(f"{self.analyst_persona.lower()}_agent\n",combined_result)
+        
+        # 5. 生成详细推理
+        detailed_reasoning = ""
+        if llm:
+            progress.update_status(f"{self.analyst_persona.lower()}_agent", ticker, "生成详细推理")
+            detailed_reasoning = self.generate_detailed_reasoning_with_llm(
+                ticker, tool_results, combined_result, selection_result, llm
             )
-            
-            # 4. 组合工具结果
-            progress.update_status(f"{self.analyst_persona.lower()}_agent", ticker, "组合分析信号")
-            combined_result = self.tool_selector.combine_tool_results(tool_results)
-            
-            # 5. 生成详细推理
-            detailed_reasoning = ""
-            if llm:
-                progress.update_status(f"{self.analyst_persona.lower()}_agent", ticker, "生成详细推理")
-                detailed_reasoning = self.generate_detailed_reasoning_with_llm(
-                    ticker, tool_results, combined_result, selection_result, llm
-                )
-            
-            # 6. 构建最终结果
-            analysis_result = {
-                "signal": combined_result["signal"],
-                "confidence": combined_result["confidence"],
-                "tool_selection": {
-                    "analysis_strategy": selection_result["analysis_strategy"],
-                    "market_considerations": selection_result["market_considerations"],
-                    "selected_tools": selection_result["selected_tools"],
-                    "tool_count": selection_result["tool_count"]
-                },
-                "tool_analysis": {
-                    "tools_used": len(selection_result["selected_tools"]),
-                    "successful_tools": len([r for r in tool_results if "error" not in r]),
-                    "failed_tools": len([r for r in tool_results if "error" in r]),
-                    "tool_results": tool_results,
-                    "combination_details": combined_result
-                },
-                "reasoning": {
-                    "summary": combined_result.get("reasoning", "基于LLM智能选择的工具组合分析"),
-                    "detailed_analysis": detailed_reasoning,
-                    "tool_breakdown": {result.get("tool_name", f"tool_{i}"): {
-                        "signal": result.get("signal", "unknown"),
-                        "confidence": result.get("confidence", 0),
-                        "weight": result.get("assigned_weight", 0),
-                        "selection_reason": result.get("selection_reason", ""),
-                        "key_data": result.get("metrics", result.get("valuation", {}))
-                    } for i, result in enumerate(tool_results) if "error" not in result}
-                },
-                "metadata": {
-                    "analyst_name": self.analyst_persona,
-                    "analysis_date": end_date,
-                    "llm_enhanced": llm is not None,
-                    "selection_method": "LLM智能选择" if llm else "默认选择"
-                }
+        
+        # 6. 构建最终结果
+        analysis_result = {
+            "signal": combined_result["signal"],
+            "confidence": combined_result["confidence"],
+            "tool_selection": {
+                "analysis_strategy": selection_result["analysis_strategy"],
+                "market_considerations": selection_result["market_considerations"],
+                "selected_tools": selection_result["selected_tools"],
+                "tool_count": selection_result["tool_count"]
+            },
+            "tool_analysis": {
+                "tools_used": len(selection_result["selected_tools"]),
+                "successful_tools": len([r for r in tool_results if "error" not in r]),
+                "failed_tools": len([r for r in tool_results if "error" in r]),
+                "tool_results": tool_results,
+                "synthesis_details": combined_result
+            },
+            "reasoning": {
+                "summary": combined_result.get("reasoning", "基于LLM智能选择的工具组合分析"),
+                "detailed_analysis": detailed_reasoning,
+                "tool_impact_analysis": combined_result.get("tool_impact_analysis", ""),
+                "synthesis_method": combined_result.get("synthesis_method", "unknown"),
+                "tool_breakdown": {result.get("tool_name", f"tool_{i}"): {
+                    "signal": result.get("signal", "unknown"),
+                    "confidence": result.get("confidence", 0),
+                    "selection_reason": result.get("selection_reason", ""),
+                    "key_data": result.get("metrics", result.get("valuation", {}))
+                } for i, result in enumerate(tool_results) if "error" not in result}
+            },
+            "metadata": {
+                "analyst_name": self.analyst_persona,
+                "analysis_date": end_date,
+                "llm_enhanced": llm is not None,
+                "selection_method": "LLM智能选择" if llm else "默认选择",
+                "synthesis_method": combined_result.get("synthesis_method", "unknown")
             }
+        }
+        
+        progress.update_status(f"{self.analyst_persona.lower()}_agent", ticker, "分析完成")
+        
+        return analysis_result
             
-            progress.update_status(f"{self.analyst_persona.lower()}_agent", ticker, "分析完成")
-            
-            return analysis_result
-            
-        except Exception as e:
-            progress.update_status(f"{self.analyst_persona.lower()}_agent", ticker, f"分析失败: {str(e)}")
-            return {
-                "signal": "neutral",
-                "confidence": 0,
-                "error": str(e),
-                "reasoning": {"summary": f"{self.analyst_persona}分析失败: {str(e)}"},
-                "metadata": {"analyst_name": self.analyst_persona, "analysis_date": end_date}
-            }
+     
 
 
 # 具体的分析师类
