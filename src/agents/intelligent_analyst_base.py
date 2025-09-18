@@ -77,10 +77,12 @@ class IntelligentAnalystBase:
             if "error" not in result:
                 tool_name = result.get("tool_name", "unknown")
                 signal = result.get("signal", "unknown")
-                confidence = result.get("confidence", 0)
+                # confidence = result.get("confidence", 0)
                 reason = result.get("selection_reason", "")
                 
-                tool_summary.append(f"- **{tool_name}**: {signal} (Confidence: {confidence}%)")
+                # tool_summary.append(f"- **{tool_name}**: {signal} (Confidence: {confidence}%)")
+                tool_summary.append(f"- **{tool_name}**: {signal}")
+
                 if reason:
                     tool_summary.append(f"  Selection reason: {reason}")
                 if 'reasoning' in result:
@@ -94,7 +96,6 @@ class IntelligentAnalystBase:
 As a professional {self.analyst_persona}, please generate a detailed professional analysis report for stock {ticker} based on the following analysis results:
 
 **Tool Selection Strategy**: {selection_info.get('analysis_strategy', 'Not provided')}
-**Market Environment Considerations**: {selection_info.get('market_considerations', 'Not provided')}
 
 **Tool Analysis Results**:
 {chr(10).join(tool_summary)}
@@ -202,13 +203,7 @@ Please maintain the professional perspective and analytical style of {self.analy
         # Display LLM prompt merged signal results
         # print(f"{self.analyst_persona.lower()}_agent\n",combined_result)
         
-        # 5. 生成详细推理
-        detailed_reasoning = ""
-        if llm:
-            progress.update_status(f"{self.analyst_persona.lower()}_agent", ticker, "Generating detailed reasoning")
-            detailed_reasoning = self.generate_detailed_reasoning_with_llm(
-                ticker, tool_results, combined_result, selection_result, llm
-            )
+        # 5. 生成详细推理 (已移除，避免重复内容)
         
         # 6. 构建最终结果
         analysis_result = {
@@ -216,7 +211,7 @@ Please maintain the professional perspective and analytical style of {self.analy
             "confidence": combined_result["confidence"],
             "tool_selection": {
                 "analysis_strategy": selection_result["analysis_strategy"],
-                "market_considerations": selection_result["market_considerations"],
+                # "market_considerations": selection_result["market_considerations"],
                 "selected_tools": selection_result["selected_tools"],
                 "tool_count": selection_result["tool_count"]
             },
@@ -226,18 +221,6 @@ Please maintain the professional perspective and analytical style of {self.analy
                 "failed_tools": len([r for r in tool_results if "error" in r]),
                 "tool_results": tool_results,
                 "synthesis_details": combined_result
-            },
-            "reasoning": {
-                "summary": combined_result.get("reasoning", "Analysis based on LLM intelligent tool selection"),
-                "detailed_analysis": detailed_reasoning,
-                "tool_impact_analysis": combined_result.get("tool_impact_analysis", ""),
-                "synthesis_method": combined_result.get("synthesis_method", "unknown"),
-                "tool_breakdown": {result.get("tool_name", f"tool_{i}"): {
-                    "signal": result.get("signal", "unknown"),
-                    "confidence": result.get("confidence", 0),
-                    "selection_reason": result.get("selection_reason", ""),
-                    "key_data": result.get("metrics", result.get("valuation", {}))
-                } for i, result in enumerate(tool_results) if "error" not in result}
             },
             "metadata": {
                 "analyst_name": self.analyst_persona,

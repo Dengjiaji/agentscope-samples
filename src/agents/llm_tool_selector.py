@@ -217,7 +217,6 @@ You are a professional {analyst_persona}, and you need to select appropriate ana
     ],
     "analysis_strategy": "overall analysis strategy description",
     "synthesis_approach": "method for synthesizing tool results",
-    "market_considerations": "market environment considerations"
 }}
 ```
 
@@ -227,7 +226,7 @@ Please intelligently select the most suitable analysis tool combination for the 
     
     def _get_analyst_persona_description(self, analyst_persona: str) -> str:
         """Get analyst persona description"""
-    personas = {
+        personas = {
         "Fundamental Analyst": """
 As a fundamental analyst, you focus on:
 - Company financial health and profitability
@@ -339,7 +338,7 @@ You will flexibly select various tools based on specific situations, pursuing co
             "selected_tools": valid_tools,
             "analysis_strategy": selection_result.get("analysis_strategy", "LLM-generated analysis strategy"),
             "synthesis_approach": selection_result.get("synthesis_approach", "Comprehensive judgment based on tool results"),
-            "market_considerations": selection_result.get("market_considerations", "Considerations based on current market environment"),
+            # "market_considerations": selection_result.get("market_considerations", "Considerations based on current market environment"),
             "tool_count": len(valid_tools)
         }
     
@@ -378,7 +377,7 @@ You will flexibly select various tools based on specific situations, pursuing co
             "selected_tools": selected_tools,
             "analysis_strategy": f"Default {analyst_persona} analysis strategy",
             "synthesis_approach": "Comprehensive judgment based on tool results",
-            "market_considerations": "Using default tool combination",
+            # "market_considerations": "Using default tool combination",
             "tool_count": len(selected_tools)
         }
     

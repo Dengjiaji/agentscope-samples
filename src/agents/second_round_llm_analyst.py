@@ -13,7 +13,7 @@ from ..utils.llm import call_llm
 from ..utils.json_utils import quiet_json_dumps
 from ..models.second_round_signals import SecondRoundAnalysis, AnalystPersona, TickerSignal
 from src.communication.cfg import ANALYST_PERSONAS
-
+import pdb
 
 
 
@@ -54,9 +54,6 @@ Please return structured analysis results in JSON format."""),
 
 ## Notifications from Other Analysts
 {notifications}
-
-## Your First Round Analysis Pipeline Information
-{pipeline_info}
 
 === Analysis Requirements ===
 Please re-evaluate your investment perspective based on the above information.
@@ -131,10 +128,11 @@ def run_second_round_llm_analysis(
         first_round_analysis=quiet_json_dumps(first_round_analysis, ensure_ascii=False, indent=2),
         overall_summary=quiet_json_dumps(overall_summary, ensure_ascii=False, indent=2),
         notifications=notifications_str,
-        pipeline_info = persona.pipeline_config,
+        # pipeline_info = persona.pipeline_config,
         agent_id=agent_id  
     )
     # print(prompt)
+    # pdb.set_trace()
     # 调用LLM
     def create_default_analysis():
         """创建默认分析结果"""
