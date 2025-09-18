@@ -11,7 +11,7 @@ from langchain_core.messages import HumanMessage
 from ..graph.state import AgentState
 from ..utils.llm import call_llm
 from ..utils.json_utils import quiet_json_dumps
-from ..models.second_round_signals import SecondRoundAnalysis, AnalystPersona, TickerSignal
+from ..data.second_round_signals import SecondRoundAnalysis, AnalystPersona, TickerSignal
 from src.communication.cfg import ANALYST_PERSONAS
 import pdb
 
@@ -43,14 +43,7 @@ You need to provide for each stock:
 Please return structured analysis results in JSON format."""),        
     ("human", """=== Second Round Analysis Input ===
 
-## Stock List for Analysis
-{tickers}
-
-## Your First Round Analysis Results  
-{first_round_analysis}
-
-## Overall Analysis Summary
-{overall_summary}
+{ticker_reports}
 
 ## Notifications from Other Analysts
 {notifications}
@@ -117,6 +110,36 @@ def run_second_round_llm_analysis(
     else:
         notifications_str = "No notifications from other analysts yet"
     
+    # 生成分ticker的报告格式
+    ticker_reports = []
+    for i, ticker in enumerate(tickers, 1):
+        # 提取该ticker的第一轮分析结果
+        ticker_first_round = {}
+        if isinstance(first_round_analysis, dict):
+            # 如果first_round_analysis包含ticker_signals列表
+            if 'ticker_signals' in first_round_analysis:
+                for signal in first_round_analysis['ticker_signals']:
+                    if signal.get('ticker') == ticker:
+                        ticker_first_round = signal
+                        break
+            else:
+                # 如果是直接的ticker->analysis映射
+                ticker_first_round = first_round_analysis.get(ticker, {})
+        
+        ticker_report = f"""## Stock {i}: {ticker}
+
+### Your First Round Analysis for {ticker}
+
+Analysis Result and Thought Process:
+{quiet_json_dumps(ticker_first_round['tool_analysis']['synthesis_details'], ensure_ascii=False, indent=2)}
+Analysis Tools Selection and Reasoning:
+{quiet_json_dumps(ticker_first_round['tool_selection'], ensure_ascii=False, indent=2)}
+
+"""
+        ticker_reports.append(ticker_report)
+    
+    ticker_reports_str = "\n".join(ticker_reports)
+    
     # Create prompt
     prompt = prompt_template.format_messages(
         analyst_name=persona.name,
@@ -124,16 +147,13 @@ def run_second_round_llm_analysis(
         analysis_focus=analysis_focus_str,
         decision_style=persona.decision_style,
         risk_preference=persona.risk_preference,
-        tickers=", ".join(tickers),
-        first_round_analysis=quiet_json_dumps(first_round_analysis, ensure_ascii=False, indent=2),
-        overall_summary=quiet_json_dumps(overall_summary, ensure_ascii=False, indent=2),
+        ticker_reports=ticker_reports_str,
         notifications=notifications_str,
-        # pipeline_info = persona.pipeline_config,
         agent_id=agent_id  
     )
-    # print(prompt)
-    # pdb.set_trace()
     # 调用LLM
+    
+
     def create_default_analysis():
         """创建默认分析结果"""
         return SecondRoundAnalysis(
@@ -148,7 +168,6 @@ def run_second_round_llm_analysis(
                 ) for ticker in tickers
             ]
         )
-    
     try:
         result = call_llm(
             prompt=prompt,
@@ -161,7 +180,8 @@ def run_second_round_llm_analysis(
         # 确保analyst_id和analyst_name正确设置
         result.analyst_id = agent_id
         result.analyst_name = persona.name
-        
+        # pdb.set_trace()
+
         return result
         
     except Exception as e:
