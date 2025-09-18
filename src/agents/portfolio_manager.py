@@ -21,7 +21,7 @@ class PortfolioManagerOutput(BaseModel):
 
 ##### Portfolio Management Agent #####
 def portfolio_management_agent(state: AgentState, agent_id: str = "portfolio_manager"):
-    """基于分析师信号做出最终投资方向决策"""
+    """Make final investment direction decisions based on analyst signals"""
 
     # Get analyst signals
     analyst_signals = state["data"]["analyst_signals"]
@@ -129,54 +129,54 @@ def generate_trading_decision(
     agent_id: str,
     state: AgentState,
 ) -> PortfolioManagerOutput:
-    """基于分析师信号生成投资方向决策"""
+    """Generate investment direction decisions based on analyst signals"""
     # Create the prompt template
     template = ChatPromptTemplate.from_messages(
         [
             (
                 "system",
-                """你是一个投资组合管理者，需要基于多个分析师的信号做出最终的投资方向决策。
+                """You are a portfolio manager who needs to make final investment direction decisions based on signals from multiple analysts.
 
-              重要说明：
-              - 你的任务是为每只股票决定投资方向：long（看多）、short（看空）或hold（观望）
-              - 不需要考虑具体的投资数量，只需要决定方向
-              - 每个决策都是基于单位资产（比如1股）进行的
-              - 需要综合考虑所有分析师的意见，包括他们的置信度
+              Important Notes:
+              - Your task is to decide investment direction for each stock: long (bullish), short (bearish), or hold (neutral)
+              - No need to consider specific investment quantities, only decide direction
+              - Each decision is based on unit assets (e.g., 1 share)
+              - Need to comprehensively consider opinions from all analysts, including their confidence levels
 
-              可用的投资方向：
-              - "long": 看多该股票，预期价格上涨
-              - "short": 看空该股票，预期价格下跌  
-              - "hold": 观望，不进行操作
+              Available investment directions:
+              - "long": Bullish on the stock, expecting price to rise
+              - "short": Bearish on the stock, expecting price to decline
+              - "hold": Neutral, no action taken
 
-              输入信息：
-              - signals_by_ticker: 每只股票对应的分析师信号字典
-              - analyst_weights: 基于绩效的分析师权重（如果可用）
-              - 风险管理器提供风险评估信息（risk_level, risk_score等），不包含投资建议
+              Input information:
+              - signals_by_ticker: Dictionary of analyst signals for each ticker
+              - analyst_weights: Performance-based analyst weights (if available)
+              - Risk manager provides risk assessment information (risk_level, risk_score, etc.), does not include investment recommendations
               """,
             ),
             (
                 "human",
-                """基于团队的分析，为每只股票做出投资方向决策。
+                """Based on team analysis, make investment direction decisions for each stock.
 
-              各股票的分析师信号：
+              Analyst signals for each stock:
               {signals_by_ticker}
 
               {analyst_weights_info}{analyst_weights_separator}
 
-              决策规则：
-              - 综合考虑所有分析师的信号和置信度
-              - 权重高的分析师意见应该获得更多考虑
-              - 当分析师意见分歧较大时，选择hold观望
-              - 当多数分析师意见一致且置信度高时，跟随主流意见
-              - 风险管理器的风险评估信息应该作为重要参考，高风险股票需要更谨慎的决策
+              Decision rules:
+              - Comprehensively consider signals and confidence levels from all analysts
+              - Opinions from analysts with higher weights should receive more consideration
+              - When analysts have significant disagreements, choose hold/neutral
+              - When majority of analysts agree with high confidence, follow mainstream opinion
+              - Risk manager's risk assessment information should be used as important reference, high-risk stocks require more cautious decisions
 
-              请严格按照以下JSON格式输出：
+              Please strictly output in the following JSON format:
               {{
                 "decisions": {{
                   "TICKER1": {{
                     "action": "long/short/hold",
-                    "confidence": 0到100之间的浮点数,
-                    "reasoning": "详细说明你的决策理由，包括如何综合各分析师意见"
+                    "confidence": float between 0-100,
+                    "reasoning": "detailed explanation of your decision rationale, including how you synthesized each analyst's opinion"
                   }},
                   "TICKER2": {{
                     ...
@@ -195,14 +195,14 @@ def generate_trading_decision(
     # 格式化分析师权重信息
     analyst_weights_info = ""
     if analyst_weights:
-        analyst_weights_info = "分析师绩效权重 (基于最近投资信号准确性):\n"
+        analyst_weights_info = "Analyst Performance Weights (based on recent investment signal accuracy):\n"
         # 按权重排序
         sorted_weights = sorted(analyst_weights.items(), key=lambda x: x[1], reverse=True)
         for analyst_id, weight in sorted_weights:
             # 检查是否是新员工
             new_hire_info = ""
             if okr_state and okr_state.get("new_hires", {}).get(analyst_id):
-                new_hire_info = " (新入职分析师)"
+                new_hire_info = " (New Hire Analyst)"
             
             # 权重条形图
             bar_length = int(weight * 20)  # 最大20个字符
@@ -210,7 +210,7 @@ def generate_trading_decision(
             
             analyst_weights_info += f"  {analyst_id}: {weight:.3f} {bar}{new_hire_info}\n"
         
-        analyst_weights_info += "\n💡 建议根据权重高低来考虑不同分析师建议的重要性。权重高的分析师建议应获得更多关注。"
+        analyst_weights_info += "\n💡 Recommendation: Consider the importance of different analyst suggestions based on weight levels. Suggestions from analysts with higher weights should receive more attention."
     # print('******************************',analyst_weights_info,'******************************')
     # Generate the prompt
     prompt_data = {

@@ -237,32 +237,32 @@ class CommunicationManager:
         
         # 构建决策提示
         prompt_template = ChatPromptTemplate.from_messages([
-            ("system", """你是一个投资组合管理者，负责协调分析师团队。
-基于当前的分析结果，你需要决定是否需要与分析师进行进一步交流。
+            ("system", """You are a portfolio manager responsible for coordinating the analyst team.
+        Based on current analysis results, you need to decide whether further communication with analysts is needed.
 
-交流方式有两种：
-1. private_chat: 与单个分析师一对一私聊，适用于需要深入讨论特定问题
-2. meeting: 组织多个分析师开会讨论，适用于需要集体决策或存在重大分歧
+        There are two communication methods:
+        1. private_chat: One-on-one private chat with individual analyst, suitable for in-depth discussion of specific issues
+        2. meeting: Organize multiple analysts for group discussion, suitable for collective decision-making or major disagreements
 
-必须以JSON格式返回决策，不要包含任何其他文本。请将任何文本内容控制在不超过{max_chars}字。"""),
+        Must return decision in JSON format, do not include any other text. Please keep any text content within {max_chars} characters."""),
             
-            ("human", """分析师信号汇总:
-{analyst_signals}
+            ("human", """Analyst Signal Summary:
+        {analyst_signals}
 
-请决定是否需要交流，并说明原因。如果需要交流，请指定：
-- 交流类型 (private_chat 或 meeting)
-- 目标分析师列表
-- 讨论话题
-- 选择原因
+        Please decide whether communication is needed and explain the reason. If communication is needed, please specify:
+        - Communication type (private_chat or meeting)
+        - Target analyst list
+        - Discussion topic
+        - Selection reason
 
-返回JSON格式：
-{{
-  "should_communicate": true/false,
-  "communication_type": "private_chat" 或 "meeting",
-  "target_analysts": ["analyst1", "analyst2"],
-  "discussion_topic": "讨论话题",
-  "reasoning": "选择原因"
-}}""")
+        Return JSON format:
+        {{
+        "should_communicate": true/false,
+        "communication_type": "private_chat" or "meeting",
+        "target_analysts": ["analyst1", "analyst2"],
+        "discussion_topic": "discussion topic",
+        "reasoning": "selection reason"
+        }}""")
         ])
         
         # 格式化分析师信号
@@ -328,7 +328,7 @@ class CommunicationManager:
             )
         
         # 开始私聊
-        initial_message = f"关于{topic}，我想和你讨论一下你的分析结果。你目前的信号是：{quiet_json_dumps(analyst_signal, ensure_ascii=False)}"
+        initial_message = f"Regarding {topic}, I would like to discuss your analysis results with you. Your current signal is: {quiet_json_dumps(analyst_signal, ensure_ascii=False)}"
         
         chat_id = self.private_chat_system.start_private_chat(
             manager_id, analyst_id, initial_message
@@ -461,7 +461,7 @@ class CommunicationManager:
         adjustments_made_counter = 0
         
         # 管理者开场
-        opening_message = f"我们来讨论{topic}。请各位分析师分享你们的观点和分析结果。"
+        opening_message = f"Let's discuss {topic}. Please share your viewpoints and analysis results."
         self.meeting_system.add_message(meeting_id, manager_id, opening_message)
         meeting_transcript.append({
             "speaker": manager_id,
@@ -585,53 +585,53 @@ class CommunicationManager:
             full_context = analyst_memory.get_full_context_for_communication(tickers)
         
         prompt_template = ChatPromptTemplate.from_messages([
-            ("system", """你是{analyst_id}分析师。你正在与投资组合管理者进行一对一讨论。
+    ("system", """You are {analyst_id} analyst. You are having a one-on-one discussion with the portfolio manager.
 
-你的完整记忆和分析历史：
+Your complete memory and analysis history:
 {full_context}
 
-基于你的记忆、对话历史和当前分析信号，请：
-1. 回应管理者的问题或观点
-2. 解释你的分析逻辑（可以引用你之前的分析过程）
-3. 如果有必要，基于新信息调整你的信号、信心度或reasoning
+Based on your memory, conversation history and current analysis signal, please:
+1. Respond to the manager's questions or viewpoints
+2. Explain your analysis logic (you can reference your previous analysis process)
+3. If necessary, adjust your signal, confidence level or reasoning based on new information
 
-当前话题的信号：
+Current signal for the topic:
 {current_signal}
 
-如果需要调整信号，请在回应中明确说明调整内容和原因。
+If you need to adjust the signal, please clearly state the adjustment content and reason in your response.
 
-请必须以JSON格式返回你的回应，严格按照以下JSON结构，不要包含任何其他文本：
+Please must return your response in JSON format, strictly following the JSON structure below, do not include any other text:
 
-重要：ticker_signals必须是对象数组，不是字符串数组！
+Important: ticker_signals must be an object array, not a string array!
 
 {{
-  "response": "你的回应内容",
+  "response": "your response content",
   "signal_adjustment": true/false,
   "adjusted_signal": {{
     "analyst_id": "{analyst_id}",
-    "analyst_name": "你的分析师名称",
+    "analyst_name": "your analyst name",
     "ticker_signals": [
-      {{"ticker": "AAPL", "signal": "bearish", "confidence": 85, "reasoning": "调整原因"}},
-      {{"ticker": "MSFT", "signal": "neutral", "confidence": 70, "reasoning": "调整原因"}}
+      {{"ticker": "AAPL", "signal": "bearish", "confidence": 85, "reasoning": "adjustment reason"}},
+      {{"ticker": "MSFT", "signal": "neutral", "confidence": 70, "reasoning": "adjustment reason"}}
     ]
   }}
 }}
 
-禁止使用这种错误格式：
+Prohibited incorrect format:
 {{"ticker_signals": ["ticker_signals: [...]"]}}
 
-必须使用正确格式：
+Must use correct format:
 {{"ticker_signals": [{{"ticker": "AAPL", "signal": "bearish", "confidence": 85}}]}}
 
-注意：请将上述"response"字段的文字内容控制在不超过{max_chars}字。"""),
-            
-            ("human", """对话话题：{topic}
+Note: Please keep the "response" field text content within {max_chars} characters."""),
+    
+    ("human", """Conversation topic: {topic}
 
-当前对话历史：
+Current conversation history:
 {conversation_history}
 
-请基于你的完整记忆和分析历史回应最新的对话内容。""")
-        ])
+Please respond to the latest conversation content based on your complete memory and analysis history.""")
+])
         
         messages = prompt_template.format_messages(
             analyst_id=analyst_id,
@@ -676,18 +676,18 @@ class CommunicationManager:
         """获取管理者在私聊中的回应"""
         
         prompt_template = ChatPromptTemplate.from_messages([
-            ("system", """你是投资组合管理者，正在与分析师进行一对一讨论。
-基于分析师的回应，继续对话，提出问题或给出建议。
-保持专业和建设性的对话风格。请将你的回应控制在不超过{max_chars}字。"""),
-            
-            ("human", """对话历史：
+    ("system", """You are a portfolio manager having a one-on-one discussion with an analyst.
+Based on the analyst's response, continue the conversation, ask questions or give suggestions.
+Maintain a professional and constructive conversation style. Please keep your response within {max_chars} characters."""),
+    
+    ("human", """Conversation history:
 {conversation_history}
 
-分析师当前信号：
+Analyst's current signal:
 {current_signal}
 
-请回应分析师最新的发言。""")
-        ])
+Please respond to the analyst's latest statement.""")
+])
         
         messages = prompt_template.format_messages(
             conversation_history=self._format_conversation_history(conversation_history),
@@ -717,59 +717,59 @@ class CommunicationManager:
             full_context = analyst_memory.get_full_context_for_communication(tickers)
         
         prompt_template = ChatPromptTemplate.from_messages([
-            ("system", """你是{analyst_id}分析师，正在参加一个投资会议。
+    ("system", """You are {analyst_id} analyst participating in an investment meeting.
 
-你的完整记忆和分析历史：
+Your complete memory and analysis history:
 {full_context}
 
-你当前的分析信号：
+Your current analysis signal:
 {current_signal}
 
-请必须以JSON格式返回你的回应，严格按照以下JSON结构，不要包含任何其他文本：
+Please must return your response in JSON format, strictly following the JSON structure below, do not include any other text:
 
-重要：ticker_signals必须是对象数组，不是字符串数组！
+Important: ticker_signals must be an object array, not a string array!
 
 {{
-  "response": "你的发言内容",
+  "response": "your speech content",
   "signal_adjustment": true/false,
   "adjusted_signal": {{
     "analyst_id": "{analyst_id}",
-    "analyst_name": "你的分析师名称",
+    "analyst_name": "your analyst name",
     "ticker_signals": [
-      {{"ticker": "AAPL", "signal": "bearish", "confidence": 85, "reasoning": "调整原因"}},
-      {{"ticker": "MSFT", "signal": "neutral", "confidence": 70, "reasoning": "调整原因"}}
+      {{"ticker": "AAPL", "signal": "bearish", "confidence": 85, "reasoning": "adjustment reason"}},
+      {{"ticker": "MSFT", "signal": "neutral", "confidence": 70, "reasoning": "adjustment reason"}}
     ]
   }}
 }}
 
-禁止使用这种错误格式：
+Prohibited incorrect format:
 {{"ticker_signals": ["ticker_signals: [...]"]}}
 
-必须使用正确格式：
+Must use correct format:
 {{"ticker_signals": [{{"ticker": "AAPL", "signal": "bearish", "confidence": 85}}]}}
 
-注意：请将上述"response"字段的文字内容控制在不超过{max_chars}字。"""),
-            
-            ("human", """会议话题：{topic}
+Note: Please keep the "response" field text content within {max_chars} characters."""),
+    
+    ("human", """Meeting topic: {topic}
 
-这是第{round_num}轮发言。
+This is round {round_num} of speeches.
 
-会议记录（重要！请仔细阅读并回应）：
+Meeting transcript (Important! Please read carefully and respond):
 {meeting_transcript}
 
-其他分析师的信号：
+Other analysts' signals:
 {other_signals}
 
-发言要求：
-1. 如果这是第1轮：分享你的观点和分析依据
-2. 如果这是第2轮或更多：
-   - 必须明确回应前面轮次中其他分析师的具体观点
-   - 说明你是否同意或不同意他们的分析，并给出理由
-   - 基于讨论内容考虑是否需要调整你的信号
-   - 避免重复第1轮的发言内容
+Speech requirements:
+1. If this is round 1: Share your viewpoints and analysis basis
+2. If this is round 2 or more:
+   - Must explicitly respond to specific viewpoints from other analysts in previous rounds
+   - State whether you agree or disagree with their analysis, and give reasons
+   - Consider whether to adjust your signal based on discussion content
+   - Avoid repeating round 1 speech content
 
-请基于会议记录和讨论内容发言，展现真正的互动和思辨过程。""")
-        ])
+Please speak based on meeting transcript and discussion content, showing genuine interaction and critical thinking process.""")
+])
         
         messages = prompt_template.format_messages(
             analyst_id=analyst_id,
@@ -816,16 +816,16 @@ class CommunicationManager:
         """获取管理者的会议总结"""
         
         prompt_template = ChatPromptTemplate.from_messages([
-            ("system", """你是投资组合管理者，正在总结会议内容。
-请简洁地总结讨论要点和最终达成的共识。请将总结控制在不超过{max_chars}字。"""),
+            ("system", """You are a portfolio manager summarizing meeting content.
+        Please concisely summarize discussion points and final consensus reached. Please keep the summary within {max_chars} characters."""),
             
-            ("human", """会议记录：
-{meeting_transcript}
+            ("human", """Meeting transcript:
+        {meeting_transcript}
 
-最终信号：
-{final_signals}
+        Final signals:
+        {final_signals}
 
-请总结这次会议。""")
+        Please summarize this meeting.""")
         ])
         
         messages = prompt_template.format_messages(

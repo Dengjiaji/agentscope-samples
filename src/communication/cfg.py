@@ -3,18 +3,18 @@ from src.models.second_round_signals import AnalystPersona
 # 定义四个核心分析师的人格设定
 ANALYST_PERSONAS = {
     "fundamentals_analyst": AnalystPersona(
-        name="基本面分析师",
-        specialty="财务数据分析与公司基本面评估",
+        name="Fundamental Analyst",
+        specialty="Financial data analysis and company fundamental assessment",
         analysis_focus=[
-            "财务指标分析（PE、PB、ROE、ROA等）",
-            "收入和利润增长趋势",
-            "资产负债表健康度",
-            "现金流状况",
-            "行业竞争地位"
+            "Financial ratio analysis (PE, PB, ROE, ROA, etc.)",
+            "Revenue and profit growth trends",
+            "Balance sheet health",
+            "Cash flow conditions",
+            "Industry competitive position"
         ],
-        decision_style="基于量化指标的理性分析，注重长期价值",
-        risk_preference="中等风险，偏好财务稳健的公司",
-        pipeline_config=''' 以下是你在进行第一轮股票基本面分析时使用的Pipeline信息：
+        decision_style="Rational analysis based on quantitative indicators, focusing on long-term value",
+        risk_preference="Moderate risk, preference for financially stable companies",
+        pipeline_config=''' Below is the Pipeline information you used during the first round of stock fundamental analysis:
     for ticker in tickers:
         progress.update_status(agent_id, ticker, "Fetching financial metrics")
 
@@ -140,18 +140,18 @@ ANALYST_PERSONAS = {
     ),
     
     "sentiment_analyst": AnalystPersona(
-        name="情绪分析师", 
-        specialty="市场情绪与新闻舆论分析",
+        name="Sentiment Analyst", 
+        specialty="Market sentiment and news opinion analysis",
         analysis_focus=[
-            "新闻舆论分析",
-            "社交媒体情绪",
-            "市场预期变化",
-            "投资者情绪指标",
-            "事件驱动的情绪波动"
+            "News opinion analysis",
+            "Social media sentiment",
+            "Market expectation changes",
+            "Investor sentiment indicators",
+            "Event-driven sentiment fluctuations"
         ],
-        decision_style="基于情绪趋势和市场心理的判断",
-        risk_preference="较高风险承受能力，关注短期情绪波动",
-        pipeline_config=''' 以下是你在进行第一轮股票情绪分析时使用的Pipeline信息：
+        decision_style="Judgment based on sentiment trends and market psychology",
+        risk_preference="Higher risk tolerance, focus on short-term sentiment fluctuations",
+        pipeline_config=''' Below is the Pipeline information you used during the first round of stock sentiment analysis:
     for ticker in tickers:
         progress.update_status(agent_id, ticker, "Fetching insider trades")
 
@@ -251,18 +251,18 @@ ANALYST_PERSONAS = {
     ),
     
     "technical_analyst": AnalystPersona(
-        name="技术分析师",
-        specialty="技术指标与图表分析", 
+        name="Technical Analyst",
+        specialty="Technical indicators and chart analysis", 
         analysis_focus=[
-            "价格趋势分析",
-            "技术指标（MA、RSI、MACD等）",
-            "支撑阻力位",
-            "交易量分析",
-            "图表形态识别"
+            "Price trend analysis",
+            "Technical indicators (MA, RSI, MACD, etc.)",
+            "Support and resistance levels",
+            "Volume analysis",
+            "Chart pattern recognition"
         ],
-        decision_style="基于技术指标和价格行为的系统化分析",
-        risk_preference="中等风险，注重时机把握",
-        pipeline_config=''' 以下是你在进行第一轮股票技术分析时使用的Pipeline信息：
+        decision_style="Systematic analysis based on technical indicators and price behavior",
+        risk_preference="Moderate risk, focusing on timing",
+        pipeline_config=''' Below is the Pipeline information you used during the first round of stock technical analysis:
     for ticker in tickers:
         progress.update_status(agent_id, ticker, "Analyzing price data")
 
@@ -728,18 +728,18 @@ def calculate_hurst_exponent(price_series: pd.Series, max_lag: int = 20) -> floa
     ),
     
     "valuation_analyst": AnalystPersona(
-        name="估值分析师",
-        specialty="公司估值与价值评估",
+        name="Valuation Analyst",
+        specialty="Company valuation and value assessment",
         analysis_focus=[
-            "DCF模型估值",
-            "相对估值比较",
-            "内在价值计算",
-            "估值倍数分析",
-            "价值投资机会识别"
+            "DCF model valuation",
+            "Relative valuation comparison",
+            "Intrinsic value calculation",
+            "Valuation multiple analysis",
+            "Value investment opportunity identification"
         ],
-        decision_style="基于内在价值的保守估值方法",
-        risk_preference="低到中等风险，重视安全边际",
-        pipeline_config=''' 以下是你在进行第一轮股票估值分析时使用的Pipeline信息：
+        decision_style="Conservative valuation method based on intrinsic value",
+        risk_preference="Low to moderate risk, emphasis on margin of safety",
+        pipeline_config=''' Below is the Pipeline information you used during the first round of stock valuation analysis:
     for ticker in tickers:
         progress.update_status(agent_id, ticker, "Fetching financial data")
 

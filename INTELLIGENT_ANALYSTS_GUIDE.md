@@ -218,7 +218,7 @@ result = custom_analyst.analyze_with_llm_tool_selection(
 
 ### 提示词结构
 ```
-你是一位专业的{analyst_persona}，需要为股票{ticker}选择合适的分析工具。
+You are a professional {analyst_persona}, need to select appropriate analysis tools for stock {ticker}.
 
 **分析目标**: {analysis_objective}
 **当前市场环境**: {market_conditions}

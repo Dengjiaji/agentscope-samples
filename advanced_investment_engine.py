@@ -181,7 +181,7 @@ class AdvancedInvestmentAnalysisEngine:
             
             # 可以将通知上下文添加到消息中
             context_message = HumanMessage(
-                content=f"上下文信息：{notifications_context}\n\n请基于这些信息和最新数据进行分析。"
+                content=f"Context information: {notifications_context}\n\nPlease analyze based on this information and latest data."
             )
             state["messages"].append(context_message)
             

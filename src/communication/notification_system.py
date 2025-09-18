@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Agent通知系统
-实现agents之间的通知机制，包括通知工具和记忆管理
+Agent Notification System
+Implement notification mechanism between agents, including notification tools and memory management
 """
 
 import json
@@ -11,11 +11,11 @@ from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
 import re
 try:
-    import numpy as _np  # 类型清洗用，可选
+    import numpy as _np  # For type cleaning, optional
 except Exception:
     _np = None
 try:
-    import pandas as _pd  # 类型清洗用，可选
+    import pandas as _pd  # For type cleaning, optional
 except Exception:
     _pd = None
 import logging
@@ -289,7 +289,7 @@ def send_notification(content: str, urgency: str = "medium", category: str = "ge
         category=category
     )
     
-    return f"通知已发送，ID: {notification_id}"
+    return f"Notification sent, ID: {notification_id}"
 
 
 def should_send_notification(agent_id: str, analysis_result: Dict, 
@@ -307,47 +307,46 @@ def should_send_notification(agent_id: str, analysis_result: Dict,
     Returns:
         通知决策结果
     """
-    # 构建prompt
+    # Build prompt
     recent_notifications = agent_memory.get_recent_notifications(24)
     notifications_context = "\n".join([
-        f"- {n.sender_agent}: {n.content} (紧急程度: {n.urgency})"
-        for n in recent_notifications[-5:]  # 只取最近5条
+        f"- {n.sender_agent}: {n.content} (Urgency: {n.urgency})"
+        for n in recent_notifications[-5:]  # Only take the latest 5
     ])
     
     prompt = f"""
-你是一个{agent_id}，刚刚完成了分析并得到以下结果：
+You are a {agent_id}, having just completed analysis and obtained the following results:
 
-分析结果：
+Analysis Results:
 {json.dumps(_make_json_safe(analysis_result), ensure_ascii=False, indent=2)}
 
-你最近收到的通知：
+Notifications you recently received:
 {notifications_context}
 
-请判断是否需要向其他分析师发送通知。考虑以下因素：
-1. 分析结果的重要性和紧急性
-2. 是否发现了重大风险或机会
-3. 是否有与其他分析师相关的重要信息
-4. 避免发送重复或不重要的通知
+Please determine whether you need to send notifications to other analysts. Consider the following factors:
+1. Importance and urgency of analysis results
+2. Whether major risks or opportunities are discovered
+3. Whether there is important information relevant to other analysts
+4. Avoid sending duplicate or unimportant notifications
 
-请严格按照以下JSON格式回复，不要包含任何额外的文字说明：
+Please reply strictly in the following JSON format, do not include any additional text explanations:
 
-如果需要发送通知：
+If notification is needed:
 {{
     "should_notify": true,
-    "content": "通知内容",
+    "content": "notification content",
     "urgency": "low/medium/high/critical",
     "category": "market_alert/risk_warning/opportunity/policy_update/general"
 }}
 
-如果不需要发送通知：
+If notification is not needed:
 {{
     "should_notify": false,
-    "reason": "不发送通知的原因"
+    "reason": "reason for not sending notification"
 }}
 
-重要：回复内容必须是纯JSON格式，不要添加任何解释文字或markdown标记。
+Important: Reply content must be in pure JSON format, do not add any explanatory text or markdown markers.
 """
-    
     # 获取LLM模型
     # print(type(state['metadata']))
     # print(state['metadata'])
@@ -358,52 +357,52 @@ def should_send_notification(agent_id: str, analysis_result: Dict,
     
     for attempt in range(max_retries):
         try:
-            # 调用LLM
+            # Call LLM
             response = model.invoke([HumanMessage(content=prompt)])
             
-            # 调试：打印LLM的原始响应
-            print(f"🔍 {agent_id} LLM通知决策原始响应 (尝试 {attempt + 1}/{max_retries}): '{response.content}'")
+            # Debug: Print LLM's raw response
+            print(f"🔍 {agent_id} LLM notification decision raw response (attempt {attempt + 1}/{max_retries}): '{response.content}'")
             
-            # 使用鲁棒的JSON解析
+            # Use robust JSON parsing
             decision = robust_json_parse(response.content)
-            print(f"✅ {agent_id} JSON解析成功")
+            print(f"✅ {agent_id} JSON parsing successful")
             return decision
             
         except json.JSONDecodeError as e:
-            print(f"⚠️ {agent_id} 通知决策JSON解析失败 (尝试 {attempt + 1}/{max_retries}): {str(e)}")
-            print(f"📝 原始响应内容: '{response.content}'")
+            print(f"⚠️ {agent_id} notification decision JSON parsing failed (attempt {attempt + 1}/{max_retries}): {str(e)}")
+            print(f"📝 Raw response content: '{response.content}'")
             
             if attempt < max_retries - 1:
-                print(f"🔄 正在重试...")
-                # 修改prompt，强调JSON格式要求
+                print(f"🔄 Retrying...")
+                # Modify prompt to emphasize JSON format requirements
                 prompt += f"""
 
-注意：请务必严格按照JSON格式回复，不要包含任何额外的文字说明。
-上一次回复格式有误：{response.content}
-请重新生成正确的JSON格式回复。"""
+Note: Please strictly reply in JSON format, do not include any additional text explanations.
+The previous reply format was incorrect: {response.content}
+Please regenerate the correct JSON format reply."""
             else:
-                # 最后一次尝试失败，返回默认决策
-                print(f"❌ {agent_id} 达到最大重试次数，使用备用决策")
+                # Last attempt failed, return default decision
+                print(f"❌ {agent_id} reached maximum retry count, using fallback decision")
                 fallback_decision = {
                     "should_notify": False,
-                    "reason": f"LLM响应解析失败，已重试{max_retries}次: {str(e)}"
+                    "reason": f"LLM response parsing failed, retried {max_retries} times: {str(e)}"
                 }
-                print(f"🔧 使用备用决策: {fallback_decision}")
+                print(f"🔧 Using fallback decision: {fallback_decision}")
                 return fallback_decision
                 
         except Exception as e:
-            print(f"⚠️ {agent_id} 通知决策处理出现未知错误 (尝试 {attempt + 1}/{max_retries}): {str(e)}")
+            print(f"⚠️ {agent_id} notification decision processing encountered unknown error (attempt {attempt + 1}/{max_retries}): {str(e)}")
             
             if attempt < max_retries - 1:
-                print(f"🔄 正在重试...")
+                print(f"🔄 Retrying...")
             else:
-                # 最后一次尝试失败，返回默认决策
-                print(f"❌ {agent_id} 达到最大重试次数，使用备用决策")
+                # Last attempt failed, return default decision
+                print(f"❌ {agent_id} reached maximum retry count, using fallback decision")
                 fallback_decision = {
                     "should_notify": False,
-                    "reason": f"通知决策处理失败，已重试{max_retries}次: {str(e)}"
+                    "reason": f"Notification decision processing failed, retried {max_retries} times: {str(e)}"
                 }
-                print(f"🔧 使用备用决策: {fallback_decision}")
+                print(f"🔧 Using fallback decision: {fallback_decision}")
                 return fallback_decision
         
  
@@ -415,14 +414,14 @@ def format_notifications_for_context(agent_memory: NotificationMemory) -> str:
     recent_notifications = agent_memory.get_recent_notifications(24)
     
     if not recent_notifications:
-        return "今日暂无收到通知。"
+        return "No notifications received today."
     
-    formatted = "今日收到的通知：\n"
+    formatted = "Notifications received today:\n"
     for notification in recent_notifications:
         formatted += f"""
-- 来自 {notification.sender_agent} ({notification.timestamp.strftime('%H:%M')}):
+- From {notification.sender_agent} ({notification.timestamp.strftime('%H:%M')}):
   {notification.content}
-  紧急程度: {notification.urgency} | 类别: {notification.category}
+  Urgency: {notification.urgency} | Category: {notification.category}
 """
     
     return formatted

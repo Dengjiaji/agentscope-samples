@@ -16,6 +16,7 @@ from src.tools.analysis_tools_unified import (
     analyze_growth,
     analyze_financial_health,
     analyze_valuation_ratios,
+    analyze_efficiency_ratios,
     
     # 技术分析工具
     analyze_trend_following,
@@ -51,126 +52,132 @@ class LLMToolSelector:
     
     def __init__(self):
         # 所有可用的分析工具
+        
         self.all_available_tools = {
             # 基本面分析工具
             "analyze_profitability": {
                 "tool": analyze_profitability,
                 "category": "fundamental",
-                "description": "分析公司盈利能力，包括ROE、净利率、营业利率等指标",
-                "best_for": "评估公司赚钱能力和经营效率",
-                "data_requirements": "财务报表数据"
+                "description": "Analyze company profitability, including ROE, net margin, operating margin and other indicators",
+                "best_for": "Evaluate company's earning capacity and operational efficiency",
+                "data_requirements": "Financial statement data"
             },
             "analyze_growth": {
                 "tool": analyze_growth,
                 "category": "fundamental", 
-                "description": "分析公司成长性，包括收入增长、盈利增长、净资产增长",
-                "best_for": "评估公司未来发展潜力",
-                "data_requirements": "多期财务数据"
+                "description": "Analyze company growth, including revenue growth, earnings growth, and net asset growth",
+                "best_for": "Evaluate company's future development potential",
+                "data_requirements": "Multi-period financial data"
             },
             "analyze_financial_health": {
                 "tool": analyze_financial_health,
                 "category": "fundamental",
-                "description": "分析财务健康度，包括流动比率、债务水平、现金流转换",
-                "best_for": "评估公司财务风险和稳定性",
-                "data_requirements": "资产负债表和现金流量表数据"
+                "description": "Analyze financial health, including current ratio, debt level, and cash flow conversion",
+                "best_for": "Evaluate company's financial risk and stability",
+                "data_requirements": "Balance sheet and cash flow statement data"
             },
             "analyze_valuation_ratios": {
                 "tool": analyze_valuation_ratios,
                 "category": "fundamental",
-                "description": "分析估值比率，包括P/E、P/B、P/S等指标",
-                "best_for": "评估股票价格是否合理",
-                "data_requirements": "市场价格和财务数据"
+                "description": "Analyze valuation ratios, including P/E, P/B, P/S and other indicators",
+                "best_for": "Evaluate whether stock price is reasonable",
+                "data_requirements": "Market price and financial data"
             },
-            
+            "analyze_efficiency_ratios": {
+                "tool": analyze_efficiency_ratios,
+                "category": "fundamental",
+                "description": "Analyze efficiency ratios, including asset turnover, inventory turnover, accounts receivable turnover, working capital turnover and other indicators",
+                "best_for": "Evaluate company's asset utilization efficiency",
+                "data_requirements": "Financial statement data"
+            },
             # 技术分析工具
             "analyze_trend_following": {
                 "tool": analyze_trend_following,
                 "category": "technical",
-                "description": "趋势跟踪分析，包括移动平均线、MACD等趋势指标",
-                "best_for": "判断价格趋势方向和强度",
-                "data_requirements": "历史价格数据（建议50天以上）"
+                "description": "Trend following analysis, including moving averages, MACD and other trend indicators",
+                "best_for": "Determine price trend direction and strength",
+                "data_requirements": "Historical price data (recommended 50+ days)"
             },
             "analyze_mean_reversion": {
                 "tool": analyze_mean_reversion,
                 "category": "technical",
-                "description": "均值回归分析，包括布林带、RSI等超买超卖指标",
-                "best_for": "识别价格偏离和反转机会",
-                "data_requirements": "历史价格数据（建议20天以上）"
+                "description": "Mean reversion analysis, including Bollinger Bands, RSI and other overbought/oversold indicators",
+                "best_for": "Identify price deviation and reversal opportunities",
+                "data_requirements": "Historical price data (recommended 20+ days)"
             },
             "analyze_momentum": {
                 "tool": analyze_momentum,
                 "category": "technical",
-                "description": "动量分析，包括短中长期价格动量指标",
-                "best_for": "评估价格变化的动能和持续性",
-                "data_requirements": "历史价格数据（建议30天以上）"
+                "description": "Momentum analysis, including short, medium and long-term price momentum indicators",
+                "best_for": "Evaluate momentum and sustainability of price changes",
+                "data_requirements": "Historical price data (recommended 30+ days)"
             },
             "analyze_volatility": {
                 "tool": analyze_volatility,
                 "category": "technical",
-                "description": "波动率分析，包括不同时间窗口的价格波动率",
-                "best_for": "评估投资风险和市场情绪",
-                "data_requirements": "历史价格数据（建议30天以上）"
+                "description": "Volatility analysis, including price volatility across different time windows",
+                "best_for": "Evaluate investment risk and market sentiment",
+                "data_requirements": "Historical price data (recommended 30+ days)"
             },
             
             # 情绪分析工具
             "analyze_insider_trading": {
                 "tool": analyze_insider_trading,
                 "category": "sentiment",
-                "description": "内部交易分析，统计内部人员买卖交易情况",
-                "best_for": "了解内部人员对公司前景的看法",
-                "data_requirements": "内部交易披露数据"
+                "description": "Insider trading analysis, statistics on insider buy/sell transactions",
+                "best_for": "Understand insiders' views on company prospects",
+                "data_requirements": "Insider trading disclosure data"
             },
             "analyze_news_sentiment": {
                 "tool": analyze_news_sentiment,
                 "category": "sentiment",
-                "description": "新闻情绪分析，分析媒体报道的正负面情绪",
-                "best_for": "了解市场舆论和投资者情绪",
-                "data_requirements": "公司相关新闻数据"
+                "description": "News sentiment analysis, analyzing positive/negative sentiment in media reports",
+                "best_for": "Understand market opinion and investor sentiment",
+                "data_requirements": "Company-related news data"
             },
             
             # 估值分析工具
             "dcf_valuation_analysis": {
                 "tool": dcf_valuation_analysis,
                 "category": "valuation",
-                "description": "DCF折现现金流估值，基于未来现金流预测的内在价值",
-                "best_for": "计算公司理论内在价值",
-                "data_requirements": "现金流数据和增长率预测"
+                "description": "DCF discounted cash flow valuation, intrinsic value based on future cash flow projections",
+                "best_for": "Calculate company's theoretical intrinsic value",
+                "data_requirements": "Cash flow data and growth rate projections"
             },
             "owner_earnings_valuation_analysis": {
                 "tool": owner_earnings_valuation_analysis,
                 "category": "valuation",
-                "description": "巴菲特式所有者收益估值，考虑维持竞争力所需投资",
-                "best_for": "价值投资导向的保守估值",
-                "data_requirements": "净利润、折旧、资本支出、营运资本数据"
+                "description": "Buffett-style owner earnings valuation, considering investments needed to maintain competitiveness",
+                "best_for": "Conservative valuation for value investment approach",
+                "data_requirements": "Net income, depreciation, capital expenditure, working capital data"
             },
             "ev_ebitda_valuation_analysis": {
                 "tool": ev_ebitda_valuation_analysis,
                 "category": "valuation",
-                "description": "EV/EBITDA倍数估值，基于历史倍数的相对估值",
-                "best_for": "与历史水平和同行比较的相对估值",
-                "data_requirements": "企业价值和EBITDA历史数据"
+                "description": "EV/EBITDA multiple valuation, relative valuation based on historical multiples",
+                "best_for": "Relative valuation compared to historical levels and peers",
+                "data_requirements": "Enterprise value and EBITDA historical data"
             },
             "residual_income_valuation_analysis": {
                 "tool": residual_income_valuation_analysis,
                 "category": "valuation",
-                "description": "剩余收益模型估值，基于超额收益的价值创造分析",
-                "best_for": "评估管理层价值创造能力",
-                "data_requirements": "净利润、账面价值、股权成本数据"
+                "description": "Residual income model valuation, value creation analysis based on excess returns",
+                "best_for": "Evaluate management's value creation capability",
+                "data_requirements": "Net income, book value, cost of equity data"
             }
         }
-    
     def get_tool_selection_prompt(self, analyst_persona: str, ticker: str, 
                                  market_conditions: Dict[str, Any], 
                                  analysis_objective: str) -> str:
-        """生成工具选择的LLM提示词"""
+        """Generate LLM prompt for tool selection"""
         
         # 构建工具描述
         tools_description = []
         for tool_name, tool_info in self.all_available_tools.items():
             tools_description.append(
                 f"- **{tool_name}** ({tool_info['category']}): {tool_info['description']}\n"
-                f"  适用场景: {tool_info['best_for']}\n"
-                f"  数据需求: {tool_info['data_requirements']}"
+                f"  Best for: {tool_info['best_for']}\n"
+                f"  Data requirements: {tool_info['data_requirements']}"
             )
         
         tools_text = "\n\n".join(tools_description)
@@ -179,101 +186,100 @@ class LLMToolSelector:
         market_context = []
         for key, value in market_conditions.items():
             market_context.append(f"- {key}: {value}")
-        market_text = "\n".join(market_context) if market_context else "- 无特殊市场条件信息"
+        market_text = "\n".join(market_context) if market_context else "- No special market condition information"
 
 # **当前市场环境**:
 # {market_text}
         prompt = f"""
-你是一位专业的{analyst_persona}，需要为股票{ticker}选择合适的分析工具进行投资分析。
+You are a professional {analyst_persona}, and you need to select appropriate analysis tools for stock {ticker} to conduct investment analysis.
 
-**分析目标**: {analysis_objective}
+**Analysis Objective**: {analysis_objective}
 
-
-**可用分析工具**:
+**Available Analysis Tools**:
 {tools_text}
 
-**你的专业身份和偏好**:
+**Your Professional Identity and Preferences**:
 {self._get_analyst_persona_description(analyst_persona)}
 
-**任务要求**:
-1. 根据你的专业背景和当前市场环境，从上述工具中选择3-6个最适合的工具
-2. 简要说明选择这些工具的原因
-3. 说明你将如何综合这些工具的结果来形成最终判断
+**Task Requirements**:
+1. Based on your professional background and current market environment, select 3-6 most suitable tools from the above tools
+2. Briefly explain the reasons for selecting these tools
+3. Explain how you will synthesize the results from these tools to form your final judgment
 
-**输出格式**（必须严格按照JSON格式）:
+**Output Format** (must strictly follow JSON format):
 ```json
 {{
     "selected_tools": [
         {{
-            "tool_name": "工具名称",
-            "reason": "选择原因"
+            "tool_name": "tool name",
+            "reason": "selection reason"
         }}
     ],
-    "analysis_strategy": "整体分析策略说明",
-    "synthesis_approach": "如何综合工具结果的方法",
-    "market_considerations": "市场环境考虑因素"
+    "analysis_strategy": "overall analysis strategy description",
+    "synthesis_approach": "method for synthesizing tool results",
+    "market_considerations": "market environment considerations"
 }}
 ```
 
-请基于你的专业判断，智能选择最适合当前情况的分析工具组合。
+Please intelligently select the most suitable analysis tool combination for the current situation based on your professional judgment.
 """
         return prompt
     
     def _get_analyst_persona_description(self, analyst_persona: str) -> str:
-        """获取分析师人设描述"""
-        personas = {
-            "基本面分析师": """
-作为基本面分析师，你专注于：
-- 公司财务健康状况和盈利能力
-- 业务模式的可持续性和竞争优势
-- 管理层质量和公司治理
-- 行业地位和市场份额
-- 长期投资价值评估
-你倾向于选择能深入了解公司内在价值的工具，偏好基本面和估值类工具。
-            """,
-            "技术分析师": """
-作为技术分析师，你专注于：
-- 价格走势和图表形态
-- 技术指标和交易信号
-- 市场情绪和资金流向
-- 支撑阻力位和关键价位
-- 短中期交易机会
-你倾向于选择能捕捉价格动态和市场趋势的工具，偏好技术分析类工具。
-            """,
-            "情绪分析师": """
-作为情绪分析师，你专注于：
-- 市场参与者的情绪变化
-- 新闻舆论和媒体影响
-- 内部人员交易行为
-- 投资者恐慌和贪婪情绪
-- 市场预期和心理因素
-你倾向于选择能反映市场情绪和投资者行为的工具，偏好情绪和行为类工具。
-            """,
-            "估值分析师": """
-作为估值分析师，你专注于：
-- 公司内在价值计算
-- 不同估值方法的对比
-- 估值模型的假设和敏感性
-- 相对估值和绝对估值
-- 投资安全边际评估
-你倾向于选择能精确计算公司价值的工具，偏好估值模型和基本面工具。
-            """,
-            "综合分析师": """
-作为综合分析师，你需要：
-- 整合多个维度的分析视角
-- 平衡短期和长期因素
-- 考虑基本面、技术面、情绪面的综合影响
-- 提供全面的投资建议
-- 适应不同的市场环境
-你会根据具体情况灵活选择各类工具，追求分析的全面性和准确性。
-            """
-        }
-        return personas.get(analyst_persona, personas["综合分析师"])
+        """Get analyst persona description"""
+    personas = {
+        "Fundamental Analyst": """
+As a fundamental analyst, you focus on:
+- Company financial health and profitability
+- Business model sustainability and competitive advantages
+- Management quality and corporate governance
+- Industry position and market share
+- Long-term investment value assessment
+You tend to select tools that provide deep insights into company intrinsic value, preferring fundamental and valuation tools.
+        """,
+        "Technical Analyst": """
+As a technical analyst, you focus on:
+- Price trends and chart patterns
+- Technical indicators and trading signals
+- Market sentiment and capital flows
+- Support/resistance levels and key price points
+- Short to medium-term trading opportunities
+You tend to select tools that capture price dynamics and market trends, preferring technical analysis tools.
+        """,
+        "Sentiment Analyst": """
+As a sentiment analyst, you focus on:
+- Market participant sentiment changes
+- News opinion and media influence
+- Insider trading behavior
+- Investor panic and greed emotions
+- Market expectations and psychological factors
+You tend to select tools that reflect market sentiment and investor behavior, preferring sentiment and behavioral tools.
+        """,
+        "Valuation Analyst": """
+As a valuation analyst, you focus on:
+- Company intrinsic value calculation
+- Comparison of different valuation methods
+- Valuation model assumptions and sensitivity
+- Relative and absolute valuation
+- Investment margin of safety assessment
+You tend to select tools that accurately calculate company value, preferring valuation models and fundamental tools.
+        """,
+        "Comprehensive Analyst": """
+As a comprehensive analyst, you need to:
+- Integrate multiple analytical perspectives
+- Balance short-term and long-term factors
+- Consider combined impact of fundamentals, technicals, and sentiment
+- Provide comprehensive investment advice
+- Adapt to different market environments
+You will flexibly select various tools based on specific situations, pursuing comprehensiveness and accuracy in analysis.
+        """
+    }
+        return personas.get(analyst_persona, personas["Comprehensive Analyst"])
     
     async def select_tools_with_llm(self, llm, analyst_persona: str, ticker: str,
                                    market_conditions: Dict[str, Any], 
-                                   analysis_objective: str = "全面的投资分析") -> Dict[str, Any]:
-        """使用LLM选择分析工具"""
+                                   analysis_objective: str = "Comprehensive investment analysis") -> Dict[str, Any]:
+        """Use LLM to select analysis tools"""
         
         # 生成提示词
         prompt = self.get_tool_selection_prompt(
@@ -306,12 +312,12 @@ class LLMToolSelector:
             return self._validate_and_normalize_selection(selection_result)
             
         except Exception as e:
-            print(f"⚠️ LLM工具选择失败: {str(e)}")
-            # 降级到默认选择策略
+            print(f"⚠️ LLM tool selection failed: {str(e)}")
+            # Fallback to default selection strategy
             return self._get_default_tool_selection(analyst_persona)
     
     def _validate_and_normalize_selection(self, selection_result: Dict[str, Any]) -> Dict[str, Any]:
-        """验证和规范化工具选择结果"""
+        """Validate and normalize tool selection results"""
         
         if "selected_tools" not in selection_result:
             raise ValueError("Missing selected_tools in response")
@@ -327,59 +333,58 @@ class LLMToolSelector:
             if tool_name in self.all_available_tools:
                 valid_tools.append(tool_selection)
             else:
-                print(f"⚠️ 无效工具名称: {tool_name}")
+                print(f"⚠️ Invalid tool name: {tool_name}")
         
         return {
             "selected_tools": valid_tools,
-            "analysis_strategy": selection_result.get("analysis_strategy", "LLM生成的分析策略"),
-            "synthesis_approach": selection_result.get("synthesis_approach", "基于工具结果综合判断"),
-            "market_considerations": selection_result.get("market_considerations", "基于当前市场环境的考虑"),
+            "analysis_strategy": selection_result.get("analysis_strategy", "LLM-generated analysis strategy"),
+            "synthesis_approach": selection_result.get("synthesis_approach", "Comprehensive judgment based on tool results"),
+            "market_considerations": selection_result.get("market_considerations", "Considerations based on current market environment"),
             "tool_count": len(valid_tools)
         }
     
     def _get_default_tool_selection(self, analyst_persona: str) -> Dict[str, Any]:
-        """获取默认工具选择（降级策略）"""
+        """Get default tool selection (fallback strategy)"""
         
         default_selections = {
-            "基本面分析师": [
-                
-                {"tool_name": "analyze_profitability", "reason": "盈利能力是基本面分析核心"},
-                {"tool_name": "analyze_growth", "reason": "成长性决定长期投资价值"},
-                {"tool_name": "analyze_financial_health", "reason": "财务健康度评估投资风险"},
-                {"tool_name": "analyze_valuation_ratios", "reason": "估值比率判断价格合理性"},
-                {"tool_name": "analyze_efficiency_ratios", "reason": "效率比率分析公司资产使用效率"}
+            "Fundamental Analyst": [
+                {"tool_name": "analyze_profitability", "reason": "Profitability is the core of fundamental analysis"},
+                {"tool_name": "analyze_growth", "reason": "Growth determines long-term investment value"},
+                {"tool_name": "analyze_financial_health", "reason": "Financial health assesses investment risk"},
+                {"tool_name": "analyze_valuation_ratios", "reason": "Valuation ratios determine price reasonableness"},
+                {"tool_name": "analyze_efficiency_ratios", "reason": "Efficiency ratios analyze company asset utilization"}
             ],
-            "技术分析师": [
-                {"tool_name": "analyze_trend_following", "reason": "趋势是技术分析的核心"},
-                {"tool_name": "analyze_momentum", "reason": "动量分析捕捉价格动能"},
-                {"tool_name": "analyze_mean_reversion", "reason": "均值回归识别反转机会"},
-                {"tool_name": "analyze_volatility", "reason": "波动率评估市场风险"}
+            "Technical Analyst": [
+                {"tool_name": "analyze_trend_following", "reason": "Trend is the core of technical analysis"},
+                {"tool_name": "analyze_momentum", "reason": "Momentum analysis captures price momentum"},
+                {"tool_name": "analyze_mean_reversion", "reason": "Mean reversion identifies reversal opportunities"},
+                {"tool_name": "analyze_volatility", "reason": "Volatility assesses market risk"}
             ],
-            "情绪分析师": [
-                {"tool_name": "analyze_news_sentiment", "reason": "新闻情绪反映市场预期"},
-                {"tool_name": "analyze_insider_trading", "reason": "内部交易显示内部信心"}
+            "Sentiment Analyst": [
+                {"tool_name": "analyze_news_sentiment", "reason": "News sentiment reflects market expectations"},
+                {"tool_name": "analyze_insider_trading", "reason": "Insider trading shows insider confidence"}
             ],
-            "估值分析师": [
-                {"tool_name": "dcf_valuation_analysis", "reason": "DCF是估值的金标准"},
-                {"tool_name": "owner_earnings_valuation_analysis", "reason": "所有者收益更保守实用"},
-                {"tool_name": "ev_ebitda_valuation_analysis", "reason": "倍数估值提供相对视角"},
-                {"tool_name": "residual_income_valuation_analysis", "reason": "剩余收益模型补充分析"}
+            "Valuation Analyst": [
+                {"tool_name": "dcf_valuation_analysis", "reason": "DCF is the gold standard of valuation"},
+                {"tool_name": "owner_earnings_valuation_analysis", "reason": "Owner earnings is more conservative and practical"},
+                {"tool_name": "ev_ebitda_valuation_analysis", "reason": "Multiple valuation provides relative perspective"},
+                {"tool_name": "residual_income_valuation_analysis", "reason": "Residual income model provides supplementary analysis"}
             ]
         }
         
-        selected_tools = default_selections.get(analyst_persona, default_selections["基本面分析师"])
+        selected_tools = default_selections.get(analyst_persona, default_selections["Fundamental Analyst"])
         
         return {
             "selected_tools": selected_tools,
-            "analysis_strategy": f"默认{analyst_persona}分析策略",
-            "synthesis_approach": "基于工具结果综合判断",
-            "market_considerations": "使用默认工具组合",
+            "analysis_strategy": f"Default {analyst_persona} analysis strategy",
+            "synthesis_approach": "Comprehensive judgment based on tool results",
+            "market_considerations": "Using default tool combination",
             "tool_count": len(selected_tools)
         }
     
     def execute_selected_tools(self, selected_tools: List[Dict[str, Any]], 
                              ticker: str, api_key: str, **kwargs) -> List[Dict[str, Any]]:
-        """执行选定的工具"""
+        """Execute selected tools"""
         
         tool_results = []
         
@@ -413,7 +418,7 @@ class LLMToolSelector:
                 tool_results.append(result)
                 
             except Exception as e:
-                print(f"工具 {tool_name} 执行失败: {str(e)}")
+                print(f"Tool {tool_name} execution failed: {str(e)}")
                 error_result = {
                     "tool_name": tool_name,
                     "error": str(e),
@@ -428,7 +433,7 @@ class LLMToolSelector:
     def synthesize_results_with_llm(self, tool_results: List[Dict[str, Any]], 
                                    selection_result: Dict[str, Any], 
                                    llm, ticker: str, analyst_persona: str) -> Dict[str, Any]:
-        """使用LLM综合工具结果，生成最终的信号和置信度"""
+        """Use LLM to synthesize tool results and generate final signal and confidence"""
         
         # 准备工具结果摘要
         tool_summaries = []
@@ -444,26 +449,26 @@ class LLMToolSelector:
         
         # 构建LLM提示
         prompt = f"""
-作为专业的{analyst_persona}，你需要综合以下工具的分析结果，给出最终的投资信号和置信度。
+        As a professional {analyst_persona}, you need to synthesize the following tool analysis results and provide final investment signal and confidence level.
 
-股票: {ticker}
-分析策略: {selection_result.get('analysis_strategy', '')}
-综合方法: {selection_result.get('synthesis_approach', '')}
+        Stock: {ticker}
+        Analysis Strategy: {selection_result.get('analysis_strategy', '')}
+        Synthesis Method: {selection_result.get('synthesis_approach', '')}
 
-工具分析结果:
-{json.dumps(tool_summaries, indent=2, ensure_ascii=False, cls=NumpyEncoder)}
+        Tool Analysis Results:
+        {json.dumps(tool_summaries, indent=2, ensure_ascii=False, cls=NumpyEncoder)}
 
-请基于你的专业判断，综合这些工具结果，给出最终的投资建议。
+        Please provide final investment recommendation based on your professional judgment by synthesizing these tool results.
 
-输出格式（JSON）:
-{{
-    "signal": "bullish/bearish/neutral",
-    "confidence": 0-100之间的整数,
-    "reasoning": "详细的综合判断理由，说明如何权衡各工具结果",
-    "tool_impact_analysis": "各工具对最终判断的影响分析"
-}}
-"""
-        
+        Output Format (JSON):
+        {{
+            "signal": "bullish/bearish/neutral",
+            "confidence": integer between 0-100,
+            "reasoning": "detailed comprehensive judgment rationale, explaining how to weigh each tool result",
+            "tool_impact_analysis": "analysis of each tool's impact on final judgment"
+        }}
+        """
+                
         from langchain_core.messages import HumanMessage
         messages = [HumanMessage(content=prompt)]
         response = llm.invoke(messages)
@@ -489,7 +494,7 @@ class LLMToolSelector:
         return {
             "signal": signal,
             "confidence": confidence,
-            "reasoning": synthesis_result.get("reasoning", "基于工具结果的综合判断"),
+            "reasoning": synthesis_result.get("reasoning", "Comprehensive judgment based on tool results"),
             "tool_impact_analysis": synthesis_result.get("tool_impact_analysis", ""),
             "synthesis_method": "llm_based"
         }

@@ -1,6 +1,6 @@
 """
-智能分析师基类
-基于LLM的工具选择和分析框架
+Intelligent Analyst Base Class
+LLM-based tool selection and analysis framework
 """
 
 from langchain_core.messages import HumanMessage
@@ -80,35 +80,35 @@ class IntelligentAnalystBase:
                 confidence = result.get("confidence", 0)
                 reason = result.get("selection_reason", "")
                 
-                tool_summary.append(f"- **{tool_name}**: {signal} (置信度: {confidence}%)")
+                tool_summary.append(f"- **{tool_name}**: {signal} (Confidence: {confidence}%)")
                 if reason:
-                    tool_summary.append(f"  选择理由: {reason}")
+                    tool_summary.append(f"  Selection reason: {reason}")
                 if 'reasoning' in result:
-                    tool_summary.append(f"  分析结果: {result['reasoning']}")
+                    tool_summary.append(f"  Analysis result: {result['reasoning']}")
                 
                 # 添加关键指标
                 self._add_key_metrics_to_summary(result, tool_summary)
         
         # 构建提示词
         prompt = f"""
-作为专业的{self.analyst_persona}，请基于以下分析结果为股票{ticker}生成详细的专业分析报告：
+As a professional {self.analyst_persona}, please generate a detailed professional analysis report for stock {ticker} based on the following analysis results:
 
-**工具选择策略**: {selection_info.get('analysis_strategy', '未提供')}
-**市场环境考虑**: {selection_info.get('market_considerations', '未提供')}
+**Tool Selection Strategy**: {selection_info.get('analysis_strategy', 'Not provided')}
+**Market Environment Considerations**: {selection_info.get('market_considerations', 'Not provided')}
 
-**工具分析结果**:
+**Tool Analysis Results**:
 {chr(10).join(tool_summary)}
 
-**综合分析信号**: {combined_result['signal']} (置信度: {combined_result['confidence']}%)
+**Comprehensive Analysis Signal**: {combined_result['signal']} (Confidence: {combined_result['confidence']}%)
 
-**请提供**:
-1. 对各项分析结果的专业解读和整合
-2. 基于你的专业背景的深度见解
-3. 当前分析结果的可靠性评估
-4. 具体的投资建议和风险提示
-5. 需要关注的关键因素和后续观察点
+**Please Provide**:
+1. Professional interpretation and integration of each analysis result
+2. Deep insights based on your professional background
+3. Reliability assessment of current analysis results
+4. Specific investment recommendations and risk warnings
+5. Key factors to watch and follow-up observation points
 
-请保持{self.analyst_persona}的专业视角和分析风格，提供有价值的投资洞察，控制在300字以内。
+Please maintain the professional perspective and analytical style of {self.analyst_persona}, provide valuable investment insights, and keep within 300 words.
 """
         
         try:
@@ -116,7 +116,7 @@ class IntelligentAnalystBase:
             response = llm.invoke(messages)
             return response.content
         except Exception as e:
-            return f"LLM推理生成失败: {str(e)}"
+            return f"LLM reasoning generation failed: {str(e)}"
     
     def _add_key_metrics_to_summary(self, result: Dict[str, Any], tool_summary: List[str]):
         """添加关键指标到摘要中"""
@@ -129,40 +129,40 @@ class IntelligentAnalystBase:
         if 'return_on_equity' in metrics:
             key_metrics.append(f"ROE: {metrics['return_on_equity']:.2%}" if metrics['return_on_equity'] else "ROE: N/A")
         if 'revenue_growth' in metrics:
-            key_metrics.append(f"收入增长: {metrics['revenue_growth']:.2%}" if metrics['revenue_growth'] else "收入增长: N/A")
+            key_metrics.append(f"Revenue Growth: {metrics['revenue_growth']:.2%}" if metrics['revenue_growth'] else "Revenue Growth: N/A")
         
         # 技术指标
         if 'current_price' in metrics:
-            key_metrics.append(f"当前价格: {metrics['current_price']:.2f}")
+            key_metrics.append(f"Current Price: {metrics['current_price']:.2f}")
         if 'rsi' in metrics:
             key_metrics.append(f"RSI: {metrics['rsi']:.1f}")
         if 'volatility_20d' in metrics:
-            key_metrics.append(f"20日波动率: {metrics['volatility_20d']:.1f}%")
+            key_metrics.append(f"20-day Volatility: {metrics['volatility_20d']:.1f}%")
         
         # 情绪指标
         if 'total_trades' in metrics:
-            key_metrics.append(f"内部交易数: {metrics['total_trades']}")
+            key_metrics.append(f"Insider Trades: {metrics['total_trades']}")
         if 'positive_ratio' in metrics:
-            key_metrics.append(f"正面新闻比例: {metrics['positive_ratio']:.1f}%")
+            key_metrics.append(f"Positive News Ratio: {metrics['positive_ratio']:.1f}%")
         
         # 估值指标
         if 'value_gap_pct' in valuation:
-            key_metrics.append(f"价值差距: {valuation['value_gap_pct']:.1f}%")
+            key_metrics.append(f"Value Gap: {valuation['value_gap_pct']:.1f}%")
         if 'enterprise_value' in valuation:
-            key_metrics.append(f"企业价值: ${valuation['enterprise_value']:,.0f}")
+            key_metrics.append(f"Enterprise Value: ${valuation['enterprise_value']:,.0f}")
         
         if key_metrics:
-            tool_summary.append(f"  关键指标: {', '.join(key_metrics[:3])}")  # 只显示前3个关键指标
+            tool_summary.append(f"  Key Metrics: {', '.join(key_metrics[:3])}")  # Only show first 3 key metrics
     
     async def analyze_with_llm_tool_selection(self, ticker: str, end_date: str, api_key: str,
                                             start_date: str = None, llm=None, 
                                             analysis_objective: str = None) -> Dict[str, Any]:
-        """使用LLM工具选择进行分析"""
+        """Perform analysis using LLM tool selection"""
         
         if analysis_objective is None:
-            analysis_objective = f"作为{self.analyst_persona}对股票{ticker}进行专业分析"
+            analysis_objective = f"As a professional {self.analyst_persona}, conduct comprehensive analysis of stock {ticker}"
         
-        progress.update_status(f"{self.analyst_persona.lower()}_agent", ticker, "开始智能工具选择")
+        progress.update_status(f"{self.analyst_persona.lower()}_agent", ticker, "Starting intelligent tool selection")
         
         # 1. 生成市场条件（这里需要从外部传入state或其他方式获取）
         market_conditions = {
@@ -179,7 +179,7 @@ class IntelligentAnalystBase:
         )
         
         progress.update_status(f"{self.analyst_persona.lower()}_agent", ticker, 
-                                f"选择了{selection_result['tool_count']}个工具")
+                                f"Selected {selection_result['tool_count']} tools")
         
         # 3. 执行选定的工具
         tool_results = self.tool_selector.execute_selected_tools(
@@ -191,7 +191,7 @@ class IntelligentAnalystBase:
         )
 
         # 4. 使用LLM综合判断工具结果
-        progress.update_status(f"{self.analyst_persona.lower()}_agent", ticker, "LLM综合分析信号")
+        progress.update_status(f"{self.analyst_persona.lower()}_agent", ticker, "LLM synthesizing analysis signals")
         combined_result = self.tool_selector.synthesize_results_with_llm(
             tool_results, 
             selection_result,
@@ -199,13 +199,13 @@ class IntelligentAnalystBase:
             ticker,
             self.analyst_persona
         )
-        # 显示llm prompt合并之后的信号结果
+        # Display LLM prompt merged signal results
         # print(f"{self.analyst_persona.lower()}_agent\n",combined_result)
         
         # 5. 生成详细推理
         detailed_reasoning = ""
         if llm:
-            progress.update_status(f"{self.analyst_persona.lower()}_agent", ticker, "生成详细推理")
+            progress.update_status(f"{self.analyst_persona.lower()}_agent", ticker, "Generating detailed reasoning")
             detailed_reasoning = self.generate_detailed_reasoning_with_llm(
                 ticker, tool_results, combined_result, selection_result, llm
             )
@@ -228,7 +228,7 @@ class IntelligentAnalystBase:
                 "synthesis_details": combined_result
             },
             "reasoning": {
-                "summary": combined_result.get("reasoning", "基于LLM智能选择的工具组合分析"),
+                "summary": combined_result.get("reasoning", "Analysis based on LLM intelligent tool selection"),
                 "detailed_analysis": detailed_reasoning,
                 "tool_impact_analysis": combined_result.get("tool_impact_analysis", ""),
                 "synthesis_method": combined_result.get("synthesis_method", "unknown"),
@@ -243,12 +243,12 @@ class IntelligentAnalystBase:
                 "analyst_name": self.analyst_persona,
                 "analysis_date": end_date,
                 "llm_enhanced": llm is not None,
-                "selection_method": "LLM智能选择" if llm else "默认选择",
+                "selection_method": "LLM intelligent selection" if llm else "Default selection",
                 "synthesis_method": combined_result.get("synthesis_method", "unknown")
             }
         }
         
-        progress.update_status(f"{self.analyst_persona.lower()}_agent", ticker, "分析完成")
+        progress.update_status(f"{self.analyst_persona.lower()}_agent", ticker, "Analysis completed")
         
         return analysis_result
             

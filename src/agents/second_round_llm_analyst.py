@@ -18,52 +18,52 @@ from src.communication.cfg import ANALYST_PERSONAS
 
 
 def create_second_round_prompt_template() -> ChatPromptTemplate:
-    """创建第二轮分析的prompt模板"""
+    """Create second-round analysis prompt template"""
     template = ChatPromptTemplate.from_messages([
-        ("system", """你是一位专业的{analyst_name}，具有以下特征：
+    ("system", """You are a professional {analyst_name} with the following characteristics:
 
-专业领域：{specialty}
-分析重点：{analysis_focus}
-决策风格：{decision_style}  
-风险偏好：{risk_preference}
+Professional Field: {specialty}
+Analysis Focus: {analysis_focus}
+Decision Style: {decision_style}  
+Risk Preference: {risk_preference}
 
-现在你需要基于第一轮分析结果、其他分析师的通知以及你进行第一轮分析的Pipeline信息，重新评估你的投资观点。
+Now you need to re-evaluate your investment perspective based on first-round analysis results, notifications from other analysts, and your first-round analysis Pipeline information.
 
-请以你的专业视角，综合考虑以下信息：
-1. 你自己的第一轮分析结果
-2. 其他分析师发送的通知和观点
-3. 整体分析摘要
-4. 你进行第一轮分析的Pipeline信息
+Please consider the following information from your professional perspective:
+1. Your own first-round analysis results
+2. Notifications and viewpoints sent by other analysts
+3. Overall analysis summary
+4. Your first-round analysis Pipeline information
 
-你需要为每个股票给出：
-- signal: "bullish"（看涨）, "bearish"（看跌）, "neutral"（中性）
-- confidence: 0-100的整数（信心度）
-- reasoning: 详细的判断理由
+You need to provide for each stock:
+- signal: "bullish" (bullish), "bearish" (bearish), "neutral" (neutral)
+- confidence: integer from 0-100 (confidence level)
+- reasoning: detailed judgment rationale
 
-请以JSON格式返回结构化的分析结果。"""),        
-        ("human", """=== 第二轮分析输入 ===
+Please return structured analysis results in JSON format."""),        
+    ("human", """=== Second Round Analysis Input ===
 
-## 分析的股票列表
+## Stock List for Analysis
 {tickers}
 
-## 你的第一轮分析结果  
+## Your First Round Analysis Results  
 {first_round_analysis}
 
-## 整体分析摘要
+## Overall Analysis Summary
 {overall_summary}
 
-## 其他分析师的通知
+## Notifications from Other Analysts
 {notifications}
 
-## 你进行第一轮分析的Pipeline信息
+## Your First Round Analysis Pipeline Information
 {pipeline_info}
 
-=== 分析要求 ===
-请基于以上信息，重新评估你的投资观点。
+=== Analysis Requirements ===
+Please re-evaluate your investment perspective based on the above information.
 
-从你作为{analyst_name}的专业角度出发，请以JSON格式返回分析结果。
+From your professional perspective as {analyst_name}, please return analysis results in JSON format.
 
-要求的JSON格式示例：
+Required JSON format example:
 {{
   "analyst_id": "{agent_id}",
   "analyst_name": "{analyst_name}",
@@ -72,19 +72,19 @@ def create_second_round_prompt_template() -> ChatPromptTemplate:
       "ticker": "AAPL",
       "signal": "bullish",
       "confidence": 75,
-      "reasoning": "详细的判断理由..."
+      "reasoning": "detailed judgment rationale..."
     }},
     {{
       "ticker": "MSFT", 
       "signal": "neutral",
       "confidence": 60,
-      "reasoning": "详细的判断理由..."
+      "reasoning": "detailed judgment rationale..."
     }}
   ]
 }}
 
-请严格按照此JSON格式返回分析结果。""")
-    ])
+Please strictly return analysis results according to this JSON format.""")
+])
     
     return template
 
@@ -105,7 +105,7 @@ def run_second_round_llm_analysis(
     
     persona = ANALYST_PERSONAS[agent_id]
     
-    # 创建prompt模板
+    # Create prompt template
     prompt_template = create_second_round_prompt_template()
     # 格式化分析重点为字符串
     analysis_focus_str = "\n".join([f"- {focus}" for focus in persona.analysis_focus])
@@ -118,9 +118,9 @@ def run_second_round_llm_analysis(
             for notif in notifications
         ])
     else:
-        notifications_str = "暂无其他分析师的通知"
+        notifications_str = "No notifications from other analysts yet"
     
-    # 创建prompt
+    # Create prompt
     prompt = prompt_template.format_messages(
         analyst_name=persona.name,
         specialty=persona.specialty,
@@ -146,7 +146,7 @@ def run_second_round_llm_analysis(
                     ticker=ticker,
                     signal="neutral", 
                     confidence=50,
-                    reasoning="LLM分析失败，保持中性观点"
+                    reasoning="LLM analysis failed, maintaining neutral stance"
                 ) for ticker in tickers
             ]
         )
@@ -167,7 +167,7 @@ def run_second_round_llm_analysis(
         return result
         
     except Exception as e:
-        print(f"❌ {persona.name} LLM分析失败: {str(e)}")
+        print(f"❌ {persona.name} LLM analysis failed: {str(e)}")
         return create_default_analysis()
 
 

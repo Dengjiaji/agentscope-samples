@@ -71,7 +71,7 @@ def normalize_pandas(data):
 #         return {"signal": "neutral", "confidence": 0, "reasoning": "No valid tool results"}
     
     
-#     # 构建LLM综合分析的prompt
+#     # Build LLM comprehensive analysis prompt
 #     synthesis_prompt = _build_synthesis_prompt(valid_results, analyst_persona, ticker)
     
 #     # 调用LLM进行综合分析
@@ -86,7 +86,7 @@ def normalize_pandas(data):
 # def _build_synthesis_prompt(tool_results: List[Dict[str, Any]], 
 #                            analyst_persona: str, 
 #                            ticker: str) -> str:
-#     """构建LLM综合分析的prompt"""
+#     """Build LLM comprehensive analysis prompt"""
     
 #     # 构建工具结果摘要
 #     tool_summaries = []
@@ -117,7 +117,7 @@ def normalize_pandas(data):
 #     tools_text = "\n".join(tool_summaries)
     
 #     prompt = f"""
-# 你是一位专业的{analyst_persona}，需要综合分析以下工具的结果，对股票{ticker}给出最终的投资信号和置信度。
+# You are a professional {analyst_persona}, need to comprehensively analyze the following tool results and provide final investment signal and confidence for stock {ticker}.
 
 # **分析工具结果**:
 # {tools_text}
@@ -144,7 +144,7 @@ def normalize_pandas(data):
 # }}
 # ```
 
-# 请基于你的专业经验和判断，给出最终的综合分析结果。
+# Please provide final comprehensive analysis results based on your professional experience and judgment.
 # """
 #     return prompt
 

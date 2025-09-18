@@ -83,13 +83,13 @@ def _run_intelligent_analyst(state: AgentState, agent_id: str, analyst_instance)
     analysis_results = {}
     
     for ticker in tickers:
-        progress.update_status(agent_id, ticker, f"开始{analyst_instance.analyst_persona}智能分析")
+        progress.update_status(agent_id, ticker, f"Starting {analyst_instance.analyst_persona} intelligent analysis")
         
         # 生成市场条件
         market_conditions = _generate_market_conditions_from_state(state, ticker)
         
         # 设置分析目标
-        analysis_objective = f"作为专业{analyst_instance.analyst_persona}，对股票{ticker}进行全面深入的投资分析"
+        analysis_objective = f"As a professional {analyst_instance.analyst_persona}, conduct comprehensive and in-depth investment analysis of stock {ticker}"
         
         
         
@@ -115,7 +115,7 @@ def _run_intelligent_analyst(state: AgentState, agent_id: str, analyst_instance)
         
         analysis_results[ticker] = result
             
-        progress.update_status(agent_id, ticker, "完成",
+        progress.update_status(agent_id, ticker, "Completed",
                                 analysis=json.dumps(result, indent=2, default=str))
 
     # 创建消息
@@ -126,12 +126,12 @@ def _run_intelligent_analyst(state: AgentState, agent_id: str, analyst_instance)
     
     # 显示推理过程
     if state["metadata"]["show_reasoning"]:
-        show_agent_reasoning(analysis_results, f"{analyst_instance.analyst_persona} (LLM智能选择)")
+        show_agent_reasoning(analysis_results, f"{analyst_instance.analyst_persona} (LLM Intelligent Selection)")
     
     # 更新状态
     state["data"]["analyst_signals"][agent_id] = analysis_results
     
-    progress.update_status(agent_id, None, f"所有{analyst_instance.analyst_persona}分析完成")
+    progress.update_status(agent_id, None, f"All {analyst_instance.analyst_persona} analysis completed")
     
     return {
         "messages": [message],
