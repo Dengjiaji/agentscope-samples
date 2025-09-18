@@ -45,153 +45,215 @@ def normalize_pandas(data):
         return safe_float(data)
 
 
-def combine_tool_signals_with_llm(tool_results: List[Dict[str, Any]], 
-                                 analyst_persona: str, 
-                                 ticker: str,
-                                 llm=None) -> Dict[str, Any]:
-    """
-    使用LLM综合判断多个工具的分析结果
+# def combine_tool_signals_with_llm(tool_results: List[Dict[str, Any]], 
+#                                  analyst_persona: str, 
+#                                  ticker: str,
+#                                  llm=None) -> Dict[str, Any]:
+#     """
+#     使用LLM综合判断多个工具的分析结果
     
-    Args:
-        tool_results: 工具结果列表
-        analyst_persona: 分析师角色
-        ticker: 股票代码
-        llm: LLM模型实例
+#     Args:
+#         tool_results: 工具结果列表
+#         analyst_persona: 分析师角色
+#         ticker: 股票代码
+#         llm: LLM模型实例
         
-    Returns:
-        LLM综合判断后的信号结果
-    """
-    if not tool_results:
-        return {"signal": "neutral", "confidence": 0, "reasoning": "No tool results provided"}
+#     Returns:
+#         LLM综合判断后的信号结果
+#     """
+#     if not tool_results:
+#         return {"signal": "neutral", "confidence": 0, "reasoning": "No tool results provided"}
     
-    # 过滤掉有错误的结果
-    valid_results = [result for result in tool_results if "error" not in result]
+#     # 过滤掉有错误的结果
+#     valid_results = [result for result in tool_results if "error" not in result]
     
-    if not valid_results:
-        return {"signal": "neutral", "confidence": 0, "reasoning": "No valid tool results"}
+#     if not valid_results:
+#         return {"signal": "neutral", "confidence": 0, "reasoning": "No valid tool results"}
     
     
-    # 构建LLM综合分析的prompt
-    synthesis_prompt = _build_synthesis_prompt(valid_results, analyst_persona, ticker)
+#     # 构建LLM综合分析的prompt
+#     synthesis_prompt = _build_synthesis_prompt(valid_results, analyst_persona, ticker)
     
-    # 调用LLM进行综合分析
-    from langchain_core.messages import HumanMessage
-    response = llm.invoke([HumanMessage(content=synthesis_prompt)])
+#     # 调用LLM进行综合分析
+#     from langchain_core.messages import HumanMessage
+#     response = llm.invoke([HumanMessage(content=synthesis_prompt)])
     
-    # 解析LLM响应
-    result = _parse_llm_synthesis_response(response.content, valid_results)
-    return result
+#     # 解析LLM响应
+#     result = _parse_llm_synthesis_response(response.content, valid_results)
+#     return result
        
 
-def _build_synthesis_prompt(tool_results: List[Dict[str, Any]], 
-                           analyst_persona: str, 
-                           ticker: str) -> str:
-    """构建LLM综合分析的prompt"""
+# def _build_synthesis_prompt(tool_results: List[Dict[str, Any]], 
+#                            analyst_persona: str, 
+#                            ticker: str) -> str:
+#     """构建LLM综合分析的prompt"""
     
-    # 构建工具结果摘要
-    tool_summaries = []
-    for i, result in enumerate(tool_results, 1):
-        tool_name = result.get("tool_name", f"工具{i}")
-        signal = result.get("signal", "unknown")
-        reasoning = result.get("reasoning", "无推理信息")
-        metrics = result.get("metrics", {})
+#     # 构建工具结果摘要
+#     tool_summaries = []
+#     for i, result in enumerate(tool_results, 1):
+#         tool_name = result.get("tool_name", f"工具{i}")
+#         signal = result.get("signal", "unknown")
+#         reasoning = result.get("reasoning", "无推理信息")
+#         metrics = result.get("metrics", {})
         
-        summary = f"""
-**工具{i}: {tool_name}**
-- 信号: {signal.upper()}
-- 分析推理: {reasoning}"""
+#         summary = f"""
+# **工具{i}: {tool_name}**
+# - 信号: {signal.upper()}
+# - 分析推理: {reasoning}"""
         
-        # 添加关键指标
-        if metrics:
-            key_metrics = []
-            for key, value in metrics.items():
-                if isinstance(value, (int, float)):
-                    key_metrics.append(f"{key}: {value:.2f}")
-                else:
-                    key_metrics.append(f"{key}: {value}")
-            if key_metrics:
-                summary += f"\n- 关键指标: {', '.join(key_metrics[:5])}"  # 只显示前5个
+#         # 添加关键指标
+#         if metrics:
+#             key_metrics = []
+#             for key, value in metrics.items():
+#                 if isinstance(value, (int, float)):
+#                     key_metrics.append(f"{key}: {value:.2f}")
+#                 else:
+#                     key_metrics.append(f"{key}: {value}")
+#             if key_metrics:
+#                 summary += f"\n- 关键指标: {', '.join(key_metrics[:5])}"  # 只显示前5个
         
-        tool_summaries.append(summary)
+#         tool_summaries.append(summary)
     
-    tools_text = "\n".join(tool_summaries)
+#     tools_text = "\n".join(tool_summaries)
     
-    prompt = f"""
-你是一位专业的{analyst_persona}，需要综合分析以下工具的结果，对股票{ticker}给出最终的投资信号和置信度。
+#     prompt = f"""
+# 你是一位专业的{analyst_persona}，需要综合分析以下工具的结果，对股票{ticker}给出最终的投资信号和置信度。
 
-**分析工具结果**:
-{tools_text}
+# **分析工具结果**:
+# {tools_text}
 
-**你的任务**:
-1. 仔细分析每个工具的信号和推理
-2. 考虑工具结果之间的一致性和分歧
-3. 根据你作为{analyst_persona}的专业判断，权衡各个工具的重要性
-4. 综合得出最终的投资信号(bullish/bearish/neutral)和置信度(0-100)
+# **你的任务**:
+# 1. 仔细分析每个工具的信号和推理
+# 2. 考虑工具结果之间的一致性和分歧
+# 3. 根据你作为{analyst_persona}的专业判断，权衡各个工具的重要性
+# 4. 综合得出最终的投资信号(bullish/bearish/neutral)和置信度(0-100)
 
-**输出要求**（必须严格按照JSON格式）:
-```json
-{{
-    "signal": "bullish/bearish/neutral",
-    "confidence": 85,
-    "reasoning": "详细的综合分析推理，解释为什么得出这个结论",
-    "tool_analysis": {{
-        "consistent_signals": ["一致的工具信号"],
-        "conflicting_signals": ["冲突的工具信号"], 
-        "key_factors": ["影响决策的关键因素"],
-        "risk_considerations": ["需要考虑的风险因素"]
-    }},
-    "synthesis_method": "说明你是如何综合这些工具结果的"
-}}
-```
+# **输出要求**（必须严格按照JSON格式）:
+# ```json
+# {{
+#     "signal": "bullish/bearish/neutral",
+#     "confidence": 85,
+#     "reasoning": "详细的综合分析推理，解释为什么得出这个结论",
+#     "tool_analysis": {{
+#         "consistent_signals": ["一致的工具信号"],
+#         "conflicting_signals": ["冲突的工具信号"], 
+#         "key_factors": ["影响决策的关键因素"],
+#         "risk_considerations": ["需要考虑的风险因素"]
+#     }},
+#     "synthesis_method": "说明你是如何综合这些工具结果的"
+# }}
+# ```
 
-请基于你的专业经验和判断，给出最终的综合分析结果。
-"""
-    return prompt
+# 请基于你的专业经验和判断，给出最终的综合分析结果。
+# """
+#     return prompt
 
 
-def _parse_llm_synthesis_response(response_content: str, tool_results: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """解析LLM综合分析的响应"""
-    import json
-    import re
+# def _parse_llm_synthesis_response(response_content: str, tool_results: List[Dict[str, Any]]) -> Dict[str, Any]:
+#     """解析LLM综合分析的响应"""
+#     import json
+#     import re
     
-        # 尝试从    响应中提取JSON
-    json_match = re.search(r'```json\s*(.*?)\s*```', response_content, re.DOTALL)
-    if json_match:
-        json_str = json_match.group(1)
-    else:
-        # 如果没有找到```json```标记，尝试直接解析整个响应
-        json_str = response_content.strip()
+#         # 尝试从    响应中提取JSON
+#     json_match = re.search(r'```json\s*(.*?)\s*```', response_content, re.DOTALL)
+#     if json_match:
+#         json_str = json_match.group(1)
+#     else:
+#         # 如果没有找到```json```标记，尝试直接解析整个响应
+#         json_str = response_content.strip()
     
-    result = json.loads(json_str)
+#     result = json.loads(json_str)
     
-    # 验证必需字段
-    signal = result.get("signal", "neutral").lower()
-    if signal not in ["bullish", "bearish", "neutral"]:
-        signal = "neutral"
+#     # 验证必需字段
+#     signal = result.get("signal", "neutral").lower()
+#     if signal not in ["bullish", "bearish", "neutral"]:
+#         signal = "neutral"
     
-    confidence = result.get("confidence", 50)
-    if not isinstance(confidence, (int, float)) or confidence < 0 or confidence > 100:
-        confidence = 50
+#     confidence = result.get("confidence", 50)
+#     if not isinstance(confidence, (int, float)) or confidence < 0 or confidence > 100:
+#         confidence = 50
     
-    return {
-        "signal": signal,
-        "confidence": int(confidence),
-        "reasoning": result.get("reasoning", "LLM综合分析结果"),
-        "tool_analysis": result.get("tool_analysis", {}),
-        "synthesis_method": result.get("synthesis_method", "LLM综合判断"),
-        "tool_count": len(tool_results),
-        "llm_enhanced": True
-    }
+#     return {
+#         "signal": signal,
+#         "confidence": int(confidence),
+#         "reasoning": result.get("reasoning", "LLM综合分析结果"),
+#         "tool_analysis": result.get("tool_analysis", {}),
+#         "synthesis_method": result.get("synthesis_method", "LLM综合判断"),
+#         "tool_count": len(tool_results),
+#         "llm_enhanced": True
+#     }
         
 
 
-# 保持向后兼容的旧函数名
-def combine_tool_signals(tool_results: List[Dict[str, Any]], weights: Optional[Dict[str, float]] = None) -> Dict[str, Any]:
-    """向后兼容的函数，建议使用combine_tool_signals_with_llm"""
-    return _fallback_combine_signals([r for r in tool_results if "error" not in r])
+# # 保持向后兼容的旧函数名
+# def combine_tool_signals(tool_results: List[Dict[str, Any]], weights: Optional[Dict[str, float]] = None) -> Dict[str, Any]:
+#     """向后兼容的函数，建议使用combine_tool_signals_with_llm"""
+#     return _fallback_combine_signals([r for r in tool_results if "error" not in r])
 
 
 # ===================== 基本面分析工具 =====================
+@tool
+def analyze_efficiency_ratios(ticker: str, end_date: str, api_key: str) -> Dict[str, Any]:
+    """效率比率分析 - 分析公司资产使用效率"""
+    try:
+        financial_metrics = get_financial_metrics(ticker=ticker, end_date=end_date, period="ttm", limit=10, api_key=api_key)
+        if not financial_metrics:
+            return {"error": "No financial metrics found", "signal": "neutral", "confidence": 0}
+        
+        metrics = financial_metrics[0]
+        
+        # 效率指标
+        asset_turnover = metrics.asset_turnover
+        inventory_turnover = metrics.inventory_turnover
+        receivables_turnover = metrics.receivables_turnover
+        working_capital_turnover = metrics.working_capital_turnover
+        
+        score = 0
+        details = []
+        
+        # 资产周转率
+        if asset_turnover and asset_turnover > 1.0:
+            score += 1
+            details.append(f"资产周转率良好: {asset_turnover:.2f}")
+        else:
+            details.append(f"资产周转率偏低: {asset_turnover:.2f}" if asset_turnover else "资产周转率: N/A")
+        
+        # 存货周转率
+        if inventory_turnover and inventory_turnover > 6:
+            score += 1
+            details.append(f"存货周转快: {inventory_turnover:.1f}次/年")
+        else:
+            details.append(f"存货周转慢: {inventory_turnover:.1f}次/年" if inventory_turnover else "存货周转率: N/A")
+        
+        # 应收账款周转率
+        if receivables_turnover and receivables_turnover > 8:
+            score += 1
+            details.append(f"应收账款周转快: {receivables_turnover:.1f}次/年")
+        else:
+            details.append(f"应收账款周转慢: {receivables_turnover:.1f}次/年" if receivables_turnover else "应收账款周转率: N/A")
+        
+        # 营运资本周转率
+        if working_capital_turnover and working_capital_turnover > 4:
+            score += 1
+            details.append(f"营运资本效率高: {working_capital_turnover:.1f}")
+        else:
+            details.append(f"营运资本效率低: {working_capital_turnover:.1f}" if working_capital_turnover else "营运资本周转率: N/A")
+        
+        signal = "bullish" if score >= 3 else "bearish" if score <= 1 else "neutral"
+        
+        return {
+            "signal": signal,
+            "metrics": {
+                "asset_turnover": asset_turnover,
+                "inventory_turnover": inventory_turnover,
+                "receivables_turnover": receivables_turnover,
+                "working_capital_turnover": working_capital_turnover
+            },
+            "details": details,
+            "reasoning": f"效率分析评分: {score}/4"
+        }
+    except Exception as e:
+        return {"error": str(e), "signal": "neutral"}
 
 @tool
 def analyze_profitability(ticker: str, end_date: str, api_key: str) -> Dict[str, Any]:

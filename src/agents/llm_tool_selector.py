@@ -33,8 +33,8 @@ from src.tools.analysis_tools_unified import (
     ev_ebitda_valuation_analysis,
     residual_income_valuation_analysis,
     
-    # 工具组合函数
-    combine_tool_signals
+    # # 工具组合函数
+    # combine_tool_signals
 )
 
 class NumpyEncoder(json.JSONEncoder):
@@ -342,10 +342,12 @@ class LLMToolSelector:
         
         default_selections = {
             "基本面分析师": [
+                
                 {"tool_name": "analyze_profitability", "reason": "盈利能力是基本面分析核心"},
                 {"tool_name": "analyze_growth", "reason": "成长性决定长期投资价值"},
                 {"tool_name": "analyze_financial_health", "reason": "财务健康度评估投资风险"},
-                {"tool_name": "analyze_valuation_ratios", "reason": "估值比率判断价格合理性"}
+                {"tool_name": "analyze_valuation_ratios", "reason": "估值比率判断价格合理性"},
+                {"tool_name": "analyze_efficiency_ratios", "reason": "效率比率分析公司资产使用效率"}
             ],
             "技术分析师": [
                 {"tool_name": "analyze_trend_following", "reason": "趋势是技术分析的核心"},
@@ -411,7 +413,7 @@ class LLMToolSelector:
                 tool_results.append(result)
                 
             except Exception as e:
-                print(f"❌ 工具 {tool_name} 执行失败: {str(e)}")
+                print(f"工具 {tool_name} 执行失败: {str(e)}")
                 error_result = {
                     "tool_name": tool_name,
                     "error": str(e),
