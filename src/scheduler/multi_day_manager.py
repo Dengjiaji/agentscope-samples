@@ -670,7 +670,15 @@ class MultiDayManager:
         # 获取该股票的价格数据（获取更大范围以确保有足够数据计算收益率）
         from datetime import datetime, timedelta
         
-        prices_df = pd.read_csv(f'/home/wuyue23/Project/IA/src/data/ret_data/{ticker}.csv')
+        # 使用相对路径获取数据文件
+        current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 获取IA/src目录
+        data_path = os.path.join(current_dir, 'data', 'ret_data', f'{ticker}.csv')
+        
+        if not os.path.exists(data_path):
+            print(f"警告: 数据文件不存在 {data_path}，使用模拟收益率")
+            return self._fallback_simulated_return(ticker, date, action)
+            
+        prices_df = pd.read_csv(data_path)
         
         if prices_df.empty:
             print(f"警告: 无法获取 {ticker} 在 {date} 的价格数据，使用模拟收益率")

@@ -100,7 +100,7 @@ def main():
     parser.add_argument(
         "--output-dir",
         type=str,
-        default="/home/wuyue23/Project/IA/analysis_results_logs",
+        default="./analysis_results_logs",
         help="输出目录路径 (默认: ./analysis_results_logs)"
     )
     parser.add_argument(
