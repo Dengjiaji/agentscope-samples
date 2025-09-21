@@ -732,6 +732,7 @@ class AdvancedInvestmentAnalysisEngine:
                         if agent_id in state["data"]["analyst_signals"]:
                             analyst_signals[agent_id] = state["data"]["analyst_signals"][agent_id]
                     
+                    # print(analyst_signals)
                     # 决定通信策略
                     communication_decision = communication_manager.decide_communication_strategy(
                         manager_signals=final_decisions,
