@@ -71,3 +71,5 @@ app/backend/alembic/versions/__pycache__/
 
 
 analysis_results_logs/
+
+live_trading/
