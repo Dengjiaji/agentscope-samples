@@ -1,0 +1,2508 @@
+{
+  "2025-01-02": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 70.0,
+      "action": "hold",
+      "reasoning": "The majority of analysts (valuation, fundamentals, sentiment) provided neutral signals with varying confidence levels (60, 65, 60 respectively). Only the technical analyst provided a bearish signal with 75% confidence. Considering the medium risk level indicated by the risk management agent and the normalization of price volatility, a hold decision is appropriate to mitigate risk amidst analyst disagreement. The technical bearish signal, though confident, is outweighed by multiple neutral signals."
+    },
+    "MSFT": {
+      "signal": "bearish",
+      "confidence": 75.0,
+      "action": "short",
+      "reasoning": "For MSFT, the majority of analysts (fundamentals, sentiment, technical) agreed on a bearish signal with high confidence levels (70, 75, 75 respectively), which suggests a consensus towards a potential decline in stock price. The valuation analyst provided a neutral signal with lower confidence (60%), and the risk management agent indicated medium risk, similar to AAPL with normal price volatility. However, the strong bearish consensus should guide the decision, leading to a short position as the mainstream opinion is clear and supported by higher confidence."
+    }
+  },
+  "2025-01-03": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 61.25,
+      "action": "hold",
+      "reasoning": "For AAPL, all analysts provided a neutral signal with confidence levels ranging from 60 to 65. No analyst gave a bullish or bearish signal. Considering this uniformity and the medium risk level provided by the risk management agent, which suggests a standard level of price volatility, a hold decision is prudent. The overall confidence is calculated as the average of the individual analyst confidences."
+    },
+    "MSFT": {
+      "signal": "bearish",
+      "confidence": 65.0,
+      "action": "short",
+      "reasoning": "For MSFT, both the fundamentals and valuation analysts provided bearish signals with high confidence (70 and 75, respectively). The sentiment and technical analysts offered neutral signals at lower confidence levels (60). Given the more confident bearish outlook from the key analysts focusing on fundamentals and valuation, and supported by a medium risk assessment with normal price volatility, a short decision is justified. The confidence level reflects the average of the confidences from all analysts, weighted towards the bearish views due to their higher confidence levels."
+    }
+  },
+  "2025-01-06": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 61.25,
+      "action": "hold",
+      "reasoning": "The signals from the analysts on AAPL are mostly neutral, with the fundamentals, technical, and valuation analysts all indicating a neutral stance with moderate confidence levels (60, 55, and 60, respectively). The sentiment analyst is bearish with a confidence level of 70. Since this indicates a division among the analysts, and considering the medium level risk assessment from the risk manager, it is prudent to adopt a hold position. The decision takes into account that the neutral perspectives from three analysts slightly outweigh the single bearish sentiment, but the disagreement and medium risk suggests caution, supporting a hold decision with moderate confidence."
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 62.5,
+      "action": "hold",
+      "reasoning": "For MSFT, the fundamentals analyst is bearish with a confidence level of 65, while the technical, valuation, and sentiment analysts indicate a neutral position with confidence levels of 60, 60, and 65, respectively. There is no clear majority in favor of a movement in any direction, and the medium risk level suggests no strong urgency to act aggressively. The balance of opinions suggests a hold decision, considering the neutral stance by most analysts against the single bearish view, coupled with medium risk as assessed by the risk manager. This results in a hold decision with moderate confidence."
+    }
+  },
+  "2025-01-07": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 65.0,
+      "action": "hold",
+      "reasoning": "The signals from the analysts are mixed, with technical, sentiment, and fundamentals analysts indicating neutral, and the valuation analyst being bearish with a high confidence of 75. Given the consensus leaning towards neutrality and considering the medium risk level from the risk manager, it is prudent to adopt a hold strategy. The medium risk assessment suggests moderate price volatility, reinforcing the decision to not take a directional stand."
+    },
+    "MSFT": {
+      "signal": "bearish",
+      "confidence": 65.0,
+      "action": "short",
+      "reasoning": "The sentiment and fundamentals analysts both provided bearish signals with the fundamentals analyst showing high confidence at 70. The technical and valuation analysts are neutral with lower confidence. Given there is a higher bearish consensus with relatively high confidence within the bearish signals, and considering the medium risk level from the risk manager suggests a balanced but cautious approach, a short position is justified."
+    }
+  },
+  "2025-01-08": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 61.25,
+      "action": "hold",
+      "reasoning": "All analysts provided a neutral signal for AAPL, with confidence levels ranging from 60 to 65. The risk management agent rated the stock as medium risk and its price volatility is within normal levels. Given the consensus neutral view across all analysts and the medium risk assessment, holding the stock is the most prudent option. The average confidence level is calculated as the mean of the analysts' confidences: (60+65+60+60)/4 = 61.25."
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 62.5,
+      "action": "hold",
+      "reasoning": "Similar to AAPL, all analysts provided a neutral investment signal for MSFT, with confidence levels ranging from 60 to 65. The risk level for MSFT is also assessed as medium, with price volatility within normal levels. The consensus neutral rating, combined with moderate risk, suggests that holding the position is the best course of action. The average confidence level is derived from the analysts' confidences: (60+65+65+60)/4 = 62.5."
+    }
+  },
+  "2025-01-10": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 63.75,
+      "action": "hold",
+      "reasoning": "All analysts provided neutral signals with varying degrees of confidence: valuation analyst (60), sentiment analyst (65), technical analyst (70), and fundamentals analyst (60). Given the consistent neutrality across all opinions and the medium risk level with normal price volatility as assessed by the risk management agent, it is prudent to adopt a 'hold' position with a synthesized confidence level reflecting an average of the analysts' confidence levels. The consistent neutrality suggests no immediate directional bias, consistent with the risk assessment."
+    },
+    "MSFT": {
+      "signal": "bearish",
+      "confidence": 70.0,
+      "action": "short",
+      "reasoning": "The majority of analysts provided bearish signals: valuation analyst (75), technical analyst (70), and fundamentals analyst (65), while sentiment analyst was neutral (60). The bearish outlook is supported by the valuation, technical, and fundamentals analyses, giving weight to a 'short' decision. Although the risk assessment is medium, indicating normal price volatility, the collective confidence across bearish signals is relatively high, guiding a bearish stance with aggregated confidence. Given the high confidence in bearish signals from analysts, the decision leans towards a short position, focusing on the agreement among analysts with significant credibility based on their confidence levels."
+    }
+  },
+  "2025-01-13": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 61.0,
+      "action": "hold",
+      "reasoning": "All analysts provide a neutral signal with confidence ranging from 60 to 65. The consistency among the analysts suggests no clear direction for a long or short decision. The medium risk level, with normal price volatility, further supports maintaining a neutral stance. There is no strong signal to justify a deviation from the consensus neutral position."
+    },
+    "MSFT": {
+      "signal": "bearish",
+      "confidence": 70.0,
+      "action": "short",
+      "reasoning": "All analysts agree on a bearish signal, with confidence levels between 65 and 80. The consensus is strong, particularly with the valuation analyst having a confidence level of 80. The medium risk assessment does not indicate any extreme risks that would suggest caution against a short position. Since the majority opinion is bearish, a short decision aligns well with the analysts' consensus."
+    }
+  },
+  "2025-01-14": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 63.75,
+      "action": "hold",
+      "reasoning": "All analysts provided 'neutral' signals with moderate confidence levels ranging from 60 to 70. The risk manager assessed AAPL as medium-risk with price volatility at normal levels. The consensus across analysts, combined with average confidence of 63.75, supports a decision to hold, as there are no strong signals to warrant a directional change."
+    },
+    "MSFT": {
+      "signal": "bearish",
+      "confidence": 72.5,
+      "action": "short",
+      "reasoning": "All four analysts gave 'bearish' signals with high confidence levels between 70 and 75. The risk manager's assessment of MSFT as a medium-risk stock with normal price volatility complements the bearish sentiment. With a strong consensus and an average confidence level of 72.5, the decision to short aligns with the predominant bearish sentiment and is reinforced by the risk assessment stability."
+    }
+  },
+  "2025-01-15": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 65.0,
+      "action": "hold",
+      "reasoning": "The signals for AAPL from valuation, sentiment, and fundamentals analysts are all neutral, each with confidence levels of 60-70%. The technical analyst has a bearish outlook with a 65% confidence level. Although the technical analyst suggests bearish, the majority of analysts lean towards neutral, thus the consensus leans towards holding. The risk level is medium, and given the diverse opinions and the medium risk assessment, holding with a confidence that balances the analysts' trust is prudent."
+    },
+    "MSFT": {
+      "signal": "bearish",
+      "confidence": 67.5,
+      "action": "short",
+      "reasoning": "Both the valuation (65% confidence) and technical analysts (70% confidence) are bearish on MSFT. The sentiment and fundamentals analysts are neutral, each with a confidence of 60-65%. The majority bearish signals from two analysts with relatively high confidence, combined with the risk assessment at a medium risk level, indicate a short position. This decision accounts for the stronger confidence in bearish signals versus neutral ones."
+    }
+  },
+  "2025-01-16": {
+    "AAPL": {
+      "signal": "bearish",
+      "confidence": 70.0,
+      "action": "short",
+      "reasoning": "For AAPL, both the technical and fundamentals analysts provided bearish signals with high confidence levels of 70% and 75%, respectively. The valuation and sentiment analysts offered neutral signals with lower confidence (65%). Given the stronger consensus and higher confidence from the bearish signals, along with the medium risk level from the risk management assessment, it's prudent to take a bearish stance. The medium risk level does not warrant heightened caution, allowing the decision to align with majority bearish sentiment."
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 60.83,
+      "action": "hold",
+      "reasoning": "MSFT presents a mixed picture: the technical analyst is bullish at 75% confidence, whereas the valuation analyst is bearish with a 70% confidence. Fundamentals and sentiment analysts are neutral and less confident at 60% each. The presence of contradicting high-confidence signals (bullish from technical and bearish from valuation) coupled with a medium risk level suggests a hold decision. This neutral stance accounts for the significant disagreement and the medium risk assessment, reflecting the balanced but unresolved diversity of opinions."
+    }
+  },
+  "2025-01-17": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 57.5,
+      "action": "hold",
+      "reasoning": "For AAPL, all analysts (technical, fundamentals, sentiment, valuation) provided neutral signals with varying confidence levels between 50 and 60. The risk management assessment also indicates a medium risk level with standard price volatility. Given the unanimous neutral signals and absence of any dominant confidence, along with the medium risk assessment, a hold position is justifiable. The average confidence across analysts is 57.5, emphasizing the lack of strong conviction in any direction."
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 61.25,
+      "action": "hold",
+      "reasoning": "For MSFT, similar to AAPL, all analysts (technical, fundamentals, sentiment, valuation) delivered neutral signals. The confidence levels are higher for the technical analyst at 75 and others ranging from 50 to 60. The risk assessment is also medium with standard volatility. Even though the technical analyst's confidence is higher, there is alignment with the neutrals from other analysts and no compelling reason to diverge given the medium risk rating. Averaging out the confidence levels yields 61.25, supporting a hold decision."
+    }
+  },
+  "2025-01-21": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 62.5,
+      "action": "hold",
+      "reasoning": "For AAPL, the signals were polarized. The technical analyst provided a bearish signal with high confidence (75), while the other analysts indicated a neutral stance with varying confidence (55-60). Given the lack of consensus among analysts and the medium risk level indicated by the risk manager, it seems prudent to adopt a hold position. The decision is therefore weighted more towards a cautious approach due to the potential downside risk highlighted by the technical analysis."
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 65.0,
+      "action": "hold",
+      "reasoning": "In the case of MSFT, the sentiment analyst is bullish with a confidence of 70, while the fundamentals analyst is bearish with the same confidence. Valuation and technical analysts are neutral. This conflict, combined with a moderate risk level from the risk management information, suggests a balanced but cautious approach is warranted. As the signals are evenly split between bullish and bearish with high confidence, choosing to hold reflects the uncertainty indicated by the conflicting signals."
+    }
+  },
+  "2025-01-22": {
+    "AAPL": {
+      "signal": "bearish",
+      "confidence": 68.75,
+      "action": "short",
+      "reasoning": "For AAPL, the valuation and fundamentals analysts are both bearish with a confidence of 70 each, which strongly suggests an expectation of price decline. The technical and sentiment analysts are neutral, with moderate confidence levels of 60 and 55, respectively. Given their neutrality, their signals do not significantly counteract the bearish signals. The risk manager indicates a medium risk level with a risk score of 50, so while not excessively risky, it suggests some caution. The strong bearish signals from the valuation and fundamentals analysts, who typically assess underlying business and market conditions, outweigh the neutral signals, leading to a bearish overall decision with a confidence of 68.75, averaged from the valuation and fundamentals analysts' confidence levels."
+    },
+    "MSFT": {
+      "signal": "bullish",
+      "confidence": 72.5,
+      "action": "long",
+      "reasoning": "For MSFT, both the technical and sentiment analysts are bullish with confidence levels of 75 and 70, respectively. This suggests optimism about future price increases based on technical trends and market sentiment. The valuation and fundamentals analysts are neutral with confidence levels of 60, indicating there is no strong counter-opinion to the bullish signals. Considering the risk manager's medium risk level and risk score of 50, the stock doesn't appear to present significant additional risk. The bullish sentiment from both the technical and sentiment analysts is decisive, resulting in a long decision with a confidence of 72.5, a weighted average of the bullish analysts' confidence."
+    }
+  },
+  "2025-01-23": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 61.25,
+      "action": "hold",
+      "reasoning": "All analysts provided neutral signals with varying confidence levels (valuation at 55, fundamentals at 65, sentiment at 65, technical at 60). Given their consistent neutral stance and medium risk level assessed by the risk manager, there is no strong bullish or bearish sentiment. Therefore, the consensus is best represented by holding the position, with an average confidence across analysts calculated as 61.25."
+    },
+    "MSFT": {
+      "signal": "bullish",
+      "confidence": 70.0,
+      "action": "long",
+      "reasoning": "The valuation and sentiment analysts indicated a bullish outlook with high confidence levels (70 and 75 respectively). The fundamentals and technical analysts were neutral but with lower confidence than the bullish signals. The overall trend favored bullishness. The risk manager assessed the risk as medium, not raising significant caution. Given these observations, taking a long position is justified, with confidence primarily driven by the valuation and sentiment analysts, resulting in an averaged bullish confidence of 70.0."
+    }
+  },
+  "2025-01-24": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-01-27": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-01-28": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-01-29": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-01-30": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-01-31": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-02-03": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-02-04": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-02-05": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-02-06": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-02-07": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-02-10": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-02-11": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-02-12": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-02-13": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-02-14": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-02-18": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-02-19": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-02-20": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-02-21": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-02-24": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-02-25": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-02-26": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-02-27": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-02-28": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-03-03": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-03-04": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-03-05": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-03-06": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-03-07": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-03-10": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-03-11": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-03-12": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-03-13": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-03-14": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-03-17": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-03-18": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-03-19": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-03-20": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-03-21": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-03-24": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-03-25": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-03-26": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-03-27": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-03-28": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-03-31": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-04-01": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-04-02": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-04-03": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-04-04": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-04-07": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-04-08": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-04-09": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-04-10": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-04-11": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-04-14": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-04-15": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-04-16": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-04-17": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-04-21": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-04-22": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-04-23": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-04-24": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-04-25": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-04-28": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-04-29": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-04-30": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-05-01": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-05-02": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-05-05": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-05-06": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-05-07": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-05-08": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-05-09": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-05-12": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-05-13": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-05-14": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-05-15": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-05-16": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-05-19": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-05-20": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-05-21": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-05-22": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-05-23": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-05-27": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-05-28": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-05-29": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-05-30": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-06-02": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-06-03": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-06-04": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-06-05": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-06-06": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-06-09": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-06-10": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-06-11": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-06-12": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-06-13": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-06-16": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-06-17": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-06-18": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-06-20": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-06-23": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-06-24": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-06-25": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-06-26": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-06-27": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-06-30": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-07-01": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-07-02": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-07-03": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-07-07": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-07-08": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-07-09": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-07-10": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-07-11": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-07-14": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-07-15": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-07-16": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-07-17": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-07-18": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-07-21": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-07-22": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-07-23": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-07-24": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-07-25": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-07-28": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-07-29": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-07-30": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-07-31": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-08-01": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-08-04": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-08-05": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-08-06": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-08-07": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-08-08": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-08-11": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-08-12": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-08-13": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-08-14": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-08-15": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-08-18": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-08-19": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-08-20": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-08-21": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-08-22": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-08-25": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-08-26": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-08-27": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-08-28": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-08-29": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-09-02": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-09-03": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-09-04": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-09-05": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-09-08": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-09-09": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-09-10": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-09-11": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-09-12": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-09-15": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-09-16": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-09-17": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-09-18": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  },
+  "2025-09-19": {
+    "AAPL": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    },
+    "MSFT": {
+      "signal": "neutral",
+      "confidence": 0.0,
+      "action": "hold",
+      "reasoning": "Default decision: hold"
+    }
+  }
+}

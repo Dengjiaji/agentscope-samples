@@ -1,0 +1,215 @@
+{
+  "session_id": "live_strategy_2025-06-05_20250921_235133",
+  "summary_timestamp": "2025-09-21T23:51:50.570819",
+  "period": {
+    "start_date": "2025-06-05",
+    "end_date": "2025-06-05",
+    "total_days": 1,
+    "successful_days": 1,
+    "failed_days": 0
+  },
+  "daily_results": [
+    {
+      "date": "2025-06-05",
+      "status": "success",
+      "results": {
+        "first_round_results": {
+          "technical_analyst": {
+            "agent_id": "technical_analyst",
+            "agent_name": "技术分析师 (LLM智能选择)",
+            "error": "Error code: 402 - {'error': {'message': 'This request requires more credits, or fewer max_tokens. You requested up to 16384 tokens, but can only afford 3161. To increase, visit https://openrouter.ai/settings/credits and add more credits', 'code': 402, 'metadata': {'provider_name': None}}, 'user_id': 'user_2vklh9iTGWuVJf0CbWLM1yUQcYU'}",
+            "status": "error"
+          },
+          "sentiment_analyst": {
+            "agent_id": "sentiment_analyst",
+            "agent_name": "情绪分析师 (LLM智能选择)",
+            "error": "Error code: 402 - {'error': {'message': 'This request requires more credits, or fewer max_tokens. You requested up to 16384 tokens, but can only afford 3161. To increase, visit https://openrouter.ai/settings/credits and add more credits', 'code': 402, 'metadata': {'provider_name': None}}, 'user_id': 'user_2vklh9iTGWuVJf0CbWLM1yUQcYU'}",
+            "status": "error"
+          },
+          "valuation_analyst": {
+            "agent_id": "valuation_analyst",
+            "agent_name": "估值分析师 (LLM智能选择)",
+            "error": "Error code: 402 - {'error': {'message': 'This request requires more credits, or fewer max_tokens. You requested up to 16384 tokens, but can only afford 3161. To increase, visit https://openrouter.ai/settings/credits and add more credits', 'code': 402, 'metadata': {'provider_name': None}}, 'user_id': 'user_2vklh9iTGWuVJf0CbWLM1yUQcYU'}",
+            "status": "error"
+          },
+          "fundamentals_analyst": {
+            "agent_id": "fundamentals_analyst",
+            "agent_name": "基本面分析师 (LLM智能选择)",
+            "error": "Error code: 402 - {'error': {'message': 'This request requires more credits, or fewer max_tokens. You requested up to 16384 tokens, but can only afford 3161. To increase, visit https://openrouter.ai/settings/credits and add more credits', 'code': 402, 'metadata': {'provider_name': None}}, 'user_id': 'user_2vklh9iTGWuVJf0CbWLM1yUQcYU'}",
+            "status": "error"
+          }
+        },
+        "final_analyst_results": {
+          "technical_analyst": {
+            "agent_id": "technical_analyst",
+            "agent_name": "技术分析师 (LLM智能选择)",
+            "error": "Error code: 402 - {'error': {'message': 'This request requires more credits, or fewer max_tokens. You requested up to 16384 tokens, but can only afford 3161. To increase, visit https://openrouter.ai/settings/credits and add more credits', 'code': 402, 'metadata': {'provider_name': None}}, 'user_id': 'user_2vklh9iTGWuVJf0CbWLM1yUQcYU'}",
+            "status": "error"
+          },
+          "sentiment_analyst": {
+            "agent_id": "sentiment_analyst",
+            "agent_name": "情绪分析师 (LLM智能选择)",
+            "error": "Error code: 402 - {'error': {'message': 'This request requires more credits, or fewer max_tokens. You requested up to 16384 tokens, but can only afford 3161. To increase, visit https://openrouter.ai/settings/credits and add more credits', 'code': 402, 'metadata': {'provider_name': None}}, 'user_id': 'user_2vklh9iTGWuVJf0CbWLM1yUQcYU'}",
+            "status": "error"
+          },
+          "valuation_analyst": {
+            "agent_id": "valuation_analyst",
+            "agent_name": "估值分析师 (LLM智能选择)",
+            "error": "Error code: 402 - {'error': {'message': 'This request requires more credits, or fewer max_tokens. You requested up to 16384 tokens, but can only afford 3161. To increase, visit https://openrouter.ai/settings/credits and add more credits', 'code': 402, 'metadata': {'provider_name': None}}, 'user_id': 'user_2vklh9iTGWuVJf0CbWLM1yUQcYU'}",
+            "status": "error"
+          },
+          "fundamentals_analyst": {
+            "agent_id": "fundamentals_analyst",
+            "agent_name": "基本面分析师 (LLM智能选择)",
+            "error": "Error code: 402 - {'error': {'message': 'This request requires more credits, or fewer max_tokens. You requested up to 16384 tokens, but can only afford 3161. To increase, visit https://openrouter.ai/settings/credits and add more credits', 'code': 402, 'metadata': {'provider_name': None}}, 'user_id': 'user_2vklh9iTGWuVJf0CbWLM1yUQcYU'}",
+            "status": "error"
+          }
+        },
+        "risk_analysis_results": {
+          "agent_id": "risk_management_agent",
+          "agent_name": "风险管理分析师",
+          "analysis_result": {
+            "AAPL": {
+              "risk_level": "medium",
+              "risk_score": 50,
+              "current_price": 200.63,
+              "volatility_info": {
+                "annualized_volatility": 0.2901025394116005,
+                "daily_volatility": 0.018274742237890693,
+                "volatility_percentile": 50.0,
+                "data_points": 21
+              },
+              "risk_assessment": "中等风险股票，年化波动率29.0%，价格波动处于正常水平"
+            },
+            "MSFT": {
+              "risk_level": "low",
+              "risk_score": 25,
+              "current_price": 467.68,
+              "volatility_info": {
+                "annualized_volatility": 0.1414637311832996,
+                "daily_volatility": 0.008911377434435803,
+                "volatility_percentile": 50.0,
+                "data_points": 21
+              },
+              "risk_assessment": "低风险股票，年化波动率14.1%，价格波动相对温和"
+            }
+          },
+          "status": "success"
+        },
+        "portfolio_management_results": {
+          "agent_id": "portfolio_manager",
+          "agent_name": "投资组合管理者",
+          "final_decisions": {
+            "AAPL": {
+              "action": "hold",
+              "confidence": 0.0,
+              "reasoning": "Default decision: hold"
+            },
+            "MSFT": {
+              "action": "hold",
+              "confidence": 0.0,
+              "reasoning": "Default decision: hold"
+            }
+          },
+          "execution_report": {
+            "recorded_signals": {
+              "AAPL": {
+                "action": "hold",
+                "confidence": 0.0
+              },
+              "MSFT": {
+                "action": "hold",
+                "confidence": 0.0
+              }
+            },
+            "date": "2025-06-05",
+            "timestamp": "2025-09-21T23:51:50.570651",
+            "total_signals": 2
+          },
+          "portfolio_summary": {
+            "status": "signal_based_analysis"
+          },
+          "communications_enabled": false,
+          "status": "success"
+        },
+        "communication_logs": {
+          "private_chats": [],
+          "meetings": [],
+          "communication_decisions": []
+        },
+        "final_report": {
+          "summary": {
+            "total_analysts": 4,
+            "successful_analyses": 0,
+            "failed_analyses": 4,
+            "notifications_sent": 0
+          },
+          "analyst_signals": {},
+          "notification_activity": {
+            "total_notifications": 0,
+            "notifications_by_agent": {},
+            "recent_notifications": []
+          },
+          "errors": [
+            {
+              "agent": "technical_analyst",
+              "error": "Error code: 402 - {'error': {'message': 'This request requires more credits, or fewer max_tokens. You requested up to 16384 tokens, but can only afford 3161. To increase, visit https://openrouter.ai/settings/credits and add more credits', 'code': 402, 'metadata': {'provider_name': None}}, 'user_id': 'user_2vklh9iTGWuVJf0CbWLM1yUQcYU'}"
+            },
+            {
+              "agent": "sentiment_analyst",
+              "error": "Error code: 402 - {'error': {'message': 'This request requires more credits, or fewer max_tokens. You requested up to 16384 tokens, but can only afford 3161. To increase, visit https://openrouter.ai/settings/credits and add more credits', 'code': 402, 'metadata': {'provider_name': None}}, 'user_id': 'user_2vklh9iTGWuVJf0CbWLM1yUQcYU'}"
+            },
+            {
+              "agent": "valuation_analyst",
+              "error": "Error code: 402 - {'error': {'message': 'This request requires more credits, or fewer max_tokens. You requested up to 16384 tokens, but can only afford 3161. To increase, visit https://openrouter.ai/settings/credits and add more credits', 'code': 402, 'metadata': {'provider_name': None}}, 'user_id': 'user_2vklh9iTGWuVJf0CbWLM1yUQcYU'}"
+            },
+            {
+              "agent": "fundamentals_analyst",
+              "error": "Error code: 402 - {'error': {'message': 'This request requires more credits, or fewer max_tokens. You requested up to 16384 tokens, but can only afford 3161. To increase, visit https://openrouter.ai/settings/credits and add more credits', 'code': 402, 'metadata': {'provider_name': None}}, 'user_id': 'user_2vklh9iTGWuVJf0CbWLM1yUQcYU'}"
+            }
+          ]
+        },
+        "analysis_timestamp": "2025-09-21T23:51:50.570763",
+        "tickers": [
+          "AAPL",
+          "MSFT"
+        ],
+        "date_range": {
+          "start": "2025-05-06",
+          "end": "2025-06-05"
+        },
+        "output_file": "/Users/wy/Downloads/Project/IA/live_trading/reports/temp/live_strategy_2025-06-05_20250921_235133_daily_2025-06-05.json"
+      },
+      "output_file": "/Users/wy/Downloads/Project/IA/live_trading/reports/temp/live_strategy_2025-06-05_20250921_235133_daily_2025-06-05.json"
+    }
+  ],
+  "time_series": {
+    "portfolio_values": [
+      {
+        "date": "2025-06-05",
+        "total_value": 0,
+        "cash": 0,
+        "positions_value": 0
+      }
+    ],
+    "communication_stats": [
+      {
+        "date": "2025-06-05",
+        "decisions_count": 0,
+        "private_chats_count": 0,
+        "meetings_count": 0,
+        "notifications_count": 0
+      }
+    ]
+  },
+  "performance_analysis": {
+    "individual_stocks": {
+      "AAPL": {
+        "error": "数据不足，无法计算该股票绩效指标"
+      },
+      "MSFT": {
+        "error": "数据不足，无法计算该股票绩效指标"
+      }
+    }
+  }
+}

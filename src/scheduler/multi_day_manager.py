@@ -42,7 +42,8 @@ class MultiDayManager:
         base_output_dir: str = "/root/wuyue.wy/Project/IA/analysis_results_logs/",
         max_communication_cycles: int = 3,
         prefetch_data: bool = True,
-        okr_enabled: bool = False
+        okr_enabled: bool = False,
+        custom_session_id: str = None
     ):
         """
         初始化多日管理器
@@ -60,7 +61,7 @@ class MultiDayManager:
         self.okr_enabled = okr_enabled
         
         # 状态追踪
-        self.session_id = None
+        self.session_id = custom_session_id
         self.daily_results = []
         self.analyst_memory_state = None
         self.communication_logs_state = None
@@ -280,7 +281,8 @@ class MultiDayManager:
         """
         
         # 初始化会话
-        self.session_id = self.create_session_id()
+        if self.session_id is None:
+            self.session_id = self.create_session_id()
         print(f"开始多日策略分析 (会话ID: {self.session_id})")
         print(f"时间范围: {start_date} 到 {end_date}")
         print(f"分析标的: {', '.join(tickers)}")
