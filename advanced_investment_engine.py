@@ -16,15 +16,14 @@ import asyncio
 import concurrent.futures
 from copy import deepcopy
 import threading
-
+import pdb
 # 添加项目路径
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
 
-# 加载环境变量
-env_path = os.path.join(current_dir, '.env')
-if os.path.exists(env_path):
-    load_dotenv(env_path)
+# 加载环境变量 - 使用统一的mem0_env_loader
+from src.utils.mem0_env_loader import ensure_mem0_env_loaded
+ensure_mem0_env_loaded()
 
 from src.graph.state import AgentState
 from langchain_core.messages import HumanMessage
@@ -38,8 +37,9 @@ from src.agents.intelligent_analysts import (
 )
 
 # 导入通知系统
-from src.communication.notification_system import (
-    notification_system, 
+# 使用基于 Mem0 的通知系统与工具
+from src.communication.notification_system_mem0 import (
+    mem0_notification_system as notification_system,
     should_send_notification,
     format_notifications_for_context
 )
@@ -63,7 +63,8 @@ from src.communication.chat_tools import (
     communication_manager,
     CommunicationDecision
 )
-from src.communication.analyst_memory import memory_manager
+# 使用Mem0适配器保持兼容性
+from src.memory import unified_memory_manager as memory_manager
 
 # 导入日志配置
 from src.utils.logging_config import setup_logging
@@ -105,16 +106,10 @@ class AdvancedInvestmentAnalysisEngine:
             }
         }
         
-        # 注册所有分析师到通知系统
-        for agent_id in self.core_analysts.keys():
-            notification_system.register_agent(agent_id)
-        
-        # 注册管理者
-        notification_system.register_agent("portfolio_manager")
-        
-        # 注册所有分析师到记忆系统
+        # 统一通过记忆系统注册分析师与通知（记忆管理器内部会注册通知系统）
         for agent_id, agent_info in self.core_analysts.items():
             memory_manager.register_analyst(agent_id, agent_info['name'])
+        memory_manager.register_analyst("portfolio_manager", "投资组合经理")
         
         logging.info("高级投资分析引擎初始化完成")
     
@@ -179,21 +174,30 @@ class AdvancedInvestmentAnalysisEngine:
             # 获取agent的通知记忆
             agent_memory = notification_system.get_agent_memory(agent_id)
             
-            # 将之前收到的通知添加到状态中，作为上下文
-            notifications_context = format_notifications_for_context(agent_memory)
+            # # 将之前收到的通知添加到状态中，作为上下文（Mem0版本按agent_id生成）
+            # # 若为回测流程，可从state中传入 backtest_date 到通知上下文
+            # backtest_date = state.get("data", {}).get("backtest_date") if isinstance(state.get("data", {}), dict) else None
+            # notifications_context = format_notifications_for_context(agent_id, backtest_date=backtest_date)
             
-            # 可以将通知上下文添加到消息中
-            context_message = HumanMessage(
-                content=f"Context information: {notifications_context}\n\nPlease analyze based on this information and latest data."
-            )
-            state["messages"].append(context_message)
+            # # 可以将通知上下文添加到消息中
+            # context_message = HumanMessage(
+            #     content=f"Context information: {notifications_context}\n\nPlease analyze based on this information and latest data."
+            # )
+            # state["messages"].append(context_message)
             
-            # 记录上下文消息到分析师记忆
-            if analyst_memory and session_id:
-                analyst_memory.add_analysis_message(
-                    session_id, "human", context_message.content, 
-                    {"type": "context", "notifications_included": len(agent_memory.notifications) if agent_memory else 0}
-                )
+            # # 记录上下文消息到分析师记忆
+            # if analyst_memory and session_id:
+            #     notifications_included = 0
+            #     try:
+            #         if agent_memory:
+            #             recent_list = agent_memory.get_recent_notifications(24)
+            #             notifications_included = len(recent_list) if isinstance(recent_list, list) else 0
+            #     except Exception:
+            #         notifications_included = 0
+            #     analyst_memory.add_analysis_message(
+            #         session_id, "human", context_message.content,
+            #         {"type": "context", "notifications_included": notifications_included}
+            #     )
             
             # 执行分析师函数
             result = agent_func(state, agent_id=agent_id)
@@ -206,11 +210,7 @@ class AdvancedInvestmentAnalysisEngine:
                 
                 # 完成分析会话记录
                 if analyst_memory and session_id:
-                    analyst_memory.add_analysis_message(
-                        session_id, "assistant", 
-                        f"分析完成，生成了{len(analysis_result.get('ticker_signals', []))}个股票信号",
-                        {"analysis_result": analysis_result}
-                    )
+                   
                     analyst_memory.complete_analysis_session(session_id, analysis_result)
                 
                 # 判断是否需要发送通知（可选）
@@ -245,7 +245,7 @@ class AdvancedInvestmentAnalysisEngine:
                 else:
                     print(f"⚡ {agent_name} 跳过通知机制（已禁用）")
                     notification_decision = {"should_notify": False, "reason": "通知机制已禁用"}
-                
+                # pdb.set_trace()
                 return {
                     "agent_id": agent_id,
                     "agent_name": agent_name,
@@ -512,7 +512,6 @@ class AdvancedInvestmentAnalysisEngine:
         execution_time = (end_time - start_time).total_seconds()
         print(f"\n第二轮并行分析完成，总耗时: {execution_time:.2f} 秒")
         print("=" * 40)
-        
         return second_round_results
     
     def run_second_round_sequential(self, first_round_report: Dict, state: AgentState) -> Dict[str, Any]:
@@ -540,13 +539,13 @@ class AdvancedInvestmentAnalysisEngine:
             # 获取分析师记忆并开始第二轮分析会话
             analyst_memory = memory_manager.get_analyst_memory(agent_id)
             session_id = None
-            if analyst_memory:
-                tickers = state["data"]["tickers"]
-                session_id = analyst_memory.start_analysis_session(
-                    session_type="second_round",
-                    tickers=tickers,
-                    context={"first_round_report": first_round_report}
-                )
+            # if analyst_memory:
+            #     tickers = state["data"]["tickers"]
+            #     session_id = analyst_memory.start_analysis_session(
+            #         session_type="second_round",
+            #         tickers=tickers,
+            #         context={"first_round_report": first_round_report}
+            #     )
             
             # 提取需要的数据
             tickers = state["data"]["tickers"]
@@ -732,12 +731,15 @@ class AdvancedInvestmentAnalysisEngine:
                     print(f"\n沟通循环 第{cycle}/{max_cycles} 轮")
                     # 获取分析师信号（每轮刷新）
                     analyst_signals = {}
-                    for agent_id in self.core_analysts.keys():
-                        if agent_id in state["data"]["analyst_signals"]:
-                            analyst_signals[agent_id] = state["data"]["analyst_signals"][agent_id]
-                    
+                    if cycle ==1:
+                        for agent_id in self.core_analysts.keys():
+                            if agent_id in state["data"]["analyst_signals"]:
+                                analyst_signals[agent_id] = state["data"]["analyst_signals"][agent_id]
+                    else:
+                        analyst_signals = updated_signals
                     # print(analyst_signals)
                     # 决定通信策略
+                    # pdb.set_trace()
                     communication_decision = communication_manager.decide_communication_strategy(
                         manager_signals=final_decisions,
                         analyst_signals=analyst_signals,
@@ -759,7 +761,6 @@ class AdvancedInvestmentAnalysisEngine:
                         print("决定不进行额外通信")
                         print(f"原因: {communication_decision.reasoning}")
                         break
-                    
                     print(f"选择通信类型: {communication_decision.communication_type}")
                     print(f"讨论话题: {communication_decision.discussion_topic}")
                     print(f"目标分析师: {', '.join(communication_decision.target_analysts)}")
@@ -776,7 +777,7 @@ class AdvancedInvestmentAnalysisEngine:
                         )
                     else:
                         communication_results = {}
-                    
+                    # pdb.set_trace()
                     # 如果有信号调整，重新运行投资组合决策
                     if communication_results.get("signals_adjusted", False):
                         print("\n基于通信结果重新生成投资决策...")
@@ -786,9 +787,9 @@ class AdvancedInvestmentAnalysisEngine:
                         for agent_id, updated_signal in updated_signals.items():
                             state["data"]["analyst_signals"][f"{agent_id}_post_communication_cycle{cycle}"] = updated_signal
                         
-                        # 重新运行风险管理分析（确保有最新的价格和限额数据）
-                        print("重新运行风险管理分析...")
-                        risk_analysis_results = self.run_risk_management_analysis(state)
+                        # # 重新运行风险管理分析（确保有最新的价格和限额数据）
+                        # print("重新运行风险管理分析...")
+                        # risk_analysis_results = self.run_risk_management_analysis(state)
                         
                         # 重新运行投资组合管理（使用标准agent_id以便访问风险管理数据）
                         final_portfolio_result = portfolio_management_agent(state, agent_id="portfolio_manager")
@@ -806,7 +807,7 @@ class AdvancedInvestmentAnalysisEngine:
                     else:
                         print("本轮沟通未导致信号调整，结束循环")
                         break
-                
+                    
                 # 执行最终交易决策
                 print("\n执行最终交易决策...")
                 print('final_decisions',final_decisions)
@@ -1013,7 +1014,7 @@ class AdvancedInvestmentAnalysisEngine:
                 all_signals[result["agent_id"]] = result["analysis_result"]
         
         # 生成通知摘要
-        notification_summary = self.generate_notification_summary()
+        notification_summary = self.generate_notification_summary(analyst_results)
         
         report = {
             "summary": {
@@ -1027,38 +1028,49 @@ class AdvancedInvestmentAnalysisEngine:
             "errors": [{"agent": r["agent_id"], "error": r["error"]} 
                       for r in failed_analyses]
         }
-        
         return report
     
-    def generate_notification_summary(self) -> Dict[str, Any]:
-        """生成通知活动摘要"""
-        summary = {
-            "total_notifications": len(notification_system.global_notifications),
+    def generate_notification_summary(self, analyst_results: Dict[str, Any]) -> Dict[str, Any]:
+        """生成通知活动摘要（基于analyst_results）"""
+        summary: Dict[str, Any] = {
+            "total_notifications": 0,
             "notifications_by_agent": {},
             "recent_notifications": []
         }
+
+        # 直接从analyst_results中获取通知决策信息
+        notifications_sent = 0
+        current_time = datetime.now()
         
-        # 按发送者统计通知
-        for notification in notification_system.global_notifications:
-            sender = notification.sender_agent
-            if sender not in summary["notifications_by_agent"]:
-                summary["notifications_by_agent"][sender] = 0
-            summary["notifications_by_agent"][sender] += 1
+        print(f"📊 正在生成通知摘要，分析结果数量: {len(analyst_results)}")
         
-        # 获取最近的通知
-        recent_cutoff = datetime.now() - timedelta(hours=1)
-        recent_notifications = [
-            {
-                "sender": n.sender_agent,
-                "content": n.content,
-                "urgency": n.urgency,
-                "category": n.category,
-                "timestamp": n.timestamp.strftime("%H:%M:%S")
-            }
-            for n in notification_system.global_notifications
-            if n.timestamp >= recent_cutoff
-        ]
-        summary["recent_notifications"] = recent_notifications
+        for agent_id, result in analyst_results.items():
+            # 检查是否有notification_decision
+            if result.get("status") == "success" and "notification_decision" in result:
+                decision = result["notification_decision"]
+                agent_name = result.get("agent_name", agent_id)
+                
+                # 统计每个agent的通知情况
+                if decision.get("should_notify", False):
+                    notifications_sent += 1
+                    summary["notifications_by_agent"][agent_name] = 1
+                    
+                    # 添加到最近通知列表
+                    summary["recent_notifications"].append({
+                        "sender": agent_name,
+                        "content": decision.get("content", "")[:200],
+                        "urgency": decision.get("urgency", "medium"),
+                        "category": decision.get("category", "general"),
+                        "timestamp": current_time.strftime("%H:%M:%S")
+                    })
+                else:
+                    # 即使没发送通知也记录一下（计数为0）
+                    summary["notifications_by_agent"][agent_name] = 0
+            else:
+                print(f"   {agent_id}: 分析失败或无通知决策")
+
+        summary["total_notifications"] = notifications_sent
+        print(f"通知摘要生成完成，总通知数: {notifications_sent}")
         
         return summary
     
@@ -1072,7 +1084,7 @@ class AdvancedInvestmentAnalysisEngine:
         summary = report["summary"]
         
         print(f"分析股票: {', '.join(results['tickers'])}")
-        print(f"⏰ 分析时间: {results['analysis_timestamp']}")
+        print(f"分析时间: {results['analysis_timestamp']}")
         print(f"最终成功分析: {summary['successful_analyses']}/{summary['total_analysts']}")
         print(f"发送通知: {summary['notifications_sent']} 条")
         

@@ -15,9 +15,9 @@ from langchain_core.messages import HumanMessage, AIMessage
 from src.llm.models import get_model
 from src.utils.api_key import get_api_key_from_state
 from src.utils.json_utils import quiet_json_dumps
-from .analyst_memory import memory_manager
-
-
+from src.memory import unified_memory_manager as memory_manager
+from src.memory import unified_memory_manager
+import pdb
 class PrivateChatMessage(BaseModel):
     """私聊消息模型"""
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -28,13 +28,6 @@ class PrivateChatMessage(BaseModel):
     message_type: str = Field(default="chat", description="消息类型")
 
 
-class MeetingMessage(BaseModel):
-    """会议消息模型"""
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    speaker: str = Field(..., description="发言者ID")
-    content: str = Field(..., description="发言内容")
-    timestamp: datetime = Field(default_factory=datetime.now)
-    round: int = Field(..., description="发言轮次")
 
 
 class SignalAdjustment(BaseModel):
@@ -102,57 +95,6 @@ class PrivateChatSystem:
         return self.chat_histories.get(chat_key, [])
 
 
-class MeetingSystem:
-    """会议系统"""
-    
-    def __init__(self):
-        self.meetings: Dict[str, Dict[str, Any]] = {}
-    
-    def create_meeting(self, meeting_id: str, host: str, participants: List[str], 
-                      topic: str) -> str:
-        """创建会议"""
-        self.meetings[meeting_id] = {
-            "id": meeting_id,
-            "host": host,
-            "participants": participants,
-            "topic": topic,
-            "messages": [],
-            "current_round": 1,
-            "status": "active",
-            "created_at": datetime.now()
-        }
-        return meeting_id
-    
-    def add_message(self, meeting_id: str, speaker: str, content: str) -> str:
-        """添加会议发言"""
-        if meeting_id not in self.meetings:
-            raise ValueError(f"会议 {meeting_id} 不存在")
-        
-        meeting = self.meetings[meeting_id]
-        message = MeetingMessage(
-            speaker=speaker,
-            content=content,
-            round=meeting["current_round"]
-        )
-        
-        meeting["messages"].append(message)
-        return message.id
-    
-    def next_round(self, meeting_id: str):
-        """进入下一轮发言"""
-        if meeting_id in self.meetings:
-            self.meetings[meeting_id]["current_round"] += 1
-    
-    def end_meeting(self, meeting_id: str):
-        """结束会议"""
-        if meeting_id in self.meetings:
-            self.meetings[meeting_id]["status"] = "ended"
-    
-    def get_meeting_transcript(self, meeting_id: str) -> List[MeetingMessage]:
-        """获取会议记录"""
-        if meeting_id not in self.meetings:
-            return []
-        return self.meetings[meeting_id]["messages"]
 
 
 class CommunicationManager:
@@ -160,7 +102,6 @@ class CommunicationManager:
     
     def __init__(self):
         self.private_chat_system = PrivateChatSystem()
-        self.meeting_system = MeetingSystem()
         
     def _get_max_chars(self, state) -> int:
         """获取沟通文本最大字数，默认400，可通过state.metadata.communication_max_chars覆盖"""
@@ -353,9 +294,9 @@ class CommunicationManager:
                 analyst_id, topic, conversation_history, 
                 current_analyst_signal, state
             )
-            # 截断分析师回应
-            if isinstance(analyst_response, dict) and "response" in analyst_response:
-                analyst_response["response"] = self._truncate_text(analyst_response["response"], max_chars)
+            # # 截断分析师回应
+            # if isinstance(analyst_response, dict) and "response" in analyst_response:
+            #     analyst_response["response"] = self._truncate_text(analyst_response["response"], max_chars)
             
             conversation_history.append({
                 "speaker": analyst_id,
@@ -366,10 +307,10 @@ class CommunicationManager:
             print(f"🗣️ {analyst_id}: {analyst_response['response']}")
             
             # 记录分析师回应到记忆
-            if analyst_memory and communication_id:
-                analyst_memory.add_communication_message(
-                    communication_id, analyst_id, analyst_response['response']
-                )
+            # if analyst_memory and communication_id:
+            #     analyst_memory.add_communication_message(
+            #         communication_id, analyst_id, analyst_response['response']
+            #     )
             
             # 检查是否有信号调整
             if analyst_response.get("signal_adjustment") and analyst_response.get("adjusted_signal"):
@@ -378,14 +319,14 @@ class CommunicationManager:
                 print(f"信号已调整: {analyst_response['signal_adjustment']}")
                 adjustments_made_counter += 1
                 
-                # 记录信号调整到记忆
-                if analyst_memory and communication_id:
-                    analyst_memory.record_signal_adjustment(
-                        communication_id, 
-                        original_signal, 
-                        current_analyst_signal,
-                        f"私聊讨论{topic}后的调整"
-                    )
+                # # 记录信号调整到记忆
+                # if analyst_memory and communication_id:
+                #     analyst_memory.record_signal_adjustment(
+                #         communication_id, 
+                #         original_signal, 
+                #         current_analyst_signal,
+                #         f"私聊讨论{topic}后的调整"
+                #     )
             
             # 管理者回应（如果不是最后一轮）
             if round_num < max_rounds - 1:
@@ -403,31 +344,45 @@ class CommunicationManager:
                 
                 print(f"🗣️ {manager_id}: {manager_response}")
                 
-                # 记录管理者回应到记忆
-                if analyst_memory and communication_id:
-                    analyst_memory.add_communication_message(
-                        communication_id, manager_id, manager_response
-                    )
+                # # 记录管理者回应到记忆
+                # if analyst_memory and communication_id:
+                #     analyst_memory.add_communication_message(
+                #         communication_id, manager_id, manager_response
+                #     )
         
+        # pdb.set_trace()
         print("私聊结束")
         
-        # 完成通信记录
+        memory_format = self._convert_private_chat_to_memory_format(
+            conversation_history, manager_id, analyst_id, topic, chat_id
+        )
+
+        # 将对话历史存储到分析师memory中
         if analyst_memory and communication_id:
+            from src.memory.unified_memory import safe_memory_add
+            
+            # 将messages和metadata存储到memory
+            result = safe_memory_add(
+                memory_instance=analyst_memory.memory,
+                messages=memory_format["messages"],
+                user_id=analyst_id,
+                metadata=memory_format["metadata"],
+                infer=False,
+                operation_name=f"私聊记录存储-{analyst_id}"
+            )
+            
+            
+            # 完成通信记录
             analyst_memory.complete_communication(communication_id)
-        
+
+      
+
         result = {
             "chat_history": conversation_history,
             "final_analyst_signal": current_analyst_signal,
-            "adjustments_made": adjustments_made_counter
+            "adjustments_made": adjustments_made_counter,
         }
-        # 持久化写入日志
-        payload = {
-            "timestamp": datetime.now().isoformat(),
-            "participants": [manager_id, analyst_id],
-            "topic": topic,
-            "result": result
-        }
-        self._persist_communication_result(payload, comm_type="private_chat", state=state)
+
         return result
     
     def conduct_meeting(self, manager_id: str, analyst_ids: List[str], 
@@ -451,10 +406,8 @@ class CommunicationManager:
                 )
                 communication_ids[analyst_id] = comm_id
         
-        # 创建会议
-        self.meeting_system.create_meeting(
-            meeting_id, manager_id, analyst_ids, topic
-        )
+        # 初始化会议信息（只用于日志记录）
+        print(f"会议创建成功 - ID: {meeting_id}")
         
         current_signals = analyst_signals.copy()
         meeting_transcript = []
@@ -462,11 +415,11 @@ class CommunicationManager:
         
         # 管理者开场
         opening_message = f"Let's discuss {topic}. Please share your viewpoints and analysis results."
-        self.meeting_system.add_message(meeting_id, manager_id, opening_message)
         meeting_transcript.append({
             "speaker": manager_id,
             "content": opening_message,
-            "round": 1
+            "round": 1,
+            "timestamp": datetime.now().isoformat()
         })
         
         max_chars = self._get_max_chars(state)
@@ -486,29 +439,26 @@ class CommunicationManager:
                     current_signals.get(analyst_id, {}), 
                     current_signals, state, round_num + 1
                 )
-                # 截断分析师发言
-                if isinstance(analyst_response, dict) and "response" in analyst_response:
-                    analyst_response["response"] = self._truncate_text(analyst_response["response"], max_chars)
-                
-                self.meeting_system.add_message(
-                    meeting_id, analyst_id, analyst_response["response"]
-                )
+                # # 截断分析师发言
+                # if isinstance(analyst_response, dict) and "response" in analyst_response:
+                #     analyst_response["response"] = self._truncate_text(analyst_response["response"], max_chars)
                 
                 meeting_transcript.append({
                     "speaker": analyst_id,
                     "content": analyst_response["response"],
-                    "round": round_num + 1
+                    "round": round_num + 1,
+                    "timestamp": datetime.now().isoformat()
                 })
                 
                 # print(f"{analyst_id}: {analyst_response['response']}") 
                 print(f"{analyst_id}: {analyst_response}")
 
                 # 记录发言到分析师记忆
-                analyst_memory = memory_manager.get_analyst_memory(analyst_id)
-                if analyst_memory and analyst_id in communication_ids:
-                    analyst_memory.add_communication_message(
-                        communication_ids[analyst_id], analyst_id, analyst_response['response']
-                    )
+                # analyst_memory = memory_manager.get_analyst_memory(analyst_id)
+                # if analyst_memory and analyst_id in communication_ids:
+                #     analyst_memory.add_communication_message(
+                #         communication_ids[analyst_id], analyst_id, analyst_response['response']
+                #     )
                 
                 # 检查信号调整
                 if analyst_response.get("signal_adjustment") and analyst_response.get("adjusted_signal"):
@@ -518,15 +468,15 @@ class CommunicationManager:
                     adjustments_made_counter += 1
                     
                     # 记录信号调整到记忆
-                    if analyst_memory and analyst_id in communication_ids:
-                        analyst_memory.record_signal_adjustment(
-                            communication_ids[analyst_id],
-                            original_signal,
-                            analyst_response["adjusted_signal"],
-                            f"会议讨论{topic}后的调整"
-                        )
+                    # if analyst_memory and analyst_id in communication_ids:
+                    #     analyst_memory.record_signal_adjustment(
+                    #         communication_ids[analyst_id],
+                    #         original_signal,
+                    #         analyst_response["adjusted_signal"],
+                    #         f"会议讨论{topic}后的调整"
+                    #     )
             
-            self.meeting_system.next_round(meeting_id)
+            # 进入下一轮发言（轮次管理在meeting_transcript中自动处理）
         
         # 管理者总结
         summary = self._get_manager_meeting_summary(
@@ -534,41 +484,46 @@ class CommunicationManager:
         )
         summary = self._truncate_text(summary, max_chars)
         
-        self.meeting_system.add_message(meeting_id, manager_id, summary)
         meeting_transcript.append({
             "speaker": manager_id,
             "content": summary,
-            "round": "summary"
+            "round": round_num,
+            "timestamp": datetime.now().isoformat()
         })
         
         print(f"会议总结: {summary}")
         
-        self.meeting_system.end_meeting(meeting_id)
         print("会议结束")
-        
+        memory_format = self._convert_transcript_to_memory_format(
+            meeting_transcript, meeting_id, topic, max_rounds
+        )
+
         # 完成所有分析师的通信记录
         for analyst_id in analyst_ids:
             if analyst_id in communication_ids:
                 analyst_memory = memory_manager.get_analyst_memory(analyst_id)
                 if analyst_memory:
+                    from src.memory.unified_memory import safe_memory_add
+                    
+                    # 将messages和metadata存储到memory
+                    result = safe_memory_add(
+                        memory_instance=analyst_memory.memory,
+                        messages=memory_format["messages"],
+                        user_id=analyst_id,
+                        metadata=memory_format["metadata"],
+                        infer=False,
+                        operation_name=f"会议记录存储-{analyst_id}"
+                    )
+                    
                     analyst_memory.complete_communication(communication_ids[analyst_id])
-        
+        # pdb.set_trace()
+
         result = {
             "meeting_id": meeting_id,
             "transcript": meeting_transcript,
             "final_signals": current_signals,
             "adjustments_made": adjustments_made_counter
         }
-        # 持久化写入日志
-        payload = {
-            "timestamp": datetime.now().isoformat(),
-            "meeting_id": meeting_id,
-            "host": manager_id,
-            "participants": analyst_ids,
-            "topic": topic,
-            "result": result
-        }
-        self._persist_communication_result(payload, comm_type="meeting", state=state)
         return result
     
     def _get_analyst_chat_response(self, analyst_id: str, topic: str, 
@@ -669,6 +624,111 @@ Please respond to the latest conversation content based on your complete memory 
                     "signal_adjustment": False
                 }
     
+    def _convert_transcript_to_memory_format(self, meeting_transcript: List[Dict], 
+                                        meeting_id: str, topic: str, 
+                                        total_rounds: int) -> Dict[str, Any]:
+        """
+        将meeting_transcript转换为适合memory系统的格式
+        
+        Args:
+            meeting_transcript: 原始会议记录
+            meeting_id: 会议ID  
+            topic: 会议主题
+            total_rounds: 总轮数
+            
+        Returns:
+            转换后的格式，包含messages和metadata
+        """
+        messages = []
+        
+        # 将每个发言转换为user role的消息格式
+        for entry in meeting_transcript:
+            speaker = entry["speaker"]
+            content = entry["content"]
+            
+            # 格式化内容：发言者名称 + 发言内容
+            formatted_content = f"{speaker}: {content}"
+            
+            # 所有发言都以user角色存储，便于统一管理
+            message = {
+                "role": "user",
+                "content": formatted_content
+            }
+            
+            messages.append(message)
+        
+        # 构建metadata
+        metadata = {
+            "meeting_id": meeting_id,
+            "topic": topic,
+            "total_rounds": total_rounds,
+            "total_messages": len(meeting_transcript),
+            "participants": list(set([entry["speaker"] for entry in meeting_transcript])),
+            "communication_type": "meeting"
+        }
+        
+        return {
+            "messages": messages,
+            "metadata": metadata
+        }
+
+    def _convert_private_chat_to_memory_format(self, conversation_history: List[Dict],
+                                            manager_id: str, analyst_id: str,
+                                            topic: str, chat_id: str) -> Dict[str, Any]:
+        """
+        将私聊对话历史转换为适合memory系统的格式
+        
+        Args:
+            conversation_history: 对话历史
+            manager_id: 管理者ID
+            analyst_id: 分析师ID
+            topic: 对话主题
+            chat_id: 对话ID
+            
+        Returns:
+            转换后的格式，包含messages和metadata
+        """
+        messages = []
+        
+        # 添加初始消息（管理者开场）
+        initial_message = f"Regarding {topic}, I would like to discuss your analysis results with you."
+        messages.append({
+            "role": "user",
+            "content": f"{manager_id}: {initial_message}"
+        })
+        
+        # 将每个对话转换为user role的消息格式
+        for entry in conversation_history:
+            speaker = entry["speaker"]
+            content = entry["content"]
+            
+            # 格式化内容：发言者名称 + 发言内容
+            formatted_content = f"{speaker}: {content}"
+            
+            # 所有发言都以user角色存储，便于统一管理
+            message = {
+                "role": "user",
+                "content": formatted_content
+            }
+            
+            messages.append(message)
+        
+        # 构建metadata
+        metadata = {
+            "chat_id": chat_id,
+            "topic": topic,
+            "total_rounds": len([entry for entry in conversation_history if entry["speaker"] == analyst_id]),
+            "total_messages": len(conversation_history) + 1,  # +1 for initial message
+            "participants": [manager_id, analyst_id],
+            "communication_type": "private_chat",
+            "manager_id": manager_id,
+            "analyst_id": analyst_id
+        }
+        
+        return {
+            "messages": messages,
+            "metadata": metadata
+        }   
     def _get_manager_chat_response(self, manager_id: str, analyst_id: str,
                                  conversation_history: List[Dict],
                                  current_signal: Dict[str, Any], 

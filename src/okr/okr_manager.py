@@ -11,8 +11,7 @@ from typing import Dict, List, Optional, Any, Tuple
 from pathlib import Path
 
 from src.tools.api import get_price_data
-from src.communication.analyst_memory import memory_manager
-
+from src.communication.analyst_memory_mem0 import memory_manager_mem0_adapter as memory_manager
 
 class OKRManager:
     """OKR管理器 - 处理分析师绩效评估和淘汰机制"""

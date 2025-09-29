@@ -29,7 +29,7 @@ from src.tools.api import (
     get_insider_trades,
     get_company_news,
 )
-from src.communication.analyst_memory import memory_manager
+from src.communication.analyst_memory_mem0 import memory_manager_mem0_adapter as memory_manager
 from src.okr.okr_manager import OKRManager
 
 
