@@ -25,10 +25,17 @@ def debug_print(message):
         print(message)
 
 
-def safe_memory_add(memory_instance, messages, user_id, metadata, infer=False, operation_name="记忆操作"):
+def safe_memory_add(memory_instance, messages, user_id, metadata, infer=False, operation_name="记忆操作", save_memory=True):
     """
     安全的记忆添加包装器，带调试信息
+    
+    Args:
+        save_memory: 是否真的保存记忆到存储系统（默认True）。False时只打印调试信息，不实际保存
     """
+    if not save_memory:
+        debug_print(f"[调试模式] 跳过记忆保存 - {operation_name}: {messages}")
+        return {"status": "skipped", "reason": "save_memory=False"}
+    
     try:
         result = memory_instance.add(
             messages=messages,
@@ -73,10 +80,11 @@ def sanitize_metadata(metadata: Dict[str, Any]) -> Dict[str, Any]:
 class Mem0AnalystMemory:
     """基于Mem0的分析师记忆系统"""
     
-    def __init__(self, analyst_id: str, analyst_name: str):
+    def __init__(self, analyst_id: str, analyst_name: str, save_memory: bool = True):
         self.analyst_id = analyst_id
         self.analyst_name = analyst_name
         self.creation_time = datetime.now()
+        self.save_memory = save_memory  # 控制是否真的保存记忆
         
         # 获取共享的mem0实例（所有分析师共用一个实例，通过user_id区分）
         self.memory = mem0_integration.get_memory_instance("shared_analysts")
@@ -106,7 +114,8 @@ class Mem0AnalystMemory:
                 "creation_time": self.creation_time.isoformat()
             },
             infer=False,
-            operation_name="分析师档案初始化"
+            operation_name="分析师档案初始化",
+            save_memory=self.save_memory
         )
         
     
@@ -145,7 +154,8 @@ class Mem0AnalystMemory:
                 "timestamp": session.start_time.isoformat()
             },
             infer=False,
-            operation_name="分析会话开始"
+            operation_name="分析会话开始",
+            save_memory=self.save_memory
         )
         
         return session.session_id
@@ -174,7 +184,8 @@ class Mem0AnalystMemory:
                     **(metadata or {})
                 },
                 infer=False,
-                operation_name="分析消息记录"
+                operation_name="分析消息记录",
+                save_memory=self.save_memory
             )
     
     def complete_analysis_session(self, session_id: str, final_result: Dict[str, Any]):
@@ -205,7 +216,8 @@ class Mem0AnalystMemory:
                     "timestamp": session.end_time.isoformat()
                 },
                 infer=False,
-                operation_name="分析会话完成"
+                operation_name="分析会话完成",
+                save_memory=self.save_memory
             )
     
     def start_communication(self, communication_type: str, participants: List[str], 
@@ -241,7 +253,8 @@ class Mem0AnalystMemory:
                 "timestamp": comm.start_time.isoformat()
             },
             infer=False,
-            operation_name="通信开始"
+            operation_name="通信开始",
+            save_memory=self.save_memory
         )
         
         return comm.communication_id
@@ -271,7 +284,8 @@ class Mem0AnalystMemory:
                     **(metadata or {})
                 },
                 infer=False,
-                operation_name="通信消息记录"
+                operation_name="通信消息记录",
+                save_memory=self.save_memory
             )
     
     def record_signal_adjustment(self, communication_id: str, original_signal: Dict[str, Any], 
@@ -309,7 +323,8 @@ class Mem0AnalystMemory:
                     "timestamp": adjustment["timestamp"]
                 },
                 infer=False,
-                operation_name="信号调整记录"
+                operation_name="信号调整记录",
+                save_memory=self.save_memory
             )
     
     def complete_communication(self, communication_id: str):
@@ -338,7 +353,8 @@ class Mem0AnalystMemory:
                     "timestamp": comm.end_time.isoformat()
                 },
                 infer=False,
-                operation_name="通信完成"
+                operation_name="通信完成",
+                save_memory=self.save_memory
             )
     
     def get_relevant_memories(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
@@ -442,14 +458,16 @@ class Mem0AnalystMemory:
 class Mem0AnalystMemoryManager:
     """基于Mem0的分析师记忆管理器"""
     
-    def __init__(self):
+    def __init__(self, save_memory: bool = True):
         self.analysts: Dict[str, Mem0AnalystMemory] = {}
+        self.save_memory = save_memory
     
     def register_analyst(self, analyst_id: str, analyst_name: str):
         """注册分析师"""
         if analyst_id not in self.analysts:
-            self.analysts[analyst_id] = Mem0AnalystMemory(analyst_id, analyst_name)
-            print(f"注册分析师记忆（基于Mem0）: {analyst_name}")
+            self.analysts[analyst_id] = Mem0AnalystMemory(analyst_id, analyst_name, save_memory=self.save_memory)
+            status = "（调试模式）" if not self.save_memory else "（基于Mem0）"
+            print(f"注册分析师记忆{status}: {analyst_name}")
     
     def get_analyst_memory(self, analyst_id: str) -> Optional[Mem0AnalystMemory]:
         """获取分析师记忆"""
@@ -478,8 +496,9 @@ class Mem0AnalystMemoryManager:
         if analyst_id in self.analysts:
             del self.analysts[analyst_id]
             
-        # 重置mem0实例
-        mem0_integration.reset_user_memory(analyst_id)
+        # 只有在真实保存模式下才重置mem0实例
+        if self.save_memory:
+            mem0_integration.reset_user_memory(analyst_id)
         
         # 如果提供了名称，重新注册
         if analyst_name:
@@ -493,13 +512,18 @@ class Mem0AnalystMemoryManager:
 class Mem0NotificationMemory:
     """基于Mem0的通知记忆系统"""
     
-    def __init__(self, agent_id: str):
+    def __init__(self, agent_id: str, save_memory: bool = True):
         self.agent_id = agent_id
+        self.save_memory = save_memory
         # 使用共享实例，通过user_id区分不同agent的通知
         self.memory = mem0_integration.get_memory_instance("shared_analysts")
     
     def add_received_notification(self, notification: Notification, backtest_date: Optional[str] = None):
         """记录接收到的通知"""
+        if not self.save_memory:
+            debug_print(f"[调试模式] 跳过通知记录 - 接收通知: {notification.content}")
+            return
+            
         try:
             metadata = {
                 "type": "received_notification",
@@ -523,6 +547,10 @@ class Mem0NotificationMemory:
     
     def add_sent_notification(self, notification: Notification, backtest_date: Optional[str] = None):
         """记录发送的通知"""
+        if not self.save_memory:
+            debug_print(f"[调试模式] 跳过通知记录 - 发送通知: {notification.content}")
+            return
+            
         try:
             metadata = {
                 "type": "sent_notification",
@@ -625,16 +653,18 @@ class Mem0NotificationMemory:
 class Mem0NotificationSystem:
     """基于Mem0的通知系统"""
     
-    def __init__(self):
+    def __init__(self, save_memory: bool = True):
         self.agent_memories: Dict[str, Mem0NotificationMemory] = {}
+        self.save_memory = save_memory
         # 全局通知也使用共享实例
         self.global_memory = mem0_integration.get_memory_instance("shared_analysts")
     
     def register_agent(self, agent_id: str):
         """注册agent"""
         if agent_id not in self.agent_memories:
-            self.agent_memories[agent_id] = Mem0NotificationMemory(agent_id)
-            print(f"注册agent到Mem0通知系统: {agent_id}")
+            self.agent_memories[agent_id] = Mem0NotificationMemory(agent_id, save_memory=self.save_memory)
+            status = "（调试模式）" if not self.save_memory else ""
+            print(f"注册agent到Mem0通知系统{status}: {agent_id}")
     
     def send_notification(self, sender_agent: str, target_agent: str, content: str, 
                          urgency: str = "medium", category: str = "general",
@@ -669,25 +699,28 @@ class Mem0NotificationSystem:
         )
         
         # 记录到全局通知记忆
-        try:
-            metadata = {
-                "type": "broadcast_notification",
-                "notification_id": notification.id,
-                "sender": sender_agent,
-                "urgency": urgency,
-                "category": category,
-                "timestamp": notification.timestamp.isoformat()
-            }
-            if backtest_date:
-                metadata["backtest_date"] = backtest_date
+        if not self.save_memory:
+            debug_print(f"[调试模式] 跳过广播通知记录: {content}")
+        else:
+            try:
+                metadata = {
+                    "type": "broadcast_notification",
+                    "notification_id": notification.id,
+                    "sender": sender_agent,
+                    "urgency": urgency,
+                    "category": category,
+                    "timestamp": notification.timestamp.isoformat()
+                }
+                if backtest_date:
+                    metadata["backtest_date"] = backtest_date
 
-            self.global_memory.add(
-                messages=[{"role": "user", "content": f"广播通知从{sender_agent}: {content}"}],
-                user_id="global_notification_system",
-                metadata=metadata
-            )
-        except Exception as e:
-            print(f"警告：记录广播通知到mem0失败: {str(e)}")
+                self.global_memory.add(
+                    messages=[{"role": "user", "content": f"广播通知从{sender_agent}: {content}"}],
+                    user_id="global_notification_system",
+                    metadata=metadata
+                )
+            except Exception as e:
+                print(f"警告：记录广播通知到mem0失败: {str(e)}")
         
         # 发送给所有注册的agents
         for agent_id in self.agent_memories:
@@ -711,7 +744,8 @@ class Mem0NotificationSystem:
 class Mem0CommunicationMemory:
     """基于Mem0的通信记忆系统（私聊和会议）"""
     
-    def __init__(self):
+    def __init__(self, save_memory: bool = True):
+        self.save_memory = save_memory
         # 通信记忆使用共享实例，通过user_id区分
         self.communication_memory = mem0_integration.get_memory_instance("shared_analysts")
     
@@ -736,6 +770,10 @@ class Mem0CommunicationMemory:
         
         full_message = f"{chat_summary}\n\n对话详情：\n{conversation_details}"
         
+        if not self.save_memory:
+            debug_print(f"[调试模式] 跳过私聊记录: {participants} - {topic}")
+            return
+            
         try:
             metadata = {
                 "type": "private_chat",
@@ -781,6 +819,10 @@ class Mem0CommunicationMemory:
         
         full_message = f"{meeting_summary}\n\n会议详情：\n{meeting_details}"
         
+        if not self.save_memory:
+            debug_print(f"[调试模式] 跳过会议记录: {meeting_id} - {topic}")
+            return
+            
         try:
             metadata = {
                 "type": "meeting",
@@ -830,10 +872,11 @@ class Mem0CommunicationMemory:
 class Mem0MemoryManager:
     """统一的Mem0记忆管理器"""
     
-    def __init__(self):
-        self.analyst_memory_manager = Mem0AnalystMemoryManager()
-        self.notification_system = Mem0NotificationSystem()
-        self.communication_memory = Mem0CommunicationMemory()
+    def __init__(self, save_memory: bool = True):
+        self.save_memory = save_memory
+        self.analyst_memory_manager = Mem0AnalystMemoryManager(save_memory=save_memory)
+        self.notification_system = Mem0NotificationSystem(save_memory=save_memory)
+        self.communication_memory = Mem0CommunicationMemory(save_memory=save_memory)
         
         # 预定义的分析师ID和名称映射
         self.analyst_definitions = {
@@ -938,7 +981,11 @@ class Mem0MemoryManager:
 # ================================
 
 # 创建全局实例
-mem0_memory_manager = Mem0AnalystMemoryManager()
-mem0_notification_system = Mem0NotificationSystem()
-mem0_communication_memory = Mem0CommunicationMemory()
-unified_memory_manager = Mem0MemoryManager()
+# 默认启用记忆保存，可以通过环境变量 MEMORY_SAVE_DISABLED=true 来禁用
+import os
+default_save_memory = not (os.getenv("MEMORY_SAVE_DISABLED", "false").lower() in ("true", "1", "yes"))
+
+mem0_memory_manager = Mem0AnalystMemoryManager(save_memory=default_save_memory)
+mem0_notification_system = Mem0NotificationSystem(save_memory=default_save_memory)
+mem0_communication_memory = Mem0CommunicationMemory(save_memory=default_save_memory)
+unified_memory_manager = Mem0MemoryManager(save_memory=default_save_memory)

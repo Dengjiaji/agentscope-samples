@@ -667,10 +667,25 @@ class MultiDayManager:
         
         return stock_performance
     
-    def _calculate_stock_daily_return_from_signal(self, ticker: str, date: str, action: str) -> float:
-        """基于方向信号计算单只股票的日收益率"""
+    def _calculate_stock_daily_return_from_signal(self, ticker: str, date, action: str) -> float:
+        """基于方向信号计算单只股票的日收益率
+        
+        Args:
+            ticker: 股票代码
+            date: 日期，可以是字符串 (YYYY-MM-DD) 或 datetime.date 对象
+            action: 交易动作 ('long', 'short', 'hold')
+        """
         # 获取该股票的价格数据（获取更大范围以确保有足够数据计算收益率）
         from datetime import datetime, timedelta
+        import datetime as dt
+        
+        # 处理日期参数，确保转换为 date 对象
+        if isinstance(date, str):
+            target_date = pd.to_datetime(date).date()
+        elif isinstance(date, dt.date):
+            target_date = date
+        elif isinstance(date, dt.datetime):
+            target_date = date.date()
         
         # 使用相对路径获取数据文件
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 获取IA/src目录
@@ -678,19 +693,18 @@ class MultiDayManager:
         
         if not os.path.exists(data_path):
             print(f"警告: 数据文件不存在 {data_path}，使用模拟收益率")
-            return self._fallback_simulated_return(ticker, date, action)
+            return self._fallback_simulated_return(ticker, str(target_date), action)
             
         prices_df = pd.read_csv(data_path)
         
         if prices_df.empty:
-            print(f"警告: 无法获取 {ticker} 在 {date} 的价格数据，使用模拟收益率")
-            return self._fallback_simulated_return(ticker, date, action)
+            print(f"警告: 无法获取 {ticker} 在 {target_date} 的价格数据，使用模拟收益率")
+            return self._fallback_simulated_return(ticker, str(target_date), action)
         
         # 计算日收益率
         prices_df['ret'] = prices_df['close'].pct_change()
         
         # 查找指定日期的收益率
-        target_date = pd.to_datetime(date).date()
         prices_df.index = pd.to_datetime(prices_df['Date']).dt.date
         # pdb.set_trace()
         # 找到最接近目标日期的收益率

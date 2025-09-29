@@ -4,7 +4,11 @@
 基于InvestingAgents项目的多日策略模式，实现连续多日的投资分析
 
 使用方法:
+# 使用命令行参数
 python main_multi_day.py --tickers AAPL,MSFT --start-date 2024-01-01 --end-date 2024-01-31
+
+# 使用环境变量配置文件（创建 .env 文件后）
+python main_multi_day.py
 """
 
 import sys
@@ -15,6 +19,7 @@ from dateutil.relativedelta import relativedelta
 import pandas as pd 
 from advanced_investment_engine import AdvancedInvestmentAnalysisEngine
 from src.scheduler.multi_day_manager import MultiDayManager
+from src.config.env_config import MultiDayConfig
 
 
 def validate_date_format(date_string: str) -> bool:
@@ -44,25 +49,32 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例用法:
-  # 分析AAPL和MSFT一个月的策略表现
+  # 使用命令行参数
   python main_multi_day.py --tickers AAPL,MSFT --start-date 2024-01-01 --end-date 2024-01-31
   
-  # 分析单只股票，禁用沟通机制
-  python main_multi_day.py --tickers TSLA --start-date 2024-02-01 --end-date 2024-02-14 --disable-communications
+  # 使用环境变量配置文件 (创建 .env 文件)
+  python main_multi_day.py
   
-  # 禁用通知机制，只进行第一轮分析（最快模式）
-  python main_multi_day.py --tickers AAPL,MSFT --start-date 2024-01-01 --end-date 2024-01-05 --disable-notifications
+  # 命令行参数会覆盖环境变量设置
+  python main_multi_day.py --tickers TSLA --disable-communications
   
-  # 自定义沟通轮数和输出目录
-  python main_multi_day.py --tickers GOOGL,AMZN --start-date 2024-03-01 --end-date 2024-03-15 --max-comm-cycles 5 --output-dir ./my_results
+  # 生成环境变量模板
+  python main_multi_day.py --create-env-template
         """
     )
     
-    # 必需参数
+    # 工具选项
+    parser.add_argument(
+        "--create-env-template",
+        action="store_true",
+        help="创建环境变量配置模板文件并退出"
+    )
+    
+    # 必需参数 (如果使用环境变量则可选)
     parser.add_argument(
         "--tickers", 
         type=str, 
-        required=True,
+        required=False,  # 改为可选，支持环境变量
         help="股票代码列表，用逗号分隔 (例如: AAPL,MSFT,GOOGL)"
     )
     
@@ -133,34 +145,36 @@ def main():
     
     args = parser.parse_args()
     
-    # 解析股票代码
-    tickers = [ticker.strip().upper() for ticker in args.tickers.split(",") if ticker.strip()]
-    if not tickers:
-        print("❌ 错误: 请提供至少一个有效的股票代码")
+    # 处理创建环境变量模板的请求
+    if args.create_env_template:
+        from src.config.env_config import create_env_template
+        create_env_template()
+        sys.exit(0)
+    
+    # 加载环境变量配置
+    config = MultiDayConfig()
+    
+    # 用命令行参数覆盖环境变量配置
+    config.override_with_args(args)
+    
+    # 验证股票代码
+    if not config.tickers:
+        print("❌ 错误: 请通过 --tickers 参数或环境变量 TICKERS 提供至少一个有效的股票代码")
+        print("💡 提示: 可以运行 'python main_multi_day.py --create-env-template' 创建配置模板")
         sys.exit(1)
     
-    # 设置日期范围
-    if args.end_date:
-        if not validate_date_format(args.end_date):
-            print(f"❌ 错误: 结束日期格式无效: {args.end_date} (需要 YYYY-MM-DD)")
-            sys.exit(1)
-        end_date = args.end_date
-    else:
-        end_date = datetime.now().strftime("%Y-%m-%d")
+    # 验证日期格式
+    if not validate_date_format(config.start_date):
+        print(f"❌ 错误: 开始日期格式无效: {config.start_date} (需要 YYYY-MM-DD)")
+        sys.exit(1)
     
-    if args.start_date:
-        if not validate_date_format(args.start_date):
-            print(f"❌ 错误: 开始日期格式无效: {args.start_date} (需要 YYYY-MM-DD)")
-            sys.exit(1)
-        start_date = args.start_date
-    else:
-        # 默认30天前
-        end_date_obj = datetime.strptime(end_date, "%Y-%m-%d")
-        start_date = (end_date_obj - timedelta(days=30)).strftime("%Y-%m-%d")
+    if not validate_date_format(config.end_date):
+        print(f"❌ 错误: 结束日期格式无效: {config.end_date} (需要 YYYY-MM-DD)")
+        sys.exit(1)
     
     # 验证日期逻辑
-    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d")
-    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d")
+    start_date_obj = datetime.strptime(config.start_date, "%Y-%m-%d")
+    end_date_obj = datetime.strptime(config.end_date, "%Y-%m-%d")
     
     if start_date_obj >= end_date_obj:
         print("❌ 错误: 开始日期必须早于结束日期")
@@ -176,20 +190,20 @@ def main():
     
     # 打印配置信息
     print("🔧 多日策略分析配置:")
-    print(f"   📊 分析标的: {', '.join(tickers)}")
-    print(f"   📅 时间范围: {start_date} 到 {end_date} ({total_days} 天)")
-    print(f"   💬 沟通机制: {'禁用' if args.disable_communications else '启用'}")
-    print(f"   🔔 通知机制: {'禁用' if args.disable_notifications else '启用'}")
-    if not args.disable_communications:
-        print(f"   🔄 沟通轮数: 最多 {args.max_comm_cycles} 轮/日")
-    if args.disable_notifications:
+    print(f"   📊 分析标的: {', '.join(config.tickers)}")
+    print(f"   📅 时间范围: {config.start_date} 到 {config.end_date} ({total_days} 天)")
+    print(f"   💬 沟通机制: {'禁用' if config.disable_communications else '启用'}")
+    print(f"   🔔 通知机制: {'禁用' if config.disable_notifications else '启用'}")
+    if not config.disable_communications:
+        print(f"   🔄 沟通轮数: 最多 {config.max_comm_cycles} 轮/日")
+    if config.disable_notifications:
         print("   ⚡ 快速模式: 仅第一轮分析，跳过分析师间通知")
-    print(f"   📁 输出目录: {args.output_dir}")
-    print(f"   📦 数据预取: {'禁用' if args.disable_data_prefetch else '启用'}")
-    print(f"   🔍 详细推理: {'启用' if args.show_reasoning else '禁用'}")
-    print(f"   🏁 OKR机制: {'启用' if args.enable_okr else '禁用'}")
+    print(f"   📁 输出目录: {config.output_dir}")
+    print(f"   📦 数据预取: {'禁用' if config.disable_data_prefetch else '启用'}")
+    print(f"   🔍 详细推理: {'启用' if config.show_reasoning else '禁用'}")
+    print(f"   🏁 OKR机制: {'启用' if config.enable_okr else '禁用'}")
     
-    if args.dry_run:
+    if config.dry_run:
         print("\n🧪 干运行模式 - 配置验证完成，未执行实际分析")
         return
     
@@ -201,10 +215,10 @@ def main():
         # 初始化多日管理器
         multi_day_manager = MultiDayManager(
             engine=engine,
-            base_output_dir=args.output_dir,
-            max_communication_cycles=args.max_comm_cycles,
-            prefetch_data=not args.disable_data_prefetch,
-            okr_enabled=args.enable_okr
+            base_output_dir=config.output_dir,
+            max_communication_cycles=config.max_comm_cycles,
+            prefetch_data=not config.disable_data_prefetch,
+            okr_enabled=config.enable_okr
         )
         
         # 执行多日策略分析
@@ -212,13 +226,13 @@ def main():
         start_time = datetime.now()
         
         results = multi_day_manager.run_multi_day_strategy(
-            tickers=tickers,
-            start_date=start_date,
-            end_date=end_date,
-            enable_communications=not args.disable_communications,
-            enable_notifications=not args.disable_notifications,
-            show_reasoning=args.show_reasoning,
-            progress_callback=progress_callback if args.verbose else None
+            tickers=config.tickers,
+            start_date=config.start_date,
+            end_date=config.end_date,
+            enable_communications=not config.disable_communications,
+            enable_notifications=not config.disable_notifications,
+            show_reasoning=config.show_reasoning,
+            progress_callback=progress_callback if config.verbose else None
         )
         
         end_time = datetime.now()
@@ -248,7 +262,7 @@ def main():
                 # print(f"   📊 总收益率: {perf['total_return_pct']}% ")
 
         
-        print(f"\n📁 详细结果已保存到: {args.output_dir}")
+        print(f"\n📁 详细结果已保存到: {config.output_dir}")
         print(f"   📄 汇总报告: {results.get('session_id', 'unknown')}_summary.json")
         
     except KeyboardInterrupt:
@@ -256,7 +270,7 @@ def main():
         sys.exit(1)
     except Exception as e:
         print(f"\n❌ 分析过程中出现错误: {str(e)}")
-        if args.verbose:
+        if config.verbose:
             import traceback
             traceback.print_exc()
         sys.exit(1)

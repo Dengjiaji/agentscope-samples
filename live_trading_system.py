@@ -4,11 +4,13 @@ Live交易策略监控系统 - 统一版本
 集成数据收集、增量更新、绩效分析和可视化功能
 
 使用方法:
-# 每日更新
+# 使用命令行参数
 python live_trading_system.py update --tickers AAPL,MSFT
-
-# 生成报告
 python live_trading_system.py report --tickers AAPL,MSFT
+
+# 使用环境变量配置文件（创建 .env 文件后）
+python live_trading_system.py update
+python live_trading_system.py report
 
 """
 
@@ -32,6 +34,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from advanced_investment_engine import AdvancedInvestmentAnalysisEngine
 from src.scheduler.multi_day_manager import MultiDayManager
+from src.config.env_config import LiveTradingConfig
 
 # 尝试导入美国交易日历包（与主程序保持一致）
 try:
@@ -661,7 +664,9 @@ class LiveTradingSystem:
             signals = analysis_result['signals']
             self.save_daily_signals(target_date, signals)
             print(f"✅ 已保存 {len(signals)} 个股票的交易信号")
+
             # 3. 计算当日收益
+            target_date = str(target_date)
             daily_returns = self.calculate_daily_returns(target_date, signals)
             
             # 4. 更新个股收益
@@ -878,38 +883,43 @@ def main():
   report    生成绩效分析报告
 
 示例用法:
-  # 回填历史数据 (推荐首次使用)
+  # 使用命令行参数
   python live_trading_system.py backfill --tickers AAPL,MSFT --start-date 2025-01-01
-  
-  # 回填更早的历史数据
-  python live_trading_system.py backfill --tickers AAPL,MSFT --start-date 2024-01-01
-  
-  # 回填最近30天数据
-  python live_trading_system.py backfill --tickers AAPL,MSFT --start-date 2025-08-15
-  
-  # 每日更新
   python live_trading_system.py update --tickers AAPL,MSFT
-  
-  # 生成报告
   python live_trading_system.py report --tickers AAPL,MSFT
   
+  # 使用环境变量配置文件 (创建 .env 文件)
+  python live_trading_system.py backfill
+  python live_trading_system.py update
+  python live_trading_system.py report
+  
+  # 生成环境变量模板
+  python live_trading_system.py --create-env-template
+  
         """
+    )
+    
+    # 全局选项
+    parser.add_argument(
+        "--create-env-template",
+        action="store_true",
+        help="创建环境变量配置模板文件并退出"
     )
     
     subparsers = parser.add_subparsers(dest='command', help='可用命令')
     
     # backfill子命令
     backfill_parser = subparsers.add_parser('backfill', help='回填历史数据')
-    backfill_parser.add_argument('--tickers', type=str, required=True, help='股票代码列表，用逗号分隔')
-    backfill_parser.add_argument('--start-date', type=str, default='2025-01-01', help='回填开始日期 (格式: YYYY-MM-DD, 默认: 2025-01-01)')
-    backfill_parser.add_argument('--max-comm-cycles', type=int, default=1, help='最大沟通轮数 (默认: 1)')
+    backfill_parser.add_argument('--tickers', type=str, required=False, help='股票代码列表，用逗号分隔')  # 改为可选
+    backfill_parser.add_argument('--start-date', type=str, help='回填开始日期 (格式: YYYY-MM-DD)')
+    backfill_parser.add_argument('--max-comm-cycles', type=int, help='最大沟通轮数')
     backfill_parser.add_argument('--base-dir', type=str, help='基础目录')
     
     # update子命令
     update_parser = subparsers.add_parser('update', help='执行每日策略更新')
-    update_parser.add_argument('--tickers', type=str, required=True, help='股票代码列表，用逗号分隔')
+    update_parser.add_argument('--tickers', type=str, required=False, help='股票代码列表，用逗号分隔')  # 改为可选
     update_parser.add_argument('--date', type=str, help='指定运行日期 (YYYY-MM-DD)')
-    update_parser.add_argument('--max-comm-cycles', type=int, default=2, help='最大沟通轮数')
+    update_parser.add_argument('--max-comm-cycles', type=int, help='最大沟通轮数')
     update_parser.add_argument('--force-run', action='store_true', help='强制运行')
     update_parser.add_argument('--base-dir', type=str, help='基础目录')
     
@@ -921,44 +931,56 @@ def main():
     
     args = parser.parse_args()
     
+    # 处理创建环境变量模板的请求
+    if args.create_env_template:
+        from src.config.env_config import create_env_template
+        create_env_template()
+        sys.exit(0)
+    
     if not args.command:
         parser.print_help()
         sys.exit(1)
     
     try:
+        # 加载环境变量配置
+        config = LiveTradingConfig()
+        
+        # 用命令行参数覆盖环境变量配置
+        config.override_with_args(args)
+        
         # 初始化系统
-        system = LiveTradingSystem(base_dir=args.base_dir)
+        system = LiveTradingSystem(base_dir=config.base_dir)
         
         if args.command == 'backfill':
-            # 解析股票代码
-            tickers = [ticker.strip().upper() for ticker in args.tickers.split(",") if ticker.strip()]
-            if not tickers:
-                print("❌ 错误: 请提供至少一个有效的股票代码")
+            # 验证股票代码
+            if not config.tickers:
+                print("❌ 错误: 请通过 --tickers 参数或环境变量 TICKERS 提供至少一个有效的股票代码")
+                print("💡 提示: 可以运行 'python live_trading_system.py --create-env-template' 创建配置模板")
                 sys.exit(1)
             
             # 验证开始日期格式
-            if not system.validate_date_format(args.start_date):
+            if not system.validate_date_format(config.backfill_start_date):
                 print(f"❌ 错误: 日期格式不正确，请使用 YYYY-MM-DD 格式，如: 2025-01-01")
                 sys.exit(1)
             
             # 检查日期是否太早（避免过度回填）
-            start_date_obj = datetime.strptime(args.start_date, "%Y-%m-%d")
+            start_date_obj = datetime.strptime(config.backfill_start_date, "%Y-%m-%d")
             if start_date_obj < datetime(2020, 1, 1):
-                print(f"⚠️ 警告: 开始日期 {args.start_date} 较早，可能需要很长时间完成回填")
+                print(f"⚠️ 警告: 开始日期 {config.backfill_start_date} 较早，可能需要很长时间完成回填")
                 print("是否继续？[y/N] ", end="")
                 response = input().strip().lower()
                 if response != 'y':
                     print("已取消回填")
                     sys.exit(0)
             
-            print(f"📅 开始日期: {args.start_date}")
-            print(f"📊 监控股票: {', '.join(tickers)}")
+            print(f"📅 开始日期: {config.backfill_start_date}")
+            print(f"📊 监控股票: {', '.join(config.tickers)}")
             
             # 执行历史数据回填
             result = system.backfill_historical_data(
-                tickers=tickers,
-                start_date=args.start_date,
-                max_comm_cycles=args.max_comm_cycles
+                tickers=config.tickers,
+                start_date=config.backfill_start_date,
+                max_comm_cycles=config.max_comm_cycles
             )
             
             if result['status'] == 'completed':
@@ -966,36 +988,36 @@ def main():
                 
                 # 自动生成汇总报告
                 print("\n📊 生成汇总报告...")
-                report = system.generate_report(tickers)
+                report = system.generate_report(config.tickers)
                 system.print_performance_summary(report)
                 
                 print(f"\n📁 数据已保存，后续可使用以下命令:")
-                print(f"   每日更新: python live_trading_system.py update --tickers {','.join(tickers)}")
-                print(f"   查看报告: python live_trading_system.py report --tickers {','.join(tickers)}")
+                print(f"   每日更新: python live_trading_system.py update --tickers {','.join(config.tickers)}")
+                print(f"   查看报告: python live_trading_system.py report --tickers {','.join(config.tickers)}")
             else:
                 print(f"\n❌ 回填失败")
                 sys.exit(1)
         
         elif args.command == 'update':
-            # 解析股票代码
-            tickers = [ticker.strip().upper() for ticker in args.tickers.split(",") if ticker.strip()]
-            if not tickers:
-                print("❌ 错误: 请提供至少一个有效的股票代码")
+            # 验证股票代码
+            if not config.tickers:
+                print("❌ 错误: 请通过 --tickers 参数或环境变量 TICKERS 提供至少一个有效的股票代码")
+                print("💡 提示: 可以运行 'python live_trading_system.py --create-env-template' 创建配置模板")
                 sys.exit(1)
             
             # 检查是否存在历史数据，如果没有则提醒先回填
             data_start_date = system.get_data_start_date()
             check_start_date = data_start_date or "2025-01-01"  # 如果没有数据，默认从2025-01-01检查
-            missing_dates = system.get_missing_dates(tickers, check_start_date)
+            missing_dates = system.get_missing_dates(config.tickers, check_start_date)
             
             if len(missing_dates) > 5:  # 如果缺失超过5天，建议先回填
                 print(f"⚠️ 检测到缺失 {len(missing_dates)} 个交易日的历史数据")
                 if data_start_date:
                     print(f"现有数据从 {data_start_date} 开始，建议回填缺失数据")
-                    print(f"建议先运行: python live_trading_system.py backfill --tickers {','.join(tickers)} --start-date {check_start_date}")
+                    print(f"建议先运行: python live_trading_system.py backfill --tickers {','.join(config.tickers)} --start-date {check_start_date}")
                 else:
                     print(f"未发现历史数据，建议先进行回填")
-                    print(f"建议先运行: python live_trading_system.py backfill --tickers {','.join(tickers)}")
+                    print(f"建议先运行: python live_trading_system.py backfill --tickers {','.join(config.tickers)}")
                 print("是否继续执行今日更新？[y/N] ", end="")
                 response = input().strip().lower()
                 if response != 'y':
@@ -1004,10 +1026,10 @@ def main():
             
             # 执行更新
             result = system.daily_update(
-                tickers=tickers,
-                target_date=args.date,
-                max_comm_cycles=args.max_comm_cycles,
-                force_run=args.force_run
+                tickers=config.tickers,
+                target_date=config.target_date,
+                max_comm_cycles=config.max_comm_cycles,
+                force_run=config.force_run
             )
             
             if result['status'] == 'success':
@@ -1015,7 +1037,7 @@ def main():
                 
                 # 自动生成更新后的报告
                 print("\n📊 生成最新报告...")
-                report = system.generate_report(tickers)
+                report = system.generate_report(config.tickers)
                 system.print_performance_summary(report)
                 
             elif result['status'] == 'skipped':
@@ -1025,10 +1047,8 @@ def main():
                 sys.exit(1)
         
         elif args.command == 'report':
-            # 解析股票代码（可选）
-            tickers = None
-            if args.tickers:
-                tickers = [ticker.strip().upper() for ticker in args.tickers.split(",") if ticker.strip()]
+            # 使用配置中的股票代码（如果没有指定则为None，生成所有股票的报告）
+            tickers = config.tickers if config.tickers else None
             
             # 生成报告
             report = system.generate_report(tickers)
