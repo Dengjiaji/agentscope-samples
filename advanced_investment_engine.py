@@ -1014,7 +1014,7 @@ class AdvancedInvestmentAnalysisEngine:
                 all_signals[result["agent_id"]] = result["analysis_result"]
         
         # 生成通知摘要
-        notification_summary = self.generate_notification_summary(analyst_results)
+        # notification_summary = self.generate_notification_summary(analyst_results)
         
         report = {
             "summary": {
@@ -1024,7 +1024,7 @@ class AdvancedInvestmentAnalysisEngine:
                 "notifications_sent": total_notifications_sent
             },
             "analyst_signals": all_signals,
-            "notification_activity": notification_summary,
+            # "notification_activity": notification_summary,
             "errors": [{"agent": r["agent_id"], "error": r["error"]} 
                       for r in failed_analyses]
         }
@@ -1043,7 +1043,7 @@ class AdvancedInvestmentAnalysisEngine:
         current_time = datetime.now()
         
         print(f"📊 正在生成通知摘要，分析结果数量: {len(analyst_results)}")
-        
+        pdb.set_trace()
         for agent_id, result in analyst_results.items():
             # 检查是否有notification_decision
             if result.get("status") == "success" and "notification_decision" in result:
