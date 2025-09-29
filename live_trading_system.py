@@ -112,7 +112,7 @@ class LiveTradingSystem:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     return json.load(f)
             except Exception as e:
-                print(f"⚠️ 加载文件失败 {file_path}: {e}")
+                print(f"加载文件失败 {file_path}: {e}")
                 return default or {}
         return default or {}
     
@@ -122,7 +122,7 @@ class LiveTradingSystem:
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2, default=str)
         except Exception as e:
-            print(f"❌ 保存文件失败 {file_path}: {e}")
+            print(f"保存文件失败 {file_path}: {e}")
             raise
     
     # ==================== 数据管理部分 ====================
@@ -156,7 +156,7 @@ class LiveTradingSystem:
                     return len(trading_dates) > 0
                     
             except Exception as e:
-                print(f"⚠️ 美国交易日历检查失败，回退到简单方法: {e}")
+                print(f"美国交易日历检查失败，回退到简单方法: {e}")
         
         
     
@@ -168,12 +168,12 @@ class LiveTradingSystem:
         target_date = target_date or datetime.now().strftime("%Y-%m-%d")
         
         if not self.is_trading_day(target_date):
-            print(f"📅 {target_date} 不是交易日，跳过运行")
+            print(f"{target_date} 不是交易日，跳过运行")
             return False
         
         last_run_date = self.get_last_run_date()
         if last_run_date and last_run_date >= target_date:
-            print(f"✅ {target_date} 已经运行过，跳过运行")
+            print(f"{target_date} 已经运行过，跳过运行")
             return False
             
         return True
@@ -207,15 +207,15 @@ class LiveTradingSystem:
                         self._save_json_file(file_path, data)
         
         if cleaned_count > 0:
-            print(f"🧹 已清理 {cutoff_date} 之前的 {cleaned_count} 条历史数据")
+            print(f"已清理 {cutoff_date} 之前的 {cleaned_count} 条历史数据")
         else:
-            print("📊 保留所有历史数据，无需清理")
+            print("保留所有历史数据，无需清理")
     
     # ==================== 策略分析部分 ====================
     
     def run_single_day_analysis(self, tickers: List[str], date: str, max_comm_cycles: int = 2) -> dict:
         """运行单日策略分析"""
-        print(f"🔍 开始分析 {date} 的策略...")
+        print(f"开始分析 {date} 的策略...")
         
         try:
             # 创建包含策略日期的自定义session_id
@@ -253,7 +253,7 @@ class LiveTradingSystem:
                 return {'status': 'failed', 'date': date, 'error': '分析失败'}
                 
         except Exception as e:
-            print(f"❌ {date} 分析失败: {str(e)}")
+            print(f"{date} 分析失败: {str(e)}")
             return {'status': 'failed', 'date': date, 'error': str(e)}
     
     def _extract_signals(self, daily_result: dict) -> dict:
@@ -312,12 +312,13 @@ class LiveTradingSystem:
                 trade_action = "long"  # 默认做多
             
             # 计算收益率
-            daily_return = multi_day_manager._calculate_stock_daily_return_from_signal(
+            daily_return,real_return = multi_day_manager._calculate_stock_daily_return_from_signal(
                 ticker, date, trade_action
             )
         
             returns[ticker] = {
                 'daily_return': daily_return,
+                'real_return': real_return,
                 'signal': signal,
                 'action': action,
                 'confidence': signal_data['confidence']
@@ -485,7 +486,7 @@ class LiveTradingSystem:
             return str(chart_path)
             
         except Exception as e:
-            print(f"⚠️ 生成{ticker}收益图表失败: {e}")
+            print(f"生成{ticker}收益图表失败: {e}")
             return None
     
     def create_stocks_comparison_chart(self, individual_data: Dict) -> str:
@@ -544,7 +545,7 @@ class LiveTradingSystem:
             return str(chart_path)
             
         except Exception as e:
-            print(f"⚠️ 生成股票对比图失败: {e}")
+            print(f"生成股票对比图失败: {e}")
             return None
     
     # ==================== 主要功能接口 ====================
@@ -569,7 +570,7 @@ class LiveTradingSystem:
                     trading_dates = nyse.sessions_in_range(start_date, end_date)
                     all_trading_dates = [date.strftime('%Y-%m-%d') for date in trading_dates]
             except Exception as e:
-                print(f"⚠️ 获取交易日历失败，使用简单方法: {e}")
+                print(f"获取交易日历失败，使用简单方法: {e}")
         
         # 如果无法获取交易日历，使用简单方法
         if not all_trading_dates:
@@ -591,17 +592,17 @@ class LiveTradingSystem:
     def backfill_historical_data(self, tickers: List[str], start_date: str = "2025-01-01", 
                                 max_comm_cycles: int = 1) -> dict:
         """回填历史数据"""
-        print(f"\n🔄 开始回填历史数据 ({start_date} 至今)")
-        print(f"📊 监控标的: {', '.join(tickers)}")
+        print(f"\n开始回填历史数据 ({start_date} 至今)")
+        print(f"监控标的: {', '.join(tickers)}")
         
         # 检测缺失的日期
         missing_dates = self.get_missing_dates(tickers, start_date)
         
         if not missing_dates:
-            print("✅ 所有历史数据已完整，无需回填")
+            print("所有历史数据已完整，无需回填")
             return {'status': 'completed', 'processed_dates': [], 'failed_dates': []}
         
-        print(f"📅 发现 {len(missing_dates)} 个缺失的交易日")
+        print(f"发现 {len(missing_dates)} 个缺失的交易日")
         print(f"缺失日期: {missing_dates[:5]}{'...' if len(missing_dates) > 5 else ''}")
         
         processed_dates = []
@@ -609,7 +610,7 @@ class LiveTradingSystem:
         
         # 逐日处理
         for i, date in enumerate(missing_dates):
-            print(f"\n📈 处理第 {i+1}/{len(missing_dates)} 天: {date}")
+            print(f"\n处理第 {i+1}/{len(missing_dates)} 天: {date}")
             
             try:
                 result = self.daily_update(
@@ -621,16 +622,16 @@ class LiveTradingSystem:
                 
                 if result['status'] == 'success':
                     processed_dates.append(date)
-                    print(f"✅ {date} 处理成功")
+                    print(f"{date} 处理成功")
                 else:
                     failed_dates.append(date)
-                    print(f"❌ {date} 处理失败: {result.get('reason', '未知错误')}")
+                    print(f"{date} 处理失败: {result.get('reason', '未知错误')}")
                     
             except Exception as e:
                 failed_dates.append(date)
-                print(f"❌ {date} 处理异常: {str(e)}")
+                print(f"{date} 处理异常: {str(e)}")
         
-        print(f"\n📊 回填完成统计:")
+        print(f"\n回填完成统计:")
         print(f"   成功处理: {len(processed_dates)} 天")
         print(f"   失败处理: {len(failed_dates)} 天")
         print(f"   成功率: {len(processed_dates)/(len(processed_dates)+len(failed_dates))*100:.1f}%")
@@ -647,8 +648,8 @@ class LiveTradingSystem:
         """执行每日更新"""
         target_date = target_date or datetime.now().strftime("%Y-%m-%d")
         
-        print(f"\n🚀 开始Live交易策略更新 - {target_date}")
-        print(f"📊 监控标的: {', '.join(tickers)}")
+        print(f"\n开始Live交易策略更新 - {target_date}")
+        print(f"监控标的: {', '.join(tickers)}")
         
         if not self.should_run_today(target_date, force_run):
             return {'status': 'skipped', 'reason': '无需运行'}
@@ -663,7 +664,7 @@ class LiveTradingSystem:
             # 2. 保存交易信号
             signals = analysis_result['signals']
             self.save_daily_signals(target_date, signals)
-            print(f"✅ 已保存 {len(signals)} 个股票的交易信号")
+            print(f"已保存 {len(signals)} 个股票的交易信号")
 
             # 3. 计算当日收益
             target_date = str(target_date)
@@ -678,7 +679,7 @@ class LiveTradingSystem:
             # 6. 更新运行状态
             self.update_last_run_date(target_date)
             
-            print(f"✅ {target_date} 更新完成")
+            print(f"{target_date} 更新完成")
             
             # 显示各股票表现
             for ticker, data in daily_returns.items():
@@ -687,7 +688,7 @@ class LiveTradingSystem:
                 signal = data['signal']
                 action = data['action']
                 confidence = data['confidence']
-                print(f"📊 {ticker}: 日收益 {daily_ret:.2f}%, 累计收益 {cum_ret:.2f}%, "
+                print(f"{ticker}: 日收益 {daily_ret:.2f}%, 累计收益 {cum_ret:.2f}%, "
                       f"信号 {signal}({action}, {confidence}%)")
             
             return {
@@ -699,12 +700,12 @@ class LiveTradingSystem:
             }
             
         except Exception as e:
-            print(f"❌ 更新失败: {str(e)}")
+            print(f"更新失败: {str(e)}")
             return {'status': 'failed', 'reason': str(e)}
     
     def generate_report(self, tickers: List[str] = None) -> dict:
         """生成绩效报告"""
-        print("📊 开始生成绩效报告...")
+        print("开始生成绩效报告...")
         
         # 加载数据
         returns_data = self._load_json_file(self.cumulative_returns_file, {'individual': {}})
@@ -752,29 +753,29 @@ class LiveTradingSystem:
         # 保存报告
         self._save_json_file(self.performance_metrics_file, report)
         
-        print("✅ 绩效报告生成完成")
+        print("绩效报告生成完成")
         return report
     
     def print_performance_summary(self, report: Dict):
         """打印绩效摘要"""
         if 'error' in report:
-            print(f"❌ {report['error']}")
+            print(f"{report['error']}")
             return
         
         print("\n" + "="*80)
-        print("📈 LIVE交易策略 - 个股绩效摘要")
+        print("LIVE交易策略 - 个股绩效摘要")
         print("="*80)
         
         # 基础信息
         overview = report.get('overview', {})
-        print(f"📅 监控期间: {overview.get('start_date', 'N/A')} ~ {overview.get('end_date', 'N/A')}")
-        print(f"📊 监控股票: {', '.join(overview.get('monitored_stocks', []))}")
-        print(f"🔢 股票数量: {overview.get('total_stocks', 0)} 只")
+        print(f"监控期间: {overview.get('start_date', 'N/A')} ~ {overview.get('end_date', 'N/A')}")
+        print(f"监控股票: {', '.join(overview.get('monitored_stocks', []))}")
+        print(f"股票数量: {overview.get('total_stocks', 0)} 只")
         
         # 个股详细表现
         individual_metrics = report.get('individual_metrics', {})
         if individual_metrics:
-            print(f"\n🏢 个股详细表现:")
+            print(f"\n个股详细表现:")
             print("-" * 80)
             
             # 表头
@@ -804,7 +805,7 @@ class LiveTradingSystem:
             win_rates = [m.get('win_rate_pct', 0) for m in individual_metrics.values()]
             sharpes = [m.get('sharpe_ratio', 0) for m in individual_metrics.values()]
             
-            print(f"\n📊 统计摘要:")
+            print(f"\n统计摘要:")
             print(f"   最佳表现: {max(total_returns):.2f}% (总收益)")
             print(f"   最差表现: {min(total_returns):.2f}% (总收益)")
             print(f"   平均收益: {np.mean(total_returns):.2f}%")
@@ -814,10 +815,10 @@ class LiveTradingSystem:
         # 图表信息
         chart_files = report.get('chart_files', [])
         if chart_files:
-            print(f"\n📈 生成图表: {len(chart_files)} 个文件")
+            print(f"\n生成图表: {len(chart_files)} 个文件")
             for chart_file in chart_files:
                 chart_name = Path(chart_file).name
-                print(f"   📊 {chart_name}")
+                print(f"   {chart_name}")
         
         print("="*80)
     
@@ -846,7 +847,7 @@ class LiveTradingSystem:
                     return sorted(dates[-num_days:]) if len(dates) >= num_days else sorted(dates)
                     
             except Exception as e:
-                print(f"⚠️ 获取交易日历失败，回退到逐日检查: {e}")
+                print(f"获取交易日历失败，回退到逐日检查: {e}")
         
         # 回退到逐日检查方法
         dates = []
@@ -954,27 +955,27 @@ def main():
         if args.command == 'backfill':
             # 验证股票代码
             if not config.tickers:
-                print("❌ 错误: 请通过 --tickers 参数或环境变量 TICKERS 提供至少一个有效的股票代码")
-                print("💡 提示: 可以运行 'python live_trading_system.py --create-env-template' 创建配置模板")
+                print("错误: 请通过 --tickers 参数或环境变量 TICKERS 提供至少一个有效的股票代码")
+                print("提示: 可以运行 'python live_trading_system.py --create-env-template' 创建配置模板")
                 sys.exit(1)
             
             # 验证开始日期格式
             if not system.validate_date_format(config.backfill_start_date):
-                print(f"❌ 错误: 日期格式不正确，请使用 YYYY-MM-DD 格式，如: 2025-01-01")
+                print(f"错误: 日期格式不正确，请使用 YYYY-MM-DD 格式，如: 2025-01-01")
                 sys.exit(1)
             
             # 检查日期是否太早（避免过度回填）
             start_date_obj = datetime.strptime(config.backfill_start_date, "%Y-%m-%d")
             if start_date_obj < datetime(2020, 1, 1):
-                print(f"⚠️ 警告: 开始日期 {config.backfill_start_date} 较早，可能需要很长时间完成回填")
+                print(f"警告: 开始日期 {config.backfill_start_date} 较早，可能需要很长时间完成回填")
                 print("是否继续？[y/N] ", end="")
                 response = input().strip().lower()
                 if response != 'y':
                     print("已取消回填")
                     sys.exit(0)
             
-            print(f"📅 开始日期: {config.backfill_start_date}")
-            print(f"📊 监控股票: {', '.join(config.tickers)}")
+            print(f"开始日期: {config.backfill_start_date}")
+            print(f"监控股票: {', '.join(config.tickers)}")
             
             # 执行历史数据回填
             result = system.backfill_historical_data(
@@ -984,25 +985,25 @@ def main():
             )
             
             if result['status'] == 'completed':
-                print(f"\n🎉 历史数据回填完成!")
+                print(f"\n历史数据回填完成!")
                 
                 # 自动生成汇总报告
-                print("\n📊 生成汇总报告...")
+                print("\n生成汇总报告...")
                 report = system.generate_report(config.tickers)
                 system.print_performance_summary(report)
                 
-                print(f"\n📁 数据已保存，后续可使用以下命令:")
+                print(f"\n数据已保存，后续可使用以下命令:")
                 print(f"   每日更新: python live_trading_system.py update --tickers {','.join(config.tickers)}")
                 print(f"   查看报告: python live_trading_system.py report --tickers {','.join(config.tickers)}")
             else:
-                print(f"\n❌ 回填失败")
+                print(f"\n回填失败")
                 sys.exit(1)
         
         elif args.command == 'update':
             # 验证股票代码
             if not config.tickers:
-                print("❌ 错误: 请通过 --tickers 参数或环境变量 TICKERS 提供至少一个有效的股票代码")
-                print("💡 提示: 可以运行 'python live_trading_system.py --create-env-template' 创建配置模板")
+                print("错误: 请通过 --tickers 参数或环境变量 TICKERS 提供至少一个有效的股票代码")
+                print("提示: 可以运行 'python live_trading_system.py --create-env-template' 创建配置模板")
                 sys.exit(1)
             
             # 检查是否存在历史数据，如果没有则提醒先回填
@@ -1011,7 +1012,7 @@ def main():
             missing_dates = system.get_missing_dates(config.tickers, check_start_date)
             
             if len(missing_dates) > 5:  # 如果缺失超过5天，建议先回填
-                print(f"⚠️ 检测到缺失 {len(missing_dates)} 个交易日的历史数据")
+                print(f"检测到缺失 {len(missing_dates)} 个交易日的历史数据")
                 if data_start_date:
                     print(f"现有数据从 {data_start_date} 开始，建议回填缺失数据")
                     print(f"建议先运行: python live_trading_system.py backfill --tickers {','.join(config.tickers)} --start-date {check_start_date}")
@@ -1033,17 +1034,17 @@ def main():
             )
             
             if result['status'] == 'success':
-                print(f"\n🎉 Live更新成功完成!")
+                print(f"\nLive更新成功完成!")
                 
                 # 自动生成更新后的报告
-                print("\n📊 生成最新报告...")
+                print("\n生成最新报告...")
                 report = system.generate_report(config.tickers)
                 system.print_performance_summary(report)
                 
             elif result['status'] == 'skipped':
-                print(f"\n⏭️ 跳过更新: {result['reason']}")
+                print(f"\n跳过更新: {result['reason']}")
             else:
-                print(f"\n❌ 更新失败: {result['reason']}")
+                print(f"\n更新失败: {result['reason']}")
                 sys.exit(1)
         
         elif args.command == 'report':
@@ -1057,10 +1058,10 @@ def main():
         
             
     except KeyboardInterrupt:
-        print("\n⏹️ 用户中断操作")
+        print("\n用户中断操作")
         sys.exit(1)
     except Exception as e:
-        print(f"\n❌ 系统错误: {str(e)}")
+        print(f"\n系统错误: {str(e)}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

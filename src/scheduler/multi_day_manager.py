@@ -713,9 +713,9 @@ class MultiDayManager:
         
         # 根据交易方向计算最终收益率
         if action == "long":
-            return float(market_return)  # 做多：获得市场收益率
+            return float(market_return), float(market_return), # 做多：获得市场收益率
         elif action == "short":
-            return float(-market_return)  # 做空：获得市场收益率的相反收益
+            return float(-market_return) ,float(market_return), # 做空：获得市场收益率的相反收益
         else:  # hold
             return 0.0  # 持有：无收益
                 
