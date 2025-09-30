@@ -27,3 +27,6 @@ python main_multi_day.py --tickers AAPL,MSFT --start-date 2024-01-01 --end-date 
 
 # 加入live tradng更新机制，补全从2025-01-01到今天的live trading performance track
 python live_trading_system.py backfill --tickers AAPL,MSFT --start-date 2025-01-01
+
+# sandbox模拟版本
+python live_trading_thinking_fund.py --date 2025-01-15
