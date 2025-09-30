@@ -24,13 +24,51 @@ import argparse
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Dict, Any
+from collections import defaultdict
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # 添加项目路径
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(current_dir)
+
 # 导入现有的live trading system
 from live_trading_system import LiveTradingSystem
 from src.config.env_config import LiveTradingConfig
+
+# 导入记忆管理模块
+try:
+    from src.memory.mem0_core import mem0_integration
+    from src.memory.unified_memory import unified_memory_manager
+    MEMORY_AVAILABLE = True
+except ImportError as e:
+    print(f"警告: 无法导入记忆模块: {e}")
+    MEMORY_AVAILABLE = False
+
+# 导入LLM模块
+try:
+    from src.utils.llm import call_llm
+    from src.llm.models import get_model
+    from langchain_core.messages import HumanMessage
+    LLM_AVAILABLE = True
+except ImportError as e:
+    print(f"警告: 无法导入LLM模块: {e}")
+    LLM_AVAILABLE = False
+
+# 导入记忆管理工具
+try:
+    from src.tools.memory_management_tools import get_memory_tools
+    MEMORY_TOOLS_AVAILABLE = True
+except ImportError as e:
+    print(f"警告: 无法导入记忆管理工具: {e}")
+    MEMORY_TOOLS_AVAILABLE = False
+
+# 导入JSON解析
+import json
+import re
 
 # 尝试导入美国交易日历包
 try:
@@ -44,6 +82,217 @@ except ImportError:
         US_TRADING_CALENDAR_AVAILABLE = False
 
 
+
+
+class LLMMemoryDecisionSystem:
+    """基于LLM的记忆管理决策系统 - 使用LangChain tool_call"""
+    
+    def __init__(self):
+        self.memory_tools = []
+        
+        if LLM_AVAILABLE and MEMORY_TOOLS_AVAILABLE:
+            try:
+                # 从环境变量获取模型配置，使用默认值
+                model_name = os.getenv('MEMORY_LLM_MODEL', 'gpt-4o-mini')
+                model_provider_str = os.getenv('MEMORY_LLM_PROVIDER', 'OPENAI')
+                
+                # 导入ModelProvider枚举
+                from src.llm.models import ModelProvider
+                
+                # 转换为ModelProvider枚举
+                if hasattr(ModelProvider, model_provider_str):
+                    model_provider = getattr(ModelProvider, model_provider_str)
+                else:
+                    print(f"⚠️ 未知的模型提供商: {model_provider_str}，使用默认OPENAI")
+                    model_provider = ModelProvider.OPENAI
+                
+                # 准备API密钥字典
+                api_keys = {}
+                if model_provider == ModelProvider.OPENAI:
+                    api_keys['OPENAI_API_KEY'] = os.getenv('OPENAI_API_KEY')
+                elif model_provider == ModelProvider.ANTHROPIC:
+                    api_keys['ANTHROPIC_API_KEY'] = os.getenv('ANTHROPIC_API_KEY')
+                elif model_provider == ModelProvider.GROQ:
+                    api_keys['GROQ_API_KEY'] = os.getenv('GROQ_API_KEY')
+                
+                # 获取记忆管理工具
+                self.memory_tools = get_memory_tools()
+                
+                # 绑定工具到LLM
+                self.llm = get_model(model_name, model_provider, api_keys)
+                self.llm_with_tools = self.llm.bind_tools(self.memory_tools)
+                self.llm_available = True
+                print(f"✅ LLM记忆决策系统已启用（{model_provider_str}: {model_name}）")
+                print(f"🛠️ 已绑定 {len(self.memory_tools)} 个记忆管理工具")
+                
+            except Exception as e:
+                print(f"⚠️ LLM初始化失败: {e}")
+                self.llm = None
+                self.llm_with_tools = None
+                self.llm_available = False
+        else:
+            self.llm = None
+            self.llm_with_tools = None
+            self.llm_available = False
+            print("⚠️ LLM或记忆工具模块不可用")
+            
+        
+    
+    def generate_memory_decision_prompt(self, performance_data: Dict[str, Any], date: str) -> str:
+        """生成LLM记忆决策的prompt - LangChain tool_call版本"""
+        
+        prompt = f"""你是一个专业的Portfolio Manager，负责管理分析师团队的记忆系统。基于{date}的交易复盘结果，请分析分析师的表现并决定是否需要使用记忆管理工具。
+
+# 复盘数据分析
+
+## 分析师信号 vs 实际结果对比
+
+### Portfolio Manager最终决策:
+"""
+        
+        pm_signals = performance_data.get('pm_signals', {})
+        actual_returns = performance_data.get('actual_returns', {})
+        analyst_signals = performance_data.get('analyst_signals', {})
+        tickers = performance_data.get('tickers', [])
+        
+        # 添加PM信号和实际结果
+        for ticker in tickers:
+            pm_signal = pm_signals.get(ticker, {})
+            actual_return = actual_returns.get(ticker, 0)
+            
+            prompt += f"\n{ticker}:"
+            prompt += f"\n  PM决策: {pm_signal.get('signal', 'N/A')} (置信度: {pm_signal.get('confidence', 'N/A')}%)"
+            prompt += f"\n  实际收益: {actual_return:.2%}"
+            
+        prompt += "\n\n### 各分析师的预测表现:"
+        
+        # 添加分析师表现
+        for analyst, signals in analyst_signals.items():
+            prompt += f"\n\n**{analyst}:**"
+            total_count = 0            
+            for ticker in tickers:
+                if ticker in signals and ticker in actual_returns:
+                    analyst_signal = signals[ticker]
+                    actual_return = actual_returns[ticker]
+                    total_count += 1
+                                        
+                    prompt += f"\n  {ticker}: 预测 {analyst_signal}, 实际 {actual_return:.2%}"
+                    
+        prompt += f"""
+
+# 记忆管理决策指导
+
+请分析各分析师的表现，并决定是否需要执行记忆管理操作：
+
+- **表现极差** (多个严重错误)：使用search_and_delete_analyst_memory删除严重错误记忆
+- **表现不佳** (一个或者多个微小错误)：使用search_and_update_analyst_memory更新错误记忆
+- **表现优秀或正常**：无需操作，直接说明分析结果即可
+
+可用的记忆管理工具：
+1. **search_and_update_analyst_memory**: 修正更新分析师的相关记忆内容
+2. **search_and_delete_analyst_memory**: 删除分析师的相关记忆内容
+
+请先分析各分析师的表现，然后如果需要记忆操作，直接调用相应的工具。如果不需要任何操作，请说明你的分析结果。
+"""
+        
+        return prompt
+    
+    
+    def make_llm_memory_decision_with_tools(self, performance_data: Dict[str, Any], date: str) -> Dict[str, Any]:
+        """使用LLM进行记忆管理决策 - LangChain tool_call版本"""
+        
+        if not self.llm_available:
+            print("⚠️ LLM不可用，跳过记忆管理")
+            return {'status': 'skipped', 'reason': 'LLM不可用'}
+        
+        try:
+            # 生成prompt
+            prompt = self.generate_memory_decision_prompt(performance_data, date)
+            
+            print(f"\n🤖 正在请求LLM进行记忆管理决策...")
+            print(f"📝 Prompt长度: {len(prompt)} 字符")
+            
+            # 调用绑定了工具的LLM
+            messages = [HumanMessage(content=prompt)]
+            response = self.llm_with_tools.invoke(messages)
+            
+            print(f"📥 LLM响应类型: {type(response)}")
+            
+            # 检查是否有工具调用
+            tool_calls = []
+            if hasattr(response, 'tool_calls') and response.tool_calls:
+                tool_calls = response.tool_calls
+                print(f"🛠️ LLM决定执行 {len(tool_calls)} 个工具调用")
+                
+                # 执行工具调用
+                execution_results = []
+                for tool_call in tool_calls:
+                    tool_name = tool_call['name']
+                    tool_args = tool_call['args']
+                    
+                    print(f"  📞 调用工具: {tool_name}")
+                    print(f"     参数: {tool_args}")
+                    
+                    # 直接调用对应的工具函数
+                    tool_function = next(
+                        (tool for tool in self.memory_tools if tool.name == tool_name), 
+                        None
+                    )
+                    
+                    if tool_function:
+                            result = tool_function.invoke(tool_args)
+                            execution_results.append({
+                                'tool_name': tool_name,
+                                'args': tool_args,
+                                'result': result
+                            })
+                            # pdb.set_trace()
+              
+                    else:
+                        print(f"    ❌ 未找到工具: {tool_name}")
+                        execution_results.append({
+                            'tool_name': tool_name,
+                            'args': tool_args,
+                            'result': {'status': 'failed', 'error': f'Tool not found: {tool_name}'}
+                        })
+                
+                return {
+                    'status': 'success',
+                    'mode': 'operations_executed',
+                    'operations_count': len(tool_calls),
+                    'execution_results': execution_results,
+                    'llm_reasoning': response.content,
+                    'date': date
+                }
+            else:
+                # 没有工具调用，LLM可能认为不需要操作
+                reasoning = response.content if hasattr(response, 'content') else str(response)
+                print(f"💭 LLM分析: {reasoning}")
+                
+                return {
+                    'status': 'success',
+                    'mode': 'no_action',
+                    'reasoning': reasoning,
+                    'date': date
+                }
+                
+        except Exception as e:
+            print(f"❌ LLM记忆管理决策失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'status': 'failed',
+                'error': str(e),
+                'date': date
+            }
+            
+    
+
+
+
+# 移除旧的解析方法，因为现在使用LangChain的原生tool_call机制
+
+
 class LiveTradingThinkingFund:
     """Live交易思考基金 - 时间Sandbox系统"""
     
@@ -55,6 +304,14 @@ class LiveTradingThinkingFund:
         
         # 初始化Live交易系统
         self.live_system = LiveTradingSystem(base_dir=base_dir)
+        
+        # 初始化记忆管理系统
+        if MEMORY_TOOLS_AVAILABLE:
+            self.llm_memory_system = LLMMemoryDecisionSystem()
+            print("LLM记忆管理系统已启用")
+        else:
+            self.llm_memory_system = None
+            print("LLM记忆管理系统未启用")
         
         # 时间点定义
         self.PRE_MARKET = "pre_market"    # 交易前
@@ -88,42 +345,47 @@ class LiveTradingThinkingFund:
         try:
             # 1. 运行策略分析（直接调用核心分析方法，绕过should_run_today检查）
             analysis_result = self.live_system.run_single_day_analysis(tickers, target_date, max_comm_cycles)
-       
             
+            # 使用defaultdict简化初始化
             live_env = {
                 'pm_signals': {},
-                'ana_signals':{}, 
-                'real_returns': {}
-            }           
+                'ana_signals': defaultdict(lambda: defaultdict(str)),  # 自动创建嵌套字典，默认值为空字符串
+                'real_returns': defaultdict(float)  # 自动创建，默认值为0.0
+            }
+            
+            # 2. 保存交易信号
             pm_signals = analysis_result['signals']
             live_env['pm_signals'] = pm_signals
             
-            # 初始化ana_signals字典
-            live_env['ana_signals'] = {}
+            # 3. 提取分析师信号（现在不需要预先初始化）
             for agent in ['sentiment_analyst', 'technical_analyst', 'fundamentals_analyst', 'valuation_analyst']:
-                live_env['ana_signals'][agent] = {}
                 for ticker in tickers:
-                    # 尝试从分析结果中提取分析师信号
-                    agent_results = analysis_result.get('raw_results', {}).get('results', {}).get('final_analyst_results', {})
-                    live_env['ana_signals'][agent][ticker] = agent_results[agent]['analysis_result'][ticker]['signal']
+                    try:
+                        agent_results = analysis_result.get('raw_results', {}).get('results', {}).get('final_analyst_results', {})
+                        if agent in agent_results and ticker in agent_results[agent].get('analysis_result', {}):
+                            live_env['ana_signals'][agent][ticker] = agent_results[agent]['analysis_result'][ticker]['signal']
+                        else:
+                            live_env['ana_signals'][agent][ticker] = 'neutral'
+                    except Exception as e:
+                        print(f"警告: 无法获取 {agent} 对 {ticker} 的信号，使用默认值: {e}")
+                        live_env['ana_signals'][agent][ticker] = 'neutral'
                     
             self.live_system.save_daily_signals(target_date, pm_signals)
-
             print(f"已保存 {len(pm_signals)} 个股票的交易信号")
 
-            # 3. 计算当日收益
+            # 4. 计算当日收益
             target_date = str(target_date)
             daily_returns = self.live_system.calculate_daily_returns(target_date, pm_signals)
+            
+            # 现在不需要预先初始化，defaultdict会自动处理
             for ticker in tickers:
-                # 使用daily_return而不是real_return
-                live_env['real_returns'][ticker] = daily_returns[ticker]['real_return']
-            # 4. 更新个股收益
+                live_env['real_returns'][ticker] = daily_returns[ticker]['daily_return']
+                
+            # 5. 更新个股收益
             individual_data = self.live_system.update_individual_returns(target_date, daily_returns)
             
-            # 5. 清理过期数据
+            # 6. 清理过期数据
             self.live_system.clean_old_data()
-            
-            # 注意：这里我们不调用 update_last_run_date，避免影响live_system的状态
             
             print(f"{target_date} Sandbox分析完成")
             
@@ -203,7 +465,7 @@ class LiveTradingThinkingFund:
             return result
          
     
-    def _perform_post_market_review(self, date: str, tickers: List[str],live_env: Dict[str, Any]) -> Dict[str, Any]:
+    def _perform_post_market_review(self, date: str, tickers: List[str], live_env: Dict[str, Any]) -> Dict[str, Any]:
         """执行交易后复盘分析"""
     
         # 有交易前数据，进行对比分析
@@ -213,7 +475,7 @@ class LiveTradingThinkingFund:
         ana_signals = live_env['ana_signals']
         real_returns = live_env['real_returns']
         
-        print(f"\n交易前信号回顾:")
+        print(f"\nportfolio_manager信号回顾:")
         for ticker in tickers:
             if ticker in pm_signals:
                 signal_info = pm_signals[ticker]
@@ -232,23 +494,99 @@ class LiveTradingThinkingFund:
             else:
                 print(f"   {ticker}: 无收益数据")
         
-        print(f"\n分析师信号对比:")
+        print(f"\nanalyst信号对比:")
         for agent, agent_signals in ana_signals.items():
             print(f"  {agent}:")
             for ticker in tickers:
                 signal = agent_signals.get(ticker, 'N/A')
                 print(f"    {ticker}: {signal}")
         
+        # 🧠 新增：Portfolio Manager智能记忆管理
+        print(f"\n===== Portfolio Manager 记忆管理决策 =====")
+        
+        performance_analysis = {}
+        execution_results = None
+        
+        try:
+            if self.llm_memory_system:
+                # 准备性能数据给LLM
+                performance_data = {
+                    'pm_signals': pm_signals,
+                    'actual_returns': real_returns,
+                    'analyst_signals': ana_signals,
+                    'tickers': tickers
+                }
+                
+                # 使用LLM进行记忆管理决策（tool_call模式）
+                print("使用LLM tool_call进行智能记忆管理...")
+                llm_decision = self.llm_memory_system.make_llm_memory_decision_with_tools(
+                    performance_data, date
+                )
+                
+                # 显示LLM决策结果
+                if llm_decision['status'] == 'success':
+                    if llm_decision['mode'] == 'operations_executed':
+                        print(f"\n🛠️ LLM执行了 {llm_decision['operations_count']} 个记忆操作")
+                        
+                        # 统计执行结果
+                        successful = sum(1 for result in llm_decision['execution_results'] 
+                                       if result['result']['status'] == 'success')
+                        total = len(llm_decision['execution_results'])
+                        
+                        print(f"📊 执行统计:")
+                        print(f"  成功: {successful}/{total}")
+                        
+                        # 显示工具调用详情
+                        for i, exec_result in enumerate(llm_decision['execution_results'], 1):
+                            tool_name = exec_result['tool_name']
+                            args = exec_result['args']
+                            result = exec_result['result']
+                            
+                            print(f"  {i}. {tool_name}")
+                            print(f"     分析师: {args.get('analyst_id', 'N/A')}")
+                            if result['status'] == 'success':
+                                print(f"     状态: ✅ 成功")
+                            else:
+                                print(f"     状态: ❌ 失败 - {result.get('error', 'Unknown')}")
+                        
+                        execution_results = llm_decision['execution_results']
+                        
+                    elif llm_decision['mode'] == 'no_action':
+                        print(f"✅ LLM认为无需记忆操作")
+                        print(f"💭 LLM理由: {llm_decision['reasoning']}")
+                        execution_results = None
+                    else:
+                        print(f"🤷 未知的LLM决策模式: {llm_decision['mode']}")
+                        execution_results = None
+                        
+                elif llm_decision['status'] == 'skipped':
+                    print(f"⚠️ 记忆管理跳过: {llm_decision['reason']}")
+                    execution_results = None
+                else:
+                    print(f"❌ LLM决策失败: {llm_decision.get('error', 'Unknown error')}")
+                    execution_results = None
+            else:
+                print("LLM记忆管理系统未启用，跳过记忆操作")
+                llm_decision = None
+                execution_results = None
+                
+        except Exception as e:
+            print(f"记忆管理过程出错: {str(e)}")
+            import traceback
+            traceback.print_exc()
+        
         # 生成复盘报告
-        review_summary = self._generate_review_summary(pm_signals, real_returns, tickers)
+        # review_summary = self._generate_review_summary(pm_signals, real_returns, tickers)
         
         return {
             'status': 'success',
             'type': 'full_review',
-            'review_summary': review_summary,
+            # 'review_summary': review_summary,
             'pre_market_signals': pm_signals,
             'analyst_signals': ana_signals,
             'actual_returns': real_returns,
+            'llm_memory_decision': llm_decision if 'llm_decision' in locals() else None,
+            'memory_tool_calls_results': execution_results,
             'timestamp': datetime.now().isoformat()
         } 
     

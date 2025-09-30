@@ -73,3 +73,6 @@ app/backend/alembic/versions/__pycache__/
 analysis_results_logs/
 memory_data/
 live_trading/
+sandbox_logs/
+
+debug_tool_schema.py
