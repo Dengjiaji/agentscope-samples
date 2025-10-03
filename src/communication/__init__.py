@@ -9,9 +9,7 @@ from .notification_system_mem0 import (
     # NotificationSystem,
     # notification_system,
     send_notification,
-    should_send_notification,
-    format_notifications_for_context
-)
+    should_send_notification)
 
 __all__ = [
     'Notification',
@@ -20,5 +18,4 @@ __all__ = [
     'notification_system',
     'send_notification',
     'should_send_notification',
-    'format_notifications_for_context'
 ]

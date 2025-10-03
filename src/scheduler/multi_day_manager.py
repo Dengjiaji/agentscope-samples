@@ -592,78 +592,73 @@ class MultiDayManager:
         stock_performance = {}
         
         for ticker in tickers:
-            try:
-                # 收集该股票的每日决策和收益数据
-                daily_decisions = []
-                daily_returns = []
+            # 收集该股票的每日决策和收益数据
+            daily_decisions = []
+            daily_returns = []
+            
+            for daily_result in daily_results:
+                if daily_result["status"] != "success":
+                    continue
+                    
+                results = daily_result.get("results", {})
+                portfolio_results = results.get("portfolio_management_results", {})
                 
-                for daily_result in daily_results:
-                    if daily_result["status"] != "success":
-                        continue
-                        
-                    results = daily_result.get("results", {})
-                    portfolio_results = results.get("portfolio_management_results", {})
+                # 从最终决策中提取方向信号
+                final_decisions = portfolio_results.get("final_decisions", {})
+                if ticker in final_decisions:
+                    decision = final_decisions[ticker]
+                    action = decision.get("action", "hold")
+                    confidence = decision.get("confidence", 0)
                     
-                    # 从最终决策中提取方向信号
-                    final_decisions = portfolio_results.get("final_decisions", {})
-                    if ticker in final_decisions:
-                        decision = final_decisions[ticker]
-                        action = decision.get("action", "hold")
-                        confidence = decision.get("confidence", 0)
-                        
-                        daily_decisions.append({
-                            "date": daily_result["date"],
-                            "action": action,
-                            "confidence": confidence
-                        })
-                        
-                        # 基于方向信号计算日收益率
-                        daily_return = self._calculate_stock_daily_return_from_signal(
-                            ticker, daily_result["date"], action
-                        )
-                        daily_returns.append(daily_return)
+                    daily_decisions.append({
+                        "date": daily_result["date"],
+                        "action": action,
+                        "confidence": confidence
+                    })
+                    
+                    # 基于方向信号计算日收益率
+                    daily_return,real_return = self._calculate_stock_daily_return_from_signal(
+                        ticker, daily_result["date"], action
+                    )
+                    daily_returns.append(daily_return)
+            
+            if len(daily_returns) > 1:
+                # 计算该股票的绩效指标
+                returns_series = pd.Series(daily_returns)
+                # pdb.set_trace()
+                # 计算累计收益率
+                cumulative_returns = (1 + returns_series).cumprod()
+                total_return = cumulative_returns.iloc[-1] - 1
                 
-                if len(daily_returns) > 1:
-                    # 计算该股票的绩效指标
-                    returns_series = pd.Series(daily_returns)
-                    
-                    # 计算累计收益率
-                    cumulative_returns = (1 + returns_series).cumprod()
-                    total_return = cumulative_returns.iloc[-1] - 1
-                    
-                    # 计算最大回撤
-                    rolling_max = cumulative_returns.cummax()
-                    drawdowns = (cumulative_returns - rolling_max) / rolling_max
-                    max_drawdown = drawdowns.min()
-                    
-                    # 计算夏普比率（假设无风险利率4%）
-                    excess_returns = returns_series - 0.04/252
-                    sharpe_ratio = excess_returns.mean() / excess_returns.std() * (252 ** 0.5) if excess_returns.std() > 0 else 0
-                    
-                    stock_performance[ticker] = {
-                        "total_return_pct": round(total_return * 100, 4),
-                        "mean_daily_return_pct": round(returns_series.mean() * 100, 4),
-                        "annualized_return_pct": round(returns_series.mean() * 252 * 100, 2),
-                        "volatility_pct": round(returns_series.std() * (252 ** 0.5) * 100, 2),
-                        "sharpe_ratio": round(sharpe_ratio, 3),
-                        "max_drawdown_pct": round(max_drawdown * 100, 2),
-                        "total_decisions": len(daily_decisions),
-                        "long_decisions": len([d for d in daily_decisions if d["action"] == "long"]),
-                        "short_decisions": len([d for d in daily_decisions if d["action"] == "short"]),
-                        "hold_decisions": len([d for d in daily_decisions if d["action"] == "hold"]),
-                        "avg_confidence": round(sum(d["confidence"] for d in daily_decisions) / len(daily_decisions), 2) if daily_decisions else 0,
-                        "win_rate": round(len([r for r in daily_returns if r > 0]) / len(daily_returns) * 100, 2),
-                        "trading_days": len(daily_returns)
-                    }
-                else:
-                    stock_performance[ticker] = {
-                        "error": "数据不足，无法计算该股票绩效指标"
-                    }
-                    
-            except Exception as e:
+                # 计算最大回撤
+                rolling_max = cumulative_returns.cummax()
+                drawdowns = (cumulative_returns - rolling_max) / rolling_max
+                max_drawdown = drawdowns.min()
+                
+                # 计算夏普比率（假设无风险利率4%）
+                excess_returns = returns_series - 0.04/252
+                sharpe_ratio = excess_returns.mean() / excess_returns.std() * (252 ** 0.5) if excess_returns.std() > 0 else 0
+                
                 stock_performance[ticker] = {
-                    "error": f"计算股票 {ticker} 绩效失败: {str(e)}"
+                    "total_return_pct": round(total_return * 100, 4),
+                    "mean_daily_return_pct": round(returns_series.mean() * 100, 4),
+                    "annualized_return_pct": round(returns_series.mean() * 252 * 100, 2),
+                    "volatility_pct": round(returns_series.std() * (252 ** 0.5) * 100, 2),
+                    "sharpe_ratio": round(sharpe_ratio, 3),
+                    "max_drawdown_pct": round(max_drawdown * 100, 2),
+                    "total_decisions": len(daily_decisions),
+                    "long_decisions": len([d for d in daily_decisions if d["action"] == "long"]),
+                    "short_decisions": len([d for d in daily_decisions if d["action"] == "short"]),
+                    "hold_decisions": len([d for d in daily_decisions if d["action"] == "hold"]),
+                    "avg_confidence": round(sum(d["confidence"] for d in daily_decisions) / len(daily_decisions), 2) if daily_decisions else 0,
+                    "win_rate": round(len([r for r in daily_returns if r > 0]) / len(daily_returns) * 100, 2),
+                    "trading_days": len(daily_returns)
                 }
+            else:
+                stock_performance[ticker] = {
+                    "error": "数据不足，无法计算该股票绩效指标"
+                }
+        
         
         return stock_performance
     

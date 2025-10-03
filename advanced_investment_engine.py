@@ -40,9 +40,7 @@ from src.agents.intelligent_analysts import (
 # 使用基于 Mem0 的通知系统与工具
 from src.communication.notification_system_mem0 import (
     mem0_notification_system as notification_system,
-    should_send_notification,
-    format_notifications_for_context
-)
+    should_send_notification)
 
 # 导入第二轮LLM分析系统
 from src.agents.second_round_llm_analyst import (
@@ -746,7 +744,7 @@ class AdvancedInvestmentAnalysisEngine:
                         state=state
                     )
                     last_decision_dump = communication_decision.model_dump()
-                    
+                    communication_decision.communication_type = 'private_chat'
                     # 记录通信决策
                     # 确保 communication_decisions 字段存在
                     if "communication_decisions" not in state["data"]["communication_logs"]:
@@ -869,16 +867,15 @@ class AdvancedInvestmentAnalysisEngine:
         for analyst_id in communication_decision.target_analysts:
             if analyst_id in analyst_signals:
                 print(f"\n与 {analyst_id} 开始私聊...")
-                
                 chat_result = communication_manager.conduct_private_chat(
                     manager_id="portfolio_manager",
                     analyst_id=analyst_id,
                     topic=communication_decision.discussion_topic,
                     analyst_signal=analyst_signals[analyst_id],
                     state=state,
-                    max_rounds=3
+                    max_rounds=1
                 )
-                
+                # pdb.set_trace()
                 chat_results[analyst_id] = chat_result
                 
                 # 检查是否有信号调整

@@ -192,26 +192,12 @@ def should_send_notification(agent_id: str, analysis_result: Dict,
     使用LLM判断是否需要发送通知（基于Mem0记忆）
     """
     # 从Mem0获取最近的通知记忆
-    notification_memory = mem0_notification_system.get_agent_memory(agent_id)
-    recent_notifications = []
-    
-    if notification_memory:
-        recent_mem_notifications = notification_memory.get_recent_notifications(24)
-        notifications_context = "\n".join([
-            f"- {mem.get('metadata', {}).get('sender', 'unknown')}: {mem.get('memory', '')[:100]}..."
-            for mem in recent_mem_notifications[-5:]
-        ])
-    else:
-        notifications_context = "No recent notifications."
-    
+    # notification_memory = mem0_notification_system.get_agent_memory(agent_id)
     prompt = f"""
 You are a {agent_id}, having just completed analysis and obtained the following results:
 
 Analysis Results:
 {json.dumps(_make_json_safe(analysis_result), ensure_ascii=False, indent=2)}
-
-Notifications you recently received:
-{notifications_context}
 
 Please determine whether you need to send notifications to other analysts. Consider the following factors:
 1. Importance and urgency of analysis results
@@ -291,49 +277,49 @@ Please regenerate the correct JSON format reply."""
                 return fallback_decision
 
 
-def format_notifications_for_context(agent_id: str, backtest_date: Optional[str] = None) -> str:
-    """
-    格式化通知为上下文字符串，用于后续分析（基于Mem0）
-    """
-    notification_memory = mem0_notification_system.get_agent_memory(agent_id)
+# def format_notifications_for_context(agent_id: str, backtest_date: Optional[str] = None) -> str:
+#     """
+#     格式化通知为上下文字符串，用于后续分析（基于Mem0）
+#     """
+#     notification_memory = mem0_notification_system.get_agent_memory(agent_id)
     
-    if not notification_memory:
-        return "No notifications received today."
+#     if not notification_memory:
+#         return "No notifications received today."
     
-    recent_notifications = notification_memory.get_recent_notifications(24, backtest_date=backtest_date)
+#     recent_notifications = notification_memory.get_recent_notifications(24, backtest_date=backtest_date)
     
-    if not recent_notifications:
-        return "No notifications received today."
+#     if not recent_notifications:
+#         return "No notifications received today."
     
-    formatted = "Notifications received today:\n"
-    for notification in recent_notifications:
-        if not isinstance(notification, dict):
-            # 搜索返回了非结构化条目，跳过
-            continue
-        metadata = notification.get('metadata', {}) or {}
-        sender = metadata.get('sender', 'unknown')
-        timestamp = metadata.get('timestamp', '')
-        urgency = metadata.get('urgency', 'unknown')
-        category = metadata.get('category', 'unknown')
-        content = (notification.get('memory', '') or '')[:200]
+#     formatted = "Notifications received today:\n"
+#     for notification in recent_notifications:
+#         if not isinstance(notification, dict):
+#             # 搜索返回了非结构化条目，跳过
+#             continue
+#         metadata = notification.get('metadata', {}) or {}
+#         sender = metadata.get('sender', 'unknown')
+#         timestamp = metadata.get('timestamp', '')
+#         urgency = metadata.get('urgency', 'unknown')
+#         category = metadata.get('category', 'unknown')
+#         content = (notification.get('memory', '') or '')[:200]
         
-        # 尝试解析时间戳
-        try:
-            if timestamp:
-                dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                time_str = dt.strftime('%H:%M')
-            else:
-                time_str = '??:??'
-        except:
-            time_str = '??:??'
+#         # 尝试解析时间戳
+#         try:
+#             if timestamp:
+#                 dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+#                 time_str = dt.strftime('%H:%M')
+#             else:
+#                 time_str = '??:??'
+#         except:
+#             time_str = '??:??'
         
-        formatted += f"""
-- From {sender} ({time_str}):
-  {content}
-  Urgency: {urgency} | Category: {category}
-"""
+#         formatted += f"""
+# - From {sender} ({time_str}):
+#   {content}
+#   Urgency: {urgency} | Category: {category}
+# """
     
-    return formatted
+#     return formatted
 
 
 # 创建全局Mem0通知系统实例

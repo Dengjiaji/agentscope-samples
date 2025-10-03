@@ -401,19 +401,19 @@ class Mem0AnalystMemory:
         
         return "\n".join(context_parts)
     
-    def get_analysis_summary(self) -> Dict[str, Any]:
-        """获取分析总结"""
-        # 从mem0获取最近的记忆
-        recent_memories = self.get_relevant_memories("分析结果", limit=5)
+    # def get_analysis_summary(self) -> Dict[str, Any]:
+    #     """获取分析总结"""
+    #     # 从mem0获取最近的记忆
+    #     recent_memories = self.get_relevant_memories("分析结果", limit=5)
         
-        return {
-            "analyst_id": self.analyst_id,
-            "analyst_name": self.analyst_name,
-            "creation_time": self.creation_time.isoformat(),
-            "recent_memories_count": len(recent_memories),
-            "current_sessions": len(self.current_sessions),
-            "current_communications": len(self.current_communications)
-        }
+    #     return {
+    #         "analyst_id": self.analyst_id,
+    #         "analyst_name": self.analyst_name,
+    #         "creation_time": self.creation_time.isoformat(),
+    #         "recent_memories_count": len(recent_memories),
+    #         "current_sessions": len(self.current_sessions),
+    #         "current_communications": len(self.current_communications)
+    #     }
     
     def _extract_signal_summary(self, signal: Dict[str, Any]) -> str:
         """提取信号摘要"""
@@ -439,20 +439,20 @@ class Mem0AnalystMemory:
         adj_summary = self._extract_signal_summary(adjusted)
         return f"从 [{orig_summary}] 调整为 [{adj_summary}]"
     
-    def export_memory(self) -> Dict[str, Any]:
-        """导出记忆数据（兼容性方法）"""
-        # 获取所有记忆
-        all_memories = self.get_relevant_memories("", limit=100)
+    # def export_memory(self) -> Dict[str, Any]:
+    #     """导出记忆数据（兼容性方法）"""
+    #     # 获取所有记忆
+    #     all_memories = self.get_relevant_memories("", limit=100)
         
-        return {
-            "analyst_id": self.analyst_id,
-            "analyst_name": self.analyst_name,
-            "creation_time": self.creation_time.isoformat(),
-            "mem0_memories": all_memories,
-            "current_sessions": [session.model_dump() for session in self.current_sessions.values()],
-            "current_communications": [comm.model_dump() for comm in self.current_communications.values()],
-            "export_time": datetime.now().isoformat()
-        }
+    #     return {
+    #         "analyst_id": self.analyst_id,
+    #         "analyst_name": self.analyst_name,
+    #         "creation_time": self.creation_time.isoformat(),
+    #         "mem0_memories": all_memories,
+    #         "current_sessions": [session.model_dump() for session in self.current_sessions.values()],
+    #         "current_communications": [comm.model_dump() for comm in self.current_communications.values()],
+    #         "export_time": datetime.now().isoformat()
+    #     }
 
 
 class Mem0AnalystMemoryManager:
@@ -480,16 +480,16 @@ class Mem0AnalystMemoryManager:
             contexts[analyst_id] = memory.get_full_context_for_communication(tickers)
         return contexts
     
-    def export_all_memories(self) -> Dict[str, Any]:
-        """导出所有记忆"""
-        return {
-            "export_time": datetime.now().isoformat(),
-            "memory_system": "mem0",
-            "analysts": {
-                analyst_id: memory.export_memory() 
-                for analyst_id, memory in self.analysts.items()
-            }
-        }
+    # def export_all_memories(self) -> Dict[str, Any]:
+    #     """导出所有记忆"""
+    #     return {
+    #         "export_time": datetime.now().isoformat(),
+    #         "memory_system": "mem0",
+    #         "analysts": {
+    #             analyst_id: memory.export_memory() 
+    #             for analyst_id, memory in self.analysts.items()
+    #         }
+    #     }
     
     def reset_analyst_memory(self, analyst_id: str, analyst_name: str = None):
         """重置分析师记忆"""
@@ -571,83 +571,6 @@ class Mem0NotificationMemory:
         except Exception as e:
             print(f"警告：记录发送通知到mem0失败: {str(e)}")
     
-    def get_recent_notifications(self, hours: int = 24, backtest_date: Optional[str] = None) -> List[Dict[str, Any]]:
-        """获取最近的通知"""
-        try:
-            if backtest_date:
-                # 精确匹配回测日期
-                query = f"backtest_date:{backtest_date} 通知"
-            else:
-                # 按时间窗口查询
-                query = f"最近{hours}小时的通知"
-            
-            memories = self.memory.search(
-                query=query,
-                user_id=self.agent_id,
-                limit=20
-            )
-            
-            # 过滤通知类型的记忆
-            notifications = []
-            for memory in memories:
-                if not isinstance(memory, dict):
-                    # 搜索返回了非结构化条目，跳过
-                    continue
-                metadata = memory.get('metadata', {}) or {}
-                if metadata.get('type') in ['received_notification', 'sent_notification']:
-                    # 如果指定了回测日期，进一步验证
-                    if backtest_date:
-                        if metadata.get('backtest_date') == backtest_date:
-                            notifications.append(memory)
-                    else:
-                        # 检查时间范围
-                        timestamp_str = metadata.get('timestamp')
-                        if timestamp_str:
-                            try:
-                                timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-                                cutoff_time = datetime.now().timestamp() - (hours * 3600)
-                                if timestamp.timestamp() > cutoff_time:
-                                    notifications.append(memory)
-                            except Exception:
-                                continue
-            
-            return notifications
-        except Exception as e:
-            print(f"警告：搜索最近通知失败: {str(e)}")
-            return []
-    
-    def get_notifications_by_urgency(self, urgency: str, backtest_date: Optional[str] = None) -> List[Dict[str, Any]]:
-        """按紧急程度获取通知"""
-        try:
-            if backtest_date:
-                query = f"backtest_date:{backtest_date} urgency:{urgency} 通知"
-            else:
-                query = f"紧急程度{urgency}的通知"
-            
-            memories = self.memory.search(
-                query=query,
-                user_id=self.agent_id,
-                limit=10
-            )
-            
-            # 过滤符合条件的通知
-            notifications = []
-            for memory in memories:
-                if not isinstance(memory, dict):
-                    continue
-                metadata = memory.get('metadata', {}) or {}
-                if (metadata.get('type') in ['received_notification', 'sent_notification'] and 
-                    metadata.get('urgency') == urgency):
-                    if backtest_date:
-                        if metadata.get('backtest_date') == backtest_date:
-                            notifications.append(memory)
-                    else:
-                        notifications.append(memory)
-            
-            return notifications
-        except Exception as e:
-            print(f"警告：搜索紧急通知失败: {str(e)}")
-            return []
 
 
 class Mem0NotificationSystem:
@@ -729,12 +652,12 @@ class Mem0NotificationSystem:
         
         return notification.id
     
-    def get_agent_notifications(self, agent_id: str, hours: int = 24,
-                               backtest_date: Optional[str] = None) -> List[Dict[str, Any]]:
-        """获取特定agent的通知"""
-        if agent_id in self.agent_memories:
-            return self.agent_memories[agent_id].get_recent_notifications(hours, backtest_date)
-        return []
+    # def get_agent_notifications(self, agent_id: str, hours: int = 24,
+    #                            backtest_date: Optional[str] = None) -> List[Dict[str, Any]]:
+    #     """获取特定agent的通知"""
+    #     if agent_id in self.agent_memories:
+    #         return self.agent_memories[agent_id].get_recent_notifications(hours, backtest_date)
+    #     return []
     
     def get_agent_memory(self, agent_id: str) -> Optional[Mem0NotificationMemory]:
         """获取agent的通知记忆"""
@@ -846,23 +769,6 @@ class Mem0CommunicationMemory:
         except Exception as e:
             print(f"警告：记录会议到mem0失败: {str(e)}")
     
-    def get_communication_history(self, query: str = "", limit: int = 10,
-                                 backtest_date: Optional[str] = None) -> List[Dict[str, Any]]:
-        """获取通信历史"""
-        try:
-            search_query = query or "通信记录"
-            if backtest_date:
-                search_query = f"backtest_date:{backtest_date} {search_query}"
-            
-            memories = self.communication_memory.search(
-                query=search_query,
-                user_id="communication_system",
-                limit=limit
-            )
-            return memories
-        except Exception as e:
-            print(f"警告：搜索通信历史失败: {str(e)}")
-            return []
 
 
 # ================================
@@ -924,16 +830,12 @@ class Mem0MemoryManager:
             sender_agent, content, urgency, category, backtest_date
         )
     
-    def get_agent_notifications(self, agent_id: str, hours: int = 24,
-                               backtest_date: Optional[str] = None) -> List[Dict[str, Any]]:
-        """获取agent通知"""
-        return self.notification_system.get_agent_notifications(agent_id, hours, backtest_date)
-    
+
     def get_all_analysts_context(self, tickers: List[str] = None) -> Dict[str, str]:
         """获取所有分析师的上下文"""
         return self.analyst_memory_manager.get_all_analysts_context(tickers)
     
-    def search_memories(self, query: str, analyst_id: str = None, limit: int = 10) -> List[Dict[str, Any]]:
+    def search_memories(self, query: str, analyst_id, limit: int = 10) -> List[Dict[str, Any]]:
         """搜索记忆"""
         if analyst_id:
             # 搜索特定分析师的记忆
@@ -941,10 +843,6 @@ class Mem0MemoryManager:
             if memory:
                 return memory.get_relevant_memories(query, limit)
             return []
-        else:
-            # 搜索通信记忆
-            return self.communication_memory.get_communication_history(query, limit)
-    
     def get_system_status(self) -> Dict[str, Any]:
         """获取系统状态"""
         registered_analysts = list(self.analyst_memory_manager.analysts.keys())
@@ -958,14 +856,14 @@ class Mem0MemoryManager:
             "status_time": datetime.now().isoformat()
         }
     
-    def export_all_data(self) -> Dict[str, Any]:
-        """导出所有数据"""
-        return {
-            "export_time": datetime.now().isoformat(),
-            "system_status": self.get_system_status(),
-            "analyst_memories": self.analyst_memory_manager.export_all_memories(),
-            "communication_history": self.search_memories("", limit=100)
-        }
+    # def export_all_data(self) -> Dict[str, Any]:
+    #     """导出所有数据"""
+    #     return {
+    #         "export_time": datetime.now().isoformat(),
+    #         "system_status": self.get_system_status(),
+    #         "analyst_memories": self.analyst_memory_manager.export_all_memories(),
+    #         "communication_history": self.search_memories("", limit=100)
+    #     }
     
     def reset_analyst(self, analyst_id: str, analyst_name: str = None):
         """重置分析师"""

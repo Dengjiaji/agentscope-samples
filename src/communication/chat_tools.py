@@ -192,7 +192,7 @@ class CommunicationManager:
 
         Please decide whether communication is needed and explain the reason. If communication is needed, please specify:
         - Communication type (private_chat or meeting)
-        - Target analyst list
+        - Target analyst list (for private_chat: only one analyst, for meeting: multiple analysts)
         - Discussion topic
         - Selection reason
 
@@ -200,7 +200,7 @@ class CommunicationManager:
         {{
         "should_communicate": true/false,
         "communication_type": "private_chat" or "meeting",
-        "target_analysts": ["analyst1", "analyst2"],
+        "target_analysts": ["analyst1"] (for private_chat) or ["analyst1", "analyst2"] (for meeting),
         "discussion_topic": "discussion topic",
         "reasoning": "selection reason"
         }}""")
@@ -253,7 +253,7 @@ class CommunicationManager:
     
     def conduct_private_chat(self, manager_id: str, analyst_id: str, 
                            topic: str, analyst_signal: Dict[str, Any], 
-                           state, max_rounds: int = 3) -> Dict[str, Any]:
+                           state, max_rounds: int = 1) -> Dict[str, Any]:
         """进行私聊"""
         print(f"开始私聊: {manager_id} <-> {analyst_id}")
         print(f"话题: {topic}")
@@ -376,7 +376,7 @@ class CommunicationManager:
             analyst_memory.complete_communication(communication_id)
 
       
-
+        # pdb.set_trace()
         result = {
             "chat_history": conversation_history,
             "final_analyst_signal": current_analyst_signal,

@@ -97,27 +97,27 @@ class AnalystMemoryMem0Adapter:
         # 降级处理
         return f"=== {self.analyst_name} 的记忆（Mem0不可用） ===\n身份: {self.analyst_id}\n总分析次数: {self.total_analyses}\n总通信次数: {self.total_communications}"
     
-    def get_analysis_summary(self) -> Dict[str, Any]:
-        """获取分析总结（兼容原接口）"""
-        if self._mem0_memory:
-            summary = self._mem0_memory.get_analysis_summary()
-            # 添加兼容性字段
-            summary.update({
-                "total_analyses": self.total_analyses,
-                "total_communications": self.total_communications,
-                "last_active": self.last_active_time.isoformat()
-            })
-            return summary
+    # def get_analysis_summary(self) -> Dict[str, Any]:
+    #     """获取分析总结（兼容原接口）"""
+    #     if self._mem0_memory:
+    #         summary = self._mem0_memory.get_analysis_summary()
+    #         # 添加兼容性字段
+    #         summary.update({
+    #             "total_analyses": self.total_analyses,
+    #             "total_communications": self.total_communications,
+    #             "last_active": self.last_active_time.isoformat()
+    #         })
+    #         return summary
         
-        # 降级处理
-        return {
-            "analyst_id": self.analyst_id,
-            "analyst_name": self.analyst_name,
-            "total_analyses": self.total_analyses,
-            "total_communications": self.total_communications,
-            "last_active": self.last_active_time.isoformat(),
-            "memory_system": "mem0_unavailable"
-        }
+    #     # 降级处理
+    #     return {
+    #         "analyst_id": self.analyst_id,
+    #         "analyst_name": self.analyst_name,
+    #         "total_analyses": self.total_analyses,
+    #         "total_communications": self.total_communications,
+    #         "last_active": self.last_active_time.isoformat(),
+    #         "memory_system": "mem0_unavailable"
+    #     }
     
     def export_memory(self) -> Dict[str, Any]:
         """导出记忆数据（兼容原接口）"""
