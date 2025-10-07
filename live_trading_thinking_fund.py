@@ -530,9 +530,123 @@ class LiveTradingThinkingFund:
             'llm_memory_decision': llm_decision if 'llm_decision' in locals() else None,
             'memory_tool_calls_results': execution_results,
             'timestamp': datetime.now().isoformat()
-        } 
-    
-    
+        }
+
+    def generate_trading_dates(self, start_date: str, end_date: str) -> List[str]:
+        if not self.validate_date_format(start_date) or not self.validate_date_format(end_date):
+            raise ValueError("日期格式应为 YYYY-MM-DD")
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        if start_dt > end_dt:
+            raise ValueError("开始日期不得晚于结束日期")
+
+        trading_days: List[str] = []
+        current = start_dt
+        while current <= end_dt:
+            date_str = current.strftime("%Y-%m-%d")
+            if self.is_trading_day(date_str):
+                trading_days.append(date_str)
+            current += timedelta(days=1)
+        return trading_days
+
+    def run_multi_day_simulation(
+        self,
+        start_date: str,
+        end_date: str,
+        tickers: List[str],
+        max_comm_cycles: int = 2,
+        force_run: bool = False
+    ) -> Dict[str, Any]:
+        trading_days = self.generate_trading_dates(start_date, end_date)
+        if not trading_days:
+            print("选定区间内无交易日")
+            return {
+                'status': 'skipped',
+                'reason': '无交易日',
+                'start_date': start_date,
+                'end_date': end_date,
+                'daily_results': {}
+            }
+
+        print(f"\n===== 多日Sandbox模拟 {start_date} ~ {end_date} =====")
+        print(f"覆盖交易日: {len(trading_days)} 天 -> {', '.join(trading_days[:5])}{'...' if len(trading_days) > 5 else ''}")
+
+        daily_results: Dict[str, Dict[str, Any]] = {}
+        success_days: List[str] = []
+        failed_days: List[str] = []
+
+        for idx, date in enumerate(trading_days, start=1):
+            print(f"\n--- [{idx}/{len(trading_days)}] {date} ---")
+            day_result = self.run_full_day_simulation(
+                date=date,
+                tickers=tickers,
+                max_comm_cycles=max_comm_cycles,
+                force_run=force_run
+            )
+            daily_results[date] = day_result
+
+            day_status = day_result.get('summary', {}).get('overall_status', 'failed')
+            if day_status == 'success':
+                success_days.append(date)
+            else:
+                failed_days.append(date)
+
+        summary = self._build_multi_day_summary(
+            start_date=start_date,
+            end_date=end_date,
+            trading_days=trading_days,
+            success_days=success_days,
+            failed_days=failed_days
+        )
+        self._print_multi_day_summary(summary)
+
+        return {
+            'status': 'completed',
+            'start_date': start_date,
+            'end_date': end_date,
+            'trading_days': trading_days,
+            'success_days': success_days,
+            'failed_days': failed_days,
+            'summary': summary,
+            'daily_results': daily_results
+        }
+
+    def _build_multi_day_summary(
+        self,
+        start_date: str,
+        end_date: str,
+        trading_days: List[str],
+        success_days: List[str],
+        failed_days: List[str]
+    ) -> Dict[str, Any]:
+        total = len(trading_days)
+        success = len(success_days)
+        fail = len(failed_days)
+        success_rate = success / total * 100 if total else 0.0
+
+        return {
+            'start_date': start_date,
+            'end_date': end_date,
+            'total_days': total,
+            'success_days': success,
+            'failed_days': fail,
+            'success_rate_pct': round(success_rate, 2),
+            'first_trading_day': trading_days[0] if trading_days else None,
+            'last_trading_day': trading_days[-1] if trading_days else None,
+            'failed_day_list': failed_days
+        }
+
+    def _print_multi_day_summary(self, summary: Dict[str, Any]) -> None:
+        print("\n===== 多日模拟汇总 =====")
+        print(f"区间: {summary['start_date']} ~ {summary['end_date']}")
+        print(f"交易日数量: {summary['total_days']}")
+        print(f"成功天数: {summary['success_days']}")
+        print(f"失败天数: {summary['failed_days']}")
+        print(f"成功率: {summary['success_rate_pct']:.2f}%")
+        if summary['failed_day_list']:
+            print(f"失败日期: {', '.join(summary['failed_day_list'])}")
+        print("=" * 40)
+
     def run_full_day_simulation(self, date: str, tickers: List[str], 
                                max_comm_cycles: int = 2, force_run: bool = False) -> Dict[str, Any]:
         """运行完整的一天模拟（交易前 + 交易后）"""
@@ -576,7 +690,6 @@ class LiveTradingThinkingFund:
         return results
     
     def _generate_day_summary(self, results: Dict[str, Any]) -> Dict[str, Any]:
-        """生成日总结"""
         summary = {
             'date': results['date'],
             'is_trading_day': results['is_trading_day'],
@@ -587,12 +700,12 @@ class LiveTradingThinkingFund:
         if results['pre_market']:
             summary['activities_completed'].append('交易前分析')
             if results['pre_market']['status'] != 'success':
-                summary['overall_status'] = 'partial_success'
+                summary['overall_status'] = 'partial_failure'
         
         if results['post_market']:
             summary['activities_completed'].append('交易后复盘')
             if results['post_market']['status'] != 'success':
-                summary['overall_status'] = 'partial_success'
+                summary['overall_status'] = 'failed'
         
         return summary
     
@@ -673,8 +786,17 @@ def main():
     parser.add_argument(
         '--date',
         type=str,
-        required=True,
-        help='指定模拟日期 (YYYY-MM-DD格式)'
+        help='指定单个模拟日期 (YYYY-MM-DD)'
+    )
+    parser.add_argument(
+        '--start-date',
+        type=str,
+        help='多日模拟开始日期 (YYYY-MM-DD)'
+    )
+    parser.add_argument(
+        '--end-date',
+        type=str,
+        help='多日模拟结束日期 (YYYY-MM-DD)'
     )
     
     # 可选参数
@@ -711,11 +833,6 @@ def main():
         config.override_with_args(args)
         thinking_fund = LiveTradingThinkingFund(base_dir=args.base_dir)
         
-        if not thinking_fund.validate_date_format(args.date):
-            print(f"错误: 日期格式无效: {args.date} (需要 YYYY-MM-DD)")
-            sys.exit(1)
-            
-        # 确定股票代码
         if args.tickers:
             tickers = [ticker.strip().upper() for ticker in args.tickers.split(",") if ticker.strip()]
         elif config.tickers:
@@ -723,26 +840,34 @@ def main():
         else:
             print("错误: 请通过 --tickers 参数或环境变量 TICKERS 提供股票代码")
             sys.exit(1)
-        
-        if not tickers:
-            print("错误: 请提供至少一个有效的股票代码")
-            sys.exit(1)
-        
-        print(f"时间Sandbox模拟设置:")
-        print(f"   目标日期: {args.date}")
-        print(f"   模拟标的: {', '.join(tickers)}")
-        print(f"   沟通轮数: {args.max_comm_cycles}")
-        print(f"   强制运行: {'是' if args.force_run else '否'}")
-        
-        # 运行完整日模拟
-        results = thinking_fund.run_full_day_simulation(
-            date=args.date,
-            tickers=tickers,
-            max_comm_cycles=args.max_comm_cycles,
-            force_run=args.force_run
-        )
-        
-        print(f"\n{args.date} 时间Sandbox模拟完成!")
+
+        if args.start_date or args.end_date:
+            if not args.start_date or not args.end_date:
+                print("错误: 多日模式需同时提供 --start-date 与 --end-date")
+                sys.exit(1)
+            results = thinking_fund.run_multi_day_simulation(
+                start_date=args.start_date,
+                end_date=args.end_date,
+                tickers=tickers,
+                max_comm_cycles=args.max_comm_cycles,
+                force_run=args.force_run
+            )
+            print(f"\n多日Sandbox模拟完成: {results['summary']['success_days']} / {results['summary']['total_days']} 成功")
+        else:
+            if not args.date:
+                print("错误: 请提供 --date 或者 --start-date/--end-date")
+                sys.exit(1)
+            if not thinking_fund.validate_date_format(args.date):
+                print(f"错误: 日期格式无效: {args.date} (需要 YYYY-MM-DD)")
+                sys.exit(1)
+
+            results = thinking_fund.run_full_day_simulation(
+                date=args.date,
+                tickers=tickers,
+                max_comm_cycles=args.max_comm_cycles,
+                force_run=args.force_run
+            )
+            print(f"\n{args.date} 时间Sandbox模拟完成!")
         
     except KeyboardInterrupt:
         print("\n用户中断模拟")

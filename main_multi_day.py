@@ -158,17 +158,17 @@ def main():
     
     # 验证股票代码
     if not config.tickers:
-        print("❌ 错误: 请通过 --tickers 参数或环境变量 TICKERS 提供至少一个有效的股票代码")
-        print("💡 提示: 可以运行 'python main_multi_day.py --create-env-template' 创建配置模板")
+        print("错误: 请通过 --tickers 参数或环境变量 TICKERS 提供至少一个有效的股票代码")
+        print("提示: 可以运行 'python main_multi_day.py --create-env-template' 创建配置模板")
         sys.exit(1)
     
     # 验证日期格式
     if not validate_date_format(config.start_date):
-        print(f"❌ 错误: 开始日期格式无效: {config.start_date} (需要 YYYY-MM-DD)")
+        print(f"错误: 开始日期格式无效: {config.start_date} (需要 YYYY-MM-DD)")
         sys.exit(1)
     
     if not validate_date_format(config.end_date):
-        print(f"❌ 错误: 结束日期格式无效: {config.end_date} (需要 YYYY-MM-DD)")
+        print(f"错误: 结束日期格式无效: {config.end_date} (需要 YYYY-MM-DD)")
         sys.exit(1)
     
     # 验证日期逻辑
@@ -185,27 +185,27 @@ def main():
    
     
     # 打印配置信息
-    print("🔧 多日策略分析配置:")
-    print(f"   📊 分析标的: {', '.join(config.tickers)}")
-    print(f"   📅 时间范围: {config.start_date} 到 {config.end_date} ({total_days} 天)")
-    print(f"   💬 沟通机制: {'禁用' if config.disable_communications else '启用'}")
-    print(f"   🔔 通知机制: {'禁用' if config.disable_notifications else '启用'}")
+    print("多日策略分析配置:")
+    print(f"   分析标的: {', '.join(config.tickers)}")
+    print(f"   时间范围: {config.start_date} 到 {config.end_date} ({total_days} 天)")
+    print(f"   沟通机制: {'禁用' if config.disable_communications else '启用'}")
+    print(f"   通知机制: {'禁用' if config.disable_notifications else '启用'}")
     if not config.disable_communications:
-        print(f"   🔄 沟通轮数: 最多 {config.max_comm_cycles} 轮/日")
+        print(f"   沟通轮数: 最多 {config.max_comm_cycles} 轮/日")
     if config.disable_notifications:
         print("   ⚡ 快速模式: 仅第一轮分析，跳过分析师间通知")
-    print(f"   📁 输出目录: {config.output_dir}")
-    print(f"   📦 数据预取: {'禁用' if config.disable_data_prefetch else '启用'}")
-    print(f"   🔍 详细推理: {'启用' if config.show_reasoning else '禁用'}")
-    print(f"   🏁 OKR机制: {'启用' if config.enable_okr else '禁用'}")
+    print(f"   输出目录: {config.output_dir}")
+    print(f"   数据预取: {'禁用' if config.disable_data_prefetch else '启用'}")
+    print(f"   详细推理: {'启用' if config.show_reasoning else '禁用'}")
+    print(f"   OKR机制: {'启用' if config.enable_okr else '禁用'}")
     
     if config.dry_run:
-        print("\n🧪 干运行模式 - 配置验证完成，未执行实际分析")
+        print("\n干运行模式 - 配置验证完成，未执行实际分析")
         return
     
     try:
         # 初始化分析引擎
-        print("\n🔧 初始化投资分析引擎...")
+        print("\n初始化投资分析引擎...")
         engine = AdvancedInvestmentAnalysisEngine()
         
         # 初始化多日管理器
@@ -235,11 +235,11 @@ def main():
         execution_time = end_time - start_time
         
         # 打印结果摘要
-        print(f"\n📊 分析完成摘要:")
-        print(f"   ⏱️ 总耗时: {execution_time}")
-        print(f"   📈 成功天数: {results['period']['successful_days']}")
-        print(f"   ❌ 失败天数: {results['period']['failed_days']}")
-        print(f"   💡 成功率: {results['period']['successful_days']/results['period']['total_days']*100:.1f}%")
+        print(f"\n分析完成摘要:")
+        print(f"   总耗时: {execution_time}")
+        print(f"   成功天数: {results['period']['successful_days']}")
+        print(f"   失败天数: {results['period']['failed_days']}")
+        print(f"   成功率: {results['period']['successful_days']/results['period']['total_days']*100:.1f}%")
         
         # 绩效指标
         if "performance_analysis" in results and "error" not in results["performance_analysis"]:
@@ -247,25 +247,25 @@ def main():
             for ticker in perf.keys():
                 print('股票 performance:',ticker)
                 print(pd.DataFrame(perf[ticker],index=[0]).T)
-                print(f"\n📈 绩效指标:")
+                print(f"\n绩效指标:")
                 
-                print(f"   💰 年化收益率: {perf['annualized_return_pct']}%")
-                print(f"   💰 日均收益率: {perf['total_return_pct']}%")
+                print(f"年化收益率: {perf['annualized_return_pct']}%")
+                print(f"日均收益率: {perf['total_return_pct']}%")
                 print(f"   📊 年化波动率: {perf['annualized_volatility_pct']}%")
-                print(f"   📉 最大回撤: {perf['max_drawdown_pct']}%")
+                print(f"最大回撤: {perf['max_drawdown_pct']}%")
                 print(f"   ⚡ 夏普比率: {perf['sharpe_ratio']}")
-                print(f"   📅 交易期间: {perf['trading_period_years']} 年 ({perf['total_trading_days']} 交易日)")
-                print(f"   📊 总收益率: {perf['total_return_pct']}% ")
+                print(f"交易期间: {perf['trading_period_years']} 年 ({perf['total_trading_days']} 交易日)")
+                print(f"总收益率: {perf['total_return_pct']}% ")
 
         
-        print(f"\n📁 详细结果已保存到: {config.output_dir}")
-        print(f"   📄 汇总报告: {results.get('session_id', 'unknown')}_summary.json")
+        print(f"\详细结果已保存到: {config.output_dir}")
+        print(f"   汇总报告: {results.get('session_id', 'unknown')}_summary.json")
         
     except KeyboardInterrupt:
-        print("\n⏹️ 用户中断分析")
+        print("\n用户中断分析")
         sys.exit(1)
     except Exception as e:
-        print(f"\n❌ 分析过程中出现错误: {str(e)}")
+        print(f"\n分析过程中出现错误: {str(e)}")
         if config.verbose:
             import traceback
             traceback.print_exc()
