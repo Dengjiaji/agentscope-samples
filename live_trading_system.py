@@ -28,24 +28,13 @@ import matplotlib.dates as mdates
 from matplotlib import rcParams
 import seaborn as sns
 import pdb
-
-# 添加项目路径
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
 from advanced_investment_engine import AdvancedInvestmentAnalysisEngine
 from src.scheduler.multi_day_manager import MultiDayManager
 from src.config.env_config import LiveTradingConfig
 
-# 尝试导入美国交易日历包（与主程序保持一致）
-try:
-    import pandas_market_calendars as mcal
-    US_TRADING_CALENDAR_AVAILABLE = True
-except ImportError:
-    try:
-        import exchange_calendars as xcals
-        US_TRADING_CALENDAR_AVAILABLE = True
-    except ImportError:
-        US_TRADING_CALENDAR_AVAILABLE = False
+import pandas_market_calendars as mcal
+US_TRADING_CALENDAR_AVAILABLE = True
 
 # 设置绘图样式
 rcParams['axes.unicode_minus'] = False
@@ -142,26 +131,23 @@ class LiveTradingSystem:
     def is_trading_day(self, date: str) -> bool:
         """检查是否为交易日（与主程序保持一致）"""
         if US_TRADING_CALENDAR_AVAILABLE:
-            try:
-                # 优先尝试使用 pandas_market_calendars
-                if 'mcal' in globals():
-                    nyse = mcal.get_calendar('NYSE')
-                    trading_dates = nyse.valid_days(start_date=date, end_date=date)
-                    return len(trading_dates) > 0
+            # 优先尝试使用 pandas_market_calendars
+            if 'mcal' in globals():
+                nyse = mcal.get_calendar('NYSE')
+                trading_dates = nyse.valid_days(start_date=date, end_date=date)
+                return len(trading_dates) > 0
+            
+            # 备选：使用 exchange_calendars
+            elif 'xcals' in globals():
+                nyse = xcals.get_calendar('XNYS')  # NYSE的ISO代码
+                trading_dates = nyse.sessions_in_range(date, date)
+                return len(trading_dates) > 0
                 
-                # 备选：使用 exchange_calendars
-                elif 'xcals' in globals():
-                    nyse = xcals.get_calendar('XNYS')  # NYSE的ISO代码
-                    trading_dates = nyse.sessions_in_range(date, date)
-                    return len(trading_dates) > 0
-                    
-            except Exception as e:
-                print(f"美国交易日历检查失败，回退到简单方法: {e}")
-        
+         
         
     
     def should_run_today(self, target_date: str = None, force_run: bool = False) -> bool:
-        """判断是否应该运行"""
+        """判断是否今天应该运行"""
         if force_run:
             return True
             
@@ -178,38 +164,7 @@ class LiveTradingSystem:
             
         return True
     
-    def clean_old_data(self, cutoff_date: str = None):
-        """清理过期数据（可选，保留从2025-01-01开始的所有数据）"""
-        if cutoff_date is None:
-            # 默认保留从2025-01-01开始的所有数据，不清理
-            return
-        
-        files_to_clean = [self.daily_signals_file, self.cumulative_returns_file]
-        
-        cleaned_count = 0
-        for file_path in files_to_clean:
-            if file_path.exists():
-                data = self._load_json_file(file_path)
-                if isinstance(data, dict):
-                    if file_path == self.cumulative_returns_file and 'individual' in data:
-                        for ticker in data['individual']:
-                            keys_to_remove = [k for k in data['individual'][ticker].keys() if k < cutoff_date]
-                            for key in keys_to_remove:
-                                data['individual'][ticker].pop(key, None)
-                                cleaned_count += 1
-                    else:
-                        keys_to_remove = [k for k in data.keys() if k < cutoff_date]
-                        for key in keys_to_remove:
-                            data.pop(key, None)
-                            cleaned_count += 1
-                    
-                    if cleaned_count > 0:
-                        self._save_json_file(file_path, data)
-        
-        if cleaned_count > 0:
-            print(f"已清理 {cutoff_date} 之前的 {cleaned_count} 条历史数据")
-        else:
-            print("保留所有历史数据，无需清理")
+    
     
     # ==================== 策略分析部分 ====================
     
@@ -240,7 +195,7 @@ class LiveTradingSystem:
                 show_reasoning=False,
                 progress_callback=None
             )
-            
+            # pdb.set_trace()
             if results and results['period']['successful_days'] > 0:
                 daily_result = results['daily_results'][0]
                 return {
@@ -260,7 +215,6 @@ class LiveTradingSystem:
         """从分析结果中提取交易信号"""
         signals = {}
         
-        # 优先使用最终决策
         final_decisions = daily_result['results']['portfolio_management_results']['final_decisions']
         if final_decisions:
             for ticker, decision in final_decisions.items():
@@ -707,13 +661,11 @@ class LiveTradingSystem:
         """生成绩效报告"""
         print("开始生成绩效报告...")
         
-        # 加载数据
         returns_data = self._load_json_file(self.cumulative_returns_file, {'individual': {}})
         signals_data = self._load_json_file(self.daily_signals_file, {})
         
         individual_data = returns_data.get('individual', {})
         
-        # 如果指定了tickers，只分析这些股票
         if tickers:
             individual_data = {ticker: data for ticker, data in individual_data.items() 
                              if ticker in tickers}
@@ -821,53 +773,6 @@ class LiveTradingSystem:
                 print(f"   {chart_name}")
         
         print("="*80)
-    
-
-    def get_recent_trading_dates(self, num_days: int = 5) -> list:
-        """获取最近的交易日期（与主程序保持一致）"""
-        # 使用更高效的方法：直接获取交易日历
-        if US_TRADING_CALENDAR_AVAILABLE:
-            try:
-                end_date = datetime.now().strftime('%Y-%m-%d')
-                start_date = (datetime.now() - timedelta(days=60)).strftime('%Y-%m-%d')  # 往前推60天确保有足够数据
-                
-                # 优先尝试使用 pandas_market_calendars
-                if 'mcal' in globals():
-                    nyse = mcal.get_calendar('NYSE')
-                    trading_dates = nyse.valid_days(start_date=start_date, end_date=end_date)
-                    # 转换为字符串列表并取最近的num_days天
-                    dates = [date.strftime('%Y-%m-%d') for date in trading_dates]
-                    return sorted(dates[-num_days:]) if len(dates) >= num_days else sorted(dates)
-                
-                # 备选：使用 exchange_calendars
-                elif 'xcals' in globals():
-                    nyse = xcals.get_calendar('XNYS')
-                    trading_dates = nyse.sessions_in_range(start_date, end_date)
-                    dates = [date.strftime('%Y-%m-%d') for date in trading_dates]
-                    return sorted(dates[-num_days:]) if len(dates) >= num_days else sorted(dates)
-                    
-            except Exception as e:
-                print(f"获取交易日历失败，回退到逐日检查: {e}")
-        
-        # 回退到逐日检查方法
-        dates = []
-        current_date = datetime.now()
-        days_found = 0
-        days_back = 0
-        
-        while days_found < num_days:
-            test_date = current_date - timedelta(days=days_back)
-            date_str = test_date.strftime('%Y-%m-%d')
-            
-            if self.is_trading_day(date_str):
-                dates.append(date_str)
-                days_found += 1
-            
-            days_back += 1
-            if days_back > 60:  # 防止无限循环
-                break
-        
-        return sorted(dates)
 
  
 
@@ -911,14 +816,14 @@ def main():
     
     # backfill子命令
     backfill_parser = subparsers.add_parser('backfill', help='回填历史数据')
-    backfill_parser.add_argument('--tickers', type=str, required=False, help='股票代码列表，用逗号分隔')  # 改为可选
+    backfill_parser.add_argument('--tickers', type=str, required=False, help='股票代码列表，用逗号分隔')  
     backfill_parser.add_argument('--start-date', type=str, help='回填开始日期 (格式: YYYY-MM-DD)')
     backfill_parser.add_argument('--max-comm-cycles', type=int, help='最大沟通轮数')
     backfill_parser.add_argument('--base-dir', type=str, help='基础目录')
     
     # update子命令
     update_parser = subparsers.add_parser('update', help='执行每日策略更新')
-    update_parser.add_argument('--tickers', type=str, required=False, help='股票代码列表，用逗号分隔')  # 改为可选
+    update_parser.add_argument('--tickers', type=str, required=False, help='股票代码列表，用逗号分隔')  
     update_parser.add_argument('--date', type=str, help='指定运行日期 (YYYY-MM-DD)')
     update_parser.add_argument('--max-comm-cycles', type=int, help='最大沟通轮数')
     update_parser.add_argument('--force-run', action='store_true', help='强制运行')
@@ -932,11 +837,6 @@ def main():
     
     args = parser.parse_args()
     
-    # 处理创建环境变量模板的请求
-    if args.create_env_template:
-        from src.config.env_config import create_env_template
-        create_env_template()
-        sys.exit(0)
     
     if not args.command:
         parser.print_help()
@@ -945,7 +845,6 @@ def main():
     try:
         # 加载环境变量配置
         config = LiveTradingConfig()
-        
         # 用命令行参数覆盖环境变量配置
         config.override_with_args(args)
         
@@ -963,16 +862,7 @@ def main():
             if not system.validate_date_format(config.backfill_start_date):
                 print(f"错误: 日期格式不正确，请使用 YYYY-MM-DD 格式，如: 2025-01-01")
                 sys.exit(1)
-            
-            # 检查日期是否太早（避免过度回填）
-            start_date_obj = datetime.strptime(config.backfill_start_date, "%Y-%m-%d")
-            if start_date_obj < datetime(2020, 1, 1):
-                print(f"警告: 开始日期 {config.backfill_start_date} 较早，可能需要很长时间完成回填")
-                print("是否继续？[y/N] ", end="")
-                response = input().strip().lower()
-                if response != 'y':
-                    print("已取消回填")
-                    sys.exit(0)
+
             
             print(f"开始日期: {config.backfill_start_date}")
             print(f"监控股票: {', '.join(config.tickers)}")
@@ -1050,8 +940,6 @@ def main():
         elif args.command == 'report':
             # 使用配置中的股票代码（如果没有指定则为None，生成所有股票的报告）
             tickers = config.tickers if config.tickers else None
-            
-            # 生成报告
             report = system.generate_report(tickers)
             system.print_performance_summary(report)
         

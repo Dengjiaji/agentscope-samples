@@ -34,12 +34,12 @@ def validate_date_format(date_string: str) -> bool:
 def progress_callback(update: dict):
     """进度回调函数，打印进度信息"""
     if update["type"] == "daily_progress":
-        print(f"📈 进度: {update['progress']*100:.1f}% ({update['day_number']}/{update['total_days']})")
+        print(f"进度: {update['progress']*100:.1f}% ({update['day_number']}/{update['total_days']})")
     elif update["type"] == "daily_result":
         if update["status"] == "success":
-            print(f"✅ {update['date']} 分析完成")
+            print(f"{update['date']} 分析完成")
         else:
-            print(f"❌ {update['date']} 分析失败: {update.get('error', '未知错误')}")
+            print(f"{update['date']} 分析失败: {update.get('error', '未知错误')}")
 
 
 def main():
@@ -153,7 +153,6 @@ def main():
     
     # 加载环境变量配置
     config = MultiDayConfig()
-    
     # 用命令行参数覆盖环境变量配置
     config.override_with_args(args)
     
@@ -177,12 +176,9 @@ def main():
     end_date_obj = datetime.strptime(config.end_date, "%Y-%m-%d")
     
     if start_date_obj >= end_date_obj:
-        print("❌ 错误: 开始日期必须早于结束日期")
+        print("错误: 开始日期必须早于结束日期")
         sys.exit(1)
     
-    if end_date_obj > datetime.now():
-        print("❌ 错误: 结束日期不能超过今天")
-        sys.exit(1)
     
     # 计算分析天数
     total_days = (end_date_obj - start_date_obj).days + 1
@@ -251,15 +247,15 @@ def main():
             for ticker in perf.keys():
                 print('股票 performance:',ticker)
                 print(pd.DataFrame(perf[ticker],index=[0]).T)
-                # print(f"\n📈 绩效指标:")
+                print(f"\n📈 绩效指标:")
                 
-                # print(f"   💰 年化收益率: {perf['annualized_return_pct']}%")
-                # print(f"   💰 日均收益率: {perf['total_return_pct']}%")
-                # print(f"   📊 年化波动率: {perf['annualized_volatility_pct']}%")
-                # print(f"   📉 最大回撤: {perf['max_drawdown_pct']}%")
-                # print(f"   ⚡ 夏普比率: {perf['sharpe_ratio']}")
-                # print(f"   📅 交易期间: {perf['trading_period_years']} 年 ({perf['total_trading_days']} 交易日)")
-                # print(f"   📊 总收益率: {perf['total_return_pct']}% ")
+                print(f"   💰 年化收益率: {perf['annualized_return_pct']}%")
+                print(f"   💰 日均收益率: {perf['total_return_pct']}%")
+                print(f"   📊 年化波动率: {perf['annualized_volatility_pct']}%")
+                print(f"   📉 最大回撤: {perf['max_drawdown_pct']}%")
+                print(f"   ⚡ 夏普比率: {perf['sharpe_ratio']}")
+                print(f"   📅 交易期间: {perf['trading_period_years']} 年 ({perf['total_trading_days']} 交易日)")
+                print(f"   📊 总收益率: {perf['total_return_pct']}% ")
 
         
         print(f"\n📁 详细结果已保存到: {config.output_dir}")

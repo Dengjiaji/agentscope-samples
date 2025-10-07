@@ -20,15 +20,13 @@ import pdb
 # 添加项目路径
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
-
-# 加载环境变量 - 使用统一的mem0_env_loader
 from src.utils.mem0_env_loader import ensure_mem0_env_loaded
 ensure_mem0_env_loaded()
 
 from src.graph.state import AgentState
 from langchain_core.messages import HumanMessage
 
-# 导入所有四个核心分析师 - 使用智能LLM版本
+# 导入所有四个核心分析师 - 使用LLM版本
 from src.agents.intelligent_analysts import (
     intelligent_fundamentals_analyst_agent,
     intelligent_technical_analyst_agent,
@@ -61,7 +59,6 @@ from src.communication.chat_tools import (
     communication_manager,
     CommunicationDecision
 )
-# 使用Mem0适配器保持兼容性
 from src.memory import unified_memory_manager as memory_manager
 
 # 导入日志配置

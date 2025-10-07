@@ -28,58 +28,26 @@ from collections import defaultdict
 from dotenv import load_dotenv
 
 load_dotenv()
-
-# 添加项目路径
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
 
-# 导入现有的live trading system
 from live_trading_system import LiveTradingSystem
 from src.config.env_config import LiveTradingConfig
+from src.memory.mem0_core import mem0_integration
+from src.memory.unified_memory import unified_memory_manager
+MEMORY_AVAILABLE = True
+from src.utils.llm import call_llm
+from src.llm.models import get_model
+from langchain_core.messages import HumanMessage
+LLM_AVAILABLE = True
+from src.tools.memory_management_tools import get_memory_tools
+MEMORY_TOOLS_AVAILABLE = True
 
-# 导入记忆管理模块
-try:
-    from src.memory.mem0_core import mem0_integration
-    from src.memory.unified_memory import unified_memory_manager
-    MEMORY_AVAILABLE = True
-except ImportError as e:
-    print(f"警告: 无法导入记忆模块: {e}")
-    MEMORY_AVAILABLE = False
-
-# 导入LLM模块
-try:
-    from src.utils.llm import call_llm
-    from src.llm.models import get_model
-    from langchain_core.messages import HumanMessage
-    LLM_AVAILABLE = True
-except ImportError as e:
-    print(f"警告: 无法导入LLM模块: {e}")
-    LLM_AVAILABLE = False
-
-# 导入记忆管理工具
-try:
-    from src.tools.memory_management_tools import get_memory_tools
-    MEMORY_TOOLS_AVAILABLE = True
-except ImportError as e:
-    print(f"警告: 无法导入记忆管理工具: {e}")
-    MEMORY_TOOLS_AVAILABLE = False
-
-# 导入JSON解析
 import json
 import re
-
-# 尝试导入美国交易日历包
-try:
-    import pandas_market_calendars as mcal
-    US_TRADING_CALENDAR_AVAILABLE = True
-except ImportError:
-    try:
-        import exchange_calendars as xcals
-        US_TRADING_CALENDAR_AVAILABLE = True
-    except ImportError:
-        US_TRADING_CALENDAR_AVAILABLE = False
+import pandas_market_calendars as mcal
+US_TRADING_CALENDAR_AVAILABLE = True
 
 
 
@@ -91,50 +59,33 @@ class LLMMemoryDecisionSystem:
         self.memory_tools = []
         
         if LLM_AVAILABLE and MEMORY_TOOLS_AVAILABLE:
-            try:
-                # 从环境变量获取模型配置，使用默认值
-                model_name = os.getenv('MEMORY_LLM_MODEL', 'gpt-4o-mini')
-                model_provider_str = os.getenv('MEMORY_LLM_PROVIDER', 'OPENAI')
+            model_name = os.getenv('MEMORY_LLM_MODEL', 'gpt-4o-mini')
+            model_provider_str = os.getenv('MEMORY_LLM_PROVIDER', 'OPENAI')
+            from src.llm.models import ModelProvider
+            
+            # 转换为ModelProvider枚举
+            if hasattr(ModelProvider, model_provider_str):
+                model_provider = getattr(ModelProvider, model_provider_str)
+            else:
+                print(f"未知的模型提供商: {model_provider_str}，使用默认OPENAI")
+                model_provider = ModelProvider.OPENAI
+            
+            api_keys = {}
+            if model_provider == ModelProvider.OPENAI:
+                api_keys['OPENAI_API_KEY'] = os.getenv('OPENAI_API_KEY')
+            elif model_provider == ModelProvider.ANTHROPIC:
+                api_keys['ANTHROPIC_API_KEY'] = os.getenv('ANTHROPIC_API_KEY')
+            
+            # 获取记忆管理工具
+            self.memory_tools = get_memory_tools()
+            # 绑定工具到LLM
+            self.llm = get_model(model_name, model_provider, api_keys)
+            self.llm_with_tools = self.llm.bind_tools(self.memory_tools)
+            self.llm_available = True
+            print(f"LLM记忆决策系统已启用（{model_provider_str}: {model_name}）")
+            print(f"已绑定 {len(self.memory_tools)} 个记忆管理工具")
                 
-                # 导入ModelProvider枚举
-                from src.llm.models import ModelProvider
-                
-                # 转换为ModelProvider枚举
-                if hasattr(ModelProvider, model_provider_str):
-                    model_provider = getattr(ModelProvider, model_provider_str)
-                else:
-                    print(f"⚠️ 未知的模型提供商: {model_provider_str}，使用默认OPENAI")
-                    model_provider = ModelProvider.OPENAI
-                
-                # 准备API密钥字典
-                api_keys = {}
-                if model_provider == ModelProvider.OPENAI:
-                    api_keys['OPENAI_API_KEY'] = os.getenv('OPENAI_API_KEY')
-                elif model_provider == ModelProvider.ANTHROPIC:
-                    api_keys['ANTHROPIC_API_KEY'] = os.getenv('ANTHROPIC_API_KEY')
-                elif model_provider == ModelProvider.GROQ:
-                    api_keys['GROQ_API_KEY'] = os.getenv('GROQ_API_KEY')
-                
-                # 获取记忆管理工具
-                self.memory_tools = get_memory_tools()
-                
-                # 绑定工具到LLM
-                self.llm = get_model(model_name, model_provider, api_keys)
-                self.llm_with_tools = self.llm.bind_tools(self.memory_tools)
-                self.llm_available = True
-                print(f"✅ LLM记忆决策系统已启用（{model_provider_str}: {model_name}）")
-                print(f"🛠️ 已绑定 {len(self.memory_tools)} 个记忆管理工具")
-                
-            except Exception as e:
-                print(f"⚠️ LLM初始化失败: {e}")
-                self.llm = None
-                self.llm_with_tools = None
-                self.llm_available = False
-        else:
-            self.llm = None
-            self.llm_with_tools = None
-            self.llm_available = False
-            print("⚠️ LLM或记忆工具模块不可用")
+      
             
         
     
@@ -384,8 +335,7 @@ class LiveTradingThinkingFund:
             # 5. 更新个股收益
             individual_data = self.live_system.update_individual_returns(target_date, daily_returns)
             
-            # 6. 清理过期数据
-            self.live_system.clean_old_data()
+            # self.live_system.clean_old_data()
             
             print(f"{target_date} Sandbox分析完成")
             
@@ -414,7 +364,7 @@ class LiveTradingThinkingFund:
     
     def run_pre_market_analysis(self, date: str, tickers: List[str], 
                                max_comm_cycles: int = 2, force_run: bool = False) -> Dict[str, Any]:
-        """运行交易前分析（复用live_trading_system的逻辑）"""
+        """运行交易前分析（复用live_trading_system）"""
         print(f"\n===== 交易前分析 ({date}) =====")
         print(f"时间点: {self.PRE_MARKET}")
         print(f"分析标的: {', '.join(tickers)}")
@@ -467,8 +417,6 @@ class LiveTradingThinkingFund:
     
     def _perform_post_market_review(self, date: str, tickers: List[str], live_env: Dict[str, Any]) -> Dict[str, Any]:
         """执行交易后复盘分析"""
-    
-        # 有交易前数据，进行对比分析
         print("基于交易前分析进行复盘...")
         
         pm_signals = live_env['pm_signals']
@@ -501,7 +449,6 @@ class LiveTradingThinkingFund:
                 signal = agent_signals.get(ticker, 'N/A')
                 print(f"    {ticker}: {signal}")
         
-        # 🧠 新增：Portfolio Manager智能记忆管理
         print(f"\n===== Portfolio Manager 记忆管理决策 =====")
         
         performance_analysis = {}
@@ -509,7 +456,6 @@ class LiveTradingThinkingFund:
         
         try:
             if self.llm_memory_system:
-                # 准备性能数据给LLM
                 performance_data = {
                     'pm_signals': pm_signals,
                     'actual_returns': real_returns,
@@ -533,7 +479,7 @@ class LiveTradingThinkingFund:
                                        if result['result']['status'] == 'success')
                         total = len(llm_decision['execution_results'])
                         
-                        print(f"📊 执行统计:")
+                        print(f" 执行统计:")
                         print(f"  成功: {successful}/{total}")
                         
                         # 显示工具调用详情
@@ -545,25 +491,25 @@ class LiveTradingThinkingFund:
                             print(f"  {i}. {tool_name}")
                             print(f"     分析师: {args.get('analyst_id', 'N/A')}")
                             if result['status'] == 'success':
-                                print(f"     状态: ✅ 成功")
+                                print(f"     状态: 成功")
                             else:
-                                print(f"     状态: ❌ 失败 - {result.get('error', 'Unknown')}")
+                                print(f"     状态: 失败 - {result.get('error', 'Unknown')}")
                         
                         execution_results = llm_decision['execution_results']
                         
                     elif llm_decision['mode'] == 'no_action':
-                        print(f"✅ LLM认为无需记忆操作")
-                        print(f"💭 LLM理由: {llm_decision['reasoning']}")
+                        print(f" LLM认为无需记忆操作")
+                        print(f" LLM理由: {llm_decision['reasoning']}")
                         execution_results = None
                     else:
-                        print(f"🤷 未知的LLM决策模式: {llm_decision['mode']}")
+                        print(f" 未知的LLM决策模式: {llm_decision['mode']}")
                         execution_results = None
                         
                 elif llm_decision['status'] == 'skipped':
-                    print(f"⚠️ 记忆管理跳过: {llm_decision['reason']}")
+                    print(f" 记忆管理跳过: {llm_decision['reason']}")
                     execution_results = None
                 else:
-                    print(f"❌ LLM决策失败: {llm_decision.get('error', 'Unknown error')}")
+                    print(f" LLM决策失败: {llm_decision.get('error', 'Unknown error')}")
                     execution_results = None
             else:
                 print("LLM记忆管理系统未启用，跳过记忆操作")
@@ -575,13 +521,9 @@ class LiveTradingThinkingFund:
             import traceback
             traceback.print_exc()
         
-        # 生成复盘报告
-        # review_summary = self._generate_review_summary(pm_signals, real_returns, tickers)
-        
         return {
             'status': 'success',
             'type': 'full_review',
-            # 'review_summary': review_summary,
             'pre_market_signals': pm_signals,
             'analyst_signals': ana_signals,
             'actual_returns': real_returns,
@@ -590,75 +532,6 @@ class LiveTradingThinkingFund:
             'timestamp': datetime.now().isoformat()
         } 
     
-    def _generate_review_summary(self, signals: Dict, returns: Dict, tickers: List[str]) -> Dict[str, Any]:
-        """生成复盘总结"""
-        summary = {
-            'total_tickers': len(tickers),
-            'successful_signals': 0,
-            'failed_signals': 0,
-            'neutral_signals': 0,
-            'average_return': 0.0,
-            'best_performer': None,
-            'worst_performer': None,
-            'signal_accuracy': 0.0
-        }
-        
-        valid_returns = []
-        signal_performance = []
-        
-        for ticker in tickers:
-            if ticker in signals and ticker in returns:
-                signal = signals[ticker].get('signal', 'neutral')
-                actual_return = returns[ticker].get('daily_return', 0)
-                valid_returns.append(actual_return)
-                
-                # 判断信号准确性
-                if signal == 'bullish' and actual_return > 0:
-                    summary['successful_signals'] += 1
-                    signal_performance.append(1)
-                elif signal == 'bearish' and actual_return < 0:
-                    summary['successful_signals'] += 1
-                    signal_performance.append(1)
-                elif signal == 'neutral':
-                    summary['neutral_signals'] += 1
-                    signal_performance.append(0.5)
-                else:
-                    summary['failed_signals'] += 1
-                    signal_performance.append(0)
-        
-        if valid_returns:
-            summary['average_return'] = sum(valid_returns) / len(valid_returns)
-            
-            # 找出表现最好和最差的股票
-            ticker_returns = [(ticker, returns[ticker].get('daily_return', 0)) 
-                             for ticker in tickers if ticker in returns]
-            
-            if ticker_returns:
-                ticker_returns.sort(key=lambda x: x[1], reverse=True)
-                summary['best_performer'] = {
-                    'ticker': ticker_returns[0][0],
-                    'return': ticker_returns[0][1]
-                }
-                summary['worst_performer'] = {
-                    'ticker': ticker_returns[-1][0],
-                    'return': ticker_returns[-1][1]
-                }
-        
-        if signal_performance:
-            summary['signal_accuracy'] = sum(signal_performance) / len(signal_performance)
-        
-        return summary
-    
-    def _show_post_market_placeholder(self, date: str, tickers: List[str]):
-        """显示交易后占位符信息"""
-        print(f"交易后总结 - {date}")
-        print("━" * 50)
-        print(f"监控标的: {', '.join(tickers)}")
-        print(f"复盘时间: {datetime.now().strftime('%H:%M:%S')}")
-        print(f"市场状态: 交易日结束")
-        print(f"复盘内容: 等待明日交易前分析...")
-        print("━" * 50)
-        print("下一步: 等待下一个交易日的交易前分析")
     
     def run_full_day_simulation(self, date: str, tickers: List[str], 
                                max_comm_cycles: int = 2, force_run: bool = False) -> Dict[str, Any]:
@@ -685,7 +558,6 @@ class LiveTradingThinkingFund:
             print(f"(实际使用中，这里会等待真实的市场收盘)")
             
             # 2. 交易后复盘
-            # 安全地获取live_env，如果pre_market失败则为None
             live_env = results['pre_market'].get('live_env') if results['pre_market'] else None
             results['post_market'] = self.run_post_market_review(date, tickers, live_env)
             
@@ -822,7 +694,7 @@ def main():
     parser.add_argument(
         '--force-run',
         action='store_true',
-        help='强制运行，忽略各种检查'
+        help='强制运行，如果已经是已经运行过的交易日则重新运行'
     )
     
     parser.add_argument(
@@ -837,22 +709,12 @@ def main():
         # 加载配置
         config = LiveTradingConfig()
         config.override_with_args(args)
-        
-        # 验证日期格式
         thinking_fund = LiveTradingThinkingFund(base_dir=args.base_dir)
         
         if not thinking_fund.validate_date_format(args.date):
             print(f"错误: 日期格式无效: {args.date} (需要 YYYY-MM-DD)")
             sys.exit(1)
-        
-        # 检查日期不能是未来
-        target_date = datetime.strptime(args.date, "%Y-%m-%d").date()
-        today = datetime.now().date()
-        
-        if target_date > today:
-            print(f"错误: 不能模拟未来日期: {args.date}")
-            sys.exit(1)
-        
+            
         # 确定股票代码
         if args.tickers:
             tickers = [ticker.strip().upper() for ticker in args.tickers.split(",") if ticker.strip()]

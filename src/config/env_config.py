@@ -221,81 +221,10 @@ class LiveTradingConfig:
             self.max_comm_cycles = args.max_comm_cycles
 
 
-def create_env_template(output_path: str = None):
-    """创建环境变量模板文件"""
-    if output_path is None:
-        project_root = Path(__file__).parent.parent.parent
-        output_path = project_root / "env.template"
-    
-    template_content = """# IA 投资分析引擎环境变量配置文件示例
-# 复制此文件为 .env 并根据需要修改参数值
-
-# ================== 通用配置 ==================
-# 股票代码列表（用逗号分隔）
-TICKERS=AAPL,MSFT,GOOGL
-
-# 输出目录路径
-OUTPUT_DIR=./analysis_results_logs
-
-# 是否启用详细输出
-VERBOSE=false
-
-# ================== 多日策略配置 (main_multi_day.py) ==================
-# 开始日期 (YYYY-MM-DD格式，留空则默认30天前)
-START_DATE=
-
-# 结束日期 (YYYY-MM-DD格式，留空则默认今天)
-END_DATE=
-
-# 是否禁用沟通机制
-DISABLE_COMMUNICATIONS=false
-
-# 是否禁用通知机制
-DISABLE_NOTIFICATIONS=false
-
-# 每日最大沟通轮数
-MAX_COMM_CYCLES=3
-
-# 是否禁用数据预取
-DISABLE_DATA_PREFETCH=false
-
-# 是否启用OKR机制
-ENABLE_OKR=false
-
-# 是否显示分析师的详细推理过程
-SHOW_REASONING=false
-
-# 是否为干运行模式
-DRY_RUN=false
-
-# ================== Live交易系统配置 (live_trading_system.py) ==================
-# Live系统基础目录
-LIVE_BASE_DIR=
-
-# 回填历史数据的开始日期
-BACKFILL_START_DATE=2025-01-01
-
-# 是否强制运行（忽略交易日检查等）
-FORCE_RUN=false
-
-# 指定运行日期（用于update命令）
-TARGET_DATE=
-
-# Live系统最大沟通轮数
-LIVE_MAX_COMM_CYCLES=2
-"""
-    
-    try:
-        with open(output_path, 'w', encoding='utf-8') as f:
-            f.write(template_content)
-        print(f"✅ 环境变量模板文件已创建: {output_path}")
-    except Exception as e:
-        print(f"❌ 创建模板文件失败: {e}")
 
 
 if __name__ == "__main__":
-    # 测试功能
-    create_env_template()
+   
     
     # 测试配置加载
     print("\n测试多日策略配置:")
