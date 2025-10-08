@@ -194,7 +194,7 @@ def format_second_round_result_for_state(analysis: SecondRoundAnalysis) -> Dict[
     return {
         "analyst_id": analysis.analyst_id,
         "analyst_name": analysis.analyst_name,
-        "ticker_signals": [signal.dict() for signal in analysis.ticker_signals],
+        "ticker_signals": [signal.model_dump() for signal in analysis.ticker_signals],
         "timestamp": analysis.timestamp.isoformat(),
         "analysis_type": "second_round_llm"
     }
