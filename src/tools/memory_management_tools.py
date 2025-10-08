@@ -62,7 +62,7 @@ def search_and_update_analyst_memory(
         return {
             'status': 'failed',
             'error': 'Memory system not available',
-            'tool_name': 'update_analyst_memory'
+            'tool_name': 'search_and_update_analyst_memory'
         }
         
     try:
@@ -78,7 +78,7 @@ def search_and_update_analyst_memory(
         
         return {
             'status': 'success',
-            'tool_name': 'update_analyst_memory',
+            'tool_name': 'search_and_update_analyst_memory',
             'memory_id': memory_id,
             'analyst_id': analyst_id,
             'reason': reason,
@@ -89,7 +89,7 @@ def search_and_update_analyst_memory(
     except Exception as e:
         return {
             'status': 'failed',
-            'tool_name': 'update_analyst_memory',
+            'tool_name': 'search_and_update_analyst_memory',
             'memory_id': memory_id,
             'analyst_id': analyst_id,
             'error': str(e)
@@ -123,7 +123,7 @@ def search_and_delete_analyst_memory(
         return {
             'status': 'failed',
             'error': 'Memory system not available',
-            'tool_name': 'delete_analyst_memory'
+            'tool_name': 'search_and_delete_analyst_memory'
         }
         
     try:
@@ -136,7 +136,7 @@ def search_and_delete_analyst_memory(
         
         return {
             'status': 'success',
-            'tool_name': 'delete_analyst_memory',
+            'tool_name': 'search_and_delete_analyst_memory',
             'memory_id': memory_id,
             'analyst_id': analyst_id,
             'deletion_reason': reason,
@@ -146,7 +146,7 @@ def search_and_delete_analyst_memory(
     except Exception as e:
         return {
             'status': 'failed',
-            'tool_name': 'delete_analyst_memory',
+            'tool_name': 'search_and_delete_analyst_memory',
             'memory_id': memory_id,
             'analyst_id': analyst_id,
             'error': str(e)

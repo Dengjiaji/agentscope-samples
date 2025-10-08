@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
+from dataclasses import dataclass, field
 
 
 def load_env_file(env_file_path: str = None) -> Dict[str, str]:
@@ -179,6 +180,16 @@ class MultiDayConfig:
 class LiveTradingConfig:
     """Live交易系统配置类"""
     
+    tickers: list[str] = field(default_factory=list)
+    start_date: str | None = None
+    end_date: str | None = None
+    date: str | None = None
+    max_comm_cycles: int = 2
+    force_run: bool = False
+    base_dir: str | None = None
+    disable_communications: bool = False
+    disable_notifications: bool = False
+    
     def __init__(self, env_file_path: str = None):
         """初始化配置"""
         self.env_vars = load_env_file(env_file_path)
@@ -199,6 +210,9 @@ class LiveTradingConfig:
         
         # 数值配置
         self.max_comm_cycles = get_env_value('LIVE_MAX_COMM_CYCLES', default=2, value_type=int, env_vars=self.env_vars)
+
+        self.disable_communications = get_env_value('DISABLE_COMMUNICATIONS', default=False, value_type=bool, env_vars=self.env_vars)
+        self.disable_notifications = get_env_value('DISABLE_NOTIFICATIONS', default=False, value_type=bool, env_vars=self.env_vars)
     
     def override_with_args(self, args):
         """用命令行参数覆盖环境变量配置"""
@@ -221,6 +235,59 @@ class LiveTradingConfig:
             self.max_comm_cycles = args.max_comm_cycles
 
 
+class LiveThinkingFundConfig:
+    """Live交易系统配置类"""
+    
+    tickers: list[str] = field(default_factory=list)
+    start_date: str | None = None
+    end_date: str | None = None
+    date: str | None = None
+    max_comm_cycles: int = 2
+    force_run: bool = False
+    base_dir: str | None = None
+    disable_communications: bool = False
+    disable_notifications: bool = False
+    
+    def __init__(self, env_file_path: str = None):
+        """初始化配置"""
+        self.env_vars = load_env_file(env_file_path)
+        self.load_config()
+    
+    def load_config(self):
+        """加载配置参数"""
+        # 基础配置
+        self.tickers = get_env_value('TICKERS', default=[], value_type=list, env_vars=self.env_vars)
+        self.base_dir = get_env_value('LIVE_BASE_DIR', default=None, env_vars=self.env_vars)
+        
+        # 日期配置
+        # 功能开关
+        self.force_run = get_env_value('FORCE_RUN', default=False, value_type=bool, env_vars=self.env_vars)
+        
+        # 数值配置
+        self.max_comm_cycles = get_env_value('LIVE_MAX_COMM_CYCLES', default=2, value_type=int, env_vars=self.env_vars)
+
+        self.disable_communications = get_env_value('DISABLE_COMMUNICATIONS', default=False, value_type=bool, env_vars=self.env_vars)
+        self.disable_notifications = get_env_value('DISABLE_NOTIFICATIONS', default=False, value_type=bool, env_vars=self.env_vars)
+    
+    def override_with_args(self, args):
+        """用命令行参数覆盖环境变量配置"""
+        if hasattr(args, 'tickers') and args.tickers:
+            self.tickers = [ticker.strip().upper() for ticker in args.tickers.split(",") if ticker.strip()]
+        
+        if hasattr(args, 'base_dir') and args.base_dir:
+            self.base_dir = args.base_dir
+        
+        if hasattr(args, 'start_date') and args.start_date:
+            self.backfill_start_date = args.start_date
+        
+        if hasattr(args, 'date') and args.date:
+            self.target_date = args.date
+        
+        if hasattr(args, 'force_run') and args.force_run:
+            self.force_run = args.force_run
+        
+        if hasattr(args, 'max_comm_cycles') and args.max_comm_cycles:
+            self.max_comm_cycles = args.max_comm_cycles
 
 
 if __name__ == "__main__":

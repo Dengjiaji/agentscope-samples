@@ -741,7 +741,6 @@ class AdvancedInvestmentAnalysisEngine:
                         state=state
                     )
                     last_decision_dump = communication_decision.model_dump()
-                    communication_decision.communication_type = 'private_chat'
                     # 记录通信决策
                     # 确保 communication_decisions 字段存在
                     if "communication_decisions" not in state["data"]["communication_logs"]:
@@ -870,7 +869,7 @@ class AdvancedInvestmentAnalysisEngine:
                     topic=communication_decision.discussion_topic,
                     analyst_signal=analyst_signals[analyst_id],
                     state=state,
-                    max_rounds=1
+                    max_rounds=2
                 )
                 # pdb.set_trace()
                 chat_results[analyst_id] = chat_result
@@ -916,7 +915,7 @@ class AdvancedInvestmentAnalysisEngine:
             topic=communication_decision.discussion_topic,
             analyst_signals=meeting_signals,
             state=state,
-            max_rounds=1
+            max_rounds=2
         )
         
         # 记录到通信日志

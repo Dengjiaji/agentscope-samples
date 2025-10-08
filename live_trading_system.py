@@ -168,7 +168,7 @@ class LiveTradingSystem:
     
     # ==================== 策略分析部分 ====================
     
-    def run_single_day_analysis(self, tickers: List[str], date: str, max_comm_cycles: int = 2) -> dict:
+    def run_single_day_analysis(self, tickers: List[str], date: str, max_comm_cycles: int = 2,enable_communications:bool = False,enalbe_notifications:bool=False) -> dict:
         """运行单日策略分析"""
         print(f"开始分析 {date} 的策略...")
         
@@ -190,8 +190,8 @@ class LiveTradingSystem:
                 tickers=tickers,
                 start_date=date,
                 end_date=date,
-                enable_communications=False,
-                enable_notifications=False,
+                enable_communications=enable_communications,
+                enable_notifications=enalbe_notifications,
                 show_reasoning=False,
                 progress_callback=None
             )

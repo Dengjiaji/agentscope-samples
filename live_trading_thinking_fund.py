@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import List, Dict, Any
 from collections import defaultdict
 from dotenv import load_dotenv
-
+from src.config.env_config import LiveThinkingFundConfig
 load_dotenv()
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -288,14 +288,14 @@ class LiveTradingThinkingFund:
         
         return True
     
-    def _run_sandbox_analysis(self, tickers: List[str], target_date: str, max_comm_cycles: int = 2) -> Dict[str, Any]:
+    def _run_sandbox_analysis(self, tickers: List[str], target_date: str, max_comm_cycles: int = 2,enable_communications:bool=False,enable_notifications:bool=False) -> Dict[str, Any]:
         """运行sandbox专用的分析（绕过live_system的状态管理）"""
         print(f"\n开始Sandbox策略分析 - {target_date}")
         print(f"监控标的: {', '.join(tickers)}")
         
         try:
             # 1. 运行策略分析（直接调用核心分析方法，绕过should_run_today检查）
-            analysis_result = self.live_system.run_single_day_analysis(tickers, target_date, max_comm_cycles)
+            analysis_result = self.live_system.run_single_day_analysis(tickers, target_date, max_comm_cycles,enable_communications,enable_notifications)
             
             # 使用defaultdict简化初始化
             live_env = {
@@ -363,7 +363,7 @@ class LiveTradingThinkingFund:
             return {'status': 'failed', 'reason': str(e)}
     
     def run_pre_market_analysis(self, date: str, tickers: List[str], 
-                               max_comm_cycles: int = 2, force_run: bool = False) -> Dict[str, Any]:
+                               max_comm_cycles: int = 2, force_run: bool = False,enable_communications:bool=False,enable_notifications:bool=False) -> Dict[str, Any]:
         """运行交易前分析（复用live_trading_system）"""
         print(f"\n===== 交易前分析 ({date}) =====")
         print(f"时间点: {self.PRE_MARKET}")
@@ -377,7 +377,7 @@ class LiveTradingThinkingFund:
             #     return existing_data
             
             # 运行sandbox专用的分析（绕过live_system的状态检查）
-            result = self._run_sandbox_analysis(tickers, date, max_comm_cycles)
+            result = self._run_sandbox_analysis(tickers, date, max_comm_cycles,enable_communications,enable_notifications)
             
             # 记录到sandbox日志
             self._log_sandbox_activity(date, self.PRE_MARKET, {
@@ -555,7 +555,9 @@ class LiveTradingThinkingFund:
         end_date: str,
         tickers: List[str],
         max_comm_cycles: int = 2,
-        force_run: bool = False
+        force_run: bool = False,
+        enable_communications: bool = False,
+        enable_notifications: bool = False
     ) -> Dict[str, Any]:
         trading_days = self.generate_trading_dates(start_date, end_date)
         if not trading_days:
@@ -581,7 +583,9 @@ class LiveTradingThinkingFund:
                 date=date,
                 tickers=tickers,
                 max_comm_cycles=max_comm_cycles,
-                force_run=force_run
+                force_run=force_run,
+                enable_communications=enable_communications,
+                enable_notifications=enable_notifications
             )
             daily_results[date] = day_result
 
@@ -648,7 +652,7 @@ class LiveTradingThinkingFund:
         print("=" * 40)
 
     def run_full_day_simulation(self, date: str, tickers: List[str], 
-                               max_comm_cycles: int = 2, force_run: bool = False) -> Dict[str, Any]:
+                               max_comm_cycles: int = 2, force_run: bool = False,enable_communications:bool=False,enable_notifications:bool=False) -> Dict[str, Any]:
         """运行完整的一天模拟（交易前 + 交易后）"""
         print(f"\n===== 开始 {date} 完整交易日模拟 =====")
         
@@ -665,7 +669,7 @@ class LiveTradingThinkingFund:
             
             # 1. 交易前分析
             results['pre_market'] = self.run_pre_market_analysis(
-                date, tickers, max_comm_cycles, force_run
+                date, tickers, max_comm_cycles, force_run,enable_communications,enable_notifications
             )
             
             print(f"\n等待交易后时间点...")
@@ -829,18 +833,13 @@ def main():
     
     try:
         # 加载配置
-        config = LiveTradingConfig()
+        config = LiveThinkingFundConfig()
         config.override_with_args(args)
-        thinking_fund = LiveTradingThinkingFund(base_dir=args.base_dir)
-        
-        if args.tickers:
-            tickers = [ticker.strip().upper() for ticker in args.tickers.split(",") if ticker.strip()]
-        elif config.tickers:
-            tickers = config.tickers
-        else:
-            print("错误: 请通过 --tickers 参数或环境变量 TICKERS 提供股票代码")
-            sys.exit(1)
 
+        thinking_fund = LiveTradingThinkingFund(base_dir=config.base_dir)
+        tickers = args.tickers.split(",") if args.tickers else config.tickers
+        force_run = args.force_run or config.force_run
+        
         if args.start_date or args.end_date:
             if not args.start_date or not args.end_date:
                 print("错误: 多日模式需同时提供 --start-date 与 --end-date")
@@ -850,7 +849,9 @@ def main():
                 end_date=args.end_date,
                 tickers=tickers,
                 max_comm_cycles=args.max_comm_cycles,
-                force_run=args.force_run
+                force_run=args.force_run,
+                enable_communications=not config.disable_communications,
+                enable_notifications=not config.disable_notifications
             )
             print(f"\n多日Sandbox模拟完成: {results['summary']['success_days']} / {results['summary']['total_days']} 成功")
         else:
