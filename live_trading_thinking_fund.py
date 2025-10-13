@@ -801,7 +801,6 @@ def main():
     parser.add_argument(
         '--max-comm-cycles',
         type=int,
-        default=2,
         help='最大沟通轮数 (默认: 2)'
     )
     
@@ -823,10 +822,10 @@ def main():
         # 加载配置
         config = LiveThinkingFundConfig()
         config.override_with_args(args)
-
         thinking_fund = LiveTradingThinkingFund(base_dir=config.base_dir)
         tickers = args.tickers.split(",") if args.tickers else config.tickers
-        force_run = args.force_run or config.force_run
+        from pprint import pprint
+        pprint(config.__dict__)        
         
         if args.start_date or args.end_date:
             if not args.start_date or not args.end_date:
@@ -836,7 +835,7 @@ def main():
                 start_date=args.start_date,
                 end_date=args.end_date,
                 tickers=tickers,
-                max_comm_cycles=args.max_comm_cycles,
+                max_comm_cycles=config.max_comm_cycles,
                 force_run=args.force_run,
                 enable_communications=not config.disable_communications,
                 enable_notifications=not config.disable_notifications
