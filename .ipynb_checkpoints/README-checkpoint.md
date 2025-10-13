@@ -1,5 +1,5 @@
 # start
-## 1.最初的版本，没加live 绩效，没加入memory管理
+
 ## 指定时间范围 注意 api免费数据仅支持AAPL、GOOGL、MSFT、NVDA、TSLA等少数股票
 
 python main_multi_day.py --tickers AAPL,MSFT --start-date 2024-01-01 --end-date 2024-01-04 --max-comm-cycles 1
@@ -24,9 +24,9 @@ python main_multi_day.py --tickers AAPL,MSFT --start-date 2024-01-01 --end-date 
 ## 打开okr
 python main_multi_day.py --tickers AAPL,MSFT --start-date 2024-01-01 --end-date 2024-06-30 --max-comm-cycles 1 --enable-okr
 
-## 2.加入live tradng更新机制，补全从2025-01-01到今天的live trading performance track
+
+# 加入live tradng更新机制，补全从2025-01-01到今天的live trading performance track
 python live_trading_system.py backfill --tickers AAPL,MSFT --start-date 2025-01-01
 
-## 3.时间sandbox模拟版本，加入memory管理
+# sandbox模拟版本
 python live_trading_thinking_fund.py --date 2025-01-15
-python live_trading_thinking_fund.py --start-date 2024-01-05 --end-date 2024-01-08

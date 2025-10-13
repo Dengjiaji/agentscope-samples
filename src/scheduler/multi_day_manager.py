@@ -308,9 +308,9 @@ class MultiDayManager:
         # 逐日执行分析
         for i, current_date in enumerate(trading_dates):
             current_date_str = current_date.strftime("%Y-%m-%d")
-            print(f"\n{'='*60}")
-            print(f"第 {i+1}/{total_days} 日分析: {current_date_str}")
-            print(f"{'='*60}")
+            # print(f"\n{'='*60}")
+            # print(f"第 {i+1}/{total_days} 日分析: {current_date_str}")
+            # print(f"{'='*60}")
             
             # 发送进度更新
             if progress_callback:

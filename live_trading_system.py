@@ -172,44 +172,40 @@ class LiveTradingSystem:
         """运行单日策略分析"""
         print(f"开始分析 {date} 的策略...")
         
-        try:
-            # 创建包含策略日期的自定义session_id
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            custom_session_id = f"live_strategy_{date}_{timestamp}"
-            
-            multi_day_manager = MultiDayManager(
-                engine=self.engine,
-                base_output_dir=str(self.reports_dir / "temp"),
-                max_communication_cycles=max_comm_cycles,
-                prefetch_data=True,
-                okr_enabled=False,
-                custom_session_id=custom_session_id
-            )
-            
-            results = multi_day_manager.run_multi_day_strategy(
-                tickers=tickers,
-                start_date=date,
-                end_date=date,
-                enable_communications=enable_communications,
-                enable_notifications=enalbe_notifications,
-                show_reasoning=False,
-                progress_callback=None
-            )
-            # pdb.set_trace()
-            if results and results['period']['successful_days'] > 0:
-                daily_result = results['daily_results'][0]
-                return {
-                    'status': 'success',
-                    'date': date,
-                    'signals': self._extract_signals(daily_result),
-                    'raw_results': daily_result
-                }
-            else:
-                return {'status': 'failed', 'date': date, 'error': '分析失败'}
+        # 创建包含策略日期的自定义session_id
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        custom_session_id = f"live_strategy_{date}_{timestamp}"
+        
+        multi_day_manager = MultiDayManager(
+            engine=self.engine,
+            base_output_dir=str(self.reports_dir / "temp"),
+            max_communication_cycles=max_comm_cycles,
+            prefetch_data=True,
+            okr_enabled=False,
+            custom_session_id=custom_session_id
+        )
+        
+        results = multi_day_manager.run_multi_day_strategy(
+            tickers=tickers,
+            start_date=date,
+            end_date=date,
+            enable_communications=enable_communications,
+            enable_notifications=enalbe_notifications,
+            show_reasoning=False,
+            progress_callback=None
+        )
+        # pdb.set_trace()
+        if results and results['period']['successful_days'] > 0:
+            daily_result = results['daily_results'][0]
+            return {
+                'status': 'success',
+                'date': date,
+                'signals': self._extract_signals(daily_result),
+                'raw_results': daily_result
+            }
+        else:
+            return {'status': 'failed', 'date': date, 'error': '分析失败'}
                 
-        except Exception as e:
-            print(f"{date} 分析失败: {str(e)}")
-            return {'status': 'failed', 'date': date, 'error': str(e)}
     
     def _extract_signals(self, daily_result: dict) -> dict:
         """从分析结果中提取交易信号"""
