@@ -293,74 +293,70 @@ class LiveTradingThinkingFund:
         print(f"\n开始Sandbox策略分析 - {target_date}")
         print(f"监控标的: {', '.join(tickers)}")
         
-        try:
-            # 1. 运行策略分析（直接调用核心分析方法，绕过should_run_today检查）
-            analysis_result = self.live_system.run_single_day_analysis(tickers, target_date, max_comm_cycles,enable_communications,enable_notifications)
-            
-            # 使用defaultdict简化初始化
-            live_env = {
-                'pm_signals': {},
-                'ana_signals': defaultdict(lambda: defaultdict(str)),  # 自动创建嵌套字典，默认值为空字符串
-                'real_returns': defaultdict(float)  # 自动创建，默认值为0.0
-            }
-            
-            # 2. 保存交易信号
-            pm_signals = analysis_result['signals']
-            live_env['pm_signals'] = pm_signals
-            
-            # 3. 提取分析师信号（现在不需要预先初始化）
-            for agent in ['sentiment_analyst', 'technical_analyst', 'fundamentals_analyst', 'valuation_analyst']:
-                for ticker in tickers:
-                    try:
-                        agent_results = analysis_result.get('raw_results', {}).get('results', {}).get('final_analyst_results', {})
-                        if agent in agent_results and ticker in agent_results[agent].get('analysis_result', {}):
-                            live_env['ana_signals'][agent][ticker] = agent_results[agent]['analysis_result'][ticker]['signal']
-                        else:
-                            live_env['ana_signals'][agent][ticker] = 'neutral'
-                    except Exception as e:
-                        print(f"警告: 无法获取 {agent} 对 {ticker} 的信号，使用默认值: {e}")
-                        live_env['ana_signals'][agent][ticker] = 'neutral'
-                    
-            self.live_system.save_daily_signals(target_date, pm_signals)
-            print(f"已保存 {len(pm_signals)} 个股票的交易信号")
-
-            # 4. 计算当日收益
-            target_date = str(target_date)
-            daily_returns = self.live_system.calculate_daily_returns(target_date, pm_signals)
-            
-            # 现在不需要预先初始化，defaultdict会自动处理
+         # 1. 运行策略分析（直接调用核心分析方法，绕过should_run_today检查）
+        analysis_result = self.live_system.run_single_day_analysis(tickers, target_date, max_comm_cycles,enable_communications,enable_notifications)
+        
+        # 使用defaultdict简化初始化
+        live_env = {
+            'pm_signals': {},
+            'ana_signals': defaultdict(lambda: defaultdict(str)),  # 自动创建嵌套字典，默认值为空字符串
+            'real_returns': defaultdict(float)  # 自动创建，默认值为0.0
+        }
+        
+        # 2. 保存交易信号
+       
+        pm_signals = analysis_result['signals']
+        live_env['pm_signals'] = pm_signals
+        
+        # 3. 提取分析师信号（现在不需要预先初始化）
+        for agent in ['sentiment_analyst', 'technical_analyst', 'fundamentals_analyst', 'valuation_analyst']:
             for ticker in tickers:
-                live_env['real_returns'][ticker] = daily_returns[ticker]['daily_return']
+                agent_results = analysis_result.get('raw_results', {}).get('results', {}).get('final_analyst_results', {})
+                # if agent in agent_results and ticker in agent_results[agent].get('analysis_result', {}):
+                # live_env['ana_signals'][agent][ticker] = agent_results[agent]['analysis_result'][ticker]['signal']
+                # pdb.set_trace()
+                matched = next((item for item in agent_results[agent]['analysis_result']['ticker_signals'] if item['ticker'] == ticker), None)
+                live_env['ana_signals'][agent][ticker] = matched['signal']
+
                 
-            # 5. 更新个股收益
-            individual_data = self.live_system.update_individual_returns(target_date, daily_returns)
+        self.live_system.save_daily_signals(target_date, pm_signals)
+        print(f"已保存 {len(pm_signals)} 个股票的交易信号")
+
+        # 4. 计算当日收益
+        target_date = str(target_date)
+        daily_returns = self.live_system.calculate_daily_returns(target_date, pm_signals)
+        
+        # 现在不需要预先初始化，defaultdict会自动处理
+        for ticker in tickers:
+            live_env['real_returns'][ticker] = daily_returns[ticker]['daily_return']
             
-            # self.live_system.clean_old_data()
+        # 5. 更新个股收益
+        individual_data = self.live_system.update_individual_returns(target_date, daily_returns)
+        
+        # self.live_system.clean_old_data()
+        
+        print(f"{target_date} Sandbox分析完成")
+        
+        # 显示各股票表现
+        for ticker, data in daily_returns.items():
+            daily_ret = data['daily_return'] * 100
+            cum_ret = (individual_data[ticker][target_date]['cumulative_return'] - 1) * 100
+            signal = data['signal']
+            action = data['action']
+            confidence = data['confidence']
+            print(f"{ticker}: 日收益 {daily_ret:.2f}%, 累计收益 {cum_ret:.2f}%, "
+                    f"信号 {signal}({action}, {confidence}%)")
+        
+        return {
+            'status': 'success',
+            'date': target_date,
+            'signals': pm_signals,
+            'individual_returns': daily_returns,
+            'individual_cumulative': individual_data,
+            'live_env': live_env
+        }
             
-            print(f"{target_date} Sandbox分析完成")
-            
-            # 显示各股票表现
-            for ticker, data in daily_returns.items():
-                daily_ret = data['daily_return'] * 100
-                cum_ret = (individual_data[ticker][target_date]['cumulative_return'] - 1) * 100
-                signal = data['signal']
-                action = data['action']
-                confidence = data['confidence']
-                print(f"{ticker}: 日收益 {daily_ret:.2f}%, 累计收益 {cum_ret:.2f}%, "
-                      f"信号 {signal}({action}, {confidence}%)")
-            
-            return {
-                'status': 'success',
-                'date': target_date,
-                'signals': pm_signals,
-                'individual_returns': daily_returns,
-                'individual_cumulative': individual_data,
-                'live_env': live_env
-            }
-            
-        except Exception as e:
-            print(f"Sandbox分析失败: {str(e)}")
-            return {'status': 'failed', 'reason': str(e)}
+       
     
     def run_pre_market_analysis(self, date: str, tickers: List[str], 
                                max_comm_cycles: int = 2, force_run: bool = False,enable_communications:bool=False,enable_notifications:bool=False) -> Dict[str, Any]:
@@ -369,35 +365,25 @@ class LiveTradingThinkingFund:
         print(f"时间点: {self.PRE_MARKET}")
         print(f"分析标的: {', '.join(tickers)}")
         
-        try:
-            # 使用sandbox专用的检查逻辑
-            # if not self.should_run_sandbox_analysis(date, self.PRE_MARKET, force_run):
-            #     print(f"📋 {date} 交易前分析已存在，跳过重复运行（使用 --force-run 强制重新运行）")
-            #     existing_data = self._load_sandbox_log(date, self.PRE_MARKET)
-            #     return existing_data
+        # 使用sandbox专用的检查逻辑
+        # if not self.should_run_sandbox_analysis(date, self.PRE_MARKET, force_run):
+        #     print(f"📋 {date} 交易前分析已存在，跳过重复运行（使用 --force-run 强制重新运行）")
+        #     existing_data = self._load_sandbox_log(date, self.PRE_MARKET)
+        #     return existing_data
+        
+        # 运行sandbox专用的分析（绕过live_system的状态检查）
+        result = self._run_sandbox_analysis(tickers, date, max_comm_cycles,enable_communications,enable_notifications)
+        
+        # 记录到sandbox日志
+        self._log_sandbox_activity(date, self.PRE_MARKET, {
+            'status': result['status'],
+            'tickers': tickers,
+            'timestamp': datetime.now().isoformat(),
+            'details': result
+        })
+        
+        return result
             
-            # 运行sandbox专用的分析（绕过live_system的状态检查）
-            result = self._run_sandbox_analysis(tickers, date, max_comm_cycles,enable_communications,enable_notifications)
-            
-            # 记录到sandbox日志
-            self._log_sandbox_activity(date, self.PRE_MARKET, {
-                'status': result['status'],
-                'tickers': tickers,
-                'timestamp': datetime.now().isoformat(),
-                'details': result
-            })
-            
-            return result
-            
-        except Exception as e:
-            error_result = {
-                'status': 'failed',
-                'reason': f'交易前分析失败: {str(e)}',
-                'timestamp': datetime.now().isoformat()
-            }
-            
-            self._log_sandbox_activity(date, self.PRE_MARKET, error_result)
-            return error_result
     
     def run_post_market_review(self, date: str, tickers: List[str], live_env: Dict[str, Any]) -> Dict[str, Any]:
         """运行交易后复盘"""
@@ -676,7 +662,9 @@ class LiveTradingThinkingFund:
             print(f"(实际使用中，这里会等待真实的市场收盘)")
             
             # 2. 交易后复盘
-            live_env = results['pre_market'].get('live_env') if results['pre_market'] else None
+
+           
+            live_env =  results['pre_market'].get('live_env') if results['pre_market'] else None
             results['post_market'] = self.run_post_market_review(date, tickers, live_env)
             
         else:
