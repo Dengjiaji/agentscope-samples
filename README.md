@@ -30,3 +30,25 @@ python live_trading_system.py backfill --tickers AAPL,MSFT --start-date 2025-01-
 ## 3.时间sandbox模拟版本，加入memory管理
 python live_trading_thinking_fund.py --date 2025-01-15
 python live_trading_thinking_fund.py --start-date 2024-01-05 --end-date 2024-01-08
+
+
+## 显示界面
+先启动后端脚本(根目录下运行）：
+
+```bash
+python src/servers/server.py
+```
+
+打开新的terminal, 再启动前端脚本(frontend目录下)：
+```bash
+# 如果没有安装先安装
+cd frontend
+npm install
+
+# 运行
+npm run dev
+```
+
+进入 http://localhost:5173/ 即可看到界面，点击 run/replay即可运行（目前都是replay模式，run还没接入），右侧需要选择对应执行的date
+对应后端会读取sandbox_logs文件夹下的对应date的log
+
