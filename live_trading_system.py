@@ -32,7 +32,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from advanced_investment_engine import AdvancedInvestmentAnalysisEngine
 from src.scheduler.multi_day_manager import MultiDayManager
 from src.config.env_config import LiveTradingConfig
-
+from src.config.path_config import get_directory_config
 import pandas_market_calendars as mcal
 US_TRADING_CALENDAR_AVAILABLE = True
 
@@ -47,7 +47,8 @@ class LiveTradingSystem:
     
     def __init__(self, base_dir: str = None):
         """初始化Live交易系统"""
-        self.base_dir = Path(base_dir) if base_dir else Path(__file__).parent
+        # self.base_dir = Path(base_dir) if base_dir else Path(__file__).parent
+        self.base_dir = Path(get_directory_config(base_dir))
         self.live_dir = self.base_dir / "live_trading"
         self.data_dir = self.live_dir / "data"
         self.reports_dir = self.live_dir / "reports"

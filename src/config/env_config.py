@@ -289,7 +289,8 @@ class LiveThinkingFundConfig:
         if hasattr(args, 'max_comm_cycles') and args.max_comm_cycles:
             self.max_comm_cycles = args.max_comm_cycles
 
-
+        if hasattr(args, 'config_name') and args.config_name:
+            self.config_name = args.config_name
 if __name__ == "__main__":
    
     

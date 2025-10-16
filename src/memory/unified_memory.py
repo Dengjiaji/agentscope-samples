@@ -9,7 +9,7 @@ from typing import Dict, List, Any, Optional
 import pdb
 import os
 from .mem0_core import (
-    mem0_integration, 
+    get_mem0_integration, 
     AnalysisSession, 
     CommunicationRecord, 
     Notification
@@ -86,8 +86,9 @@ class Mem0AnalystMemory:
         self.creation_time = datetime.now()
         self.save_memory = save_memory  # 控制是否真的保存记忆
         
+
         # 获取共享的mem0实例（所有分析师共用一个实例，通过user_id区分）
-        self.memory = mem0_integration.get_memory_instance("shared_analysts")
+        self.memory = get_mem0_integration().get_memory_instance("shared_analysts")
         
         # 本地会话管理（用于当前会话的临时存储）
         self.current_sessions: Dict[str, AnalysisSession] = {}
@@ -498,7 +499,7 @@ class Mem0AnalystMemoryManager:
             
         # 只有在真实保存模式下才重置mem0实例
         if self.save_memory:
-            mem0_integration.reset_user_memory(analyst_id)
+            get_mem0_integration().reset_user_memory(analyst_id)
         
         # 如果提供了名称，重新注册
         if analyst_name:
@@ -516,7 +517,7 @@ class Mem0NotificationMemory:
         self.agent_id = agent_id
         self.save_memory = save_memory
         # 使用共享实例，通过user_id区分不同agent的通知
-        self.memory = mem0_integration.get_memory_instance("shared_analysts")
+        self.memory = get_mem0_integration().get_memory_instance("shared_analysts")
     
     def add_received_notification(self, notification: Notification, backtest_date: Optional[str] = None):
         """记录接收到的通知"""
@@ -580,7 +581,7 @@ class Mem0NotificationSystem:
         self.agent_memories: Dict[str, Mem0NotificationMemory] = {}
         self.save_memory = save_memory
         # 全局通知也使用共享实例
-        self.global_memory = mem0_integration.get_memory_instance("shared_analysts")
+        self.global_memory = get_mem0_integration().get_memory_instance("shared_analysts")
     
     def register_agent(self, agent_id: str):
         """注册agent"""
@@ -670,7 +671,7 @@ class Mem0CommunicationMemory:
     def __init__(self, save_memory: bool = True):
         self.save_memory = save_memory
         # 通信记忆使用共享实例，通过user_id区分
-        self.communication_memory = mem0_integration.get_memory_instance("shared_analysts")
+        self.communication_memory = get_mem0_integration().get_memory_instance("shared_analysts")
     
     def record_private_chat(self, participants: List[str], topic: str, 
                           messages: List[Dict[str, Any]], result: Dict[str, Any],
@@ -852,7 +853,7 @@ class Mem0MemoryManager:
             "memory_system": "Mem0",
             "registered_analysts": registered_analysts,
             "registered_notification_agents": registered_notification_agents,
-            "mem0_instances": mem0_integration.get_all_user_ids(),
+            "mem0_instances": get_mem0_integration().get_all_user_ids(),
             "status_time": datetime.now().isoformat()
         }
     

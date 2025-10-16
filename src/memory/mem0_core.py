@@ -14,7 +14,7 @@ from typing import Dict, List, Any, Optional
 from pydantic import BaseModel, Field
 from mem0 import Memory
 from dotenv import load_dotenv
-
+from src.config.path_config import get_directory_config
 
 # ================================
 # Mem0 集成配置层
@@ -23,25 +23,17 @@ from dotenv import load_dotenv
 class Mem0Integration:
     """Mem0集成配置和管理"""
     
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, base_dir: Dict[str, Any]):
         """
         初始化Mem0集成
         
         Args:
             config: 自定义配置，如果为None则使用默认配置
         """
+
+        print(base_dir)
         # 加载Mem0专用环境变量
-        self._load_mem0_env()
-        self.config = config or self._get_default_config()
-        self._memory_instances: Dict[str, Memory] = {}
-        self._setup_logging()
-    
-    def _get_default_config(self) -> Dict[str, Any]:
-        """获取默认配置"""
-        # 从环境变量或默认值获取配置
-        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        
-        return {
+        config = {
             "history_db_path": os.path.join(base_dir, "memory_data", "ia_memory_history.db"),
             "vector_store": {
                 "provider": "chroma",
@@ -68,6 +60,45 @@ class Mem0Integration:
                 }
             }
         }
+        self._load_mem0_env()
+        self.config = config 
+        self._memory_instances: Dict[str, Memory] = {}
+        self._setup_logging()
+    
+    # def _get_default_config(self) -> Dict[str, Any]:
+    #     """获取默认配置"""
+    #     # 从环境变量或默认值获取配置
+    #     # base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    #     base_dir = Path(get_directory_config())
+        
+    #     return {
+    #         "history_db_path": os.path.join(base_dir, "memory_data", "ia_memory_history.db"),
+    #         "vector_store": {
+    #             "provider": "chroma",
+    #             "config": {
+    #                 "collection_name": "ia_analyst_memories",
+    #                 "path": os.path.join(base_dir, "memory_data", "ia_chroma_db")
+    #             }
+    #         },
+    #         "llm": {
+    #             "provider": "openai",
+    #             "config": {
+    #                 "model": os.getenv("MEMORY_LLM_MODEL", "qwen3-max-preview"),
+    #                 "temperature": 0.1,
+    #                 "api_key": os.getenv("OPENAI_API_KEY"),
+    #                 "openai_base_url": os.getenv("OPENAI_BASE_URL"),
+    #             }
+    #         },
+    #         "embedder": {
+    #             "provider": "openai", 
+    #             "config": {
+    #                 "model": os.getenv("MEMORY_EMBEDDING_MODEL", "text-embedding-v4"),
+    #                 "api_key": os.getenv("OPENAI_API_KEY"),
+    #                 "openai_base_url": os.getenv("OPENAI_BASE_URL"),
+    #             }
+    #         }
+    #     }
+        
     
     def _load_mem0_env(self):
         """加载Mem0专用环境变量"""
@@ -178,5 +209,20 @@ class Notification(BaseModel):
 # 全局实例
 # ================================
 
-# 创建全局的Mem0集成实例
-mem0_integration = Mem0Integration()
+# # 创建全局的Mem0集成实例
+# mem0_integration = Mem0Integration()
+mem0_integration: Optional[Mem0Integration] = None
+
+
+def initialize_mem0_integration(base_dir: str) -> Mem0Integration:
+    """初始化全局Mem0集成实例"""
+    global mem0_integration
+    if mem0_integration is None:
+        mem0_integration = Mem0Integration(base_dir)
+    return mem0_integration
+
+
+def get_mem0_integration() -> Mem0Integration:
+    if mem0_integration is None:
+        raise RuntimeError("Mem0Integration尚未初始化，请先调用initialize_mem0_integration")
+    return mem0_integration

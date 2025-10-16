@@ -32,22 +32,21 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
 
-from live_trading_system import LiveTradingSystem
 from src.config.env_config import LiveTradingConfig
-from src.memory.mem0_core import mem0_integration
-from src.memory.unified_memory import unified_memory_manager
+from src.memory.mem0_core import initialize_mem0_integration
+# from src.memory.unified_memory import unified_memory_manager
 MEMORY_AVAILABLE = True
 from src.utils.llm import call_llm
 from src.llm.models import get_model
 from langchain_core.messages import HumanMessage
 LLM_AVAILABLE = True
-from src.tools.memory_management_tools import get_memory_tools
 MEMORY_TOOLS_AVAILABLE = True
 
 import json
 import re
 import pandas_market_calendars as mcal
 US_TRADING_CALENDAR_AVAILABLE = True
+from src.config.path_config import get_directory_config
 
 
 
@@ -77,6 +76,7 @@ class LLMMemoryDecisionSystem:
                 api_keys['ANTHROPIC_API_KEY'] = os.getenv('ANTHROPIC_API_KEY')
             
             # 获取记忆管理工具
+            from src.tools.memory_management_tools import get_memory_tools
             self.memory_tools = get_memory_tools()
             # 绑定工具到LLM
             self.llm = get_model(model_name, model_provider, api_keys)
@@ -247,9 +247,12 @@ class LLMMemoryDecisionSystem:
 class LiveTradingThinkingFund:
     """Live交易思考基金 - 时间Sandbox系统"""
     
-    def __init__(self, base_dir: str = None):
+    def __init__(self, base_dir: str):
         """初始化思考基金系统"""
-        self.base_dir = Path(base_dir) if base_dir else Path(__file__).parent
+        from live_trading_system import LiveTradingSystem
+
+        # self.base_dir = Path(base_dir) if base_dir else Path(__file__).parent
+        self.base_dir = Path(get_directory_config(base_dir))
         self.sandbox_dir = self.base_dir / "sandbox_logs"
         self.sandbox_dir.mkdir(parents=True, exist_ok=True)
         
@@ -790,7 +793,12 @@ def main():
         type=str,
         help='多日模拟结束日期 (YYYY-MM-DD)'
     )
-    
+    parser.add_argument(
+        '--config_name',
+        type=str,
+        required=True,
+        help='配置的数据存储目录名称'
+    )    
     # 可选参数
     parser.add_argument(
         '--tickers',
@@ -822,7 +830,8 @@ def main():
         # 加载配置
         config = LiveThinkingFundConfig()
         config.override_with_args(args)
-        thinking_fund = LiveTradingThinkingFund(base_dir=config.base_dir)
+        mem0_integration = initialize_mem0_integration(base_dir =config.config_name)
+        thinking_fund = LiveTradingThinkingFund(base_dir=config.config_name)
         tickers = args.tickers.split(",") if args.tickers else config.tickers
         from pprint import pprint
         pprint(config.__dict__)        
