@@ -31,7 +31,9 @@ class Mem0Integration:
             config: 自定义配置，如果为None则使用默认配置
         """
 
+        base_dir = os.path.join("logs_and_memory",base_dir )
         print(base_dir)
+
         # 加载Mem0专用环境变量
         config = {
             "history_db_path": os.path.join(base_dir, "memory_data", "ia_memory_history.db"),

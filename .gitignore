@@ -69,7 +69,7 @@ NOTIFICATION_SYSTEM_README.md
 # Alembic (keep migration files, but ignore generated/cache files)
 app/backend/alembic/versions/__pycache__/
 
-
+logs_and_memory/
 analysis_results_logs/
 memory_data/
 live_trading/

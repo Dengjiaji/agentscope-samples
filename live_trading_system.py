@@ -54,7 +54,7 @@ class LiveTradingSystem:
         self.reports_dir = self.live_dir / "reports"
         self.charts_dir = self.reports_dir / "charts"
         self.config_dir = self.live_dir / "config"
-        
+        print(self.live_dir)
         # 创建必要的目录
         self._create_directories()
         
