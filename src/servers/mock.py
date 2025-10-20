@@ -91,7 +91,7 @@ def sandbox_json_to_events(
             if not isinstance(per_ticker, dict):
                 continue
             for ticker, sig in per_ticker.items():
-                msg = f"[{role_key}] {ticker}: {sig}"
+                msg = f"{ticker}: {sig}"
                 push_agent(role_key, msg)
 
     # 3) 预市场的“真实收益率代理” -> system
