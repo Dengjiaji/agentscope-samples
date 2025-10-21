@@ -21,6 +21,28 @@ class BaseStreamer:
     def price(self, value: float):
         raise NotImplementedError
 
+    def print(self, type: str = "system", content: str = "", **kwargs):
+        """
+        通用打印接口
+        :param content: 输出内容
+        :param type: 消息类型，可选 system / agent / price
+        """
+        if type == "system":
+            self.system(content)
+        elif type == "agent":
+            # 允许 kwargs 里传 role_key
+            role_key = kwargs.get("role_key", "_default")
+            self.agent(role_key, content)
+        elif type == "price":
+            try:
+                value = float(content)
+            except ValueError:
+                value = 0.0
+            self.price(value)
+        else:
+            # 未知类型默认当作 system
+            self.system(content)
+
 
 class ConsoleStreamer(BaseStreamer):
     def system(self, content: str):
@@ -35,6 +57,8 @@ class ConsoleStreamer(BaseStreamer):
     def price(self, value: float):
         ts = self._bump()
         print(f"[price] {float(value):.4f}")
+
+
 
 class WebSocketStreamer(BaseStreamer):
     def __init__(self, ws, step_ms: int = 900):

@@ -32,6 +32,8 @@ from dotenv import load_dotenv
 import time
 import random
 
+from src.servers.streamer import ConsoleStreamer
+
 load_dotenv()
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -251,7 +253,10 @@ class LiveTradingThinkingFund:
         self.live_system = LiveTradingSystem(base_dir=base_dir)
 
         # 可选的统一事件下发器：若为 None，则仅本地打印
-        self.streamer = streamer
+        if streamer:
+            self.streamer = streamer
+        else:
+            self.streamer = ConsoleStreamer()
 
         # 初始化记忆管理系统
         if MEMORY_TOOLS_AVAILABLE:
@@ -265,54 +270,6 @@ class LiveTradingThinkingFund:
         self.PRE_MARKET = "pre_market"    # 交易前
         self.POST_MARKET = "post_market"  # 交易后
 
-    # ---------- 统一输出与事件透传工具 ----------
-    def _emit_system(self, text: str):
-        """打印并（可选）发 system 事件"""
-        print(text)
-        if self.streamer:
-            try:
-                self.streamer.system(text)
-            except Exception:
-                # 不影响本地打印
-                pass
-
-    def _emit_agent(self, role_key: str, text: str):
-        """打印并（可选）发 agent 事件"""
-        line = f"{role_key}: {text}"
-        print(line)
-        if self.streamer:
-            try:
-                self.streamer.agent(role_key, text)
-            except Exception:
-                pass
-
-    def _emit_price_series(
-        self,
-        drift_hint: float = 0.0,
-        seed_price: float = 100.0,
-        steps: int = 120,
-        vol: float = 0.6,
-        sleep_s: float = 0.0
-    ):
-        """
-        可选：合成一小段价格发给前端以充实时间线（若无 streamer 则不做任何操作）
-        drift_hint：来自真实收益的均值，帮助设定细微的漂移方向
-        """
-        if not self.streamer:
-            return
-        p = float(seed_price)
-        drift = drift_hint / 50.0 if drift_hint else 0.0
-        for _ in range(steps):
-            step = (random.random() - 0.5) * (2 * vol) + drift
-            p = max(1.0, p + step)
-            try:
-                self.streamer.price(p)
-            except Exception:
-                pass
-            if sleep_s > 0:
-                time.sleep(sleep_s)
-
-    # ---------- 原有业务 ----------
     def is_trading_day(self, date: str) -> bool:
         """检查是否为交易日"""
         return self.live_system.is_trading_day(date)
@@ -335,8 +292,9 @@ class LiveTradingThinkingFund:
 
     def _run_sandbox_analysis(self, tickers: List[str], target_date: str, max_comm_cycles: int = 2, enable_communications: bool = False, enable_notifications: bool = False) -> Dict[str, Any]:
         """运行sandbox专用的分析（绕过live_system的状态管理）"""
-        self._emit_system(f"开始Sandbox策略分析 - {target_date}")
-        self._emit_system(f"监控标的: {', '.join(tickers)}")
+
+        self.streamer.print("system", f"开始Sandbox策略分析 - {target_date}")
+        self.streamer.print("system", f"监控标的: {', '.join(tickers)}")
 
         # 1. 运行策略分析（直接调用核心分析方法，绕过should_run_today检查）
         analysis_result = self.live_system.run_single_day_analysis(
@@ -362,7 +320,7 @@ class LiveTradingThinkingFund:
                 live_env['ana_signals'][agent][ticker] = matched['signal'] if matched else ''
 
         self.live_system.save_daily_signals(target_date, pm_signals)
-        self._emit_system(f"已保存 {len(pm_signals)} 个股票的交易信号")
+        self.streamer.print("system", f"已保存 {len(pm_signals)} 个股票的交易信号")
 
         # 4. 计算当日收益
         target_date = str(target_date)
@@ -374,7 +332,7 @@ class LiveTradingThinkingFund:
         # 5. 更新个股收益
         individual_data = self.live_system.update_individual_returns(target_date, daily_returns)
 
-        self._emit_system(f"{target_date} Sandbox分析完成")
+        self.streamer.print("system", f"{target_date} Sandbox分析完成")
 
         # 显示各股票表现 + 各分析师信号
         for ticker, data in daily_returns.items():
@@ -383,14 +341,14 @@ class LiveTradingThinkingFund:
             signal = data['signal']
             action = data['action']
             confidence = data['confidence']
-            self._emit_system(
+            self.streamer.print("system", 
                 f"{ticker}: 日收益 {daily_ret:.2f}%, 累计收益 {cum_ret:.2f}%, 信号 {signal}({action}, {confidence}%)"
             )
             # 分析师逐票事件
             for agent in ['sentiment_analyst', 'technical_analyst', 'fundamentals_analyst', 'valuation_analyst']:
                 sig = live_env['ana_signals'][agent].get(ticker, '')
                 if sig:
-                    self._emit_agent(agent, f"{ticker}: {sig}")
+                    self.streamer.print("agent", f"{ticker}: {sig}",  role_key=agent)
 
         return {
             'status': 'success',
@@ -405,17 +363,18 @@ class LiveTradingThinkingFund:
                                 max_comm_cycles: int = 2, force_run: bool = False,
                                 enable_communications: bool = False, enable_notifications: bool = False) -> Dict[str, Any]:
         """运行交易前分析（复用live_trading_system）"""
-        self._emit_system(f"===== 交易前分析 ({date}) =====")
-        self._emit_system(f"时间点: {self.PRE_MARKET}")
-        self._emit_system(f"分析标的: {', '.join(tickers)}")
+        self.streamer.print("system", f"===== 交易前分析 ({date}) =====")
+        self.streamer.print("system", f"时间点: {self.PRE_MARKET}")
+        self.streamer.print("system", f"分析标的: {', '.join(tickers)}")
+
+        # 使用sandbox专用的检查逻辑
+        # if not self.should_run_sandbox_analysis(date, self.PRE_MARKET, force_run):
+        #     print(f"📋 {date} 交易前分析已存在，跳过重复运行（使用 --force-run 强制重新运行）")
+        #     existing_data = self._load_sandbox_log(date, self.PRE_MARKET)
+        #     return existing_data
 
         # 运行sandbox专用的分析（绕过live_system的状态检查）
         result = self._run_sandbox_analysis(tickers, date, max_comm_cycles, enable_communications, enable_notifications)
-
-        # 在预市场阶段追加一段轻量合成价格（可选）
-        rr_vals = list(result['live_env']['real_returns'].values())
-        avg_rr = sum(rr_vals) / len(rr_vals) if rr_vals else 0.0
-        self._emit_price_series(drift_hint=avg_rr, steps=80, vol=0.5, sleep_s=0.0)
 
         # 记录到sandbox日志
         self._log_sandbox_activity(date, self.PRE_MARKET, {
@@ -429,9 +388,9 @@ class LiveTradingThinkingFund:
 
     def run_post_market_review(self, date: str, tickers: List[str], live_env: Dict[str, Any]) -> Dict[str, Any]:
         """运行交易后复盘"""
-        self._emit_system(f"===== 交易后复盘 ({date}) =====")
-        self._emit_system(f"时间点: {self.POST_MARKET}")
-        self._emit_system(f"复盘标的: {', '.join(tickers)}")
+        self.streamer.print("system", f"===== 交易后复盘 ({date}) =====")
+        self.streamer.print("system", f"时间点: {self.POST_MARKET}")
+        self.streamer.print("system", f"复盘标的: {', '.join(tickers)}")
 
         if live_env != 'Not trading day':
             # 交易后复盘逻辑
@@ -444,39 +403,39 @@ class LiveTradingThinkingFund:
 
     def _perform_post_market_review(self, date: str, tickers: List[str], live_env: Dict[str, Any]) -> Dict[str, Any]:
         """执行交易后复盘分析"""
-        self._emit_system("基于交易前分析进行复盘...")
+        self.streamer.print("system", "基于交易前分析进行复盘...")
 
         pm_signals = live_env['pm_signals']
         ana_signals = live_env['ana_signals']
         real_returns = live_env['real_returns']
 
-        self._emit_system("portfolio_manager信号回顾:")
+        self.streamer.print("system", "portfolio_manager信号回顾:")
         for ticker in tickers:
             if ticker in pm_signals:
                 signal_info = pm_signals[ticker]
-                self._emit_agent(
-                    "portfolio_manager",
-                    f"{ticker}: {signal_info.get('signal', 'N/A')} ({signal_info.get('action', 'N/A')}, 置信度: {signal_info.get('confidence', 'N/A')}%)"
+                self.streamer.print("agent",
+                    f"{ticker}: {signal_info.get('signal', 'N/A')} ({signal_info.get('action', 'N/A')}, 置信度: {signal_info.get('confidence', 'N/A')}%)",
+                    role_key="portfolio_manager"
                 )
             else:
-                self._emit_system(f"{ticker}: 无信号数据")
+                self.streamer.print("system", f"{ticker}: 无信号数据")
 
-        self._emit_system("实际收益表现:")
+        self.streamer.print("system", "实际收益表现:")
         for ticker in tickers:
             if ticker in real_returns:
                 daily_ret = real_returns[ticker] * 100
-                self._emit_system(f"{ticker}: {daily_ret:.2f}% (信号: {pm_signals.get(ticker, {}).get('signal', 'N/A')})")
+                self.streamer.print("system", f"{ticker}: {daily_ret:.2f}% (信号: {pm_signals.get(ticker, {}).get('signal', 'N/A')})")
             else:
-                self._emit_system(f"{ticker}: 无收益数据")
+                self.streamer.print("system", f"{ticker}: 无收益数据")
 
-        self._emit_system("analyst信号对比:")
+        self.streamer.print("system", "analyst信号对比:")
         for agent, agent_signals in ana_signals.items():
-            self._emit_system(f"{agent}:")
+            self.streamer.print("system", f"{agent}:")
             for ticker in tickers:
                 signal = agent_signals.get(ticker, 'N/A')
-                self._emit_agent(agent, f"{ticker}: {signal}")
+                self.streamer.print("agent", f"{ticker}: {signal}", role_key=agent)
 
-        self._emit_system("===== Portfolio Manager 记忆管理决策 =====")
+        self.streamer.print("system", "===== Portfolio Manager 记忆管理决策 =====")
 
         execution_results = None
         try:
@@ -489,7 +448,7 @@ class LiveTradingThinkingFund:
                 }
 
                 # 使用LLM进行记忆管理决策（tool_call模式）
-                self._emit_system("使用 LLM tool_call 进行智能记忆管理...")
+                self.streamer.print("system", "使用 LLM tool_call 进行智能记忆管理...")
                 llm_decision = self.llm_memory_system.make_llm_memory_decision_with_tools(
                     performance_data, date
                 )
@@ -497,14 +456,14 @@ class LiveTradingThinkingFund:
                 # 显示LLM决策结果
                 if llm_decision['status'] == 'success':
                     if llm_decision['mode'] == 'operations_executed':
-                        self._emit_system(f"LLM 执行了 {llm_decision['operations_count']} 个记忆操作")
+                        self.streamer.print("system", f"LLM 执行了 {llm_decision['operations_count']} 个记忆操作")
 
                         # 统计执行结果
                         successful = sum(1 for result in llm_decision['execution_results']
                                          if result['result']['status'] == 'success')
                         total = len(llm_decision['execution_results'])
 
-                        self._emit_system(f"执行统计：成功 {successful}/{total}")
+                        self.streamer.print("system", f"执行统计：成功 {successful}/{total}")
 
                         # 显示工具调用详情
                         for i, exec_result in enumerate(llm_decision['execution_results'], 1):
@@ -512,35 +471,35 @@ class LiveTradingThinkingFund:
                             args = exec_result['args']
                             result = exec_result['result']
 
-                            self._emit_system(f"{i}. {tool_name} / 分析师: {args.get('analyst_id', 'N/A')}")
+                            self.streamer.print("system", f"{i}. {tool_name} / 分析师: {args.get('analyst_id', 'N/A')}")
                             if result['status'] == 'success':
-                                self._emit_system("状态: 成功")
+                                self.streamer.print("system", "状态: 成功")
                             else:
-                                self._emit_system(f"状态: 失败 - {result.get('error', 'Unknown')}")
+                                self.streamer.print("system", f"状态: 失败 - {result.get('error', 'Unknown')}")
 
                         execution_results = llm_decision['execution_results']
 
                     elif llm_decision['mode'] == 'no_action':
-                        self._emit_system("LLM 认为无需记忆操作")
-                        self._emit_system(f"LLM 理由: {llm_decision['reasoning']}")
+                        self.streamer.print("system", "LLM 认为无需记忆操作")
+                        self.streamer.print("system", f"LLM 理由: {llm_decision['reasoning']}")
                         execution_results = None
                     else:
-                        self._emit_system(f"未知的LLM决策模式: {llm_decision['mode']}")
+                        self.streamer.print("system", f"未知的LLM决策模式: {llm_decision['mode']}")
                         execution_results = None
 
                 elif llm_decision['status'] == 'skipped':
-                    self._emit_system(f"记忆管理跳过: {llm_decision['reason']}")
+                    self.streamer.print("system", f"记忆管理跳过: {llm_decision['reason']}")
                     execution_results = None
                 else:
-                    self._emit_system(f"LLM 决策失败: {llm_decision.get('error', 'Unknown error')}")
+                    self.streamer.print("system", f"LLM 决策失败: {llm_decision.get('error', 'Unknown error')}")
                     execution_results = None
             else:
-                self._emit_system("LLM 记忆管理系统未启用，跳过记忆操作")
+                self.streamer.print("system", "LLM 记忆管理系统未启用，跳过记忆操作")
                 llm_decision = None
                 execution_results = None
 
         except Exception as e:
-            self._emit_system(f"记忆管理过程出错: {str(e)}")
+            self.streamer.print("system", f"记忆管理过程出错: {str(e)}")
             import traceback
             traceback.print_exc()
 
@@ -584,7 +543,7 @@ class LiveTradingThinkingFund:
     ) -> Dict[str, Any]:
         trading_days = self.generate_trading_dates(start_date, end_date)
         if not trading_days:
-            self._emit_system("选定区间内无交易日")
+            self.streamer.print("system", "选定区间内无交易日")
             return {
                 'status': 'skipped',
                 'reason': '无交易日',
@@ -593,15 +552,15 @@ class LiveTradingThinkingFund:
                 'daily_results': {}
             }
 
-        self._emit_system(f"===== 多日Sandbox模拟 {start_date} ~ {end_date} =====")
-        self._emit_system(f"覆盖交易日: {len(trading_days)} 天 -> {', '.join(trading_days[:5])}{'...' if len(trading_days) > 5 else ''}")
+        self.streamer.print("system", f"===== 多日Sandbox模拟 {start_date} ~ {end_date} =====")
+        self.streamer.print("system", f"覆盖交易日: {len(trading_days)} 天 -> {', '.join(trading_days[:5])}{'...' if len(trading_days) > 5 else ''}")
 
         daily_results: Dict[str, Dict[str, Any]] = {}
         success_days: List[str] = []
         failed_days: List[str] = []
 
         for idx, date in enumerate(trading_days, start=1):
-            self._emit_system(f"--- [{idx}/{len(trading_days)}] {date} ---")
+            self.streamer.print("system", f"--- [{idx}/{len(trading_days)}] {date} ---")
             day_result = self.run_full_day_simulation(
                 date=date,
                 tickers=tickers,
@@ -664,21 +623,21 @@ class LiveTradingThinkingFund:
         }
 
     def _print_multi_day_summary(self, summary: Dict[str, Any]) -> None:
-        self._emit_system("===== 多日模拟汇总 =====")
-        self._emit_system(f"区间: {summary['start_date']} ~ {summary['end_date']}")
-        self._emit_system(f"交易日数量: {summary['total_days']}")
-        self._emit_system(f"成功天数: {summary['success_days']}")
-        self._emit_system(f"失败天数: {summary['failed_days']}")
-        self._emit_system(f"成功率: {summary['success_rate_pct']:.2f}%")
+        self.streamer.print("system", "===== 多日模拟汇总 =====")
+        self.streamer.print("system", f"区间: {summary['start_date']} ~ {summary['end_date']}")
+        self.streamer.print("system", f"交易日数量: {summary['total_days']}")
+        self.streamer.print("system", f"成功天数: {summary['success_days']}")
+        self.streamer.print("system", f"失败天数: {summary['failed_days']}")
+        self.streamer.print("system", f"成功率: {summary['success_rate_pct']:.2f}%")
         if summary['failed_day_list']:
-            self._emit_system(f"失败日期: {', '.join(summary['failed_day_list'])}")
-        self._emit_system("=" * 40)
+            self.streamer.print("system", f"失败日期: {', '.join(summary['failed_day_list'])}")
+        self.streamer.print("system", "=" * 40)
 
     def run_full_day_simulation(self, date: str, tickers: List[str],
                                 max_comm_cycles: int = 2, force_run: bool = False,
                                 enable_communications: bool = False, enable_notifications: bool = False) -> Dict[str, Any]:
         """运行完整的一天模拟（交易前 + 交易后）"""
-        self._emit_system(f"===== 开始 {date} 完整交易日模拟 =====")
+        self.streamer.print("system", f"===== 开始 {date} 完整交易日模拟 =====")
 
         results = {
             'date': date,
@@ -689,22 +648,22 @@ class LiveTradingThinkingFund:
         }
 
         if results['is_trading_day']:
-            self._emit_system(f"{date} 是交易日，将执行：交易前分析 + 交易后复盘")
+            self.streamer.print("system", f"{date} 是交易日，将执行：交易前分析 + 交易后复盘")
 
             # 1. 交易前分析
             results['pre_market'] = self.run_pre_market_analysis(
                 date, tickers, max_comm_cycles, force_run, enable_communications, enable_notifications
             )
 
-            self._emit_system("等待交易后时间点...")
-            self._emit_system("(实际使用中，这里会等待真实的市场收盘)")
+            self.streamer.print("system", "等待交易后时间点...")
+            self.streamer.print("system", "(实际使用中，这里会等待真实的市场收盘)")
 
             # 2. 交易后复盘
             live_env = results['pre_market'].get('live_env') if results['pre_market'] else None
             results['post_market'] = self.run_post_market_review(date, tickers, live_env)
 
         else:
-            self._emit_system(f"{date} 非交易日，仅执行：交易后总结")
+            self.streamer.print("system", f"{date} 非交易日，仅执行：交易后总结")
 
             # 非交易日只执行交易后
             results['post_market'] = self.run_post_market_review(date, tickers, 'Not trading day')
@@ -712,7 +671,7 @@ class LiveTradingThinkingFund:
         # 生成日总结
         results['summary'] = self._generate_day_summary(results)
 
-        self._emit_system(f"{date} 完整模拟结束")
+        self.streamer.print("system", f"{date} 完整模拟结束")
         self._print_day_summary(results['summary'])
 
         return results
@@ -739,11 +698,11 @@ class LiveTradingThinkingFund:
 
     def _print_day_summary(self, summary: Dict[str, Any]):
         """打印日总结"""
-        self._emit_system(f"===== {summary['date']} 日总结 =====")
-        self._emit_system(f"交易日状态: {'是' if summary['is_trading_day'] else '否'}")
-        self._emit_system(f"完成活动: {', '.join(summary['activities_completed'])}")
-        self._emit_system(f"总体状态: {summary['overall_status']}")
-        self._emit_system("=" * 40)
+        self.streamer.print("system", f"===== {summary['date']} 日总结 =====")
+        self.streamer.print("system", f"交易日状态: {'是' if summary['is_trading_day'] else '否'}")
+        self.streamer.print("system", f"完成活动: {', '.join(summary['activities_completed'])}")
+        self.streamer.print("system", f"总体状态: {summary['overall_status']}")
+        self.streamer.print("system", "=" * 40)
 
     def _log_sandbox_activity(self, date: str, time_point: str, data: Dict[str, Any]):
         """记录sandbox活动日志"""
@@ -768,7 +727,7 @@ class LiveTradingThinkingFund:
             with open(log_file, 'w', encoding='utf-8') as f:
                 json.dump(log_data, f, ensure_ascii=False, indent=2, default=str)
         except Exception as e:
-            self._emit_system(f"保存sandbox日志失败: {e}")
+            self.streamer.print("system", f"保存sandbox日志失败: {e}")
 
     def _load_sandbox_log(self, date: str, time_point: str) -> Dict[str, Any]:
         """加载sandbox活动日志"""
@@ -782,7 +741,7 @@ class LiveTradingThinkingFund:
                 log_data = json.load(f)
             return log_data.get(time_point, {})
         except Exception as e:
-            self._emit_system(f"加载sandbox日志失败: {e}")
+            self.streamer.print("system", f"加载sandbox日志失败: {e}")
             return {}
 
 
@@ -862,7 +821,7 @@ def main():
         config.override_with_args(args)
         mem0_integration = initialize_mem0_integration(base_dir=config.config_name)
 
-        # CLI 模式不传 streamer，则仅本地打印；若你希望也输出为统一事件，可在此处注入一个 ConsoleStreamer
+        # CLI 模式不传 streamer，仅本地打印
         thinking_fund = LiveTradingThinkingFund(base_dir=config.config_name, streamer=None)
 
         tickers = args.tickers.split(",") if args.tickers else config.tickers
