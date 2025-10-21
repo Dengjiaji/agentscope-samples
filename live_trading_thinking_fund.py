@@ -17,6 +17,7 @@ python live_trading_thinking_fund.py --date 2025-01-15
 # 强制运行
 python live_trading_thinking_fund.py --date 2025-01-15 --force-run
 """
+
 import pdb
 import os
 import sys
@@ -26,12 +27,17 @@ from pathlib import Path
 from typing import List, Dict, Any
 from collections import defaultdict
 from dotenv import load_dotenv
-from src.config.env_config import LiveThinkingFundConfig
+
+# 额外引入：支持价格合成/节流
+import time
+import random
+
 load_dotenv()
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
 
+from src.config.env_config import LiveThinkingFundConfig
 from src.config.env_config import LiveTradingConfig
 from src.memory.mem0_core import initialize_mem0_integration
 # from src.memory.unified_memory import unified_memory_manager
@@ -49,32 +55,30 @@ US_TRADING_CALENDAR_AVAILABLE = True
 from src.config.path_config import get_directory_config
 
 
-
-
 class LLMMemoryDecisionSystem:
     """基于LLM的记忆管理决策系统 - 使用LangChain tool_call"""
-    
+
     def __init__(self):
         self.memory_tools = []
-        
+
         if LLM_AVAILABLE and MEMORY_TOOLS_AVAILABLE:
             model_name = os.getenv('MEMORY_LLM_MODEL', 'gpt-4o-mini')
             model_provider_str = os.getenv('MEMORY_LLM_PROVIDER', 'OPENAI')
             from src.llm.models import ModelProvider
-            
+
             # 转换为ModelProvider枚举
             if hasattr(ModelProvider, model_provider_str):
                 model_provider = getattr(ModelProvider, model_provider_str)
             else:
                 print(f"未知的模型提供商: {model_provider_str}，使用默认OPENAI")
                 model_provider = ModelProvider.OPENAI
-            
+
             api_keys = {}
             if model_provider == ModelProvider.OPENAI:
                 api_keys['OPENAI_API_KEY'] = os.getenv('OPENAI_API_KEY')
             elif model_provider == ModelProvider.ANTHROPIC:
                 api_keys['ANTHROPIC_API_KEY'] = os.getenv('ANTHROPIC_API_KEY')
-            
+
             # 获取记忆管理工具
             from src.tools.memory_management_tools import get_memory_tools
             self.memory_tools = get_memory_tools()
@@ -84,14 +88,10 @@ class LLMMemoryDecisionSystem:
             self.llm_available = True
             print(f"LLM记忆决策系统已启用（{model_provider_str}: {model_name}）")
             print(f"已绑定 {len(self.memory_tools)} 个记忆管理工具")
-                
-      
-            
-        
-    
+
     def generate_memory_decision_prompt(self, performance_data: Dict[str, Any], date: str) -> str:
         """生成LLM记忆决策的prompt - LangChain tool_call版本"""
-        
+
         prompt = f"""你是一个专业的Portfolio Manager，负责管理分析师团队的记忆系统。基于{date}的交易复盘结果，请分析分析师的表现并决定是否需要使用记忆管理工具。
 
 # 复盘数据分析
@@ -100,35 +100,35 @@ class LLMMemoryDecisionSystem:
 
 ### Portfolio Manager最终决策:
 """
-        
+
         pm_signals = performance_data.get('pm_signals', {})
         actual_returns = performance_data.get('actual_returns', {})
         analyst_signals = performance_data.get('analyst_signals', {})
         tickers = performance_data.get('tickers', [])
-        
+
         # 添加PM信号和实际结果
         for ticker in tickers:
             pm_signal = pm_signals.get(ticker, {})
             actual_return = actual_returns.get(ticker, 0)
-            
+
             prompt += f"\n{ticker}:"
             prompt += f"\n  PM决策: {pm_signal.get('signal', 'N/A')} (置信度: {pm_signal.get('confidence', 'N/A')}%)"
             prompt += f"\n  实际收益: {actual_return:.2%}"
-            
+
         prompt += "\n\n### 各分析师的预测表现:"
-        
+
         # 添加分析师表现
         for analyst, signals in analyst_signals.items():
             prompt += f"\n\n**{analyst}:**"
-            total_count = 0            
+            total_count = 0
             for ticker in tickers:
                 if ticker in signals and ticker in actual_returns:
                     analyst_signal = signals[ticker]
                     actual_return = actual_returns[ticker]
                     total_count += 1
-                                        
+
                     prompt += f"\n  {ticker}: 预测 {analyst_signal}, 实际 {actual_return:.2%}"
-                    
+
         prompt += f"""
 
 # 记忆管理决策指导
@@ -145,60 +145,57 @@ class LLMMemoryDecisionSystem:
 
 请先分析各分析师的表现，然后如果需要记忆操作，直接调用相应的工具。如果不需要任何操作，请说明你的分析结果。
 """
-        
+
         return prompt
-    
-    
+
     def make_llm_memory_decision_with_tools(self, performance_data: Dict[str, Any], date: str) -> Dict[str, Any]:
         """使用LLM进行记忆管理决策 - LangChain tool_call版本"""
-        
-        if not self.llm_available:
+
+        if not getattr(self, "llm_available", False):
             print("⚠️ LLM不可用，跳过记忆管理")
             return {'status': 'skipped', 'reason': 'LLM不可用'}
-        
+
         try:
             # 生成prompt
             prompt = self.generate_memory_decision_prompt(performance_data, date)
-            
+
             print(f"\n🤖 正在请求LLM进行记忆管理决策...")
             print(f"📝 Prompt长度: {len(prompt)} 字符")
-            
+
             # 调用绑定了工具的LLM
             messages = [HumanMessage(content=prompt)]
             response = self.llm_with_tools.invoke(messages)
-            
+
             print(f"📥 LLM响应类型: {type(response)}")
-            
+
             # 检查是否有工具调用
             tool_calls = []
             if hasattr(response, 'tool_calls') and response.tool_calls:
                 tool_calls = response.tool_calls
                 print(f"🛠️ LLM决定执行 {len(tool_calls)} 个工具调用")
-                
+
                 # 执行工具调用
                 execution_results = []
                 for tool_call in tool_calls:
                     tool_name = tool_call['name']
                     tool_args = tool_call['args']
-                    
+
                     print(f"  📞 调用工具: {tool_name}")
                     print(f"     参数: {tool_args}")
-                    
+
                     # 直接调用对应的工具函数
                     tool_function = next(
-                        (tool for tool in self.memory_tools if tool.name == tool_name), 
+                        (tool for tool in self.memory_tools if tool.name == tool_name),
                         None
                     )
-                    
+
                     if tool_function:
-                            result = tool_function.invoke(tool_args)
-                            execution_results.append({
-                                'tool_name': tool_name,
-                                'args': tool_args,
-                                'result': result
-                            })
-                            # pdb.set_trace()
-              
+                        result = tool_function.invoke(tool_args)
+                        execution_results.append({
+                            'tool_name': tool_name,
+                            'args': tool_args,
+                            'result': result
+                        })
                     else:
                         print(f"    ❌ 未找到工具: {tool_name}")
                         execution_results.append({
@@ -206,7 +203,7 @@ class LLMMemoryDecisionSystem:
                             'args': tool_args,
                             'result': {'status': 'failed', 'error': f'Tool not found: {tool_name}'}
                         })
-                
+
                 return {
                     'status': 'success',
                     'mode': 'operations_executed',
@@ -219,14 +216,14 @@ class LLMMemoryDecisionSystem:
                 # 没有工具调用，LLM可能认为不需要操作
                 reasoning = response.content if hasattr(response, 'content') else str(response)
                 print(f"💭 LLM分析: {reasoning}")
-                
+
                 return {
                     'status': 'success',
                     'mode': 'no_action',
                     'reasoning': reasoning,
                     'date': date
                 }
-                
+
         except Exception as e:
             print(f"❌ LLM记忆管理决策失败: {str(e)}")
             import traceback
@@ -236,18 +233,12 @@ class LLMMemoryDecisionSystem:
                 'error': str(e),
                 'date': date
             }
-            
-    
-
-
-
-# 移除旧的解析方法，因为现在使用LangChain的原生tool_call机制
 
 
 class LiveTradingThinkingFund:
     """Live交易思考基金 - 时间Sandbox系统"""
-    
-    def __init__(self, base_dir: str):
+
+    def __init__(self, base_dir: str, streamer=None):
         """初始化思考基金系统"""
         from live_trading_system import LiveTradingSystem
 
@@ -255,10 +246,13 @@ class LiveTradingThinkingFund:
         self.base_dir = Path(get_directory_config(base_dir))
         self.sandbox_dir = self.base_dir / "sandbox_logs"
         self.sandbox_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # 初始化Live交易系统
         self.live_system = LiveTradingSystem(base_dir=base_dir)
-        
+
+        # 可选的统一事件下发器：若为 None，则仅本地打印
+        self.streamer = streamer
+
         # 初始化记忆管理系统
         if MEMORY_TOOLS_AVAILABLE:
             self.llm_memory_system = LLMMemoryDecisionSystem()
@@ -266,90 +260,138 @@ class LiveTradingThinkingFund:
         else:
             self.llm_memory_system = None
             print("LLM记忆管理系统未启用")
-        
+
         # 时间点定义
         self.PRE_MARKET = "pre_market"    # 交易前
         self.POST_MARKET = "post_market"  # 交易后
-        
+
+    # ---------- 统一输出与事件透传工具 ----------
+    def _emit_system(self, text: str):
+        """打印并（可选）发 system 事件"""
+        print(text)
+        if self.streamer:
+            try:
+                self.streamer.system(text)
+            except Exception:
+                # 不影响本地打印
+                pass
+
+    def _emit_agent(self, role_key: str, text: str):
+        """打印并（可选）发 agent 事件"""
+        line = f"{role_key}: {text}"
+        print(line)
+        if self.streamer:
+            try:
+                self.streamer.agent(role_key, text)
+            except Exception:
+                pass
+
+    def _emit_price_series(
+        self,
+        drift_hint: float = 0.0,
+        seed_price: float = 100.0,
+        steps: int = 120,
+        vol: float = 0.6,
+        sleep_s: float = 0.0
+    ):
+        """
+        可选：合成一小段价格发给前端以充实时间线（若无 streamer 则不做任何操作）
+        drift_hint：来自真实收益的均值，帮助设定细微的漂移方向
+        """
+        if not self.streamer:
+            return
+        p = float(seed_price)
+        drift = drift_hint / 50.0 if drift_hint else 0.0
+        for _ in range(steps):
+            step = (random.random() - 0.5) * (2 * vol) + drift
+            p = max(1.0, p + step)
+            try:
+                self.streamer.price(p)
+            except Exception:
+                pass
+            if sleep_s > 0:
+                time.sleep(sleep_s)
+
+    # ---------- 原有业务 ----------
     def is_trading_day(self, date: str) -> bool:
         """检查是否为交易日"""
         return self.live_system.is_trading_day(date)
-    
+
     def validate_date_format(self, date_str: str) -> bool:
         """验证日期格式"""
         return self.live_system.validate_date_format(date_str)
-    
+
     def should_run_sandbox_analysis(self, date: str, time_point: str, force_run: bool = False) -> bool:
         """判断是否应该运行sandbox分析（独立于live_system的检查逻辑）"""
         if force_run:
             return True
-        
+
         # 检查sandbox日志中是否已有成功的记录
         existing_data = self._load_sandbox_log(date, time_point)
         if existing_data and existing_data.get('status') == 'success':
             return False
-        
+
         return True
-    
-    def _run_sandbox_analysis(self, tickers: List[str], target_date: str, max_comm_cycles: int = 2,enable_communications:bool=False,enable_notifications:bool=False) -> Dict[str, Any]:
+
+    def _run_sandbox_analysis(self, tickers: List[str], target_date: str, max_comm_cycles: int = 2, enable_communications: bool = False, enable_notifications: bool = False) -> Dict[str, Any]:
         """运行sandbox专用的分析（绕过live_system的状态管理）"""
-        print(f"\n开始Sandbox策略分析 - {target_date}")
-        print(f"监控标的: {', '.join(tickers)}")
-        
-         # 1. 运行策略分析（直接调用核心分析方法，绕过should_run_today检查）
-        analysis_result = self.live_system.run_single_day_analysis(tickers, target_date, max_comm_cycles,enable_communications,enable_notifications)
-        
+        self._emit_system(f"开始Sandbox策略分析 - {target_date}")
+        self._emit_system(f"监控标的: {', '.join(tickers)}")
+
+        # 1. 运行策略分析（直接调用核心分析方法，绕过should_run_today检查）
+        analysis_result = self.live_system.run_single_day_analysis(
+            tickers, target_date, max_comm_cycles, enable_communications, enable_notifications
+        )
+
         # 使用defaultdict简化初始化
         live_env = {
             'pm_signals': {},
             'ana_signals': defaultdict(lambda: defaultdict(str)),  # 自动创建嵌套字典，默认值为空字符串
             'real_returns': defaultdict(float)  # 自动创建，默认值为0.0
         }
-        
+
         # 2. 保存交易信号
-       
         pm_signals = analysis_result['signals']
         live_env['pm_signals'] = pm_signals
-        
+
         # 3. 提取分析师信号（现在不需要预先初始化）
         for agent in ['sentiment_analyst', 'technical_analyst', 'fundamentals_analyst', 'valuation_analyst']:
             for ticker in tickers:
                 agent_results = analysis_result.get('raw_results', {}).get('results', {}).get('final_analyst_results', {})
-                # if agent in agent_results and ticker in agent_results[agent].get('analysis_result', {}):
-                # live_env['ana_signals'][agent][ticker] = agent_results[agent]['analysis_result'][ticker]['signal']
-                # pdb.set_trace()
                 matched = next((item for item in agent_results[agent]['analysis_result']['ticker_signals'] if item['ticker'] == ticker), None)
-                live_env['ana_signals'][agent][ticker] = matched['signal']
+                live_env['ana_signals'][agent][ticker] = matched['signal'] if matched else ''
 
-                
         self.live_system.save_daily_signals(target_date, pm_signals)
-        print(f"已保存 {len(pm_signals)} 个股票的交易信号")
+        self._emit_system(f"已保存 {len(pm_signals)} 个股票的交易信号")
 
         # 4. 计算当日收益
         target_date = str(target_date)
         daily_returns = self.live_system.calculate_daily_returns(target_date, pm_signals)
-        
-        # 现在不需要预先初始化，defaultdict会自动处理
+
         for ticker in tickers:
             live_env['real_returns'][ticker] = daily_returns[ticker]['daily_return']
-            
+
         # 5. 更新个股收益
         individual_data = self.live_system.update_individual_returns(target_date, daily_returns)
-        
-        # self.live_system.clean_old_data()
-        
-        print(f"{target_date} Sandbox分析完成")
-        
-        # 显示各股票表现
+
+        self._emit_system(f"{target_date} Sandbox分析完成")
+
+        # 显示各股票表现 + 各分析师信号
         for ticker, data in daily_returns.items():
             daily_ret = data['daily_return'] * 100
             cum_ret = (individual_data[ticker][target_date]['cumulative_return'] - 1) * 100
             signal = data['signal']
             action = data['action']
             confidence = data['confidence']
-            print(f"{ticker}: 日收益 {daily_ret:.2f}%, 累计收益 {cum_ret:.2f}%, "
-                    f"信号 {signal}({action}, {confidence}%)")
-        
+            self._emit_system(
+                f"{ticker}: 日收益 {daily_ret:.2f}%, 累计收益 {cum_ret:.2f}%, 信号 {signal}({action}, {confidence}%)"
+            )
+            # 分析师逐票事件
+            for agent in ['sentiment_analyst', 'technical_analyst', 'fundamentals_analyst', 'valuation_analyst']:
+                sig = live_env['ana_signals'][agent].get(ticker, '')
+                if sig:
+                    self._emit_agent(agent, f"{ticker}: {sig}")
+
         return {
             'status': 'success',
             'date': target_date,
@@ -358,25 +400,23 @@ class LiveTradingThinkingFund:
             'individual_cumulative': individual_data,
             'live_env': live_env
         }
-            
-       
-    
-    def run_pre_market_analysis(self, date: str, tickers: List[str], 
-                               max_comm_cycles: int = 2, force_run: bool = False,enable_communications:bool=False,enable_notifications:bool=False) -> Dict[str, Any]:
+
+    def run_pre_market_analysis(self, date: str, tickers: List[str],
+                                max_comm_cycles: int = 2, force_run: bool = False,
+                                enable_communications: bool = False, enable_notifications: bool = False) -> Dict[str, Any]:
         """运行交易前分析（复用live_trading_system）"""
-        print(f"\n===== 交易前分析 ({date}) =====")
-        print(f"时间点: {self.PRE_MARKET}")
-        print(f"分析标的: {', '.join(tickers)}")
-        
-        # 使用sandbox专用的检查逻辑
-        # if not self.should_run_sandbox_analysis(date, self.PRE_MARKET, force_run):
-        #     print(f"📋 {date} 交易前分析已存在，跳过重复运行（使用 --force-run 强制重新运行）")
-        #     existing_data = self._load_sandbox_log(date, self.PRE_MARKET)
-        #     return existing_data
-        
+        self._emit_system(f"===== 交易前分析 ({date}) =====")
+        self._emit_system(f"时间点: {self.PRE_MARKET}")
+        self._emit_system(f"分析标的: {', '.join(tickers)}")
+
         # 运行sandbox专用的分析（绕过live_system的状态检查）
-        result = self._run_sandbox_analysis(tickers, date, max_comm_cycles,enable_communications,enable_notifications)
-        
+        result = self._run_sandbox_analysis(tickers, date, max_comm_cycles, enable_communications, enable_notifications)
+
+        # 在预市场阶段追加一段轻量合成价格（可选）
+        rr_vals = list(result['live_env']['real_returns'].values())
+        avg_rr = sum(rr_vals) / len(rr_vals) if rr_vals else 0.0
+        self._emit_price_series(drift_hint=avg_rr, steps=80, vol=0.5, sleep_s=0.0)
+
         # 记录到sandbox日志
         self._log_sandbox_activity(date, self.PRE_MARKET, {
             'status': result['status'],
@@ -384,65 +424,61 @@ class LiveTradingThinkingFund:
             'timestamp': datetime.now().isoformat(),
             'details': result
         })
-        
+
         return result
-            
-    
+
     def run_post_market_review(self, date: str, tickers: List[str], live_env: Dict[str, Any]) -> Dict[str, Any]:
         """运行交易后复盘"""
-        print(f"\n===== 交易后复盘 ({date}) =====")
-        print(f"时间点: {self.POST_MARKET}")
-        print(f"复盘标的: {', '.join(tickers)}")
+        self._emit_system(f"===== 交易后复盘 ({date}) =====")
+        self._emit_system(f"时间点: {self.POST_MARKET}")
+        self._emit_system(f"复盘标的: {', '.join(tickers)}")
+
         if live_env != 'Not trading day':
-        
             # 交易后复盘逻辑
-            result = self._perform_post_market_review(date, tickers,live_env)
-            
+            result = self._perform_post_market_review(date, tickers, live_env)
+
             # 记录到sandbox日志
             self._log_sandbox_activity(date, self.POST_MARKET, result)
-            
+
             return result
-         
-    
+
     def _perform_post_market_review(self, date: str, tickers: List[str], live_env: Dict[str, Any]) -> Dict[str, Any]:
         """执行交易后复盘分析"""
-        print("基于交易前分析进行复盘...")
-        
+        self._emit_system("基于交易前分析进行复盘...")
+
         pm_signals = live_env['pm_signals']
         ana_signals = live_env['ana_signals']
         real_returns = live_env['real_returns']
-        
-        print(f"\nportfolio_manager信号回顾:")
+
+        self._emit_system("portfolio_manager信号回顾:")
         for ticker in tickers:
             if ticker in pm_signals:
                 signal_info = pm_signals[ticker]
-                print(f"   {ticker}: {signal_info.get('signal', 'N/A')} "
-                      f"({signal_info.get('action', 'N/A')}, "
-                      f"置信度: {signal_info.get('confidence', 'N/A')}%)")
+                self._emit_agent(
+                    "portfolio_manager",
+                    f"{ticker}: {signal_info.get('signal', 'N/A')} ({signal_info.get('action', 'N/A')}, 置信度: {signal_info.get('confidence', 'N/A')}%)"
+                )
             else:
-                print(f"   {ticker}: 无信号数据")
-        
-        print(f"\n实际收益表现:")
+                self._emit_system(f"{ticker}: 无信号数据")
+
+        self._emit_system("实际收益表现:")
         for ticker in tickers:
             if ticker in real_returns:
                 daily_ret = real_returns[ticker] * 100
-                print(f"   {ticker}: {daily_ret:.2f}% "
-                      f"(信号: {pm_signals.get(ticker, {}).get('signal', 'N/A')})")
+                self._emit_system(f"{ticker}: {daily_ret:.2f}% (信号: {pm_signals.get(ticker, {}).get('signal', 'N/A')})")
             else:
-                print(f"   {ticker}: 无收益数据")
-        
-        print(f"\nanalyst信号对比:")
+                self._emit_system(f"{ticker}: 无收益数据")
+
+        self._emit_system("analyst信号对比:")
         for agent, agent_signals in ana_signals.items():
-            print(f"  {agent}:")
+            self._emit_system(f"{agent}:")
             for ticker in tickers:
                 signal = agent_signals.get(ticker, 'N/A')
-                print(f"    {ticker}: {signal}")
-        
-        print(f"\n===== Portfolio Manager 记忆管理决策 =====")
-        
-        performance_analysis = {}
+                self._emit_agent(agent, f"{ticker}: {signal}")
+
+        self._emit_system("===== Portfolio Manager 记忆管理决策 =====")
+
         execution_results = None
-        
         try:
             if self.llm_memory_system:
                 performance_data = {
@@ -451,65 +487,63 @@ class LiveTradingThinkingFund:
                     'analyst_signals': ana_signals,
                     'tickers': tickers
                 }
-                
+
                 # 使用LLM进行记忆管理决策（tool_call模式）
-                print("使用LLM tool_call进行智能记忆管理...")
+                self._emit_system("使用 LLM tool_call 进行智能记忆管理...")
                 llm_decision = self.llm_memory_system.make_llm_memory_decision_with_tools(
                     performance_data, date
                 )
-                
+
                 # 显示LLM决策结果
                 if llm_decision['status'] == 'success':
                     if llm_decision['mode'] == 'operations_executed':
-                        print(f"\n🛠️ LLM执行了 {llm_decision['operations_count']} 个记忆操作")
-                        
+                        self._emit_system(f"LLM 执行了 {llm_decision['operations_count']} 个记忆操作")
+
                         # 统计执行结果
-                        successful = sum(1 for result in llm_decision['execution_results'] 
-                                       if result['result']['status'] == 'success')
+                        successful = sum(1 for result in llm_decision['execution_results']
+                                         if result['result']['status'] == 'success')
                         total = len(llm_decision['execution_results'])
-                        
-                        print(f" 执行统计:")
-                        print(f"  成功: {successful}/{total}")
-                        
+
+                        self._emit_system(f"执行统计：成功 {successful}/{total}")
+
                         # 显示工具调用详情
                         for i, exec_result in enumerate(llm_decision['execution_results'], 1):
                             tool_name = exec_result['tool_name']
                             args = exec_result['args']
                             result = exec_result['result']
-                            
-                            print(f"  {i}. {tool_name}")
-                            print(f"     分析师: {args.get('analyst_id', 'N/A')}")
+
+                            self._emit_system(f"{i}. {tool_name} / 分析师: {args.get('analyst_id', 'N/A')}")
                             if result['status'] == 'success':
-                                print(f"     状态: 成功")
+                                self._emit_system("状态: 成功")
                             else:
-                                print(f"     状态: 失败 - {result.get('error', 'Unknown')}")
-                        
+                                self._emit_system(f"状态: 失败 - {result.get('error', 'Unknown')}")
+
                         execution_results = llm_decision['execution_results']
-                        
+
                     elif llm_decision['mode'] == 'no_action':
-                        print(f" LLM认为无需记忆操作")
-                        print(f" LLM理由: {llm_decision['reasoning']}")
+                        self._emit_system("LLM 认为无需记忆操作")
+                        self._emit_system(f"LLM 理由: {llm_decision['reasoning']}")
                         execution_results = None
                     else:
-                        print(f" 未知的LLM决策模式: {llm_decision['mode']}")
+                        self._emit_system(f"未知的LLM决策模式: {llm_decision['mode']}")
                         execution_results = None
-                        
+
                 elif llm_decision['status'] == 'skipped':
-                    print(f" 记忆管理跳过: {llm_decision['reason']}")
+                    self._emit_system(f"记忆管理跳过: {llm_decision['reason']}")
                     execution_results = None
                 else:
-                    print(f" LLM决策失败: {llm_decision.get('error', 'Unknown error')}")
+                    self._emit_system(f"LLM 决策失败: {llm_decision.get('error', 'Unknown error')}")
                     execution_results = None
             else:
-                print("LLM记忆管理系统未启用，跳过记忆操作")
+                self._emit_system("LLM 记忆管理系统未启用，跳过记忆操作")
                 llm_decision = None
                 execution_results = None
-                
+
         except Exception as e:
-            print(f"记忆管理过程出错: {str(e)}")
+            self._emit_system(f"记忆管理过程出错: {str(e)}")
             import traceback
             traceback.print_exc()
-        
+
         return {
             'status': 'success',
             'type': 'full_review',
@@ -550,7 +584,7 @@ class LiveTradingThinkingFund:
     ) -> Dict[str, Any]:
         trading_days = self.generate_trading_dates(start_date, end_date)
         if not trading_days:
-            print("选定区间内无交易日")
+            self._emit_system("选定区间内无交易日")
             return {
                 'status': 'skipped',
                 'reason': '无交易日',
@@ -559,15 +593,15 @@ class LiveTradingThinkingFund:
                 'daily_results': {}
             }
 
-        print(f"\n===== 多日Sandbox模拟 {start_date} ~ {end_date} =====")
-        print(f"覆盖交易日: {len(trading_days)} 天 -> {', '.join(trading_days[:5])}{'...' if len(trading_days) > 5 else ''}")
+        self._emit_system(f"===== 多日Sandbox模拟 {start_date} ~ {end_date} =====")
+        self._emit_system(f"覆盖交易日: {len(trading_days)} 天 -> {', '.join(trading_days[:5])}{'...' if len(trading_days) > 5 else ''}")
 
         daily_results: Dict[str, Dict[str, Any]] = {}
         success_days: List[str] = []
         failed_days: List[str] = []
 
         for idx, date in enumerate(trading_days, start=1):
-            print(f"\n--- [{idx}/{len(trading_days)}] {date} ---")
+            self._emit_system(f"--- [{idx}/{len(trading_days)}] {date} ---")
             day_result = self.run_full_day_simulation(
                 date=date,
                 tickers=tickers,
@@ -630,21 +664,22 @@ class LiveTradingThinkingFund:
         }
 
     def _print_multi_day_summary(self, summary: Dict[str, Any]) -> None:
-        print("\n===== 多日模拟汇总 =====")
-        print(f"区间: {summary['start_date']} ~ {summary['end_date']}")
-        print(f"交易日数量: {summary['total_days']}")
-        print(f"成功天数: {summary['success_days']}")
-        print(f"失败天数: {summary['failed_days']}")
-        print(f"成功率: {summary['success_rate_pct']:.2f}%")
+        self._emit_system("===== 多日模拟汇总 =====")
+        self._emit_system(f"区间: {summary['start_date']} ~ {summary['end_date']}")
+        self._emit_system(f"交易日数量: {summary['total_days']}")
+        self._emit_system(f"成功天数: {summary['success_days']}")
+        self._emit_system(f"失败天数: {summary['failed_days']}")
+        self._emit_system(f"成功率: {summary['success_rate_pct']:.2f}%")
         if summary['failed_day_list']:
-            print(f"失败日期: {', '.join(summary['failed_day_list'])}")
-        print("=" * 40)
+            self._emit_system(f"失败日期: {', '.join(summary['failed_day_list'])}")
+        self._emit_system("=" * 40)
 
-    def run_full_day_simulation(self, date: str, tickers: List[str], 
-                               max_comm_cycles: int = 2, force_run: bool = False,enable_communications:bool=False,enable_notifications:bool=False) -> Dict[str, Any]:
+    def run_full_day_simulation(self, date: str, tickers: List[str],
+                                max_comm_cycles: int = 2, force_run: bool = False,
+                                enable_communications: bool = False, enable_notifications: bool = False) -> Dict[str, Any]:
         """运行完整的一天模拟（交易前 + 交易后）"""
-        print(f"\n===== 开始 {date} 完整交易日模拟 =====")
-        
+        self._emit_system(f"===== 开始 {date} 完整交易日模拟 =====")
+
         results = {
             'date': date,
             'is_trading_day': self.is_trading_day(date),
@@ -652,38 +687,36 @@ class LiveTradingThinkingFund:
             'post_market': None,
             'summary': {}
         }
-        
+
         if results['is_trading_day']:
-            print(f"{date} 是交易日，将执行：交易前分析 + 交易后复盘")
-            
+            self._emit_system(f"{date} 是交易日，将执行：交易前分析 + 交易后复盘")
+
             # 1. 交易前分析
             results['pre_market'] = self.run_pre_market_analysis(
-                date, tickers, max_comm_cycles, force_run,enable_communications,enable_notifications
+                date, tickers, max_comm_cycles, force_run, enable_communications, enable_notifications
             )
-            
-            print(f"\n等待交易后时间点...")
-            print(f"(实际使用中，这里会等待真实的市场收盘)")
-            
-            # 2. 交易后复盘
 
-           
-            live_env =  results['pre_market'].get('live_env') if results['pre_market'] else None
+            self._emit_system("等待交易后时间点...")
+            self._emit_system("(实际使用中，这里会等待真实的市场收盘)")
+
+            # 2. 交易后复盘
+            live_env = results['pre_market'].get('live_env') if results['pre_market'] else None
             results['post_market'] = self.run_post_market_review(date, tickers, live_env)
-            
+
         else:
-            print(f"{date} 非交易日，仅执行：交易后总结")
-            
+            self._emit_system(f"{date} 非交易日，仅执行：交易后总结")
+
             # 非交易日只执行交易后
-            results['post_market'] = self.run_post_market_review(date, tickers,'Not trading day')
-        
+            results['post_market'] = self.run_post_market_review(date, tickers, 'Not trading day')
+
         # 生成日总结
         results['summary'] = self._generate_day_summary(results)
-        
-        print(f"\n{date} 完整模拟结束")
+
+        self._emit_system(f"{date} 完整模拟结束")
         self._print_day_summary(results['summary'])
-        
+
         return results
-    
+
     def _generate_day_summary(self, results: Dict[str, Any]) -> Dict[str, Any]:
         summary = {
             'date': results['date'],
@@ -691,68 +724,65 @@ class LiveTradingThinkingFund:
             'activities_completed': [],
             'overall_status': 'success'
         }
-        
+
         if results['pre_market']:
             summary['activities_completed'].append('交易前分析')
             if results['pre_market']['status'] != 'success':
                 summary['overall_status'] = 'partial_failure'
-        
+
         if results['post_market']:
             summary['activities_completed'].append('交易后复盘')
             if results['post_market']['status'] != 'success':
                 summary['overall_status'] = 'failed'
-        
+
         return summary
-    
+
     def _print_day_summary(self, summary: Dict[str, Any]):
         """打印日总结"""
-        print(f"\n===== {summary['date']} 日总结 =====")
-        print(f"交易日状态: {'是' if summary['is_trading_day'] else '否'}")
-        print(f"完成活动: {', '.join(summary['activities_completed'])}")
-        print(f"总体状态: {summary['overall_status']}")
-        print("=" * 40)
-    
+        self._emit_system(f"===== {summary['date']} 日总结 =====")
+        self._emit_system(f"交易日状态: {'是' if summary['is_trading_day'] else '否'}")
+        self._emit_system(f"完成活动: {', '.join(summary['activities_completed'])}")
+        self._emit_system(f"总体状态: {summary['overall_status']}")
+        self._emit_system("=" * 40)
+
     def _log_sandbox_activity(self, date: str, time_point: str, data: Dict[str, Any]):
         """记录sandbox活动日志"""
         log_file = self.sandbox_dir / f"sandbox_day_{date.replace('-', '_')}.json"
-        
+
         # 加载现有日志
         if log_file.exists():
-            import json
             try:
                 with open(log_file, 'r', encoding='utf-8') as f:
                     log_data = json.load(f)
-            except:
+            except Exception:
                 log_data = {}
         else:
             log_data = {}
-        
+
         # 添加新活动
         log_data[time_point] = data
         log_data['last_updated'] = datetime.now().isoformat()
-        
+
         # 保存日志
-        import json
         try:
             with open(log_file, 'w', encoding='utf-8') as f:
                 json.dump(log_data, f, ensure_ascii=False, indent=2, default=str)
         except Exception as e:
-            print(f"保存sandbox日志失败: {e}")
-    
+            self._emit_system(f"保存sandbox日志失败: {e}")
+
     def _load_sandbox_log(self, date: str, time_point: str) -> Dict[str, Any]:
         """加载sandbox活动日志"""
         log_file = self.sandbox_dir / f"sandbox_day_{date.replace('-', '_')}.json"
-        
+
         if not log_file.exists():
             return {}
-        
-        import json
+
         try:
             with open(log_file, 'r', encoding='utf-8') as f:
                 log_data = json.load(f)
             return log_data.get(time_point, {})
         except Exception as e:
-            print(f"加载sandbox日志失败: {e}")
+            self._emit_system(f"加载sandbox日志失败: {e}")
             return {}
 
 
@@ -765,18 +795,18 @@ def main():
 示例用法:
   # 运行指定日期的完整模拟
   python live_trading_thinking_fund.py --date 2025-01-15 --tickers AAPL,MSFT
-  
+
   # 使用环境变量中的股票配置
   python live_trading_thinking_fund.py --date 2025-01-15
-  
+
   # 强制运行（忽略各种检查）
   python live_trading_thinking_fund.py --date 2025-01-15 --force-run
-  
+
   # 自定义沟通轮数
   python live_trading_thinking_fund.py --date 2025-01-15 --max-comm-cycles 3
         """
     )
-    
+
     # 必需参数
     parser.add_argument(
         '--date',
@@ -798,44 +828,47 @@ def main():
         type=str,
         required=True,
         help='配置的数据存储目录名称'
-    )    
+    )
     # 可选参数
     parser.add_argument(
         '--tickers',
         type=str,
         help='股票代码列表，用逗号分隔 (可选，使用环境变量配置)'
     )
-    
+
     parser.add_argument(
         '--max-comm-cycles',
         type=int,
         help='最大沟通轮数 (默认: 2)'
     )
-    
+
     parser.add_argument(
         '--force-run',
         action='store_true',
         help='强制运行，如果已经是已经运行过的交易日则重新运行'
     )
-    
+
     parser.add_argument(
         '--base-dir',
         type=str,
         help='基础目录'
     )
-    
+
     args = parser.parse_args()
-    
+
     try:
         # 加载配置
         config = LiveThinkingFundConfig()
         config.override_with_args(args)
-        mem0_integration = initialize_mem0_integration(base_dir =config.config_name)
-        thinking_fund = LiveTradingThinkingFund(base_dir=config.config_name)
+        mem0_integration = initialize_mem0_integration(base_dir=config.config_name)
+
+        # CLI 模式不传 streamer，则仅本地打印；若你希望也输出为统一事件，可在此处注入一个 ConsoleStreamer
+        thinking_fund = LiveTradingThinkingFund(base_dir=config.config_name, streamer=None)
+
         tickers = args.tickers.split(",") if args.tickers else config.tickers
         from pprint import pprint
-        pprint(config.__dict__)        
-        
+        pprint(config.__dict__)
+
         if args.start_date or args.end_date:
             if not args.start_date or not args.end_date:
                 print("错误: 多日模式需同时提供 --start-date 与 --end-date")
@@ -865,7 +898,7 @@ def main():
                 force_run=args.force_run
             )
             print(f"\n{args.date} 时间Sandbox模拟完成!")
-        
+
     except KeyboardInterrupt:
         print("\n用户中断模拟")
         sys.exit(1)
