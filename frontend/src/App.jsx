@@ -436,7 +436,7 @@ function KChart({ data }) {
   useEffect(() => {
     const cnv = ref.current; if (!cnv) return; const ctx = cnv.getContext('2d');
     const parent = cnv.parentElement;
-    const W = parent.clientWidth - 0; const H = 200; // body has padding already
+    const W = parent.clientWidth - 15; const H = 200; // body has padding already
     cnv.width = W; cnv.height = H; cnv.style.width = W + 'px'; cnv.style.height = H + 'px';
     ctx.imageSmoothingEnabled = false;
 
