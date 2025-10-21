@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Any, Dict, List, Optional
 import math, random, time
+from src.servers.config import ROLE_TO_AGENT
 
 def sandbox_json_to_events(
     data: Dict[str, Any],
@@ -31,18 +32,6 @@ def sandbox_json_to_events(
     ts = int(now_ms if now_ms is not None else time.time() * 1000)
     events: List[Dict[str, Any]] = []
 
-    # ---- 角色 -> 前端 agentId 的映射----
-    role_to_agent = {
-        "sentiment_analyst":   "delta",   # 情绪
-        "technical_analyst":   "zeta",    # 技术
-        "fundamentals_analyst":"epsilon", # 基本面
-        "valuation_analyst":   "gamma",   # 估值
-        "portfolio_manager": "alpha",
-        "risk_manager": "beta",
-        # 兜底（未知角色）：给到组合经理
-        "_default":            "alpha",
-    }
-
     def push_system(content: str):
         nonlocal ts
         ts += step_ms
@@ -51,7 +40,7 @@ def sandbox_json_to_events(
     def push_agent(role_key: Optional[str], content: str):
         nonlocal ts
         ts += step_ms
-        agent_id = role_to_agent.get(role_key or "", role_to_agent["_default"])
+        agent_id = ROLE_TO_AGENT.get(role_key or "", ROLE_TO_AGENT["_default"])
         events.append({"type": "agent_message", "agentId": agent_id, "content": content, "ts": ts})
 
     def push_price(p: float):
