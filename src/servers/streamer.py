@@ -21,13 +21,16 @@ class BaseStreamer:
     def price(self, value: float):
         raise NotImplementedError
 
-    def print(self, type: str = "system", content: str = "", **kwargs):
+    def default_print(self, content: str, type: str):
+        raise NotImplementedError
+
+    def print(self, type: str="", content: str = "", **kwargs):
         """
         通用打印接口
         :param content: 输出内容
-        :param type: 消息类型，可选 system / agent / price
+        :param type: 消息类型，可选 system / agent / price / 自定义
         """
-        if type == "system":
+        if type == "system" or type == "":
             self.system(content)
         elif type == "agent":
             # 允许 kwargs 里传 role_key
@@ -40,8 +43,7 @@ class BaseStreamer:
                 value = 0.0
             self.price(value)
         else:
-            # 未知类型默认当作 system
-            self.system(content)
+            self.default_print(content, type)
 
 
 class ConsoleStreamer(BaseStreamer):
@@ -57,6 +59,10 @@ class ConsoleStreamer(BaseStreamer):
     def price(self, value: float):
         ts = self._bump()
         print(f"[price] {float(value):.4f}")
+
+    def default_print(self, content: str, type: str):
+        ts = self._bump()
+        print(f"[{type}] {content}")
 
 
 
@@ -120,6 +126,10 @@ class WebSocketStreamer(BaseStreamer):
         ts = self._bump()
         self._enqueue({"type": "price", "price": float(value), "ts": ts})
 
+    def default_print(self, content: str, type: str):
+        ts = self._bump()
+        self._enqueue({"type": type, "content": content, "ts": ts})
+
 
 
 class MultiStreamer(BaseStreamer):
@@ -143,3 +153,6 @@ class MultiStreamer(BaseStreamer):
 
     def price(self, value: float):
         self._fanout("price", value)
+
+    def default_print(self, content: str, type: str):
+        self._fanout("default_print", content, type)
