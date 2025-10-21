@@ -24,12 +24,12 @@ const ASSETS = {
 const SCENE_NATIVE = { width: 1184, height: 864 };
 
 const AGENT_SEATS = [
-  { x: 470, y: 500 },
+  { x: 545, y: 380 },
   { x: 600, y: 470 },
-  { x: 730, y: 530 },
-  { x: 545, y: 590 },
-  { x: 655, y: 615 },
-  { x: 800, y: 600 },
+  { x: 460, y: 490 },
+  { x: 540, y: 590 },
+  { x: 710, y: 560 },
+  { x: 780, y: 490 },
 ];
 
 const AGENTS = [
@@ -37,7 +37,7 @@ const AGENTS = [
   { id: "beta", name: "Carl", role: "Risk Manager", avatar: "agent2" },
   { id: "gamma", name: "Alice", role: "Valuation Analyst", avatar: "agent3" },
   { id: "delta", name: "David", role: "Sentiment Analyst", avatar: "agent4" },
-  { id: "epsilon", name: "Eve", role: "Fundamental Analyst", avatar: "agent5" },
+  { id: "epsilon", name: "Eve", role: "Fundamentals Analyst", avatar: "agent5" },
   { id: "zeta", name: "Frank", role: "Technical Analyst", avatar: "agent6" },
 ];
 
@@ -247,7 +247,7 @@ export default function LiveTradingCompanyApp() {
   const handleRun = () => {
     clientRef.current?.stop?.();
     clientRef.current = new PythonClient(pushEvent, { wsUrl: "ws://localhost:8765/ws" });
-    clientRef.current.start({ mode: 'run' });
+    clientRef.current.start({ mode: 'realtime' });
     setIsRunning(true);
   };
   const handleReplay = () => {
@@ -380,8 +380,12 @@ function AgentLogs({ logs }) {
             <div className="log-header">
               <span className="log-badge" style={{ background: color }} />
               <span className="log-agent" style={{ color }}>{l.who}</span>
-              <span style={{ color }}>&nbsp;::&nbsp;</span>
-              <span style={{ color }}>{l.role}</span>
+              {l.who !== l.role && (
+                <>
+                  <span style={{ color }}>:</span>
+                  <span style={{ color }}>{l.role}</span>
+                </>
+              )}
               <span className="log-time">{formatTime(l.ts)}</span>
             </div>
             <div className="log-text">{shown}</div>
