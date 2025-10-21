@@ -37,6 +37,8 @@ def sandbox_json_to_events(
         "technical_analyst":   "zeta",    # 技术
         "fundamentals_analyst":"epsilon", # 基本面
         "valuation_analyst":   "gamma",   # 估值
+        "portfolio_manager": "alpha",
+        "risk_manager": "beta",
         # 兜底（未知角色）：给到组合经理
         "_default":            "alpha",
     }
@@ -80,7 +82,7 @@ def sandbox_json_to_events(
                     pass
             if reasoning:
                 msg += f" — {reasoning}"
-            push_agent("sentiment_analyst", msg)
+            push_agent("portfolio_manager", msg)
 
     # 2) 各角色逐票信号
     #    data['pre_market']['details']['live_env']['ana_signals'][role][ticker] = 'bearish' | 'bullish' | 'neutral'
@@ -110,16 +112,15 @@ def sandbox_json_to_events(
     # ========= 解析 post_market =========
     post = (data or {}).get("post_market", {})
 
-    # 4) 记忆工具调用结果 -> agent_message（默认给情绪分析师）
+    # 4) 记忆工具调用结果
     #    data['post_market']['memory_tool_calls_results'] 是一个 list
     mtcr = post.get("memory_tool_calls_results") or []
     if isinstance(mtcr, list):
         for item in mtcr:
             args = (item or {}).get("args") or {}
-            who = args.get("analyst_id") or "sentiment_analyst"
             new_content = args.get("new_content") or ""
             if new_content:
-                push_agent(who, f"[memory] updated: {new_content}")
+                push_system(f"memory updated: {new_content}")
 
     # ========= 价格轨迹（如无价格事件则合成） =========
     has_price = any(e.get("type") == "price" for e in events)
