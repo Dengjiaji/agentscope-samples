@@ -21,6 +21,7 @@ class MemoryManagerBridge:
         self._framework = None
         self._mem0_manager = None
         self._reme_adapter = None
+        self._reme_notification_system = None  # 缓存 ReMe 通知系统实例（单例）
     
     def _get_current_framework(self) -> str:
         """获取当前使用的框架"""
@@ -66,8 +67,10 @@ class MemoryManagerBridge:
         framework = self._get_current_framework()
         
         if framework == 'reme':
-            # ReMe 不需要注册分析师，workspace 会自动创建
+            # ✅ ReMe 也需要注册到通知系统（虽然 workspace 会自动创建）
             logger.info(f"ReMe框架自动管理分析师workspace: {analyst_id}")
+            # 注册到通知系统，以便广播通知时能遍历所有 agents
+            self.notification_system.register_agent(analyst_id, analyst_name)
             return
         else:
             manager = self._get_mem0_manager()
@@ -153,38 +156,40 @@ class MemoryManagerBridge:
     
     @property
     def notification_system(self):
-        """获取通知系统"""
+        """获取通知系统（单例模式）"""
         framework = self._get_current_framework()
         
         if framework == 'reme':
-            # ReMe 返回一个简化的通知系统
-            from src.memory.reme_memory_adapter import ReMeNotificationSystem
-            return ReMeNotificationSystem(self._get_reme_adapter())
+            # ✅ 使用缓存的实例，避免每次都创建新实例（导致 _registered_agents 丢失）
+            if self._reme_notification_system is None:
+                from src.memory.reme_memory_adapter import ReMeNotificationSystem
+                self._reme_notification_system = ReMeNotificationSystem(self._get_reme_adapter())
+                logger.info("创建 ReMeNotificationSystem 单例实例")
+            return self._reme_notification_system
         else:
             manager = self._get_mem0_manager()
             return manager.notification_system
     
     def broadcast_notification(self, sender_agent: str, content: str, urgency: str = "medium", 
                              category: str = "general", backtest_date: str = None):
-        """广播通知"""
+        """
+        广播通知
+        
+        ✅ 对齐修改：ReMe 和 Mem0 都使用相同的 user_id，通过 metadata.type 区分
+        """
         framework = self._get_current_framework()
         
         if framework == 'reme':
-            # ReMe 简化通知存储
-            adapter = self._get_reme_adapter()
-            adapter.add(
-                messages=f"[通知] {content}",
-                user_id=f"notifications_{sender_agent}",
-                metadata={
-                    "type": "notification",
-                    "sender": sender_agent,
-                    "urgency": urgency,
-                    "category": category,
-                    "backtest_date": backtest_date
-                }
+            # ✅ 使用 ReMeNotificationSystem，它已经对齐了 Mem0 的设计
+            # 注意：使用 notification_system 属性（@property），而不是方法
+            notification_system = self.notification_system
+            return notification_system.broadcast_notification(
+                sender_agent=sender_agent,
+                content=content,
+                urgency=urgency,
+                category=category,
+                backtest_date=backtest_date
             )
-            import uuid
-            return str(uuid.uuid4())
         else:
             manager = self._get_mem0_manager()
             return manager.broadcast_notification(sender_agent, content, urgency, category, backtest_date)

@@ -277,10 +277,12 @@ class ReMeNotificationSystem:
         self.reme_adapter = reme_adapter
         self.logger = logging.getLogger(__name__)
         self._agent_memories = {}
+        self._registered_agents = set()  # 跟踪已注册的 agents
     
     def register_agent(self, agent_id: str, agent_name: str = None):
         """注册agent"""
-        # ReMe 不需要显式注册，workspace 会自动创建
+        # 记录已注册的 agent，用于广播通知
+        self._registered_agents.add(agent_id)
         self.logger.info(f"ReMe: 注册agent {agent_id} (workspace自动创建)")
     
     def get_agent_memory(self, agent_id: str):
@@ -295,11 +297,17 @@ class ReMeNotificationSystem:
     def broadcast_notification(self, sender_agent: str, content: str, 
                              urgency: str = "medium", category: str = "general",
                              backtest_date: Optional[str] = None):
-        """广播通知"""
+        """
+        广播通知给所有已注册的 agents
+        
+        ✅ 对齐 Mem0 设计：
+        1. 使用相同的 user_id，通过 metadata.type 区分
+        2. 广播到所有已注册的 agents（不只是发送者）
+        """
         notification_id = str(uuid.uuid4())
         
         metadata = _normalize_metadata({
-            "type": "notification",
+            "type": "notification",  # 通过 type 字段区分通知记忆
             "notification_id": notification_id,
             "sender": sender_agent,
             "urgency": urgency,
@@ -307,13 +315,21 @@ class ReMeNotificationSystem:
             "backtest_date": backtest_date
         })
         
-        self.reme_adapter.add(
-            messages=f"[通知] {content}",
-            user_id=f"notifications_{sender_agent}",
-            metadata=metadata
-        )
+        # ✅ 重要修复：广播给所有已注册的 agents（对齐 Mem0 行为）
+        # 遍历所有已注册的 agents，每个 agent 的 workspace 都保存一份通知
+        agents_to_notify = self._registered_agents if self._registered_agents else {sender_agent}
         
-        self.logger.info(f"ReMe: 广播通知 {notification_id} from {sender_agent}")
+        for agent_id in agents_to_notify:
+            self.reme_adapter.add(
+                messages=f"[通知] 来自{sender_agent}: {content}",
+                user_id=agent_id,  # 添加到每个 agent 的 workspace
+                metadata=metadata
+            )
+        
+        self.logger.info(
+            f"ReMe: 广播通知 {notification_id} from {sender_agent} "
+            f"to {len(agents_to_notify)} agents"
+        )
         return notification_id
 
 
@@ -331,19 +347,27 @@ class ReMeAgentNotificationMemory:
     def get_recent_notifications(self, limit: int = 10, 
                                 category: Optional[str] = None,
                                 backtest_date: Optional[str] = None) -> List[Dict[str, Any]]:
-        """获取最近的通知"""
+        """
+        获取最近的通知
+        
+        ✅ 对齐 Mem0 设计：使用相同的 user_id，通过 metadata.type 过滤
+        """
         query = f"通知 {category or ''} {backtest_date or ''}".strip()
         
+        # ✅ 对齐修改：不使用 notifications_ 前缀，直接使用 agent_id
         results = self.reme_adapter.search(
             query=query,
-            user_id=f"notifications_{self.agent_id}",
-            top_k=limit
+            user_id=self.agent_id,  # 使用相同的 user_id
+            top_k=limit * 2  # 增加数量以补偿过滤损失
         )
         
+        # ✅ 通过 metadata.type 过滤出通知记忆
         notifications = []
         for result in results.get('results', []):
             if result.get('metadata', {}).get('type') == 'notification':
                 notifications.append(result)
+                if len(notifications) >= limit:
+                    break  # 达到限制数量后停止
         
         return notifications
     
