@@ -75,13 +75,60 @@ def search_and_update_analyst_memory(
                 'error': f'未找到相关记忆: {query}'
             }
         
-        memory_id = search_results['results'][0]['id']
+        # 获取搜索到的记忆
+        found_memory = search_results['results'][0]
+        memory_id = found_memory['id']
+        original_content = found_memory.get('memory', '')
+        
+        # 🔍 打印调试信息：显示搜索到的记忆
+        print(f"\n{'='*60}")
+        print(f"🔍 记忆更新调试信息")
+        print(f"{'='*60}")
+        print(f"📌 分析师: {analyst_id}")
+        print(f"🔎 搜索查询: {query}")
+        print(f"🆔 记忆ID: {memory_id}")
+        print(f"\n📖 原始记忆内容:")
+        print(f"{'-'*60}")
+        print(f"{original_content[:500]}{'...' if len(original_content) > 500 else ''}")
+        print(f"{'-'*60}")
+        print(f"\n✏️  新记忆内容:")
+        print(f"{'-'*60}")
+        print(f"{new_content[:500]}{'...' if len(new_content) > 500 else ''}")
+        print(f"{'-'*60}")
+        print(f"\n💡 更新原因: {reason}")
+        print(f"{'='*60}\n")
+        
+        # 获取框架类型，以便正确传递参数
+        framework_name = getattr(memory_instance, 'get_framework_name', lambda: 'unknown')()
         
         # 更新记忆
-        result = memory_instance.update(
-            memory_id=memory_id,
-            data=new_content
-        )
+        if framework_name == 'reme':
+            # ReMe 框架需要 workspace_id 参数和 metadata
+            workspace_id = analyst_id  # 直接使用 analyst_id 作为 workspace_id
+            result = memory_instance.update(
+                memory_id=memory_id,
+                data={
+                    'content': new_content,
+                    'metadata': {
+                        'type': 'memory_update',
+                        'analyst_id': analyst_id,
+                        'update_reason': reason,
+                        'updated_by': 'portfolio_manager'
+                    }
+                },
+                workspace_id=workspace_id
+            )
+        else:
+            # Mem0 框架不需要 workspace_id
+            result = memory_instance.update(
+                memory_id=memory_id,
+                data=new_content
+            )
+        
+        # ✅ 打印更新成功信息
+        print(f"✅ 记忆更新成功!")
+        print(f"   记忆ID: {memory_id}")
+        print(f"   分析师: {analyst_id}\n")
         
         return {
             'status': 'success',
@@ -89,6 +136,7 @@ def search_and_update_analyst_memory(
             'memory_id': memory_id,
             'analyst_id': analyst_id,
             'reason': reason,
+            'original_content': original_content,  # 添加原始内容
             'updated_content': new_content,
             'result': result
         }
@@ -148,16 +196,51 @@ def search_and_delete_analyst_memory(
                 'error': f'未找到相关记忆: {query}'
             }
         
-        memory_id = search_results['results'][0]['id']
+        # 获取搜索到的记忆
+        found_memory = search_results['results'][0]
+        memory_id = found_memory['id']
+        memory_content = found_memory.get('memory', '')
+        
+        # 🔍 打印调试信息：显示要删除的记忆
+        print(f"\n{'='*60}")
+        print(f"🗑️  记忆删除调试信息")
+        print(f"{'='*60}")
+        print(f"📌 分析师: {analyst_id}")
+        print(f"🔎 搜索查询: {query}")
+        print(f"🆔 记忆ID: {memory_id}")
+        print(f"\n📖 要删除的记忆内容:")
+        print(f"{'-'*60}")
+        print(f"{memory_content[:500]}{'...' if len(memory_content) > 500 else ''}")
+        print(f"{'-'*60}")
+        print(f"\n⚠️  删除原因: {reason}")
+        print(f"{'='*60}\n")
+        
+        # 获取框架类型，以便正确传递参数
+        framework_name = getattr(memory_instance, 'get_framework_name', lambda: 'unknown')()
         
         # 删除记忆
-        result = memory_instance.delete(memory_id=memory_id)
+        if framework_name == 'reme':
+            # ReMe 框架需要 workspace_id 参数
+            workspace_id = analyst_id  # 直接使用 analyst_id 作为 workspace_id
+            result = memory_instance.delete(
+                memory_id=memory_id,
+                workspace_id=workspace_id
+            )
+        else:
+            # Mem0 框架不需要 workspace_id
+            result = memory_instance.delete(memory_id=memory_id)
+        
+        # ✅ 打印删除成功信息
+        print(f"✅ 记忆删除成功!")
+        print(f"   记忆ID: {memory_id}")
+        print(f"   分析师: {analyst_id}\n")
         
         return {
             'status': 'success',
             'tool_name': 'search_and_delete_analyst_memory',
             'memory_id': memory_id,
             'analyst_id': analyst_id,
+            'deleted_content': memory_content,  # 添加被删除的内容
             'deletion_reason': reason,
             'result': result
         }

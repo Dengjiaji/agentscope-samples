@@ -65,6 +65,12 @@ def create_memory_instance(base_dir: str, framework: Optional[str] = None) -> Me
     
     elif framework == 'reme':
         try:
+            # 即使使用ReMe，也需要初始化mem0_integration作为占位
+            # 因为某些旧代码可能still依赖它
+            from src.memory.mem0_core import initialize_mem0_integration
+            initialize_mem0_integration(base_dir)
+            logger.info("已初始化Mem0Integration作为占位（使用ReMe框架）")
+            
             from src.memory.reme_adapter import ReMeAdapter
             return ReMeAdapter(base_dir)
         except ImportError as e:

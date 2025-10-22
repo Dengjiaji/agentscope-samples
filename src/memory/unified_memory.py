@@ -30,6 +30,12 @@ def safe_memory_add(memory_instance, messages, user_id, metadata, infer=False, o
     安全的记忆添加包装器，带调试信息
     
     Args:
+        memory_instance: 记忆实例（可能是 Mem0Adapter 或 ReMeAdapter）
+        messages: 消息内容
+        user_id: 用户ID
+        metadata: 元数据
+        infer: 是否推断（仅 Mem0 框架使用）
+        operation_name: 操作名称
         save_memory: 是否真的保存记忆到存储系统（默认True）。False时只打印调试信息，不实际保存
     """
     if not save_memory:
@@ -37,16 +43,30 @@ def safe_memory_add(memory_instance, messages, user_id, metadata, infer=False, o
         return {"status": "skipped", "reason": "save_memory=False"}
     
     try:
-        result = memory_instance.add(
-            messages=messages,
-            user_id=user_id,
-            metadata=sanitize_metadata(metadata),
-            infer=infer
-        )
+        # 检查记忆实例类型，判断是否为 ReMe 框架
+        framework_name = getattr(memory_instance, 'get_framework_name', lambda: 'unknown')()
+        
+        # 根据框架类型调用不同的 add 方法
+        if framework_name == 'reme':
+            # ReMe 框架不需要 infer 参数
+            result = memory_instance.add(
+                messages=messages,
+                user_id=user_id,
+                metadata=sanitize_metadata(metadata)
+            )
+        else:
+            # Mem0 框架或其他框架使用 infer 参数
+            result = memory_instance.add(
+                messages=messages,
+                user_id=user_id,
+                metadata=sanitize_metadata(metadata),
+                infer=infer
+            )
+        
         debug_print(f"记忆添加结果 - {operation_name}: {result}")
         return result
     except Exception as e:
-        print(f"警告：{operation_name}到mem0失败: {str(e)}")
+        print(f"警告：{operation_name}失败: {str(e)}")
         return None
 
 
@@ -892,6 +912,18 @@ unified_memory_manager = None
 def _ensure_global_instances_initialized():
     """确保全局实例已初始化（延迟初始化）"""
     global mem0_memory_manager, mem0_notification_system, mem0_communication_memory, unified_memory_manager
+    
+    # 检查 mem0_integration 是否可用
+    from src.memory.mem0_core import mem0_integration
+    if mem0_integration is None:
+        # 如果使用其他框架（如ReMe），不初始化Mem0相关实例
+        import warnings
+        warnings.warn(
+            "Mem0Integration未初始化，无法创建Mem0全局实例。"
+            "这是正常的，如果您使用的是其他记忆框架（如ReMe）。",
+            RuntimeWarning
+        )
+        return
     
     if mem0_memory_manager is None:
         mem0_memory_manager = Mem0AnalystMemoryManager(save_memory=default_save_memory)

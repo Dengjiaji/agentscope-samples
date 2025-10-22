@@ -24,8 +24,8 @@ from langchain_core.messages import HumanMessage
 from src.graph.state import AgentState
 from src.llm.models import get_model
 
-# 导入新的记忆系统
-from src.memory import unified_memory_manager
+# 导入新的记忆系统（延迟导入，避免在模块加载时初始化）
+# from src.memory import unified_memory_manager
 from src.memory.mem0_core import Notification
 
 
@@ -137,7 +137,8 @@ class Mem0NotificationSystem:
     
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        # 使用统一记忆管理器
+        # 使用统一记忆管理器（延迟导入）
+        from src.memory import unified_memory_manager
         self.memory_manager = unified_memory_manager
     
     def register_agent(self, agent_id: str, agent_name: str = None):
@@ -322,5 +323,18 @@ Please regenerate the correct JSON format reply."""
 #     return formatted
 
 
-# 创建全局Mem0通知系统实例
-mem0_notification_system = Mem0NotificationSystem()
+# 创建全局Mem0通知系统实例（延迟初始化）
+_mem0_notification_system = None
+
+def get_mem0_notification_system():
+    """获取全局Mem0通知系统实例（延迟初始化）"""
+    global _mem0_notification_system
+    if _mem0_notification_system is None:
+        _mem0_notification_system = Mem0NotificationSystem()
+    return _mem0_notification_system
+
+# 使用模块级别的__getattr__实现延迟初始化和向后兼容
+def __getattr__(name):
+    if name == 'mem0_notification_system':
+        return get_mem0_notification_system()
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

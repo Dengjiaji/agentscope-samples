@@ -76,3 +76,6 @@ live_trading/
 sandbox_logs/
 
 debug_tool_schema.py
+
+*.md
+!README.md

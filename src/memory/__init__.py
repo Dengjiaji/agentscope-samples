@@ -38,12 +38,12 @@ _EXPORTS = {
     'Mem0NotificationSystem': ('.unified_memory', 'Mem0NotificationSystem'),
     'Mem0CommunicationMemory': ('.unified_memory', 'Mem0CommunicationMemory'),
     'Mem0MemoryManager': ('.unified_memory', 'Mem0MemoryManager'),
-    # 使用getter函数替代直接访问全局实例
-    'unified_memory_manager': ('.unified_memory', 'get_unified_memory_manager'),
+    # 使用桥接器实现框架自动切换
+    'unified_memory_manager': ('.framework_bridge', 'get_memory_bridge'),
     'mem0_memory_manager': ('.unified_memory', 'get_mem0_memory_manager'),
     'mem0_notification_system': ('.unified_memory', 'get_mem0_notification_system'),
     'mem0_communication_memory': ('.unified_memory', 'get_mem0_communication_memory'),
-    'get_unified_memory_manager': ('.unified_memory', 'get_unified_memory_manager'),
+    'get_unified_memory_manager': ('.framework_bridge', 'get_memory_bridge'),
     'get_mem0_memory_manager': ('.unified_memory', 'get_mem0_memory_manager'),
     'get_mem0_notification_system': ('.unified_memory', 'get_mem0_notification_system'),
     'get_mem0_communication_memory': ('.unified_memory', 'get_mem0_communication_memory'),
@@ -59,8 +59,9 @@ def __getattr__(name):
         value = getattr(module, attr)
         
         # 如果是getter函数，调用它获取实例
-        if name in ['unified_memory_manager', 'mem0_memory_manager', 
-                    'mem0_notification_system', 'mem0_communication_memory']:
+        if name in ['unified_memory_manager', 'get_unified_memory_manager',
+                    'mem0_memory_manager', 'mem0_notification_system', 'mem0_communication_memory',
+                    'get_mem0_memory_manager', 'get_mem0_notification_system', 'get_mem0_communication_memory']:
             value = value()  # 调用getter函数
         
         globals()[name] = value
