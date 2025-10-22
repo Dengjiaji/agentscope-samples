@@ -141,7 +141,7 @@ class Mem0AnalystMemory:
         
     
     def start_analysis_session(self, session_type: str, tickers: List[str], 
-                             context: Dict[str, Any] = None) -> str:
+                             context: Dict[str, Any] = None, analysis_date: str = None) -> str:
         """开始新的分析会话"""
         session = AnalysisSession(
             session_type=session_type,
@@ -159,21 +159,28 @@ class Mem0AnalystMemory:
         开始时间: {session.start_time.strftime('%Y-%m-%d %H:%M:%S')}
         上下文: {context}
         """
+        if analysis_date:
+            session_start_message += f"\n        分析日期: {analysis_date}"
+        
         messages = [
         {"role": "assistant", "content": session_start_message}
         ]   
+        
+        metadata = {
+            "type": "session_start",
+            "session_id": session.session_id,
+            "session_type": session_type,
+            "tickers": tickers,
+            "timestamp": session.start_time.isoformat()
+        }
+        if analysis_date:
+            metadata["analysis_date"] = analysis_date
         
         safe_memory_add(
             self.memory,
             messages,
             self.analyst_id,
-            {
-                "type": "session_start",
-                "session_id": session.session_id,
-                "session_type": session_type,
-                "tickers": tickers,
-                "timestamp": session.start_time.isoformat()
-            },
+            metadata,
             infer=False,
             operation_name="分析会话开始",
             save_memory=self.save_memory
@@ -209,13 +216,17 @@ class Mem0AnalystMemory:
                 save_memory=self.save_memory
             )
     
-    def complete_analysis_session(self, session_id: str, final_result: Dict[str, Any]):
+    def complete_analysis_session(self, session_id: str, final_result: Dict[str, Any], analysis_date: str = None):
         """完成分析会话"""
         if session_id in self.current_sessions:
             session = self.current_sessions[session_id]
             session.final_result = final_result
             session.end_time = datetime.now()
             session.status = "completed"
+            
+            # 从 final_result 中提取 analysis_date (如果有)
+            if not analysis_date and isinstance(final_result, dict):
+                analysis_date = final_result.get('metadata', {}).get('analysis_date')
             
             # 记录到mem0
             completion_message = f"""
@@ -225,24 +236,30 @@ class Mem0AnalystMemory:
             结束时间: {session.end_time.strftime('%Y-%m-%d %H:%M:%S')}
             总消息数: {len(session.messages)}
             """
+            if analysis_date:
+                completion_message += f"\n            分析日期: {analysis_date}"
+            
+            metadata = {
+                "type": "session_complete",
+                "session_id": session_id,
+                "final_result": final_result,
+                "timestamp": session.end_time.isoformat()
+            }
+            if analysis_date:
+                metadata["analysis_date"] = analysis_date
             
             safe_memory_add(
                 self.memory,
                 [{"role": "assistant", "content": completion_message}],
                 self.analyst_id,
-                {
-                    "type": "session_complete",
-                    "session_id": session_id,
-                    "final_result": final_result,
-                    "timestamp": session.end_time.isoformat()
-                },
+                metadata,
                 infer=False,
                 operation_name="分析会话完成",
                 save_memory=self.save_memory
             )
     
     def start_communication(self, communication_type: str, participants: List[str], 
-                          topic: str) -> str:
+                          topic: str, analysis_date: str = None) -> str:
         """开始新的通信"""
         comm = CommunicationRecord(
             communication_type=communication_type,
@@ -260,19 +277,25 @@ class Mem0AnalystMemory:
         通信ID: {comm.communication_id}
         开始时间: {comm.start_time.strftime('%Y-%m-%d %H:%M:%S')}
         """
+        if analysis_date:
+            comm_start_message += f"\n        分析日期: {analysis_date}"
+        
+        metadata = {
+            "type": "communication_start",
+            "communication_id": comm.communication_id,
+            "communication_type": communication_type,
+            "participants": participants,
+            "topic": topic,
+            "timestamp": comm.start_time.isoformat()
+        }
+        if analysis_date:
+            metadata["analysis_date"] = analysis_date
         
         safe_memory_add(
             self.memory,
             [{"role": "assistant", "content": comm_start_message}],
             self.analyst_id,
-            {
-                "type": "communication_start",
-                "communication_id": comm.communication_id,
-                "communication_type": communication_type,
-                "participants": participants,
-                "topic": topic,
-                "timestamp": comm.start_time.isoformat()
-            },
+            metadata,
             infer=False,
             operation_name="通信开始",
             save_memory=self.save_memory
@@ -556,9 +579,14 @@ class Mem0NotificationMemory:
             }
             if backtest_date:
                 metadata["backtest_date"] = backtest_date
+            
+            # 构建content，包含分析日期
+            content = f"收到来自{notification.sender_agent}的通知: {notification.content}"
+            if backtest_date:
+                content += f"\n分析日期: {backtest_date}"
 
             self.memory.add(
-                [{"role": "assistant", "content": f"收到来自{notification.sender_agent}的通知: {notification.content}"}],
+                [{"role": "assistant", "content": content}],
                 user_id=self.agent_id,
                 metadata=sanitize_metadata(metadata),
                 infer=False
@@ -582,9 +610,14 @@ class Mem0NotificationMemory:
             }
             if backtest_date:
                 metadata["backtest_date"] = backtest_date
+            
+            # 构建content，包含分析日期
+            content = f"发送通知: {notification.content}"
+            if backtest_date:
+                content += f"\n分析日期: {backtest_date}"
 
             self.memory.add(
-                [{"role": "user", "content": f"发送通知: {notification.content}"}],
+                [{"role": "user", "content": content}],
                 user_id=self.agent_id,
                 metadata=sanitize_metadata(metadata),
                 infer=False
@@ -705,6 +738,8 @@ class Mem0CommunicationMemory:
         结果：{result.get('adjustments_made', 0)}次信号调整
         时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         """
+        if backtest_date:
+            chat_summary += f"        分析日期：{backtest_date}\n"
         
         # 详细对话内容
         conversation_details = "\n".join([
@@ -754,6 +789,8 @@ class Mem0CommunicationMemory:
         结果：{result.get('adjustments_made', 0)}次信号调整
         时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         """
+        if backtest_date:
+            meeting_summary += f"        分析日期：{backtest_date}\n"
         
         # 详细会议记录
         meeting_details = "\n".join([

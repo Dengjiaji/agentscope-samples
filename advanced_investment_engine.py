@@ -160,10 +160,13 @@ class AdvancedInvestmentAnalysisEngine:
             session_id = None
             if analyst_memory:
                 tickers = state.get("data", {}).get("tickers", [])
+                # 获取 trading_date 作为 analysis_date
+                analysis_date = state.get("metadata", {}).get("trading_date") or state.get("data", {}).get("end_date")
                 session_id = analyst_memory.start_analysis_session(
                     session_type="first_round",
                     tickers=tickers,
-                    context={"notifications_enabled": True}
+                    context={"notifications_enabled": True},
+                    analysis_date=analysis_date
                 )
             
             # 获取agent的通知记忆
@@ -205,8 +208,9 @@ class AdvancedInvestmentAnalysisEngine:
                 
                 # 完成分析会话记录
                 if analyst_memory and session_id:
-                   
-                    analyst_memory.complete_analysis_session(session_id, analysis_result)
+                    # 获取 trading_date 作为 analysis_date
+                    analysis_date = state.get("metadata", {}).get("trading_date") or state.get("data", {}).get("end_date")
+                    analyst_memory.complete_analysis_session(session_id, analysis_result, analysis_date)
                 
                 # 判断是否需要发送通知（可选）
                 notifications_enabled = state["metadata"].get("notifications_enabled", True)
@@ -222,13 +226,17 @@ class AdvancedInvestmentAnalysisEngine:
                     if notification_decision.get("should_notify", False):
                         print(f"{agent_name} 决定发送通知...")
                         
+                        # 获取 trading_date 作为 backtest_date
+                        backtest_date = state.get("metadata", {}).get("trading_date") or state.get("data", {}).get("end_date")
+                        
                         # 使用线程锁保护通知系统的全局状态
                         with self._notification_lock:
                             notification_id = notification_system.broadcast_notification(
                                 sender_agent=agent_id,
                                 content=notification_decision["content"],
                                 urgency=notification_decision.get("urgency", "medium"),
-                                category=notification_decision.get("category", "general")
+                                category=notification_decision.get("category", "general"),
+                                backtest_date=backtest_date
                             )
                         
                         print(f"通知已发送 (ID: {notification_id})")

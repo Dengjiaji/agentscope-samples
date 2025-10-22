@@ -262,10 +262,13 @@ class CommunicationManager:
         analyst_memory = memory_manager.get_analyst_memory(analyst_id)
         communication_id = None
         if analyst_memory:
+            # 获取 trading_date 作为 analysis_date
+            analysis_date = state.get("metadata", {}).get("trading_date") or state.get("data", {}).get("end_date")
             communication_id = analyst_memory.start_communication(
                 communication_type="private_chat",
                 participants=[manager_id, analyst_id],
-                topic=topic
+                topic=topic,
+                analysis_date=analysis_date
             )
         
         # 开始私聊
@@ -395,6 +398,9 @@ class CommunicationManager:
         print(f"参与者: {', '.join([manager_id] + analyst_ids)}")
         
         # 为每个分析师记录会议开始
+        # 获取 trading_date 作为 analysis_date
+        analysis_date = state.get("metadata", {}).get("trading_date") or state.get("data", {}).get("end_date")
+        
         communication_ids = {}
         for analyst_id in analyst_ids:
             analyst_memory = memory_manager.get_analyst_memory(analyst_id)
@@ -402,7 +408,8 @@ class CommunicationManager:
                 comm_id = analyst_memory.start_communication(
                     communication_type="meeting",
                     participants=[manager_id] + analyst_ids,
-                    topic=topic
+                    topic=topic,
+                    analysis_date=analysis_date
                 )
                 communication_ids[analyst_id] = comm_id
         

@@ -83,20 +83,28 @@ class ReMeAnalystMemory:
         # 为兼容性提供 memory 属性（指向 reme_adapter）
         self.memory = reme_adapter
     
-    def start_analysis_session(self, session_type: str, tickers: List[str], context: Dict[str, Any] = None):
+    def start_analysis_session(self, session_type: str, tickers: List[str], context: Dict[str, Any] = None, analysis_date: str = None):
         """开始分析会话"""
         session_id = str(uuid.uuid4())
         
-        metadata = _normalize_metadata({
+        metadata_dict = {
             "type": "session_start",
             "session_id": session_id,
             "session_type": session_type,
             "tickers": tickers,
             "context": context or {}
-        })
+        }
+        if analysis_date:
+            metadata_dict["analysis_date"] = analysis_date
+        
+        metadata = _normalize_metadata(metadata_dict)
+        
+        message = f"开始{session_type}会话，标的: {','.join(tickers)}"
+        if analysis_date:
+            message += f"，分析日期: {analysis_date}"
         
         self.reme_adapter.add(
-            messages=f"开始{session_type}会话，标的: {','.join(tickers)}",
+            messages=message,
             user_id=self.analyst_id,
             metadata=metadata
         )
@@ -119,16 +127,28 @@ class ReMeAnalystMemory:
             metadata=msg_metadata
         )
     
-    def complete_analysis_session(self, session_id: str, final_result: Dict[str, Any]):
+    def complete_analysis_session(self, session_id: str, final_result: Dict[str, Any], analysis_date: str = None):
         """完成分析会话"""
-        metadata = _normalize_metadata({
+        # 从 final_result 中提取 analysis_date (如果有)
+        if not analysis_date and isinstance(final_result, dict):
+            analysis_date = final_result.get('metadata', {}).get('analysis_date')
+        
+        metadata_dict = {
             "type": "session_complete",
             "session_id": session_id,
             "final_result": final_result
-        })
+        }
+        if analysis_date:
+            metadata_dict["analysis_date"] = analysis_date
+        
+        metadata = _normalize_metadata(metadata_dict)
+        
+        message = f"完成分析会话，结果: {str(final_result)[:200]}..."
+        if analysis_date:
+            message += f"，分析日期: {analysis_date}"
         
         self.reme_adapter.add(
-            messages=f"完成分析会话，结果: {str(final_result)[:200]}...",
+            messages=message,
             user_id=self.analyst_id,
             metadata=metadata
         )
@@ -144,20 +164,28 @@ class ReMeAnalystMemory:
         )
         return results.get('results', [])
     
-    def start_communication(self, communication_type: str, participants: List[str], topic: str) -> str:
+    def start_communication(self, communication_type: str, participants: List[str], topic: str, analysis_date: str = None) -> str:
         """开始新的通信"""
         communication_id = str(uuid.uuid4())
         
-        metadata = _normalize_metadata({
+        metadata_dict = {
             "type": "communication_start",
             "communication_id": communication_id,
             "communication_type": communication_type,
             "participants": participants,
             "topic": topic
-        })
+        }
+        if analysis_date:
+            metadata_dict["analysis_date"] = analysis_date
+        
+        metadata = _normalize_metadata(metadata_dict)
+        
+        message = f"开始{communication_type}通信，话题: {topic}，参与者: {','.join(participants)}"
+        if analysis_date:
+            message += f"，分析日期: {analysis_date}"
         
         self.reme_adapter.add(
-            messages=f"开始{communication_type}通信，话题: {topic}，参与者: {','.join(participants)}",
+            messages=message,
             user_id=self.analyst_id,
             metadata=metadata
         )
