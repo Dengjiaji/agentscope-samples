@@ -66,6 +66,9 @@ class ReMeAdapter(MemoryInterface):
             batch_size=1024
         )
         
+        # 🔧 自动加载已有的workspace记忆文件
+        self._load_existing_workspaces()
+        
         self.logger.info(f"ReMe适配器已初始化 (存储目录: {self.store_dir})")
     
     def _load_reme_env(self):
@@ -105,15 +108,78 @@ class ReMeAdapter(MemoryInterface):
         )
         self.logger = logging.getLogger(__name__)
     
+    def _load_existing_workspaces(self):
+        """
+        加载已有的workspace记忆文件
+        遍历store_dir中的所有.jsonl文件，自动加载到对应的workspace
+        """
+        if not os.path.exists(self.store_dir):
+            self.logger.info("存储目录不存在，跳过加载已有记忆")
+            return
+        
+        # 查找所有.jsonl文件
+        jsonl_files = list(Path(self.store_dir).glob("*.jsonl"))
+        
+        if not jsonl_files:
+            self.logger.info("未找到已有的记忆文件")
+            return
+        
+        loaded_count = 0
+        for jsonl_file in jsonl_files:
+            try:
+                # 从文件名提取workspace_id（去掉.jsonl后缀）
+                workspace_id = jsonl_file.stem
+                
+                # 检查workspace是否已存在
+                if self.vector_store.exist_workspace(workspace_id):
+                    self.logger.debug(f"Workspace已存在，跳过: {workspace_id}")
+                    continue
+                
+                # 加载workspace
+                self.logger.info(f"📥 加载已有记忆: {workspace_id} <- {jsonl_file}")
+                # ⚠️ load_workspace的path参数应该是目录路径，不是文件路径
+                # ReMe会自动在path下查找 {workspace_id}.jsonl 文件
+                self.vector_store.load_workspace(workspace_id, path=self.store_dir)
+                loaded_count += 1
+                
+            except Exception as e:
+                self.logger.warning(f"加载记忆文件失败 {jsonl_file}: {e}")
+        
+        if loaded_count > 0:
+            self.logger.info(f"✅ 成功加载 {loaded_count} 个workspace的已有记忆")
+        else:
+            self.logger.info("未加载任何已有记忆")
+    
     def _get_workspace_id(self, user_id: str) -> str:
         """获取workspace ID，直接使用user_id作为workspace_id"""
         return user_id
+    
+    def _load_workspace_if_exists(self, workspace_id: str):
+        """
+        如果workspace的记忆文件存在但未加载，则先加载
+        这确保了每次添加记忆时都会保留之前的记忆
+        """
+        # 如果workspace已经在内存中，不需要重新加载
+        if self.vector_store.exist_workspace(workspace_id):
+            return
+        
+        # 检查对应的jsonl文件是否存在
+        workspace_file = os.path.join(self.store_dir, f"{workspace_id}.jsonl")
+        
+        if os.path.exists(workspace_file):
+            try:
+                self.logger.info(f"📥 首次使用，加载已有记忆: {workspace_id} <- {workspace_file}")
+                # ⚠️ load_workspace的path参数应该是目录路径，不是文件路径
+                # ReMe会自动在path下查找 {workspace_id}.jsonl 文件
+                self.vector_store.load_workspace(workspace_id, path=self.store_dir)
+            except Exception as e:
+                self.logger.warning(f"加载workspace记忆失败 {workspace_id}: {e}")
     
     def _ensure_workspace_exists(self, workspace_id: str):
         """确保workspace存在"""
         if not self.vector_store.exist_workspace(workspace_id):
             self.vector_store.create_workspace(workspace_id)
-            self.logger.info(f"创建workspace: {workspace_id}")
+            self.logger.info(f"创建新workspace: {workspace_id}")
     
     def _convert_numpy_types(self, obj):
         """
@@ -198,6 +264,8 @@ class ReMeAdapter(MemoryInterface):
             **kwargs: 其他兼容性参数，ReMe中忽略
         """
         workspace_id = self._get_workspace_id(user_id)
+        # 🔧 先加载已有记忆（如果存在），再确保workspace存在
+        self._load_workspace_if_exists(workspace_id)
         self._ensure_workspace_exists(workspace_id)
         
         # 处理消息格式
@@ -249,6 +317,9 @@ class ReMeAdapter(MemoryInterface):
         """搜索记忆"""
         workspace_id = self._get_workspace_id(user_id)
         
+        # 🔧 先尝试加载已有记忆
+        self._load_workspace_if_exists(workspace_id)
+        
         # 检查workspace是否存在
         if not self.vector_store.exist_workspace(workspace_id):
             self.logger.warning(f"Workspace不存在: {workspace_id}")
@@ -275,7 +346,7 @@ class ReMeAdapter(MemoryInterface):
     def update(self, memory_id: str, data: str | Dict[str, Any], workspace_id: Optional[str] = None) -> Dict[str, Any]:
         """
         更新记忆
-        通过插入相同unique_id的VectorNode来覆盖更新
+        ⚠️ ReMe框架的正确更新方式：先删除旧节点，再插入新节点
         
         Args:
             memory_id: 记忆ID (unique_id)
@@ -293,6 +364,9 @@ class ReMeAdapter(MemoryInterface):
             else:
                 raise ValueError("必须提供 workspace_id 或在 data 中指定 user_id")
         
+        # 🔧 先加载已有记忆
+        self._load_workspace_if_exists(workspace_id)
+        
         # 处理数据格式
         if isinstance(data, str):
             content = data
@@ -307,21 +381,30 @@ class ReMeAdapter(MemoryInterface):
         # 标准化metadata
         metadata = self._normalize_metadata(metadata)
         
-        # 创建新的VectorNode，使用相同的unique_id来覆盖
+        # ⚠️ 关键修复：ReMe不支持通过insert覆盖，必须先删除后插入
+        try:
+            # Step 1: 删除旧节点
+            self.vector_store.delete([memory_id], workspace_id)
+            self.logger.debug(f"已删除旧记忆节点: {memory_id}")
+        except Exception as e:
+            # 如果删除失败（例如节点不存在），记录警告但继续
+            self.logger.warning(f"删除旧节点时出错（可能不存在）: {e}")
+        
+        # Step 2: 创建并插入新的VectorNode
         updated_node = VectorNode(
-            unique_id=memory_id,  # 使用相同的ID实现覆盖
+            unique_id=memory_id,  # 保持相同的ID
             workspace_id=workspace_id,
             content=content,
             metadata=metadata
         )
         
-        # 插入节点（会覆盖同ID的旧节点）
         self.vector_store.insert([updated_node], workspace_id)
+        self.logger.debug(f"已插入新记忆节点: {memory_id}")
         
-        # 自动保存workspace
+        # Step 3: 自动保存workspace
         self.vector_store.dump_workspace(workspace_id, path=self.store_dir)
         
-        self.logger.info(f"更新记忆: workspace={workspace_id}, id={memory_id} (已保存)")
+        self.logger.info(f"✅ 更新记忆成功: workspace={workspace_id}, id={memory_id} (已保存)")
         
         return {
             'status': 'success',
@@ -342,6 +425,9 @@ class ReMeAdapter(MemoryInterface):
         """
         if workspace_id is None:
             raise ValueError("必须提供 workspace_id 来删除记忆")
+        
+        # 🔧 先加载已有记忆
+        self._load_workspace_if_exists(workspace_id)
         
         # 执行删除
         self.vector_store.delete([memory_id], workspace_id)
@@ -382,6 +468,9 @@ class ReMeAdapter(MemoryInterface):
     def get_all(self, user_id: str, **kwargs) -> Dict[str, Any]:
         """获取所有记忆"""
         workspace_id = self._get_workspace_id(user_id)
+        
+        # 🔧 先尝试加载已有记忆
+        self._load_workspace_if_exists(workspace_id)
         
         # 检查workspace是否存在
         if not self.vector_store.exist_workspace(workspace_id):
