@@ -22,6 +22,10 @@ __all__ = [
     'mem0_memory_manager',
     'mem0_notification_system',
     'mem0_communication_memory',
+    'get_unified_memory_manager',
+    'get_mem0_memory_manager',
+    'get_mem0_notification_system',
+    'get_mem0_communication_memory',
     'LegacyMemoryManager',
     'LegacyAnalystMemory',
     'LegacyCommunicationMemory',
@@ -34,10 +38,15 @@ _EXPORTS = {
     'Mem0NotificationSystem': ('.unified_memory', 'Mem0NotificationSystem'),
     'Mem0CommunicationMemory': ('.unified_memory', 'Mem0CommunicationMemory'),
     'Mem0MemoryManager': ('.unified_memory', 'Mem0MemoryManager'),
-    'unified_memory_manager': ('.unified_memory', 'unified_memory_manager'),
-    'mem0_memory_manager': ('.unified_memory', 'mem0_memory_manager'),
-    'mem0_notification_system': ('.unified_memory', 'mem0_notification_system'),
-    'mem0_communication_memory': ('.unified_memory', 'mem0_communication_memory'),
+    # 使用getter函数替代直接访问全局实例
+    'unified_memory_manager': ('.unified_memory', 'get_unified_memory_manager'),
+    'mem0_memory_manager': ('.unified_memory', 'get_mem0_memory_manager'),
+    'mem0_notification_system': ('.unified_memory', 'get_mem0_notification_system'),
+    'mem0_communication_memory': ('.unified_memory', 'get_mem0_communication_memory'),
+    'get_unified_memory_manager': ('.unified_memory', 'get_unified_memory_manager'),
+    'get_mem0_memory_manager': ('.unified_memory', 'get_mem0_memory_manager'),
+    'get_mem0_notification_system': ('.unified_memory', 'get_mem0_notification_system'),
+    'get_mem0_communication_memory': ('.unified_memory', 'get_mem0_communication_memory'),
     'LegacyMemoryManager': ('.memory_manager', 'Mem0MemoryManager'),
     'LegacyAnalystMemory': ('.analyst_memory', 'Mem0AnalystMemory'),
     'LegacyCommunicationMemory': ('.communication_memory', 'Mem0CommunicationMemory'),
@@ -48,6 +57,12 @@ def __getattr__(name):
         module_path, attr = _EXPORTS[name]
         module = importlib.import_module(module_path, __package__)
         value = getattr(module, attr)
+        
+        # 如果是getter函数，调用它获取实例
+        if name in ['unified_memory_manager', 'mem0_memory_manager', 
+                    'mem0_notification_system', 'mem0_communication_memory']:
+            value = value()  # 调用getter函数
+        
         globals()[name] = value
         return value
     raise AttributeError(name)

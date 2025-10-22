@@ -12,23 +12,18 @@ from pydantic import Field
 
 # 导入记忆模块
 try:
-    from src.memory.mem0_core import mem0_integration
-    from src.memory.unified_memory import unified_memory_manager
+    from src.memory.memory_factory import get_memory_instance
     MEMORY_AVAILABLE = True
 except ImportError as e:
     print(f"警告: 无法导入记忆模块: {e}")
     MEMORY_AVAILABLE = False
 
 
-# 全局记忆实例
-_memory_instance = None
-
 def _get_memory_instance():
-    """获取记忆实例的单例"""
-    global _memory_instance
-    if _memory_instance is None and MEMORY_AVAILABLE:
-        _memory_instance = mem0_integration.get_memory_instance("shared_analysts")
-    return _memory_instance
+    """获取记忆实例（从工厂获取）"""
+    if not MEMORY_AVAILABLE:
+        return None
+    return get_memory_instance()
 
 
 # ===================== 记忆管理工具 - LangChain装饰器模式 =====================
@@ -66,11 +61,23 @@ def search_and_update_analyst_memory(
         }
         
     try:
-        results = memory_instance.search(
+        # 搜索记忆
+        search_results = memory_instance.search(
             query=query,
-            user_id=analyst_id
+            user_id=analyst_id,
+            top_k=1
         )
-        memory_id = results['results'][0]['id']
+        
+        if not search_results.get('results'):
+            return {
+                'status': 'failed',
+                'tool_name': 'search_and_update_analyst_memory',
+                'error': f'未找到相关记忆: {query}'
+            }
+        
+        memory_id = search_results['results'][0]['id']
+        
+        # 更新记忆
         result = memory_instance.update(
             memory_id=memory_id,
             data=new_content
@@ -127,11 +134,23 @@ def search_and_delete_analyst_memory(
         }
         
     try:
-        results = memory_instance.search(
+        # 搜索记忆
+        search_results = memory_instance.search(
             query=query,
-            user_id=analyst_id
+            user_id=analyst_id,
+            top_k=1
         )
-        memory_id = results['results'][0]['id']
+        
+        if not search_results.get('results'):
+            return {
+                'status': 'failed',
+                'tool_name': 'search_and_delete_analyst_memory',
+                'error': f'未找到相关记忆: {query}'
+            }
+        
+        memory_id = search_results['results'][0]['id']
+        
+        # 删除记忆
         result = memory_instance.delete(memory_id=memory_id)
         
         return {

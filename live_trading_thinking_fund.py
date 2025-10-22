@@ -33,7 +33,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
 
 from src.config.env_config import LiveTradingConfig
-from src.memory.mem0_core import initialize_mem0_integration
+from src.memory.memory_factory import initialize_memory_system, get_memory_instance
 # from src.memory.unified_memory import unified_memory_manager
 MEMORY_AVAILABLE = True
 from src.utils.llm import call_llm
@@ -830,7 +830,11 @@ def main():
         # 加载配置
         config = LiveThinkingFundConfig()
         config.override_with_args(args)
-        mem0_integration = initialize_mem0_integration(base_dir =config.config_name)
+        
+        # 初始化记忆系统（自动根据环境变量选择框架）
+        memory_instance = initialize_memory_system(base_dir=config.config_name)
+        print(f"✅ 记忆系统已初始化: {memory_instance.get_framework_name()}")
+        
         thinking_fund = LiveTradingThinkingFund(base_dir=config.config_name)
         tickers = args.tickers.split(",") if args.tickers else config.tickers
         from pprint import pprint

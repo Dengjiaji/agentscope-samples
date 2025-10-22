@@ -879,12 +879,48 @@ class Mem0MemoryManager:
 # 全局实例
 # ================================
 
-# 创建全局实例
-# 默认启用记忆保存，可以通过环境变量 MEMORY_SAVE_DISABLED=true 来禁用
+# 延迟初始化全局实例，避免在模块导入时初始化
 import os
 default_save_memory = not (os.getenv("MEMORY_SAVE_DISABLED", "false").lower() in ("true", "1", "yes"))
 
-mem0_memory_manager = Mem0AnalystMemoryManager(save_memory=default_save_memory)
-mem0_notification_system = Mem0NotificationSystem(save_memory=default_save_memory)
-mem0_communication_memory = Mem0CommunicationMemory(save_memory=default_save_memory)
-unified_memory_manager = Mem0MemoryManager(save_memory=default_save_memory)
+# 全局实例变量
+mem0_memory_manager = None
+mem0_notification_system = None
+mem0_communication_memory = None
+unified_memory_manager = None
+
+def _ensure_global_instances_initialized():
+    """确保全局实例已初始化（延迟初始化）"""
+    global mem0_memory_manager, mem0_notification_system, mem0_communication_memory, unified_memory_manager
+    
+    if mem0_memory_manager is None:
+        mem0_memory_manager = Mem0AnalystMemoryManager(save_memory=default_save_memory)
+    
+    if mem0_notification_system is None:
+        mem0_notification_system = Mem0NotificationSystem(save_memory=default_save_memory)
+    
+    if mem0_communication_memory is None:
+        mem0_communication_memory = Mem0CommunicationMemory(save_memory=default_save_memory)
+    
+    if unified_memory_manager is None:
+        unified_memory_manager = Mem0MemoryManager(save_memory=default_save_memory)
+
+def get_mem0_memory_manager():
+    """获取mem0_memory_manager实例"""
+    _ensure_global_instances_initialized()
+    return mem0_memory_manager
+
+def get_mem0_notification_system():
+    """获取mem0_notification_system实例"""
+    _ensure_global_instances_initialized()
+    return mem0_notification_system
+
+def get_mem0_communication_memory():
+    """获取mem0_communication_memory实例"""
+    _ensure_global_instances_initialized()
+    return mem0_communication_memory
+
+def get_unified_memory_manager():
+    """获取unified_memory_manager实例"""
+    _ensure_global_instances_initialized()
+    return unified_memory_manager
