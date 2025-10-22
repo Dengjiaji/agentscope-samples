@@ -315,11 +315,24 @@ class LiveTradingThinkingFund:
         for agent in ['sentiment_analyst', 'technical_analyst', 'fundamentals_analyst', 'valuation_analyst']:
             for ticker in tickers:
                 agent_results = analysis_result.get('raw_results', {}).get('results', {}).get('final_analyst_results', {})
-                # if agent in agent_results and ticker in agent_results[agent].get('analysis_result', {}):
-                # live_env['ana_signals'][agent][ticker] = agent_results[agent]['analysis_result'][ticker]['signal']
-                # pdb.set_trace()
-                matched = next((item for item in agent_results[agent]['analysis_result']['ticker_signals'] if item['ticker'] == ticker), None)
-                live_env['ana_signals'][agent][ticker] = matched['signal']
+                
+                if agent not in agent_results:
+                    continue
+                
+                analyst_result = agent_results[agent].get('analysis_result', {})
+                
+                # 兼容两种格式：
+                # 1. 第一轮格式: {ticker: {signal, confidence, ...}}
+                # 2. 第二轮格式: {ticker_signals: [{ticker, signal, confidence, ...}]}
+                if 'ticker_signals' in analyst_result:
+                    # 第二轮格式
+                    matched = next((item for item in analyst_result['ticker_signals'] if item['ticker'] == ticker), None)
+                    if matched:
+                        live_env['ana_signals'][agent][ticker] = matched['signal']
+                elif ticker in analyst_result:
+                    # 第一轮格式
+                    if 'signal' in analyst_result[ticker]:
+                        live_env['ana_signals'][agent][ticker] = analyst_result[ticker]['signal']
 
                 
         self.live_system.save_daily_signals(target_date, pm_signals)
