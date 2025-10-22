@@ -212,14 +212,25 @@ class ReMeAnalystMemory:
     
     def complete_communication(self, communication_id: str, summary: str = None):
         """完成通信"""
+        from datetime import datetime
+        
+        # 构建与 Mem0 一致的消息格式
+        completion_message = f"""
+            完成通信
+            通信ID: {communication_id}
+            结束时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+            """
+        if summary:
+            completion_message += f"            总结: {summary}\n"
+        
         metadata = _normalize_metadata({
             "type": "communication_complete",
             "communication_id": communication_id,
-            "summary": summary or "通信结束"
+            "timestamp": datetime.now().isoformat()
         })
         
         self.reme_adapter.add(
-            messages=f"完成通信，总结: {summary or '无'}",
+            messages=completion_message,
             user_id=self.analyst_id,
             metadata=metadata
         )
@@ -229,20 +240,31 @@ class ReMeAnalystMemory:
     def record_signal_adjustment(self, communication_id: str, original_signal: Dict[str, Any], 
                                 adjusted_signal: Dict[str, Any], reasoning: str):
         """记录信号调整"""
+        from datetime import datetime
+        
+        timestamp = datetime.now().isoformat()
+        
+        # 构建与 Mem0 一致的消息格式
+        adjustment_message = f"""
+            信号调整记录
+            通信ID: {communication_id}
+            原信号: {self._extract_signal_summary(original_signal)}
+            调整后信号: {self._extract_signal_summary(adjusted_signal)}
+            调整理由: {reasoning}
+            调整时间: {timestamp}
+            """
+        
         metadata = _normalize_metadata({
             "type": "signal_adjustment",
             "communication_id": communication_id,
             "original_signal": original_signal,
             "adjusted_signal": adjusted_signal,
-            "reasoning": reasoning
+            "reasoning": reasoning,
+            "timestamp": timestamp
         })
         
-        # 提取信号摘要
-        orig_summary = self._extract_signal_summary(original_signal)
-        adj_summary = self._extract_signal_summary(adjusted_signal)
-        
         self.reme_adapter.add(
-            messages=f"信号调整: {orig_summary} -> {adj_summary}, 理由: {reasoning}",
+            messages=adjustment_message,
             user_id=self.analyst_id,
             metadata=metadata
         )

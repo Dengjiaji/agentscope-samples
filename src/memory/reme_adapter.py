@@ -301,8 +301,8 @@ class ReMeAdapter(MemoryInterface):
         self.vector_store.insert([node], workspace_id)
         
         # 自动保存workspace
-        print(f"💾 准备保存 workspace: {workspace_id}")
-        print(f"   保存路径: {self.store_dir}")
+        # print(f"💾 准备保存 workspace: {workspace_id}")
+        # print(f"   保存路径: {self.store_dir}")
         # ⚠️ 必须传入 path 参数，否则会保存到当前工作目录
         self.vector_store.dump_workspace(workspace_id, path=self.store_dir)
         
