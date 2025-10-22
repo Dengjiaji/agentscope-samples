@@ -1,7 +1,12 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 /**
- * LiveTradingCompanyApp
+ * LiveTradingCompanyApp — "仪表条 + 抽屉" 版本（可直接运行）
+ * 说明：
+ * - 用全宽仪表条（Bar）替换原来的小三角折叠按钮。
+ * - 仪表条点击后，展开/收起 Team 抽屉（Drawer）。
+ * - 订阅/退订 WebSocket 仍然基于 showTeam 状态。
+ * - 移除了缩放 Agents 行的 transform/测高逻辑，避免文字被缩放导致的可读性问题。
  */
 
 // ====== Configuration ======
@@ -43,12 +48,13 @@ const AGENTS = [
 
 // Neon, cold, hacker-ish accents (no warm oranges)
 const ROLE_COLORS = {
-  "Portfolio Manager": "#00B3CC", // deep cyan (readable)
-  "Risk Manager": "#CC2E70", // deep magenta (readable)
-  "Valuation Analyst": "#5C49CC", // deep indigo
-  "Sentiment Analyst": "#6EB300", // deep lime
-  "Fundamental Analyst": "#00B87A", // deep mint
-  "Technical Analyst": "#BFA300", // deep yellow
+  "Portfolio Manager": "#00B3CC",
+  "Risk Manager": "#CC2E70",
+  "Valuation Analyst": "#5C49CC",
+  "Sentiment Analyst": "#6EB300",
+  "Fundamentals Analyst": "#00B87A",
+  "Technical Analyst": "#BFA300",
+  System: "#000000",
 };
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -91,7 +97,8 @@ class PythonClient extends IClient {
     this.ws.onclose = () => this.onEvent({ type: 'system', content: 'Python client disconnected.' });
   }
   stop() {
-    if (this.ws) { try { this.ws.close(); } catch {} }
+    if (this.ws) { try { this.ws.close(); } catch {}
+    }
     this.ws = null;
   }
 }
@@ -106,9 +113,11 @@ function RevampStyles() {
       canvas, img { image-rendering: pixelated; image-rendering: crisp-edges; }
 
       .wrap { display:flex; flex-direction:column; min-height:100vh; }
-      .topbar { background:#ffffff; padding:14px 0; border-bottom:1px solid #000; position: sticky; top: 0; z-index: 5; }
+      .topbar { background:#ffffff; padding:14px 0; border-bottom:1px solid #000; position: sticky; top: 0; z-index: 10; }
       .title { font-size:18px; font-weight:900; letter-spacing:2px; text-align:center; text-transform:uppercase; }
 
+      /* ===== Agents row ===== */
+      .agentsShell { position:relative; }
       .agents { padding:14px 12px; display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px; max-width:1400px; margin:0 auto; }
       .agent-card { display:flex; flex-direction:column; align-items:center; gap:6px; background:#fff; border:1px dotted #000; border-radius:4px; padding:8px 6px; }
       .avatar-square { width:92px; height:92px; position:relative; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:0; background:#ffffff; border:none; }
@@ -117,7 +126,45 @@ function RevampStyles() {
       .agent-name { font-size:12px; font-weight:900; }
       .agent-role { font-size:11px; margin-top:2px; opacity:.95; }
 
-      .main { flex:1; max-width:1400px; margin:12px auto 18px; display:grid; grid-template-columns:1fr 380px; gap:16px; align-items:start; }
+      /* ===== Meter Bar + Drawer ===== */
+      .bar { width:100%; border-top:1px solid #000; background:#fff; display:flex; align-items:center; justify-content:center; gap:12px; padding:10px 12px; border-radius:0;}
+      .bar:focus { border-top:1px solid #000; outline-offset:-2px; }
+      .bar-title { font-weight:900; letter-spacing:1px; }
+      .bar-metrics { font-size:12px; opacity:.9; }
+      .bar b { font-weight:900; }
+      .chev { width:10px; height:10px; border-right:2px solid #000; border-bottom:2px solid #000; transform:rotate(45deg); transition: transform .25s ease; }
+      .chev.up { transform: rotate(-135deg); }
+
+      .drawer { overflow:hidden; max-height:0; transition:max-height .45s ease; background:#fff; }
+      .drawer.open { max-height: 680px; }
+
+      .teamWrap { max-width:1400px; margin:0 auto; padding:0 12px 10px; display:flex; flex-direction:column; gap:12px; max-height: 60vh; overflow:auto; }
+
+      .panel { border:1px solid #000; background:#fff; border-radius:0; padding:10px; }
+      .teamPanel { border:none !important; padding:0 !important; background:#fff; }
+      .panel-title { font-size:16px; font-weight:900; letter-spacing:1px; display:flex; align-items:center; justify-content:space-between; }
+
+      .tabs { display:flex; border-bottom:1px solid #000; }
+      .tab { font-size:12px; font-weight:900; padding:8px 10px; border-right:1px solid #000; background:#fff; cursor:pointer; }
+      .tab.active { background:#000; color:#fff; }
+
+      /* Chart: no border; axes drawn in canvas */
+      .chart { height:220px; width:100%; }
+
+      /* Leaderboard */
+      .leaderboard { border:1px solid #000; }
+      .lb-header { font-size:16px; font-weight:900; letter-spacing:1px; padding:10px; border-bottom:1px solid #000; display:flex; align-items:center; justify-content:space-between; }
+      .lb-table { width:100%; border-collapse:separate; border-spacing:0; font-size:12px; }
+      .lb-table thead th { position:sticky; top:0; background:#fff; border-bottom:1px solid #000; padding:8px; text-align:left; font-weight:900; }
+      .lb-row { transition: transform .35s ease; }
+      .lb-row.movedUp { animation: bumpUp .35s ease; }
+      @keyframes bumpUp { 0%{transform:translateY(4px);} 100%{transform:translateY(0);} }
+      .lb-cell { padding:8px; border-top:1px dotted #000; }
+      .lb-avatar { width:28px; height:28px; image-rendering:pixelated; }
+      .lb-expand { cursor:pointer; text-decoration:underline; font-size:11px; }
+      .lb-log { padding:8px 10px; background:rgba(0,0,0,.03); border-top:1px dotted #000; white-space:pre-wrap; }
+
+      .main { flex:1; max-width:1400px; margin:12px auto 18px; display:grid; grid-template-columns:1fr 380px; gap:16px; align-items:start; transition: transform .35s ease; }
 
       /* Scene panel — NO bg, NO border */
       .panel-scene { background:transparent; border:none; border-radius:0; }
@@ -128,23 +175,11 @@ function RevampStyles() {
       .bubble { position:absolute; max-width:300px; font-size:12px; background:#ffffff; color:#0b1220; padding:8px 10px; border-radius:0; border:1px solid #000; }
       .bubble::after{ content:""; position:absolute; left:14px; bottom:-7px; width:10px; height:10px; background:#ffffff; border-left:1px solid #000; border-bottom:1px solid #000; transform:rotate(45deg); }
 
-      /* Right dock: single bordered box with tabs header */
+      /* Right dock: Agent Logs only */
       .dock { display:flex; flex-direction:column; height:520px; }
       .dock-box { display:flex; flex-direction:column; border:1px solid #000; border-radius:0; height:100%; overflow:hidden;}
-      .tabs { display:flex; gap:0; border-bottom:1px solid #000; border-radius:0; }
-      .tab { flex:1; font-size:12px; font-weight:900; padding:8px 10px; background:#ffffff; cursor:pointer; border-right:1px solid #000; border-radius:0;}
-      .tab:last-child{ border-right:none;border-radius:0; }
-      .tab.active { background:#000; color:#fff; border-radius:0;}
-
       .dock-body { flex:1; display:flex; flex-direction:column; padding:8px; overflow:auto; }
       .section-title { font-size:12px; font-weight:900; margin:0 0 8px; color:#0b1220; text-transform:uppercase; }
-
-      /* Chart */
-      .chart { height:200px; border:1px solid #000; border-radius:0; background:#fff; width:100%; box-sizing:border-box; /* updated: no overflow */ }
-      .portfolio-table { width:100%; border-collapse:separate; border-spacing:0; font-size:12px; }
-      .portfolio-table th, .portfolio-table td { text-align:left; padding:6px 8px; }
-      .portfolio-table thead th { position:sticky; top:0; background:#ffffff; border-bottom:1px solid #000; font-weight:900; }
-      .portfolio-table tbody tr + tr td { border-top:1px dotted #000; }
 
       /* Log list */
       .logs { overflow:auto; display:flex; flex-direction:column; gap:8px; }
@@ -177,14 +212,14 @@ export default function LiveTradingCompanyApp() {
   const [balance, setBalance] = useState(1250000);
   const [logs, setLogs] = useState([]);
   const [bubbles, setBubbles] = useState({});
-  const [candles, setCandles] = useState(() => seedOHLC()); // K线数据
-  const [holdings, setHoldings] = useState([]);
+  const [holdings, setHoldings] = useState([]); // Team panel portfolio
 
-  const [tab, setTab] = useState('market');
   const [selectedDate, setSelectedDate] = useState(todayISO());
-
   const [now, setNow] = useState(() => new Date());
   useEffect(() => { const id = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(id); }, []);
+
+  // Drawer state（替代小三角折叠）
+  const [showTeam, setShowTeam] = useState(false);
 
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
@@ -229,8 +264,6 @@ export default function LiveTradingCompanyApp() {
 
   const pushEvent = (evt) => {
     if (!evt) return;
-    if (evt.type === 'price') { setCandles((prev) => applyTick(prev, evt.price)); return; }
-    if (evt.type === 'candle') { setCandles((prev) => [...prev.slice(-199), evt.candle]); return; }
     if (evt.type === 'agent_message') {
       const a = AGENTS.find((x) => x.id === evt.agentId);
       const entry = { id: `${Date.now()}-${Math.random()}`, ts: new Date(), who: a?.name || evt.agentId, role: a?.role, text: evt.content };
@@ -241,6 +274,33 @@ export default function LiveTradingCompanyApp() {
     if (evt.type === 'system') {
       const entry = { id: `${Date.now()}-${Math.random()}`, ts: new Date(), who: 'System', role: 'System', text: evt.content };
       setLogs((prev) => [entry, ...prev].slice(0, 400));
+      return;
+    }
+    // ===== Team Dashboard channels over WebSocket =====
+    if (evt.type === 'team_summary') {
+      // { pnlPct, equity:[{t,v}], balance }
+      setTeamSummary({ pnlPct: evt.pnlPct ?? 0, equity: evt.equity || [], balance: evt.balance });
+      if (typeof evt.balance === 'number') setBalance(evt.balance);
+      return;
+    }
+    if (evt.type === 'team_portfolio') {
+      // { holdings:[...] }
+      setHoldings(evt.holdings || []);
+      return;
+    }
+    if (evt.type === 'team_stats') {
+      // { winRate, hitRate, bullBear:{ bull:{n,win}, bear:{n,win} } }
+      setStats(evt);
+      return;
+    }
+    if (evt.type === 'team_trades') {
+      if (Array.isArray(evt.trades)) setTradeLogs(evt.trades);
+      else if (evt.trade) setTradeLogs((prev)=>[evt.trade, ...prev].slice(0,400));
+      return;
+    }
+    if (evt.type === 'team_leaderboard') {
+      if (Array.isArray(evt.rows)) setLeaderboard(evt.rows);
+      return;
     }
   };
 
@@ -261,31 +321,125 @@ export default function LiveTradingCompanyApp() {
   const bubbleFor = (id) => {
     const b = bubbles[id]; if (!b) return null; const age = (Date.now() - b.ts) / 1000; if (age > 4) return null; return b; };
 
-  // ===== UI =====
+  // ===== Team Results state =====
+  const [teamTab, setTeamTab] = useState('net'); // 'net' | 'portfolio' | 'stats' | 'trades'
+  const [teamSummary, setTeamSummary] = useState({ pnlPct: 0, equity: [] });
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [tradeLogs, setTradeLogs] = useState([]);
+  const [stats, setStats] = useState(null);
+
+  // 使用 selfTest() 的结果来注入 mock（开发时方便预览）
+  useEffect(() => {
+    if (!isRunning && window.__LB_SELFTEST_OK) {
+      const ms = mockSummary();
+      const hs = mockHoldings();
+      const st = mockStats();
+      const tr = mockTrades();
+      const lb = mockLeaderboard();
+      setTeamSummary(ms);
+      setHoldings(hs);
+      setStats(st);
+      setTradeLogs(tr);
+      setLeaderboard(lb);
+    }
+  }, [isRunning]);
+
+  // Subscribe/unsubscribe based on visibility (改为基于 Drawer)
+  useEffect(() => {
+    const ws = clientRef.current?.ws;
+    const channels = ['team_summary','team_portfolio','team_stats','team_trades','team_leaderboard'];
+    if (!ws) return;
+    if (showTeam) {
+      ws.send(JSON.stringify({ type: 'subscribe', channels }));
+      ws.send(JSON.stringify({ type: 'request_snapshot', channels }));
+    } else {
+      ws.send(JSON.stringify({ type: 'unsubscribe', channels }));
+    }
+  }, [showTeam]);
+
   return (
     <div className="wrap">
       <RevampStyles />
       <div className="topbar"><div className="title">LIVE TRADING COMPANY</div></div>
 
       {/* Agent Cards */}
-      <div className="agents">
-        {AGENTS.map((a) => {
-          const talk = bubbleFor(a.id);
-          const speaking = !!talk;
-          const color = ROLE_COLORS[a.role] || '#000';
-          return (
-            <div key={a.id} className="agent-card">
-              <div className="avatar-square">
-                <img src={ASSETS[a.avatar]} alt={a.name} className="avatar-img" />
-                <span className="talk-dot" style={{ background: speaking ? color : '#fff' }} />
+      <div className="agentsShell">
+        <div className="agents">
+          {AGENTS.map((a) => {
+            const talk = bubbleFor(a.id);
+            const speaking = !!talk;
+            const color = ROLE_COLORS[a.role] || '#000';
+            return (
+              <div key={a.id} className="agent-card">
+                <div className="avatar-square">
+                  <img src={ASSETS[a.avatar]} alt={a.name} className="avatar-img" />
+                  <span className="talk-dot" style={{ background: speaking ? color : '#fff' }} />
+                </div>
+                <div className="agent-labels" style={{ textAlign: 'center' }}>
+                  <div className="agent-name" style={{ color }}>{a.name}</div>
+                  <div className="agent-role" style={{ color }}>{a.role}</div>
+                </div>
               </div>
-              <div className="agent-labels" style={{ textAlign: 'center' }}>
-                <div className="agent-name" style={{ color }}>{a.name}</div>
-                <div className="agent-role" style={{ color }}>{a.role}</div>
-              </div>
+            );
+          })}
+        </div>
+
+        {/* 仪表条（Bar） */}
+        <button
+          className="bar"
+          aria-expanded={showTeam}
+          aria-controls="team-drawer"
+          onClick={() => setShowTeam(v => !v)}
+          style={{
+        background: teamSummary.pnlPct >= 0 ? '#E8F8E0' : '#FFE8EE',   // 胜利=浅绿，亏损=浅红
+        borderBottom: '1px solid #000'
+        }}
+        >
+          <span className="bar-title">TEAM DASHBOARD</span>
+          <span className="bar-metrics">P&L <b>{teamSummary.pnlPct >= 0 ? '+' : ''}{(teamSummary.pnlPct||0).toFixed(1)}%</b> · Holdings <b>{holdings?.length || 0}</b></span>
+          <span className={`chev ${showTeam ? 'up' : ''}`} aria-hidden />
+        </button>
+
+        {/* Drawer（抽屉） */}
+        <div id="team-drawer" className={`drawer ${showTeam ? 'open' : ''}`}>
+          {showTeam && (
+            <div className="teamWrap">
+              {/* TEAM RESULTS (full width) */}
+              <section className="panel teamPanel">
+                <div className="panel-title">
+                  <span>TEAM RESULTS</span>
+                  <strong style={{ color: teamSummary.pnlPct >= 0 ? '#6EB300' : '#FF3B8D' }}>{teamSummary.pnlPct >= 0 ? '+' : ''}{(teamSummary.pnlPct||0).toFixed(1)}%</strong>
+                </div>
+                {/* Tabs */}
+                <div className="tabs" style={{ marginTop:8 }}>
+                  <div className={`tab ${teamTab==='net'?'active':''}`} onClick={()=>setTeamTab('net')}>NET VALUE</div>
+                  <div className={`tab ${teamTab==='portfolio'?'active':''}`} onClick={()=>setTeamTab('portfolio')}>PORTFOLIO</div>
+                  <div className={`tab ${teamTab==='stats'?'active':''}`} onClick={()=>setTeamTab('stats')}>STATISTICS</div>
+                  <div className={`tab ${teamTab==='trades'?'active':''}`} onClick={()=>setTeamTab('trades')}>TRADES</div>
+                </div>
+                <div style={{ paddingTop:10 }}>
+                  {teamTab==='net' && <NetValueChart data={teamSummary.equity || []} />}
+                  {teamTab==='portfolio' && <PortfolioTable holdings={holdings} />}
+                  {teamTab==='stats' && <StatisticsPanel stats={stats} />}
+                  {teamTab==='trades' && <TradesTable trades={tradeLogs} />}
+                  <div style={{ fontSize:12, marginTop:8 }}>Balance: <span style={{ fontWeight: 900 }}>${balance.toLocaleString()}</span></div>
+                </div>
+              </section>
+
+              {/* LEADERBOARD */}
+              <section className="panel teamPanel" style={{ padding:0 }}>
+                <div className="lb-header" style={{ borderBottom:'1px solid #000' }}>LEADERBOARD
+                  <small style={{ fontSize:11, opacity:.7 }}>&nbsp;•&nbsp;Click row to expand</small>
+                </div>
+                <div style={{ maxHeight: '38vh', minHeight: 180, overflowY:'auto' }}>
+                  <LeaderboardTable rows={leaderboard} />
+                </div>
+              </section>
+
+              <div style={{ borderTop:'1px solid #000', margin:'8px 0 0' }} />
             </div>
-          );
-        })}
+          )}
+        </div>
       </div>
 
       {/* Main content: scene + right dock */}
@@ -301,7 +455,7 @@ export default function LiveTradingCompanyApp() {
                 if (!b) return null;
                 const color = ROLE_COLORS[a.role] || '#000';
                 let text = b.text || '';
-                if (text.length > 50) text = text.slice(0, 50) + '…'; // 7) bubble text limit
+                if (text.length > 50) text = text.slice(0, 50) + '…';
                 const left = Math.round((pos.x - 20) * scale);
                 const top = Math.round((pos.y - 150) * scale);
                 return (
@@ -315,28 +469,12 @@ export default function LiveTradingCompanyApp() {
           </div>
         </div>
 
-        {/* Right dock (fixed same height as scene) */}
+        {/* Right dock (Agent Logs only) */}
         <div className="dock">
           <div className="dock-box">
-            <div className="tabs">
-              <button className={`tab ${tab === 'market' ? 'active' : ''}`} onClick={() => setTab('market')}>MARKET & PORTFOLIO</button>
-              <button className={`tab ${tab === 'logs' ? 'active' : ''}`} onClick={() => setTab('logs')}>AGENT LOGS</button>
-            </div>
             <div className="dock-body">
-              {tab === 'market' ? (
-                <>
-                  <h3 className="section-title">Market</h3>
-                  <KChart data={candles} />
-                  <h3 className="section-title" style={{ marginTop:8 }}>Portfolio</h3>
-                  <PortfolioTable holdings={holdings} />
-                  <div style={{ fontSize:12, marginTop:8 }}>Balance: <span style={{ fontWeight: 900 }}>${balance.toLocaleString()}</span></div>
-                </>
-              ) : (
-                <>
-                  <h3 className="section-title">Agent Logs</h3>
-                  <AgentLogs logs={logs} />
-                </>
-              )}
+              <h3 className="section-title">Agent Logs</h3>
+              <AgentLogs logs={logs} />
             </div>
           </div>
         </div>
@@ -402,7 +540,7 @@ function AgentLogs({ logs }) {
 function PortfolioTable({ holdings }) {
   return (
     <div style={{ border: '1px solid #000', borderRadius: 0, padding: 6 }}>
-      <table className="portfolio-table">
+      <table className="portfolio-table" style={{ width:'100%' }}>
         <thead>
           <tr>
             <th style={{ width: '28%' }}>Ticker</th>
@@ -413,15 +551,15 @@ function PortfolioTable({ holdings }) {
           </tr>
         </thead>
         <tbody>
-          {holdings.length === 0 ? (
+          {(!holdings || holdings.length === 0) ? (
             <tr><td colSpan={5} style={{ padding: 10, opacity:.6 }}>No positions</td></tr>
           ) : holdings.map((h) => (
             <tr key={h.ticker}>
               <td style={{ fontWeight: 900 }}>{h.ticker}</td>
               <td>{h.qty}</td>
-              <td>${h.avg.toFixed(2)}</td>
-              <td style={{ color: h.pl >= 0 ? '#9EFF00' : '#FF3B8D', fontWeight: 900 }}>{h.pl >= 0 ? '+' : ''}{h.pl.toFixed(2)}</td>
-              <td>{(h.weight * 100).toFixed(1)}%</td>
+              <td>${Number(h.avg).toFixed(2)}</td>
+              <td style={{ color: h.pl >= 0 ? '#6EB300' : '#FF3B8D', fontWeight: 900 }}>{h.pl >= 0 ? '+' : ''}{Number(h.pl).toFixed(2)}</td>
+              <td>{(Number(h.weight) * 100).toFixed(1)}%</td>
             </tr>
           ))}
         </tbody>
@@ -430,45 +568,230 @@ function PortfolioTable({ holdings }) {
   );
 }
 
-// K-line chart
-function KChart({ data }) {
+function NetValueChart({ data }) {
   const ref = useRef(null);
   useEffect(() => {
     const cnv = ref.current; if (!cnv) return; const ctx = cnv.getContext('2d');
-    const parent = cnv.parentElement;
-    const W = parent.clientWidth - 15; const H = 200; // body has padding already
+    const parent = cnv.parentElement; const W = Math.max(280, parent.clientWidth - 15); const H = 220;
     cnv.width = W; cnv.height = H; cnv.style.width = W + 'px'; cnv.style.height = H + 'px';
+
+    // Clear background
     ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = '#fff'; ctx.fillRect(0,0,W,H);
 
-    // grid (1px)
-    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
-    ctx.strokeStyle = '#000'; ctx.lineWidth = 1;
-    for (let y = 0; y <= H; y += 16) { ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(W, y + 0.5); ctx.stroke(); }
+    // Early exit
+    if (!data || data.length === 0) {
+      drawAxes(ctx, W, H, { lo: 0, hi: 1 }, []);
+      return;
+    }
 
-    const highs = data.map(d => d.h), lows = data.map(d => d.l);
-    const hi = Math.max(...highs), lo = Math.min(...lows);
-    const pxY = (v) => Math.round((1 - (v - lo) / ((hi - lo) || 1)) * (H - 6)) + 3;
+    const vals = data.map(d => d.v);
+    const hi = Math.max(...vals), lo = Math.min(...vals);
 
-    const n = data.length; const gap = Math.max(1, Math.floor(W / (n * 2.2)));
-    const bw = Math.max(3, Math.floor((W - n * gap) / n));
+    // Axes (left + bottom) with ticks & labels
+    drawAxes(ctx, W, H, { lo, hi }, data);
 
+    // Line
+    const m = { left: 42, right: 10, top: 8, bottom: 28 };
+    const chartW = W - m.left - m.right;
+    const chartH = H - m.top - m.bottom;
+    const y = (v) => m.top + Math.round((1 - (v - lo) / ((hi - lo) || 1)) * chartH);
+    const x = (i) => m.left + Math.round((i / Math.max(1, data.length - 1)) * chartW);
+
+    ctx.beginPath();
     data.forEach((d, i) => {
-      const x = Math.round(i * (bw + gap) + 4);
-      const yO = pxY(d.o), yC = pxY(d.c), yH = pxY(d.h), yL = pxY(d.l);
-      const up = d.c >= d.o;
-      const bodyTop = Math.min(yO, yC), bodyBot = Math.max(yO, yC);
-      // wick
-      ctx.strokeStyle = '#000';
-      ctx.beginPath(); ctx.moveTo(x + Math.floor(bw/2), yH); ctx.lineTo(x + Math.floor(bw/2), yL); ctx.stroke();
-      // body
-      ctx.fillStyle = up ? '#00F5A0' : '#FF3B8D';
-      ctx.strokeStyle = '#000';
-      const hBody = Math.max(1, bodyBot - bodyTop);
-      ctx.fillRect(x, bodyTop, bw, hBody);
-      ctx.strokeRect(x, bodyTop, bw, hBody);
+      const px = x(i), py = y(d.v);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
     });
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#00B3CC';
+    ctx.stroke();
   }, [data]);
-  return <canvas ref={ref} className="chart" style={{ border:'1px solid #000' }} />;
+  return <canvas ref={ref} className="chart" />;
+}
+
+function drawAxes(ctx, W, H, range, data) {
+  const m = { left: 42, right: 10, top: 8, bottom: 28 };
+  const chartW = W - m.left - m.right;
+  const chartH = H - m.top - m.bottom;
+
+  // Axes lines
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  // Y axis
+  ctx.moveTo(m.left + 0.5, m.top); ctx.lineTo(m.left + 0.5, m.top + chartH);
+  // X axis
+  ctx.moveTo(m.left, m.top + chartH + 0.5); ctx.lineTo(m.left + chartW, m.top + chartH + 0.5);
+  ctx.stroke();
+
+  // Y ticks & labels (5 ticks)
+  const ticks = 5;
+  ctx.font = '10px ui-monospace, Menlo, monospace';
+  ctx.fillStyle = '#000';
+  for (let i = 0; i <= ticks; i++) {
+    const t = i / ticks;
+    const val = range.lo + (range.hi - range.lo) * (1 - t);
+    const py = m.top + Math.round(t * chartH) + 0.5;
+    // tick
+    ctx.beginPath();
+    ctx.moveTo(m.left - 4, py); ctx.lineTo(m.left, py);
+    ctx.stroke();
+    // label
+    const label = formatMoney(val);
+    ctx.fillText(label, 4, py + 3);
+  }
+
+  // X ticks & labels (start / mid / end dates)
+  const n = data?.length || 0;
+  const xIdx = (i) => m.left + Math.round((i / Math.max(1, n - 1)) * chartW);
+  const picks = n >= 3 ? [0, Math.floor((n - 1) / 2), n - 1] : [0, n - 1].filter((v, i, a) => a.indexOf(v) === i);
+  picks.forEach((idx) => {
+    if (idx < 0 || idx >= n) return;
+    const px = xIdx(idx) + 0.5;
+    ctx.beginPath(); ctx.moveTo(px, m.top + chartH); ctx.lineTo(px, m.top + chartH + 4); ctx.stroke();
+    const label = formatDateLabel(data[idx]?.t);
+    const textW = ctx.measureText(label).width;
+    ctx.fillText(label, px - textW / 2, H - 4);
+  });
+}
+
+function formatMoney(v) {
+  if (!isFinite(v)) return '-';
+  const abs = Math.abs(v);
+  const sign = v < 0 ? '-' : '';
+  if (abs >= 1e9) return `${sign}${(abs/1e9).toFixed(2)}B`;
+  if (abs >= 1e6) return `${sign}${(abs/1e6).toFixed(2)}M`;
+  if (abs >= 1e3) return `${sign}${(abs/1e3).toFixed(2)}K`;
+  return `${sign}${abs.toFixed(2)}`;
+}
+
+function formatDateLabel(t) {
+  if (!t) return '';
+  const d = new Date(t);
+  if (isNaN(d)) return '';
+  return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function StatisticsPanel({ stats }) {
+  if (!stats) return <div style={{ opacity:.6, fontSize:12 }}>No statistics.</div>;
+  const rows = [
+    ["WIN %", `${Math.round((stats.winRate||0)*100)}%`],
+    ["HIT RATE", `${Math.round((stats.hitRate||0)*100)}%`],
+    ["BULL", `${stats.bullBear?.bull?.n||0} × / WIN ${stats.bullBear?.bull?.win||0}`],
+    ["BEAR", `${stats.bullBear?.bear?.n||0} × / WIN ${stats.bullBear?.bear?.win||0}`],
+  ];
+  return (
+    <div className="panel" style={{ padding:6 }}>
+      <table className="portfolio-table" style={{ width:'100%' }}>
+        <tbody>
+          {rows.map(([k,v]) => (
+            <tr key={k}>
+              <td style={{ width:'40%', fontWeight:900 }}>{k}</td>
+              <td>{v}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function TradesTable({ trades }) {
+  return (
+    <div className="panel" style={{ padding:6 }}>
+      <table className="portfolio-table" style={{ width:'100%' }}>
+        <thead>
+          <tr>
+            <th>Time</th><th>Ticker</th><th>Side</th><th>Qty</th><th>Price</th><th>P/L</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(!trades || trades.length===0) ? (
+            <tr><td colSpan={6} style={{ padding: 10, opacity:.6 }}>No trades</td></tr>
+          ) : trades.map(t => (
+            <tr key={t.id}>
+              <td>{formatTime(t.ts)}</td>
+              <td style={{ fontWeight:900 }}>{t.ticker}</td>
+              <td>{t.side}</td>
+              <td>{t.qty}</td>
+              <td>${Number(t.price).toFixed(2)}</td>
+              <td style={{ color: t.pnl >= 0 ? '#6EB300' : '#FF3B8D', fontWeight:900 }}>{t.pnl>=0?'+':''}{Number(t.pnl).toFixed(2)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function LeaderboardTable({ rows }) {
+  const prevRanksRef = useRef({});
+  const [openRow, setOpenRow] = useState(null);
+
+  const baseRows = useMemo(() => {
+    if (rows && rows.length) return rows;
+    return AGENTS.map((a, i) => ({
+      agentId: a.id,
+      name: a.name,
+      role: a.role,
+      avatar: a.avatar,
+      rank: i + 1,
+      winRate: null,
+      bull: { n: null, win: null },
+      bear: { n: null, win: null },
+      logs: []
+    }));
+  }, [rows]);
+
+  const sorted = useMemo(() => baseRows.slice().sort((a,b)=>a.rank - b.rank), [baseRows]);
+  const fmt = (v) => (v === null || v === undefined ? '-' : v);
+
+  return (
+    <div>
+      <table className="lb-table">
+        <thead>
+          <tr>
+            <th style={{ width:60 }}>RANK</th>
+            <th colSpan={2}>AGENT</th>
+            <th style={{ width:90 }}>WIN %</th>
+            <th style={{ width:160 }}>BULL</th>
+            <th style={{ width:160 }}>BEAR</th>
+            <th style={{ width:80 }}>LOGS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((r) => {
+            const color = ROLE_COLORS[r.role] || '#000';
+            const movedUp = prevRanksRef.current[r.agentId] && prevRanksRef.current[r.agentId] > r.rank;
+            prevRanksRef.current[r.agentId] = r.rank;
+            const open = openRow === r.agentId;
+            return (
+              <React.Fragment key={r.agentId}>
+                <tr className={`lb-row ${movedUp ? 'movedUp' : ''}`} onClick={()=> setOpenRow(open ? null : r.agentId)}>
+                  <td className="lb-cell" style={{ fontWeight:900 }}>{r.rank}</td>
+                  <td className="lb-cell" style={{ width:34 }}>
+                    <img className="lb-avatar" src={ASSETS[r.avatar]} alt={r.name} />
+                  </td>
+                  <td className="lb-cell" style={{ fontWeight:900, color }}>{r.name}<div style={{ fontSize:10, opacity:.8 }}>{r.role}</div></td>
+                  <td className="lb-cell" style={{ fontWeight:900 }}>{r.winRate==null?'-':Math.round((r.winRate||0)*100)+'%'}</td>
+                  <td className="lb-cell">{fmt(r.bull?.n)} × / WIN {fmt(r.bull?.win)}</td>
+                  <td className="lb-cell">{fmt(r.bear?.n)} × / WIN {fmt(r.bear?.win)}</td>
+                  <td className="lb-cell"><span className="lb-expand">{open ? 'collapse' : 'expand'}</span></td>
+                </tr>
+                {open && (
+                  <tr>
+                    <td className="lb-log" colSpan={7}>{(r.logs || []).length ? (r.logs||[]).map((l,i)=>`${i+1}. ${l}`).join("") : 'No logs.'}</td>
+                  </tr>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 // ====== Helpers ======
@@ -490,22 +813,55 @@ function useResizeScale(containerRef, native) {
   return scale;
 }
 
-function seedOHLC(n = 80, start = 100) {
-  const arr = []; let p = start;
-  for (let i = 0; i < n; i++) {
-    const o = p; const ch = (Math.random() - 0.5) * 2.4;
-    let h = o + Math.abs(ch) * (0.8 + Math.random());
-    let l = o - Math.abs(ch) * (0.8 + Math.random());
-    const c = o + ch; p = c; h = Math.max(h, Math.max(o, c)); l = Math.min(l, Math.min(o, c)); arr.push({ o, h, l, c });
-  }
-  return arr;
-}
-
-function applyTick(prev, price) {
-  const out = prev.slice(); if (out.length === 0) return [{ o: price, h: price, l: price, c: price }];
-  const last = { ...out[out.length - 1] }; last.c = price; last.h = Math.max(last.h, price); last.l = Math.min(last.l, price); out[out.length - 1] = last; return out;
-}
-
 function formatTime(ts) { try { const d = new Date(ts); return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch { return '' } }
 
 function hexToRgba(hex, a = 1) { if (!hex) return `rgba(0,0,0,${a})`; const c = hex.replace('#', ''); const bigint = parseInt(c.length === 3 ? c.split('').map(x=>x+x).join('') : c, 16); const r = (bigint >> 16) & 255; const g = (bigint >> 8) & 255; const b = bigint & 255; return `rgba(${r}, ${g}, ${b}, ${a})`; }
+
+// ===== Mock fallbacks =====
+function mockSummary(){
+  const equity = Array.from({length: 90}).map((_,i)=>({ t: Date.now() - (90-i)*3600e3, v: 100 + Math.sin(i/8)*6 + i*0.3 + Math.random()*2 }));
+  return { pnlPct: 34.7, equity, balance: 1250000 };
+}
+function mockHoldings(){
+  return [
+    { ticker:'AAPL', qty: 120, avg: 192.3, pl: 540.12, weight: .21 },
+    { ticker:'NVDA', qty: 40, avg: 980.1, pl: -120.44, weight: .18 },
+    { ticker:'MSFT', qty: 20, avg: 420.2, pl: 210.02, weight: .15 }
+  ];
+}
+function mockStats(){
+  return { winRate:.62, hitRate:.58, bullBear:{ bull:{ n: 26, win: 17 }, bear:{ n: 18, win: 10 } } };
+}
+function mockTrades(){
+  return [
+    { id:'t1', ts: Date.now()-3600e3, side:'BUY', ticker:'AAPL', qty:20, price:190.23, pnl: 24.3 },
+    { id:'t2', ts: Date.now()-3200e3, side:'SELL', ticker:'TSLA', qty:10, price:201.90, pnl: -10.1 }
+  ];
+}
+function mockLeaderboard(){
+  return [
+    { agentId:'alpha', name:'Bob', role:'Portfolio Manager', avatar:'agent1', rank:1, winRate:.70, bull:{n:15, win:12}, bear:{n:6, win:4}, logs:["Bull on AAPL ✓","Bear on SNAP ✗"] },
+    { agentId:'beta', name:'Carl', role:'Risk Manager', avatar:'agent2', rank:2, winRate:.62, bull:{n:11, win:7}, bear:{n:8, win:6}, logs:["Bear hedge on QQQ ✓"] },
+    { agentId:'gamma', name:'Alice', role:'Valuation Analyst', avatar:'agent3', rank:3, winRate:.58, bull:{n:9, win:6}, bear:{n:12, win:7} },
+    { agentId:'delta', name:'David', role:'Sentiment Analyst', avatar:'agent4', rank:4, winRate:.39, bull:{n:14, win:7}, bear:{n:18, win:7} },
+    { agentId:'epsilon', name:'Eve', role:'Fundamentals Analyst', avatar:'agent5', rank:5, winRate:.39, bull:{n:14, win:7}, bear:{n:18, win:7} },
+    { agentId:'zeta', name:'Frank', role:'Technical Analyst', avatar:'agent6', rank:5, winRate:.39, bull:{n:14, win:7}, bear:{n:18, win:7} }
+  ];
+}
+
+// ======= Dev self-test (now actually used) =======
+(function selfTest(){
+  try {
+    const lb = mockLeaderboard();
+    console.assert(Array.isArray(lb) && lb.length >= 1, 'mockLeaderboard should return non-empty array');
+    console.assert(lb[0].agentId && lb[0].name && lb[0].role, 'leaderboard row shape');
+    const hs = mockHoldings();
+    console.assert(Array.isArray(hs), 'mockHoldings array');
+    const ms = mockSummary();
+    console.assert(ms && Array.isArray(ms.equity), 'mockSummary equity array');
+    // 标记通过，供组件内判断是否注入 mock 数据
+    window.__LB_SELFTEST_OK = true;
+  } catch (e) {
+    window.__LB_SELFTEST_OK = false;
+  }
+})();
