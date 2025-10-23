@@ -5,17 +5,17 @@ import logging
 import os
 import sys
 from pathlib import Path
+BASE_DIR = Path(__file__).resolve().parents[2]
+if str(BASE_DIR) not in sys.path:
+    sys.path.append(str(BASE_DIR))
 
 import websockets
 
-from src.memory.mem0_core import initialize_mem0_integration
+from src.memory.memory_factory import initialize_memory_system
 
 # --- logging ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
-BASE_DIR = Path(__file__).resolve().parents[2]
-if str(BASE_DIR) not in sys.path:
-    sys.path.append(str(BASE_DIR))
 
 from src.servers.replay import sandbox_json_to_events
 from src.servers.streamer import WebSocketStreamer, ConsoleStreamer, MultiStreamer
@@ -65,7 +65,10 @@ async def run_realtime_to_ws(ws, cfg: dict):
         # load default env/config and allow overrides from cfg
         env_config = LiveThinkingFundConfig()
         config_name = cfg.get("config_name","test")
-        mem0_integration = initialize_mem0_integration(base_dir=config_name)
+        
+        # 初始化记忆系统（自动根据环境变量选择框架）
+        memory_instance = initialize_memory_system(base_dir=config_name)
+        logging.info(f"✅ 记忆系统已初始化: {memory_instance.get_framework_name()}")
 
         if config_name:
             env_config.config_name = config_name

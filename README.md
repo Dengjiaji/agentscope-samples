@@ -27,10 +27,11 @@ python main_multi_day.py --tickers AAPL,MSFT --start-date 2024-01-01 --end-date 
 ## 2.加入live tradng更新机制，补全从2025-01-01到今天的live trading performance track
 python live_trading_system.py backfill --tickers AAPL,MSFT --start-date 2025-01-01
 
-## 3.时间sandbox模拟版本，加入memory管理
-python live_trading_thinking_fund.py --date 2025-01-15
-python live_trading_thinking_fund.py --start-date 2024-01-05 --end-date 2024-01-08
-
+## 3.时间sandbox模拟版本，加入memory管理, memory框架兼容ReMe和Mem0
+python live_trading_thinking_fund.py \
+    --start-date 2025-10-02 \
+    --end-date 2025-10-03 \
+    --config_name new_reme 
 
 ## 显示界面
 先启动后端脚本(根目录下运行）：
