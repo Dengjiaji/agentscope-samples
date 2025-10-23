@@ -75,7 +75,10 @@ setup_logging(
 class AdvancedInvestmentAnalysisEngine:
     """高级投资分析引擎 - 包含完整的agent交流机制"""
     
-    def __init__(self):
+    def __init__(self, streamer=None):
+        # 保存streamer引用
+        self.streamer = streamer
+        
         # 添加线程锁用于并行执行时的同步
         self._notification_lock = threading.Lock()
         self.core_analysts = {
@@ -225,6 +228,8 @@ class AdvancedInvestmentAnalysisEngine:
                     # 处理通知决策（使用线程锁保护）
                     if notification_decision.get("should_notify", False):
                         print(f"{agent_name} 决定发送通知...")
+                        if self.streamer:
+                            self.streamer.print("agent", f"{agent_name} 决定发送通知", role_key=agent_id)
                         
                         # 获取 trading_date 作为 backtest_date
                         backtest_date = state.get("metadata", {}).get("trading_date") or state.get("data", {}).get("end_date")
@@ -241,10 +246,17 @@ class AdvancedInvestmentAnalysisEngine:
                         
                         print(f"通知已发送 (ID: {notification_id})")
                         print(f"通知内容: {notification_decision['content']}")
+                        if self.streamer:
+                            self.streamer.print("agent", 
+                                f"📢 通知: {notification_decision['content']} [紧急度: {notification_decision.get('urgency', 'medium')}]",
+                                role_key=agent_id
+                            )
                     else:
                         print(f"{agent_name} 决定不发送通知")
                         if "reason" in notification_decision:
                             print(f"原因: {notification_decision['reason']}")
+                        if self.streamer:
+                            self.streamer.print("system", f"{agent_name} 决定不发送通知")
                 else:
                     print(f"⚡ {agent_name} 跳过通知机制（已禁用）")
                     notification_decision = {"should_notify": False, "reason": "通知机制已禁用"}
@@ -641,6 +653,8 @@ class AdvancedInvestmentAnalysisEngine:
     def run_risk_management_analysis(self, state: AgentState) -> Dict[str, Any]:
         """运行风险管理分析"""
         print("执行风险管理分析...")
+        if self.streamer:
+            self.streamer.print("system", "===== 风险管理分析 =====")
         
         try:
             risk_result = risk_management_agent(state, agent_id="risk_management_agent")
@@ -648,6 +662,8 @@ class AdvancedInvestmentAnalysisEngine:
             
             if risk_analysis:
                 print("风险管理分析完成")
+                if self.streamer:
+                    self.streamer.print("system", "风险管理分析完成")
                 
                 # 显示每个ticker的风险分析
                 for ticker, risk_data in risk_analysis.items():
@@ -664,6 +680,12 @@ class AdvancedInvestmentAnalysisEngine:
                     # print(f"     当前价格: ${current_price:.2f}")
                     print(f"     年化波动率: {annualized_vol:.1%}")
                     print(f"     风险评估: {risk_assessment}")
+                    
+                    if self.streamer:
+                        self.streamer.print("agent", 
+                            f"{ticker}: 风险等级 {risk_level.upper()}, 风险评分 {risk_score}/100, 年化波动率 {annualized_vol:.1%}\n{risk_assessment}",
+                            role_key="risk_manager"
+                        )
                 
                 return {
                     "agent_id": "risk_management_agent",
@@ -673,6 +695,8 @@ class AdvancedInvestmentAnalysisEngine:
                 }
             else:
                 print("警告: 风险管理分析未返回结果")
+                if self.streamer:
+                    self.streamer.print("system", "警告: 风险管理分析未返回结果")
                 return {
                     "agent_id": "risk_management_agent",
                     "agent_name": "风险管理分析师", 
@@ -720,6 +744,7 @@ class AdvancedInvestmentAnalysisEngine:
             # 如果启用通信机制
             if enable_communications:
                 print("\n启动高级通信机制...")
+                self.streamer.print("system","启动高级通信机制...")
                 max_cycles = 3
                 try:
                     max_cycles = int(state["metadata"].get("max_communication_cycles", 3))
@@ -732,6 +757,7 @@ class AdvancedInvestmentAnalysisEngine:
                 
                 for cycle in range(1, max_cycles + 1):
                     print(f"\n沟通循环 第{cycle}/{max_cycles} 轮")
+                    self.streamer.print("system",f"沟通循环 第{cycle}/{max_cycles} 轮")
                     # 获取分析师信号（每轮刷新）
                     analyst_signals = {}
                     if cycle ==1:
@@ -766,7 +792,7 @@ class AdvancedInvestmentAnalysisEngine:
                     print(f"选择通信类型: {communication_decision.communication_type}")
                     print(f"讨论话题: {communication_decision.discussion_topic}")
                     print(f"目标分析师: {', '.join(communication_decision.target_analysts)}")
-                    
+                    self.streamer.print("system",f"选择通信类型: {communication_decision.communication_type}\n讨论话题: {communication_decision.discussion_topic}\n目标分析师: {', '.join(communication_decision.target_analysts)}")
                     if communication_decision.communication_type == "private_chat":
                         # 进行私聊
                         communication_results = self.conduct_private_chats(
@@ -783,7 +809,7 @@ class AdvancedInvestmentAnalysisEngine:
                     # 如果有信号调整，重新运行投资组合决策
                     if communication_results.get("signals_adjusted", False):
                         print("\n基于通信结果重新生成投资决策...")
-                        
+                        self.streamer.print("agent","基于通信结果重新生成投资决策...",role_key="portfolio_manager")
                         # 更新分析师信号
                         updated_signals = communication_results.get("updated_signals", {})
                         for agent_id, updated_signal in updated_signals.items():
@@ -804,8 +830,10 @@ class AdvancedInvestmentAnalysisEngine:
                         if new_final_decisions:
                             final_decisions = new_final_decisions
                             print("基于通信结果的投资决策已更新")
+                            self.streamer.print("agent","基于通信结果的投资决策已更新",role_key="portfolio_manager")
                         else:
                             print("警告: 决策更新失败，保留上一轮决策")
+                            self.streamer.print("system","警告: 决策更新失败，保留上一轮决策")
                     else:
                         print("本轮沟通未导致信号调整，结束循环")
                         break
@@ -813,6 +841,30 @@ class AdvancedInvestmentAnalysisEngine:
                 # 执行最终交易决策
                 print("\n执行最终交易决策...")
                 print('final_decisions',final_decisions)
+                
+                # 格式化最终决策为易读文本
+                if self.streamer:
+                    decision_lines = ["执行最终交易决策"]
+                    for ticker, decision in final_decisions.items():
+                        action = decision.get('action', 'N/A')
+                        confidence = decision.get('confidence', 0)
+                        reasoning = decision.get('reasoning', '')
+                        
+                        # 为不同的action添加emoji
+                        action_emoji = {
+                            'long': '📈 做多',
+                            'short': '📉 做空',
+                            'hold': '⏸️ 持有'
+                        }
+                        action_display = action_emoji.get(action, action)
+                        
+                        decision_lines.append(f"\n【{ticker}】")
+                        decision_lines.append(f"  决策: {action_display}")
+                        decision_lines.append(f"  置信度: {confidence}%")
+                        decision_lines.append(f"  理由: {reasoning[:200]}...")  # 限制长度
+                    
+                    self.streamer.print("agent", "\n".join(decision_lines), role_key="portfolio_manager")
+                
                 final_execution_report = self._execute_portfolio_trades(state, final_decisions)
                 
                 # 生成简化的摘要信息
@@ -863,6 +915,9 @@ class AdvancedInvestmentAnalysisEngine:
                             analyst_signals: Dict[str, Any], state: AgentState) -> Dict[str, Any]:
         """进行私聊通信"""
         print("开始私聊通信...")
+        if self.streamer:
+            self.streamer.print("system", "===== 私聊通信 =====")
+            self.streamer.print("system", f"话题: {communication_decision.discussion_topic}")
         
         chat_results = {}
         updated_signals = {}
@@ -871,13 +926,17 @@ class AdvancedInvestmentAnalysisEngine:
         for analyst_id in communication_decision.target_analysts:
             if analyst_id in analyst_signals:
                 print(f"\n与 {analyst_id} 开始私聊...")
+                if self.streamer:
+                    self.streamer.print("system", f"portfolio_manager <-> {analyst_id} 开始私聊")
+                
                 chat_result = communication_manager.conduct_private_chat(
                     manager_id="portfolio_manager",
                     analyst_id=analyst_id,
                     topic=communication_decision.discussion_topic,
                     analyst_signal=analyst_signals[analyst_id],
                     state=state,
-                    max_rounds=2
+                    max_rounds=2,
+                    streamer=self.streamer  # 传递 streamer
                 )
                 # pdb.set_trace()
                 chat_results[analyst_id] = chat_result
@@ -885,7 +944,14 @@ class AdvancedInvestmentAnalysisEngine:
                 # 检查是否有信号调整
                 if "final_analyst_signal" in chat_result:
                     updated_signals[analyst_id] = chat_result["final_analyst_signal"]
-                    total_adjustments += chat_result.get("adjustments_made", 0)
+                    adjustments = chat_result.get("adjustments_made", 0)
+                    total_adjustments += adjustments
+                    
+                    if self.streamer and adjustments > 0:
+                        self.streamer.print("agent", 
+                            f"信号已调整 {adjustments} 次",
+                            role_key=analyst_id
+                        )
                 
                 # 记录到通信日志
                 state["data"]["communication_logs"]["private_chats"].append({
@@ -897,6 +963,8 @@ class AdvancedInvestmentAnalysisEngine:
                 })
         
         print(f"\n私聊通信完成，共 {total_adjustments} 次信号调整")
+        if self.streamer:
+            self.streamer.print("system", f"私聊通信完成，共 {total_adjustments} 次信号调整")
         
         return {
             "communication_type": "private_chat",
@@ -910,6 +978,9 @@ class AdvancedInvestmentAnalysisEngine:
                        analyst_signals: Dict[str, Any], state: AgentState) -> Dict[str, Any]:
         """进行会议通信"""
         print("开始会议通信...")
+        if self.streamer:
+            self.streamer.print("system", f"===== 会议通信 =====\n")
+            self.streamer.print("system",f"话题: {communication_decision.discussion_topic}\n \t参与者: portfolio_manager, {', '.join(communication_decision.target_analysts)}")
         
         # 准备会议参与的分析师信号
         meeting_signals = {}
@@ -923,7 +994,8 @@ class AdvancedInvestmentAnalysisEngine:
             topic=communication_decision.discussion_topic,
             analyst_signals=meeting_signals,
             state=state,
-            max_rounds=2
+            max_rounds=2,
+            streamer=self.streamer  # 传递 streamer
         )
         
         # 记录到通信日志
@@ -938,6 +1010,10 @@ class AdvancedInvestmentAnalysisEngine:
         
         total_adjustments = meeting_result.get("adjustments_made", 0)
         print(f"\n会议通信完成，共 {total_adjustments} 次信号调整")
+        if self.streamer:
+            self.streamer.print("system", f"会议通信完成，共 {total_adjustments} 次信号调整")
+            if total_adjustments > 0:
+                self.streamer.print("system", f"信号已更新: {', '.join(meeting_result.get('final_signals', {}).keys())}")
         
         return {
             "communication_type": "meeting",
