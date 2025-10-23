@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Any, Dict, List, Optional
 import math, random, time
+from src.servers.config import ROLE_TO_AGENT
 
 def sandbox_json_to_events(
     data: Dict[str, Any],
@@ -31,16 +32,6 @@ def sandbox_json_to_events(
     ts = int(now_ms if now_ms is not None else time.time() * 1000)
     events: List[Dict[str, Any]] = []
 
-    # ---- 角色 -> 前端 agentId 的映射----
-    role_to_agent = {
-        "sentiment_analyst":   "delta",   # 情绪
-        "technical_analyst":   "zeta",    # 技术
-        "fundamentals_analyst":"epsilon", # 基本面
-        "valuation_analyst":   "gamma",   # 估值
-        # 兜底（未知角色）：给到组合经理
-        "_default":            "alpha",
-    }
-
     def push_system(content: str):
         nonlocal ts
         ts += step_ms
@@ -49,7 +40,7 @@ def sandbox_json_to_events(
     def push_agent(role_key: Optional[str], content: str):
         nonlocal ts
         ts += step_ms
-        agent_id = role_to_agent.get(role_key or "", role_to_agent["_default"])
+        agent_id = ROLE_TO_AGENT.get(role_key or "", ROLE_TO_AGENT["_default"])
         events.append({"type": "agent_message", "agentId": agent_id, "content": content, "ts": ts})
 
     def push_price(p: float):
@@ -80,7 +71,7 @@ def sandbox_json_to_events(
                     pass
             if reasoning:
                 msg += f" — {reasoning}"
-            push_agent("sentiment_analyst", msg)
+            push_agent("portfolio_manager", msg)
 
     # 2) 各角色逐票信号
     #    data['pre_market']['details']['live_env']['ana_signals'][role][ticker] = 'bearish' | 'bullish' | 'neutral'
@@ -91,7 +82,7 @@ def sandbox_json_to_events(
             if not isinstance(per_ticker, dict):
                 continue
             for ticker, sig in per_ticker.items():
-                msg = f"[{role_key}] {ticker}: {sig}"
+                msg = f"{ticker}: {sig}"
                 push_agent(role_key, msg)
 
     # 3) 预市场的“真实收益率代理” -> system
@@ -110,16 +101,15 @@ def sandbox_json_to_events(
     # ========= 解析 post_market =========
     post = (data or {}).get("post_market", {})
 
-    # 4) 记忆工具调用结果 -> agent_message（默认给情绪分析师）
+    # 4) 记忆工具调用结果
     #    data['post_market']['memory_tool_calls_results'] 是一个 list
     mtcr = post.get("memory_tool_calls_results") or []
     if isinstance(mtcr, list):
         for item in mtcr:
             args = (item or {}).get("args") or {}
-            who = args.get("analyst_id") or "sentiment_analyst"
             new_content = args.get("new_content") or ""
             if new_content:
-                push_agent(who, f"[memory] updated: {new_content}")
+                push_system(f"memory updated: {new_content}")
 
     # ========= 价格轨迹（如无价格事件则合成） =========
     has_price = any(e.get("type") == "price" for e in events)
