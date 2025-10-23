@@ -81,13 +81,14 @@ def create_memory_instance(base_dir: str, framework: Optional[str] = None) -> Me
         raise ValueError(f"不支持的记忆框架: {framework}")
 
 
-def initialize_memory_system(base_dir: str, framework: Optional[str] = None) -> MemoryInterface:
+def initialize_memory_system(base_dir: str, framework: Optional[str] = None, streamer=None) -> MemoryInterface:
     """
     初始化全局记忆系统
     
     Args:
         base_dir: 基础目录 (config_name)
         framework: 指定框架名称，如果为None则从环境变量读取
+        streamer: 可选的streamer用于输出初始化信息
         
     Returns:
         记忆实例
@@ -102,6 +103,8 @@ def initialize_memory_system(base_dir: str, framework: Optional[str] = None) -> 
         _current_framework == framework and 
         _current_base_dir == base_dir):
         # 已存在相同配置的实例，直接返回
+        if streamer:
+            streamer.print("system", f"记忆系统已存在: {framework} ({base_dir})")
         return _memory_instance
     
     # 创建新实例
@@ -111,6 +114,22 @@ def initialize_memory_system(base_dir: str, framework: Optional[str] = None) -> 
     
     logger = logging.getLogger(__name__)
     logger.info(f"全局记忆系统已初始化: {framework} ({base_dir})")
+    
+    # 构建并输出记忆系统初始化信息（一次性输出）
+    if streamer:
+        message_lines = [f"记忆系统初始化: {framework} ({base_dir})"]
+        
+        # 检查并添加workspace加载信息
+        if hasattr(_memory_instance, 'get_loaded_workspaces'):
+            loaded_workspaces = _memory_instance.get_loaded_workspaces()
+            if loaded_workspaces:
+                message_lines.append(f"成功加载 {len(loaded_workspaces)} 个workspace的已有记忆:")
+                message_lines.extend([f"  - {ws}" for ws in loaded_workspaces])
+            else:
+                message_lines.append("开始新记忆（未找到已有workspace记忆）")
+        
+        # 一次性输出所有信息
+        streamer.print("system", "\n".join(message_lines))
     
     return _memory_instance
 

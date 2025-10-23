@@ -113,6 +113,8 @@ class ReMeAdapter(MemoryInterface):
         加载已有的workspace记忆文件
         遍历store_dir中的所有.jsonl文件，自动加载到对应的workspace
         """
+        self._loaded_workspaces = []  # 记录已加载的workspace
+        
         if not os.path.exists(self.store_dir):
             self.logger.info("存储目录不存在，跳过加载已有记忆")
             return
@@ -141,6 +143,7 @@ class ReMeAdapter(MemoryInterface):
                 # ReMe会自动在path下查找 {workspace_id}.jsonl 文件
                 self.vector_store.load_workspace(workspace_id, path=self.store_dir)
                 loaded_count += 1
+                self._loaded_workspaces.append(workspace_id)
                 
             except Exception as e:
                 self.logger.warning(f"加载记忆文件失败 {jsonl_file}: {e}")
@@ -153,6 +156,10 @@ class ReMeAdapter(MemoryInterface):
     def _get_workspace_id(self, user_id: str) -> str:
         """获取workspace ID，直接使用user_id作为workspace_id"""
         return user_id
+    
+    def get_loaded_workspaces(self) -> List[str]:
+        """获取已加载的workspace列表"""
+        return getattr(self, '_loaded_workspaces', [])
     
     def _load_workspace_if_exists(self, workspace_id: str):
         """

@@ -256,7 +256,7 @@ class AdvancedInvestmentAnalysisEngine:
                         if "reason" in notification_decision:
                             print(f"原因: {notification_decision['reason']}")
                         if self.streamer:
-                            self.streamer.print("system", f"{agent_name} 决定不发送通知")
+                            self.streamer.print("agent", f"{agent_name} 决定不发送通知", role_key=agent_id)
                 else:
                     print(f"⚡ {agent_name} 跳过通知机制（已禁用）")
                     notification_decision = {"should_notify": False, "reason": "通知机制已禁用"}
@@ -662,8 +662,8 @@ class AdvancedInvestmentAnalysisEngine:
             
             if risk_analysis:
                 print("风险管理分析完成")
-                if self.streamer:
-                    self.streamer.print("system", "风险管理分析完成")
+                # if self.streamer:
+                #     self.streamer.print("system", "风险管理分析完成")
                 
                 # 显示每个ticker的风险分析
                 for ticker, risk_data in risk_analysis.items():
@@ -744,7 +744,6 @@ class AdvancedInvestmentAnalysisEngine:
             # 如果启用通信机制
             if enable_communications:
                 print("\n启动高级通信机制...")
-                self.streamer.print("system","启动高级通信机制...")
                 max_cycles = 3
                 try:
                     max_cycles = int(state["metadata"].get("max_communication_cycles", 3))
@@ -757,7 +756,10 @@ class AdvancedInvestmentAnalysisEngine:
                 
                 for cycle in range(1, max_cycles + 1):
                     print(f"\n沟通循环 第{cycle}/{max_cycles} 轮")
-                    self.streamer.print("system",f"沟通循环 第{cycle}/{max_cycles} 轮")
+                    if cycle == 1:
+                        self.streamer.print("system",f"启动高级通信机制...\n===== 沟通循环 第{cycle}/{max_cycles} 轮 =====\n")
+                    else:
+                        self.streamer.print("system",f"===== 沟通循环 第{cycle}/{max_cycles} 轮 =====\n")
                     # 获取分析师信号（每轮刷新）
                     analyst_signals = {}
                     if cycle ==1:
@@ -792,7 +794,7 @@ class AdvancedInvestmentAnalysisEngine:
                     print(f"选择通信类型: {communication_decision.communication_type}")
                     print(f"讨论话题: {communication_decision.discussion_topic}")
                     print(f"目标分析师: {', '.join(communication_decision.target_analysts)}")
-                    self.streamer.print("system",f"选择通信类型: {communication_decision.communication_type}\n讨论话题: {communication_decision.discussion_topic}\n目标分析师: {', '.join(communication_decision.target_analysts)}")
+                    self.streamer.print("agent",f"选择通信类型: {communication_decision.communication_type}\n讨论话题: {communication_decision.discussion_topic}\n需参与分析师: {', '.join(communication_decision.target_analysts)}",role_key="portfolio_manager")
                     if communication_decision.communication_type == "private_chat":
                         # 进行私聊
                         communication_results = self.conduct_private_chats(
@@ -916,8 +918,7 @@ class AdvancedInvestmentAnalysisEngine:
         """进行私聊通信"""
         print("开始私聊通信...")
         if self.streamer:
-            self.streamer.print("system", "===== 私聊通信 =====")
-            self.streamer.print("system", f"话题: {communication_decision.discussion_topic}")
+            self.streamer.print("system", f"===== 私聊通信 =====\n话题: {communication_decision.discussion_topic}")
         
         chat_results = {}
         updated_signals = {}
@@ -979,8 +980,7 @@ class AdvancedInvestmentAnalysisEngine:
         """进行会议通信"""
         print("开始会议通信...")
         if self.streamer:
-            self.streamer.print("system", f"===== 会议通信 =====\n")
-            self.streamer.print("system",f"话题: {communication_decision.discussion_topic}\n \t参与者: portfolio_manager, {', '.join(communication_decision.target_analysts)}")
+            self.streamer.print("system", f"===== 会议通信 =====\n话题: {communication_decision.discussion_topic}\n \t参与者: portfolio_manager, {', '.join(communication_decision.target_analysts)}")
         
         # 准备会议参与的分析师信号
         meeting_signals = {}
@@ -1011,9 +1011,10 @@ class AdvancedInvestmentAnalysisEngine:
         total_adjustments = meeting_result.get("adjustments_made", 0)
         print(f"\n会议通信完成，共 {total_adjustments} 次信号调整")
         if self.streamer:
-            self.streamer.print("system", f"会议通信完成，共 {total_adjustments} 次信号调整")
+            meeting_summary = [f"会议通信完成，共 {total_adjustments} 次信号调整"]
             if total_adjustments > 0:
-                self.streamer.print("system", f"信号已更新: {', '.join(meeting_result.get('final_signals', {}).keys())}")
+                meeting_summary.append(f"信号已更新: {', '.join(meeting_result.get('final_signals', {}).keys())}")
+            self.streamer.print("system", "\n".join(meeting_summary))
         
         return {
             "communication_type": "meeting",

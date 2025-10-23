@@ -5,6 +5,7 @@ Mem0 记忆框架适配器
 """
 
 import os
+import sqlite3
 import logging
 from typing import Dict, List, Any, Optional
 
@@ -29,6 +30,65 @@ class Mem0Adapter(MemoryInterface):
         
         self.logger = logging.getLogger(__name__)
         self.logger.info(f"Mem0适配器已初始化 (base_dir: {base_dir})")
+        
+        # 加载已有的用户记忆
+        self._loaded_users = self._load_existing_users()
+    
+    def _load_existing_users(self) -> List[str]:
+        """
+        从 SQLite 数据库中查询已有的用户ID
+        
+        Returns:
+            已有用户ID列表
+        """
+        loaded_users = []
+        
+        # 获取数据库路径
+        history_db_path = self.mem0_integration.config.get("history_db_path")
+        
+        if not history_db_path or not os.path.exists(history_db_path):
+            self.logger.info("未找到已有的记忆数据库")
+            return loaded_users
+        
+        try:
+            # 连接数据库
+            conn = sqlite3.connect(history_db_path)
+            cursor = conn.cursor()
+            
+            # 查询所有唯一的 user_id
+            # Mem0 的数据库结构中有 memories 表和 history 表
+            cursor.execute("""
+                SELECT DISTINCT user_id 
+                FROM memories 
+                WHERE user_id IS NOT NULL AND user_id != ''
+                ORDER BY user_id
+            """)
+            
+            rows = cursor.fetchall()
+            loaded_users = [row[0] for row in rows]
+            
+            conn.close()
+            
+            if loaded_users:
+                self.logger.info(f"✅ 从数据库中发现 {len(loaded_users)} 个已有用户记忆")
+            else:
+                self.logger.info("数据库为空，未找到已有用户记忆")
+                
+        except sqlite3.Error as e:
+            self.logger.warning(f"查询数据库失败: {e}")
+        except Exception as e:
+            self.logger.warning(f"加载已有用户失败: {e}")
+        
+        return loaded_users
+    
+    def get_loaded_workspaces(self) -> List[str]:
+        """
+        获取已加载的用户列表（workspace）
+        
+        Returns:
+            用户ID列表
+        """
+        return getattr(self, '_loaded_users', [])
     
     def get_memory_instance(self, user_id: str):
         """获取底层的Mem0 Memory实例"""

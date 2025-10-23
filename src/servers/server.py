@@ -66,22 +66,22 @@ async def run_realtime_to_ws(ws, cfg: dict):
         env_config = LiveThinkingFundConfig()
         config_name = cfg.get("config_name","test")
         
-        # 初始化记忆系统（自动根据环境变量选择框架）
-        memory_instance = initialize_memory_system(base_dir=config_name)
-        logging.info(f"✅ 记忆系统已初始化: {memory_instance.get_framework_name()}")
-
         if config_name:
             env_config.config_name = config_name
 
         if not tickers:
             tickers = env_config.tickers
 
-        # Build a streamer that outputs to WS
+        # Build a streamer that outputs to WS (需要先创建 streamer，再初始化记忆系统)
         ws_streamer = WebSocketStreamer(ws)
 
         # If you also want local console logs at the same time, uncomment MultiStreamer:
         streamer = MultiStreamer(ws_streamer, ConsoleStreamer())
         # streamer = ws_streamer
+        
+        # 初始化记忆系统（传递 streamer 以便显示加载信息）
+        memory_instance = initialize_memory_system(base_dir=config_name, streamer=streamer)
+        logging.info(f"✅ 记忆系统已初始化: {memory_instance.get_framework_name()}")
 
         # Initialize core fund with streamer so it can emit events to the frontend
         fund = LiveTradingThinkingFund(base_dir=env_config.config_name, streamer=streamer)

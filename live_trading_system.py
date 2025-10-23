@@ -45,7 +45,7 @@ sns.set_palette("husl")
 class LiveTradingSystem:
     """Live交易策略监控系统 - 统一版本"""
     
-    def __init__(self, base_dir: str = None):
+    def __init__(self, base_dir: str = None, streamer=None):
         """初始化Live交易系统"""
         # self.base_dir = Path(base_dir) if base_dir else Path(__file__).parent
         self.base_dir = Path(get_directory_config(base_dir))
@@ -64,8 +64,11 @@ class LiveTradingSystem:
         self.performance_metrics_file = self.data_dir / "performance_metrics.json"
         self.config_file = self.config_dir / "live_config.json"
         
-        # 初始化分析引擎
-        self.engine = AdvancedInvestmentAnalysisEngine()
+        # 保存streamer引用
+        self.streamer = streamer
+        
+        # 初始化分析引擎（传递streamer）
+        self.engine = AdvancedInvestmentAnalysisEngine(streamer=streamer)
     
     def validate_date_format(self, date_str: str) -> bool:
         """验证日期格式是否正确"""

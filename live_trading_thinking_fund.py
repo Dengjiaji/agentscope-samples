@@ -249,14 +249,14 @@ class LiveTradingThinkingFund:
         self.sandbox_dir = self.base_dir / "sandbox_logs"
         self.sandbox_dir.mkdir(parents=True, exist_ok=True)
 
-        # 初始化Live交易系统
-        self.live_system = LiveTradingSystem(base_dir=base_dir)
-
         # 可选的统一事件下发器：若为 None，则仅本地打印
         if streamer:
             self.streamer = streamer
         else:
             self.streamer = ConsoleStreamer()
+
+        # 初始化Live交易系统（传递streamer）
+        self.live_system = LiveTradingSystem(base_dir=base_dir, streamer=self.streamer)
 
         # 初始化记忆管理系统
         if MEMORY_TOOLS_AVAILABLE:
@@ -293,8 +293,7 @@ class LiveTradingThinkingFund:
     def _run_sandbox_analysis(self, tickers: List[str], target_date: str, max_comm_cycles: int = 2, enable_communications: bool = False, enable_notifications: bool = False) -> Dict[str, Any]:
         """运行sandbox专用的分析（绕过live_system的状态管理）"""
 
-        self.streamer.print("system", f"开始Sandbox策略分析 - {target_date}")
-        self.streamer.print("system", f"监控标的: {', '.join(tickers)}")
+        # self.streamer.print("system", f"开始Sandbox策略分析 - {target_date}\n监控标的: {', '.join(tickers)}")
 
         # 1. 运行策略分析（直接调用核心分析方法，绕过should_run_today检查）
         analysis_result = self.live_system.run_single_day_analysis(
@@ -313,6 +312,8 @@ class LiveTradingThinkingFund:
         live_env['pm_signals'] = pm_signals
 
         # 3. 提取分析师信号（现在不需要预先初始化）
+        self.streamer.print("system", "===== 分析师信号详情 =====")
+        
         for agent in ['sentiment_analyst', 'technical_analyst', 'fundamentals_analyst', 'valuation_analyst']:
             for ticker in tickers:
                 agent_results = analysis_result.get('raw_results', {}).get('results', {}).get('final_analyst_results', {})
@@ -330,14 +331,25 @@ class LiveTradingThinkingFund:
                     matched = next((item for item in analyst_result['ticker_signals'] if item['ticker'] == ticker), None)
                     if matched:
                         live_env['ana_signals'][agent][ticker] = matched['signal']
+                        # 输出第二轮信号
+                        self.streamer.print("agent", 
+                            f"{ticker} - 第二轮: {matched['signal']} (置信度: {matched.get('confidence', 'N/A')}%)", 
+                            role_key=agent
+                        )
                 elif ticker in analyst_result:
                     # 第一轮格式
                     if 'signal' in analyst_result[ticker]:
                         live_env['ana_signals'][agent][ticker] = analyst_result[ticker]['signal']
+                        # 输出第一轮信号
+                        confidence = analyst_result[ticker].get('confidence', 'N/A')
+                        self.streamer.print("agent", 
+                            f"{ticker} - 第一轮: {analyst_result[ticker]['signal']} (置信度: {confidence}%)", 
+                            role_key=agent
+                        )
 
                 
         self.live_system.save_daily_signals(target_date, pm_signals)
-        self.streamer.print("system", f"已保存 {len(pm_signals)} 个股票的交易信号")
+        # self.streamer.print("system", f"已保存 {len(pm_signals)} 个股票的交易信号")
 
         # 4. 计算当日收益
         target_date = str(target_date)
@@ -349,7 +361,7 @@ class LiveTradingThinkingFund:
         # 5. 更新个股收益
         individual_data = self.live_system.update_individual_returns(target_date, daily_returns)
 
-        self.streamer.print("system", f"{target_date} Sandbox分析完成")
+        self.streamer.print("system", f"已保存 {len(pm_signals)} 个股票的交易信号\n{target_date} Sandbox分析完成")
 
         # 显示各股票表现 + 各分析师信号
         for ticker, data in daily_returns.items():
@@ -358,8 +370,9 @@ class LiveTradingThinkingFund:
             signal = data['signal']
             action = data['action']
             confidence = data['confidence']
-            self.streamer.print("system", 
-                f"{ticker}: 日收益 {daily_ret:.2f}%, 累计收益 {cum_ret:.2f}%, 信号 {signal}({action}, {confidence}%)"
+            self.streamer.print("agent", 
+                f"{ticker}: 最终信号 {signal}({action}, {confidence}% ,日收益 {daily_ret:.2f}%, 累计收益 {cum_ret:.2f}%)",
+                role_key='portfolio_manager'
             )
             # 分析师逐票事件
             for agent in ['sentiment_analyst', 'technical_analyst', 'fundamentals_analyst', 'valuation_analyst']:
@@ -380,9 +393,7 @@ class LiveTradingThinkingFund:
                                 max_comm_cycles: int = 2, force_run: bool = False,
                                 enable_communications: bool = False, enable_notifications: bool = False) -> Dict[str, Any]:
         """运行交易前分析（复用live_trading_system）"""
-        self.streamer.print("system", f"===== 交易前分析 ({date}) =====")
-        self.streamer.print("system", f"时间点: {self.PRE_MARKET}")
-        self.streamer.print("system", f"分析标的: {', '.join(tickers)}")
+        self.streamer.print("system", f"===== 交易前分析 ({date}) =====\n时间点: {self.PRE_MARKET}\n分析标的: {', '.join(tickers)}")
 
         # 使用sandbox专用的检查逻辑
         # if not self.should_run_sandbox_analysis(date, self.PRE_MARKET, force_run):
@@ -405,9 +416,7 @@ class LiveTradingThinkingFund:
 
     def run_post_market_review(self, date: str, tickers: List[str], live_env: Dict[str, Any]) -> Dict[str, Any]:
         """运行交易后复盘"""
-        self.streamer.print("system", f"===== 交易后复盘 ({date}) =====")
-        self.streamer.print("system", f"时间点: {self.POST_MARKET}")
-        self.streamer.print("system", f"复盘标的: {', '.join(tickers)}")
+        self.streamer.print("system", f"===== 交易后复盘 ({date}) =====\n时间点: {self.POST_MARKET} \n复盘标的: {', '.join(tickers)}")
 
         if live_env != 'Not trading day':
             # 交易后复盘逻辑
@@ -420,37 +429,41 @@ class LiveTradingThinkingFund:
 
     def _perform_post_market_review(self, date: str, tickers: List[str], live_env: Dict[str, Any]) -> Dict[str, Any]:
         """执行交易后复盘分析"""
-        self.streamer.print("system", "基于交易前分析进行复盘...")
 
         pm_signals = live_env['pm_signals']
         ana_signals = live_env['ana_signals']
         real_returns = live_env['real_returns']
 
-        self.streamer.print("system", "portfolio_manager信号回顾:")
+        # 1. Portfolio Manager 信号回顾（合并为一次输出）
+        pm_review_lines = ["基于交易前分析进行复盘...", "Portfolio Manager信号回顾:"]
         for ticker in tickers:
             if ticker in pm_signals:
                 signal_info = pm_signals[ticker]
-                self.streamer.print("agent",
-                    f"{ticker}: {signal_info.get('signal', 'N/A')} ({signal_info.get('action', 'N/A')}, 置信度: {signal_info.get('confidence', 'N/A')}%)",
-                    role_key="portfolio_manager"
+                pm_review_lines.append(
+                    f"  {ticker}: {signal_info.get('signal', 'N/A')} ({signal_info.get('action', 'N/A')}, 置信度: {signal_info.get('confidence', 'N/A')}%)"
                 )
             else:
-                self.streamer.print("system", f"{ticker}: 无信号数据")
+                pm_review_lines.append(f"  {ticker}: 无信号数据")
+        # self.streamer.print("agent", "\n".join(pm_review_lines), role_key="portfolio_manager")
 
-        self.streamer.print("system", "实际收益表现:")
+        # 2. 实际收益表现（合并为一次输出）
+        returns_lines = ["实际收益表现:"]
         for ticker in tickers:
             if ticker in real_returns:
                 daily_ret = real_returns[ticker] * 100
-                self.streamer.print("system", f"{ticker}: {daily_ret:.2f}% (信号: {pm_signals.get(ticker, {}).get('signal', 'N/A')})")
+                returns_lines.append(f"  {ticker}: {daily_ret:.2f}% (信号: {pm_signals.get(ticker, {}).get('signal', 'N/A')})")
             else:
-                self.streamer.print("system", f"{ticker}: 无收益数据")
+                returns_lines.append(f"  {ticker}: 无收益数据")
+        # self.streamer.print("system", "\n".join(returns_lines))
 
-        self.streamer.print("system", "analyst信号对比:")
+        # 3. Analyst 信号对比（合并为一次输出）
+        analyst_lines = ["Analyst信号对比:"]
         for agent, agent_signals in ana_signals.items():
-            self.streamer.print("system", f"{agent}:")
+            analyst_lines.append(f"\n{agent}:")
             for ticker in tickers:
                 signal = agent_signals.get(ticker, 'N/A')
-                self.streamer.print("agent", f"{ticker}: {signal}", role_key=agent)
+                analyst_lines.append(f"  {ticker}: {signal}")
+        self.streamer.print("agent", "\n".join(pm_review_lines)+ "\n".join(returns_lines)+"\n".join(analyst_lines), role_key="portfolio_manager")
 
         self.streamer.print("system", "===== Portfolio Manager 记忆管理决策 =====")
 
@@ -465,40 +478,90 @@ class LiveTradingThinkingFund:
                 }
 
                 # 使用LLM进行记忆管理决策（tool_call模式）
-                self.streamer.print("system", "使用 LLM tool_call 进行智能记忆管理...")
                 llm_decision = self.llm_memory_system.make_llm_memory_decision_with_tools(
                     performance_data, date
                 )
 
-                # 显示LLM决策结果
+                # 显示LLM决策结果（合并输出）
                 if llm_decision['status'] == 'success':
                     if llm_decision['mode'] == 'operations_executed':
-                        self.streamer.print("system", f"LLM 执行了 {llm_decision['operations_count']} 个记忆操作")
-
                         # 统计执行结果
                         successful = sum(1 for result in llm_decision['execution_results']
                                          if result['result']['status'] == 'success')
                         total = len(llm_decision['execution_results'])
 
-                        self.streamer.print("system", f"执行统计：成功 {successful}/{total}")
+                        # 构建详细的工具调用信息
+                        memory_lines = [
+                            "使用 LLM tool_call 进行智能记忆管理",
+                            f"执行了 {llm_decision['operations_count']} 个记忆操作",
+                            f"执行统计：成功 {successful}/{total}",
+                            "\n工具调用详情:"
+                        ]
 
-                        # 显示工具调用详情
                         for i, exec_result in enumerate(llm_decision['execution_results'], 1):
                             tool_name = exec_result['tool_name']
                             args = exec_result['args']
                             result = exec_result['result']
 
-                            self.streamer.print("system", f"{i}. {tool_name} / 分析师: {args.get('analyst_id', 'N/A')}")
+                            # 工具调用基本信息
+                            memory_lines.append(f"\n{i}. 工具: {tool_name}")
+                            memory_lines.append(f"   分析师: {args.get('analyst_id', 'N/A')}")
+                            
+                            agent_id = args.get('analyst_id', 'N/A')
+                            memory_lines.append(f"   memory tool 参数: {args}") 
+                            
+                            # 显示执行结果
                             if result['status'] == 'success':
-                                self.streamer.print("system", "状态: 成功")
+                                memory_lines.append(f"\t状态: 成功")
+                                if 'affected_count' in result:
+                                    memory_lines.append(f"   影响记忆数: {result['affected_count']}")
                             else:
-                                self.streamer.print("system", f"状态: 失败 - {result.get('error', 'Unknown')}")
+                                memory_lines.append(f"\t状态: 失败 - {result.get('error', 'Unknown')}")
 
+                            if tool_name == 'search_and_update_analyst_memory':
+                                agent_mem_lines = []
+                                agent_mem_lines.append('[memory management]: search and update memory')
+                                agent_mem_lines.append(f"search memory query: {args.get('query', 'N/A')}")
+                                
+                                # 添加记忆ID和查询到的原始内容
+                                if result.get('memory_id'):
+                                    agent_mem_lines.append(f"memory ID: {result['memory_id']}")
+                                if result.get('original_content'):
+                                    original = result['original_content']
+                                    # 限制长度，避免过长
+                                    display_original = original[:200] + '...' if len(original) > 200 else original
+                                    agent_mem_lines.append(f"original memory: {display_original}")
+                                
+                                agent_mem_lines.append(f"new memory content: {args.get('new_content', 'N/A')}")
+                                agent_mem_lines.append(f"reason: {args.get('reason', 'N/A')}")
+                                self.streamer.print("agent", "\n".join(agent_mem_lines),role_key=agent_id)
+                            elif tool_name == 'search_and_delete_analyst_memory':
+                                agent_mem_lines = []
+                                agent_mem_lines.append('[memory management]: search and delete memory')
+                                agent_mem_lines.append(f"search memory query: {args.get('query', 'N/A')}")
+                                
+                                # 添加记忆ID和被删除的内容
+                                if result.get('memory_id'):
+                                    agent_mem_lines.append(f"memory ID: {result['memory_id']}")
+                                if result.get('deleted_content'):
+                                    deleted = result['deleted_content']
+                                    # 限制长度，避免过长
+                                    display_deleted = deleted[:200] + '...' if len(deleted) > 200 else deleted
+                                    agent_mem_lines.append(f"deleted memory: {display_deleted}")
+                                
+                                agent_mem_lines.append(f"reason: {args.get('reason', 'N/A')}")
+                                self.streamer.print("agent", "\n".join(agent_mem_lines),role_key=agent_id)
+
+                        self.streamer.print("agent", "\n".join(memory_lines),role_key="portfolio_manager")
                         execution_results = llm_decision['execution_results']
 
                     elif llm_decision['mode'] == 'no_action':
-                        self.streamer.print("system", "LLM 认为无需记忆操作")
-                        self.streamer.print("system", f"LLM 理由: {llm_decision['reasoning']}")
+                        no_action_lines = [
+                            "使用 LLM tool_call 进行智能记忆管理",
+                            "LLM 认为无需记忆操作",
+                            f"理由: {llm_decision['reasoning']}"
+                        ]
+                        self.streamer.print("agent", "\n".join(no_action_lines),role_key="portfolio_manager")
                         execution_results = None
                     else:
                         self.streamer.print("system", f"未知的LLM决策模式: {llm_decision['mode']}")
@@ -654,7 +717,6 @@ class LiveTradingThinkingFund:
                                 max_comm_cycles: int = 2, force_run: bool = False,
                                 enable_communications: bool = False, enable_notifications: bool = False) -> Dict[str, Any]:
         """运行完整的一天模拟（交易前 + 交易后）"""
-        self.streamer.print("system", f"===== 开始 {date} 完整交易日模拟 =====")
 
         results = {
             'date': date,
@@ -665,22 +727,21 @@ class LiveTradingThinkingFund:
         }
 
         if results['is_trading_day']:
-            self.streamer.print("system", f"{date} 是交易日，将执行：交易前分析 + 交易后复盘")
+            self.streamer.print("system", f"{date}是交易日，将执行交易前分析 + 交易后复盘")
 
             # 1. 交易前分析
             results['pre_market'] = self.run_pre_market_analysis(
                 date, tickers, max_comm_cycles, force_run, enable_communications, enable_notifications
             )
 
-            self.streamer.print("system", "等待交易后时间点...")
-            self.streamer.print("system", "(实际使用中，这里会等待真实的市场收盘)")
+            self.streamer.print("system", "等待交易后时间点...\n(模拟实际使用中等待真实的市场收盘)")
 
             # 2. 交易后复盘
             live_env = results['pre_market'].get('live_env') if results['pre_market'] else None
             results['post_market'] = self.run_post_market_review(date, tickers, live_env)
 
         else:
-            self.streamer.print("system", f"{date} 非交易日，仅执行：交易后总结")
+            self.streamer.print("system", f"{date}非交易日，仅执行交易后复盘")
 
             # 非交易日只执行交易后
             results['post_market'] = self.run_post_market_review(date, tickers, 'Not trading day')
@@ -688,7 +749,7 @@ class LiveTradingThinkingFund:
         # 生成日总结
         results['summary'] = self._generate_day_summary(results)
 
-        self.streamer.print("system", f"{date} 完整模拟结束")
+        # self.streamer.print("system", f"{date} 完整模拟结束")
         self._print_day_summary(results['summary'])
 
         return results
@@ -715,11 +776,7 @@ class LiveTradingThinkingFund:
 
     def _print_day_summary(self, summary: Dict[str, Any]):
         """打印日总结"""
-        self.streamer.print("system", f"===== {summary['date']} 日总结 =====")
-        self.streamer.print("system", f"交易日状态: {'是' if summary['is_trading_day'] else '否'}")
-        self.streamer.print("system", f"完成活动: {', '.join(summary['activities_completed'])}")
-        self.streamer.print("system", f"总体状态: {summary['overall_status']}")
-        self.streamer.print("system", "=" * 40)
+        self.streamer.print("system", f"{summary['date']}完整模拟结束\n===== {summary['date']} 日总结 =====\n\t交易日状态: {'是' if summary['is_trading_day'] else '否'}\n\t完成活动: {', '.join(summary['activities_completed'])}\n\t总体状态: {summary['overall_status']}\n============================")
 
     def _log_sandbox_activity(self, date: str, time_point: str, data: Dict[str, Any]):
         """记录sandbox活动日志"""
@@ -837,11 +894,15 @@ def main():
         config = LiveThinkingFundConfig()
         config.override_with_args(args)
         
+        # 创建 ConsoleStreamer 用于初始化阶段
+        from src.servers.streamer import ConsoleStreamer
+        console_streamer = ConsoleStreamer()
+        
         # 初始化记忆系统（自动根据环境变量选择框架）
-        memory_instance = initialize_memory_system(base_dir=config.config_name, streamer=None)
+        memory_instance = initialize_memory_system(base_dir=config.config_name, streamer=console_streamer)
         print(f"✅ 记忆系统已初始化: {memory_instance.get_framework_name()}")
         
-        thinking_fund = LiveTradingThinkingFund(base_dir=config.config_name)
+        thinking_fund = LiveTradingThinkingFund(base_dir=config.config_name, streamer=console_streamer)
         tickers = args.tickers.split(",") if args.tickers else config.tickers
         from pprint import pprint
         pprint(config.__dict__)

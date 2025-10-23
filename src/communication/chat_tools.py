@@ -253,10 +253,14 @@ class CommunicationManager:
     
     def conduct_private_chat(self, manager_id: str, analyst_id: str, 
                            topic: str, analyst_signal: Dict[str, Any], 
-                           state, max_rounds: int = 1) -> Dict[str, Any]:
+                           state, max_rounds: int = 1, streamer=None) -> Dict[str, Any]:
         """进行私聊"""
         print(f"开始私聊: {manager_id} <-> {analyst_id}")
         print(f"话题: {topic}")
+        
+        # 输出私聊信息到前端
+        if streamer:
+            streamer.print("system", f"开始私聊: {manager_id} <-> {analyst_id}\n话题: {topic}")
         
         # 在分析师记忆中记录通信开始
         analyst_memory = memory_manager.get_analyst_memory(analyst_id)
@@ -292,6 +296,10 @@ class CommunicationManager:
         for round_num in range(max_rounds):
             print(f"\n私聊第{round_num + 1}轮:")
             
+            # 输出轮次到前端
+            if streamer:
+                streamer.print("system", f"--- 第 {round_num + 1} 轮对话 ---")
+            
             # 分析师回应
             analyst_response = self._get_analyst_chat_response(
                 analyst_id, topic, conversation_history, 
@@ -309,6 +317,15 @@ class CommunicationManager:
             
             print(f"🗣️ {analyst_id}: {analyst_response['response']}")
             
+            # 输出分析师回应到前端
+            if streamer:
+                response_text = analyst_response.get("response", "")
+                # 限制输出长度
+                max_display_length = 300
+                if len(response_text) > max_display_length:
+                    response_text = response_text[:max_display_length] + "..."
+                streamer.print("agent", response_text, role_key=analyst_id)
+            
             # 记录分析师回应到记忆
             # if analyst_memory and communication_id:
             #     analyst_memory.add_communication_message(
@@ -321,6 +338,73 @@ class CommunicationManager:
                 current_analyst_signal = analyst_response["adjusted_signal"]
                 print(f"信号已调整: {analyst_response['signal_adjustment']}")
                 adjustments_made_counter += 1
+                
+                # 输出信号调整到前端
+                if streamer:
+                    # 解析调整前后的信号
+                    adjusted_signal = analyst_response.get("adjusted_signal", {})
+                    
+                    # 处理两种可能的信号格式
+                    if isinstance(adjusted_signal, dict):
+                        # 格式1: {ticker: {signal: ..., confidence: ...}}
+                        if 'ticker_signals' in adjusted_signal:
+                            # 格式2: {ticker_signals: [{ticker: ..., signal: ..., confidence: ...}]}
+                            adjustment_details = []
+                            for ticker_signal in adjusted_signal.get('ticker_signals', []):
+                                ticker = ticker_signal.get('ticker', 'N/A')
+                                new_signal = ticker_signal.get('signal', 'N/A')
+                                new_confidence = ticker_signal.get('confidence', 'N/A')
+                                
+                                # 获取原始信号
+                                original_ticker_signal = {}
+                                if isinstance(original_signal, dict):
+                                    if 'ticker_signals' in original_signal:
+                                        original_ticker_signal = next(
+                                            (s for s in original_signal.get('ticker_signals', []) if s.get('ticker') == ticker),
+                                            {}
+                                        )
+                                    elif ticker in original_signal:
+                                        original_ticker_signal = original_signal.get(ticker, {})
+                                
+                                old_signal = original_ticker_signal.get('signal', 'N/A')
+                                old_confidence = original_ticker_signal.get('confidence', 'N/A')
+                                
+                                adjustment_details.append(
+                                    f"  {ticker}: {old_signal}({old_confidence}%) → {new_signal}({new_confidence}%)"
+                                )
+                            
+                            if adjustment_details:
+                                streamer.print("agent", 
+                                    f"我调整了信号:\n" + "\n".join(adjustment_details),
+                                    role_key=analyst_id
+                                )
+                            else:
+                                streamer.print("agent", "我调整了信号", role_key=analyst_id)
+                        else:
+                            # 简单的 ticker: {signal, confidence} 格式
+                            adjustment_details = []
+                            for ticker, signal_data in adjusted_signal.items():
+                                if isinstance(signal_data, dict) and 'signal' in signal_data:
+                                    new_signal = signal_data.get('signal', 'N/A')
+                                    new_confidence = signal_data.get('confidence', 'N/A')
+                                    
+                                    old_signal_data = original_signal.get(ticker, {})
+                                    old_signal = old_signal_data.get('signal', 'N/A')
+                                    old_confidence = old_signal_data.get('confidence', 'N/A')
+                                    
+                                    adjustment_details.append(
+                                        f"  {ticker}: {old_signal}({old_confidence}%) → {new_signal}({new_confidence}%)"
+                                    )
+                            
+                            if adjustment_details:
+                                streamer.print("agent", 
+                                    f"我调整了信号:\n" + "\n".join(adjustment_details),
+                                    role_key=analyst_id
+                                )
+                            else:
+                                streamer.print("agent", "我调整了信号", role_key=analyst_id)
+                    else:
+                        streamer.print("agent", "我调整了信号", role_key=analyst_id)
                 
                 # # 记录信号调整到记忆
                 # if analyst_memory and communication_id:
@@ -347,6 +431,12 @@ class CommunicationManager:
                 
                 print(f"🗣️ {manager_id}: {manager_response}")
                 
+                # 输出管理者回应到前端
+                if streamer:
+                    max_display_length = 300
+                    manager_display = manager_response if len(manager_response) <= max_display_length else manager_response[:max_display_length] + "..."
+                    streamer.print("agent", manager_display, role_key=manager_id)
+                
                 # # 记录管理者回应到记忆
                 # if analyst_memory and communication_id:
                 #     analyst_memory.add_communication_message(
@@ -355,6 +445,10 @@ class CommunicationManager:
         
         # pdb.set_trace()
         print("私聊结束")
+        
+        # 输出私聊结束到前端
+        if streamer:
+            streamer.print("system", f"私聊结束，共进行 {max_rounds} 轮对话，{adjustments_made_counter} 次信号调整")
         
         memory_format = self._convert_private_chat_to_memory_format(
             conversation_history, manager_id, analyst_id, topic, chat_id
@@ -390,12 +484,16 @@ class CommunicationManager:
     
     def conduct_meeting(self, manager_id: str, analyst_ids: List[str], 
                        topic: str, analyst_signals: Dict[str, Any], 
-                       state, max_rounds: int = 2) -> Dict[str, Any]:
+                       state, max_rounds: int = 2, streamer=None) -> Dict[str, Any]:
         """进行会议"""
         meeting_id = str(uuid.uuid4())
         print(f"开始会议: {meeting_id}")
         print(f"话题: {topic}")
         print(f"参与者: {', '.join([manager_id] + analyst_ids)}")
+        
+        # 输出会议ID到前端
+        # if streamer:
+        #     streamer.print("system", f"会议 ID: {meeting_id}")
         
         # 为每个分析师记录会议开始
         # 获取 trading_date 作为 analysis_date
@@ -429,9 +527,17 @@ class CommunicationManager:
             "timestamp": datetime.now().isoformat()
         })
         
+        # 输出开场发言到前端
+        if streamer:
+            streamer.print("agent", f"[开场] {opening_message}", role_key=manager_id)
+        
         max_chars = self._get_max_chars(state)
         for round_num in range(max_rounds):
             print(f"\n会议第{round_num + 1}轮发言:")
+            
+            # 输出轮次到前端
+            if streamer:
+                streamer.print("system", f"--- 第 {round_num + 1} 轮发言 ---")
             
             # 调试：打印当前会议记录状态
             if round_num > 0:
@@ -459,6 +565,15 @@ class CommunicationManager:
                 
                 # print(f"{analyst_id}: {analyst_response['response']}") 
                 print(f"{analyst_id}: {analyst_response}")
+                
+                # 输出分析师发言到前端
+                if streamer:
+                    response_text = analyst_response.get("response", "")
+                    # 限制输出长度，避免过长
+                    max_display_length = 300
+                    if len(response_text) > max_display_length:
+                        response_text = response_text[:max_display_length] + "..."
+                    streamer.print("agent", response_text, role_key=analyst_id)
 
                 # 记录发言到分析师记忆
                 # analyst_memory = memory_manager.get_analyst_memory(analyst_id)
@@ -473,6 +588,73 @@ class CommunicationManager:
                     current_signals[analyst_id] = analyst_response["adjusted_signal"]
                     print(f"{analyst_id} 调整了信号")
                     adjustments_made_counter += 1
+                    
+                    # 输出信号调整到前端
+                    if streamer:
+                        # 解析调整前后的信号
+                        adjusted_signal = analyst_response.get("adjusted_signal", {})
+                        
+                        # 处理两种可能的信号格式
+                        if isinstance(adjusted_signal, dict):
+                            # 格式1: {ticker: {signal: ..., confidence: ...}}
+                            if 'ticker_signals' in adjusted_signal:
+                                # 格式2: {ticker_signals: [{ticker: ..., signal: ..., confidence: ...}]}
+                                adjustment_details = []
+                                for ticker_signal in adjusted_signal.get('ticker_signals', []):
+                                    ticker = ticker_signal.get('ticker', 'N/A')
+                                    new_signal = ticker_signal.get('signal', 'N/A')
+                                    new_confidence = ticker_signal.get('confidence', 'N/A')
+                                    
+                                    # 获取原始信号
+                                    original_ticker_signal = {}
+                                    if isinstance(original_signal, dict):
+                                        if 'ticker_signals' in original_signal:
+                                            original_ticker_signal = next(
+                                                (s for s in original_signal.get('ticker_signals', []) if s.get('ticker') == ticker),
+                                                {}
+                                            )
+                                        elif ticker in original_signal:
+                                            original_ticker_signal = original_signal.get(ticker, {})
+                                    
+                                    old_signal = original_ticker_signal.get('signal', 'N/A')
+                                    old_confidence = original_ticker_signal.get('confidence', 'N/A')
+                                    
+                                    adjustment_details.append(
+                                        f"  {ticker}: {old_signal}({old_confidence}%) → {new_signal}({new_confidence}%)"
+                                    )
+                                
+                                if adjustment_details:
+                                    streamer.print("agent", 
+                                        f"我调整了信号:\n" + "\n".join(adjustment_details),
+                                        role_key=analyst_id
+                                    )
+                                else:
+                                    streamer.print("agent", "我调整了信号", role_key=analyst_id)
+                            else:
+                                # 简单的 ticker: {signal, confidence} 格式
+                                adjustment_details = []
+                                for ticker, signal_data in adjusted_signal.items():
+                                    if isinstance(signal_data, dict) and 'signal' in signal_data:
+                                        new_signal = signal_data.get('signal', 'N/A')
+                                        new_confidence = signal_data.get('confidence', 'N/A')
+                                        
+                                        old_signal_data = original_signal.get(ticker, {})
+                                        old_signal = old_signal_data.get('signal', 'N/A')
+                                        old_confidence = old_signal_data.get('confidence', 'N/A')
+                                        
+                                        adjustment_details.append(
+                                            f"  {ticker}: {old_signal}({old_confidence}%) → {new_signal}({new_confidence}%)"
+                                        )
+                                
+                                if adjustment_details:
+                                    streamer.print("agent", 
+                                        f"我调整了信号:\n" + "\n".join(adjustment_details),
+                                        role_key=analyst_id
+                                    )
+                                else:
+                                    streamer.print("agent", "我调整了信号", role_key=analyst_id)
+                        else:
+                            streamer.print("agent", "我调整了信号", role_key=analyst_id)
                     
                     # 记录信号调整到记忆
                     # if analyst_memory and analyst_id in communication_ids:
@@ -499,6 +681,14 @@ class CommunicationManager:
         })
         
         print(f"会议总结: {summary}")
+        
+        # 输出会议总结到前端
+        if streamer:
+            streamer.print("system", "--- 会议总结 ---")
+            # 限制总结长度
+            max_summary_length = 400
+            summary_display = summary if len(summary) <= max_summary_length else summary[:max_summary_length] + "..."
+            streamer.print("agent", f"[总结] {summary_display}", role_key=manager_id)
         
         print("会议结束")
         memory_format = self._convert_transcript_to_memory_format(
