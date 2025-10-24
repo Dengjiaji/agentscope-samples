@@ -240,7 +240,7 @@ class LLMMemoryDecisionSystem:
 class LiveTradingThinkingFund:
     """Live交易思考基金 - 时间Sandbox系统"""
 
-    def __init__(self, base_dir: str, streamer=None):
+    def __init__(self, base_dir: str, streamer=None, mode: str = "signal", initial_cash: float = 100000.0, margin_requirement: float = 0.0):
         """初始化思考基金系统"""
         from live_trading_system import LiveTradingSystem
 
@@ -269,6 +269,11 @@ class LiveTradingThinkingFund:
         # 时间点定义
         self.PRE_MARKET = "pre_market"    # 交易前
         self.POST_MARKET = "post_market"  # 交易后
+        
+        # Portfolio模式参数
+        self.mode = mode
+        self.initial_cash = initial_cash
+        self.margin_requirement = margin_requirement
 
     def is_trading_day(self, date: str) -> bool:
         """检查是否为交易日"""
@@ -297,7 +302,10 @@ class LiveTradingThinkingFund:
 
         # 1. 运行策略分析（直接调用核心分析方法，绕过should_run_today检查）
         analysis_result = self.live_system.run_single_day_analysis(
-            tickers, target_date, max_comm_cycles, enable_communications, enable_notifications
+            tickers, target_date, max_comm_cycles, enable_communications, enable_notifications,
+            mode=self.mode,  # 传递运行模式
+            initial_cash=self.initial_cash,  # Portfolio模式初始现金
+            margin_requirement=self.margin_requirement  # Portfolio模式保证金要求
         )
 
         # 使用defaultdict简化初始化
@@ -463,7 +471,7 @@ class LiveTradingThinkingFund:
             for ticker in tickers:
                 signal = agent_signals.get(ticker, 'N/A')
                 analyst_lines.append(f"  {ticker}: {signal}")
-        self.streamer.print("agent", "\n".join(pm_review_lines)+ "\n".join(returns_lines)+"\n".join(analyst_lines), role_key="portfolio_manager")
+        self.streamer.print("agent", "\n".join(pm_review_lines)+"\n"+ "\n".join(returns_lines)+"\n"+"\n".join(analyst_lines), role_key="portfolio_manager")
 
         self.streamer.print("system", "===== Portfolio Manager 记忆管理决策 =====")
 
@@ -886,6 +894,26 @@ def main():
         type=str,
         help='基础目录'
     )
+    
+    # Portfolio模式参数
+    parser.add_argument(
+        '--mode',
+        type=str,
+        choices=["signal", "portfolio"],
+        help='运行模式: signal (信号模式) 或 portfolio (投资组合模式)。默认从.env读取'
+    )
+    
+    parser.add_argument(
+        '--initial-cash',
+        type=float,
+        help='Portfolio模式的初始现金 (默认: 100000.0)'
+    )
+    
+    parser.add_argument(
+        '--margin-requirement',
+        type=float,
+        help='Portfolio模式的保证金要求，0.0表示禁用做空，0.5表示50%%保证金 (默认: 0.0)'
+    )
 
     args = parser.parse_args()
 
@@ -902,9 +930,22 @@ def main():
         memory_instance = initialize_memory_system(base_dir=config.config_name, streamer=console_streamer)
         print(f"✅ 记忆系统已初始化: {memory_instance.get_framework_name()}")
         
-        thinking_fund = LiveTradingThinkingFund(base_dir=config.config_name, streamer=console_streamer)
+        # 初始化思考基金系统，传递mode和portfolio参数
+        thinking_fund = LiveTradingThinkingFund(
+            base_dir=config.config_name, 
+            streamer=console_streamer,
+            mode=config.mode,  # 传递运行模式
+            initial_cash=config.initial_cash,  # Portfolio模式初始现金
+            margin_requirement=config.margin_requirement  # Portfolio模式保证金要求
+        )
+        
         tickers = args.tickers.split(",") if args.tickers else config.tickers
         from pprint import pprint
+        print(f"\n📊 Live Trading Thinking Fund 配置:")
+        print(f"   运行模式: {config.mode.upper()}")
+        if config.mode == "portfolio":
+            print(f"   初始现金: ${config.initial_cash:,.2f}")
+            print(f"   保证金要求: {config.margin_requirement * 100:.1f}%")
         pprint(config.__dict__)
 
         if args.start_date or args.end_date:

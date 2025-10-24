@@ -115,6 +115,16 @@ class MultiDayConfig:
         self.output_dir = get_env_value('OUTPUT_DIR', default='./analysis_results_logs', env_vars=self.env_vars)
         self.verbose = get_env_value('VERBOSE', default=False, value_type=bool, env_vars=self.env_vars)
         
+        # 运行模式配置
+        self.mode = get_env_value('MODE', default='signal', env_vars=self.env_vars)
+        if self.mode not in ['signal', 'portfolio']:
+            print(f"⚠️ 无效的运行模式: {self.mode}，使用默认值 'signal'")
+            self.mode = 'signal'
+        
+        # Portfolio模式配置
+        self.initial_cash = get_env_value('INITIAL_CASH', default=100000.0, value_type=float, env_vars=self.env_vars)
+        self.margin_requirement = get_env_value('MARGIN_REQUIREMENT', default=0.0, value_type=float, env_vars=self.env_vars)
+        
         # 日期配置
         self.start_date = get_env_value('START_DATE', default=None, env_vars=self.env_vars)
         self.end_date = get_env_value('END_DATE', default=None, env_vars=self.env_vars)
@@ -142,6 +152,18 @@ class MultiDayConfig:
         """用命令行参数覆盖环境变量配置"""
         if hasattr(args, 'tickers') and args.tickers:
             self.tickers = [ticker.strip().upper() for ticker in args.tickers.split(",") if ticker.strip()]
+        
+        if hasattr(args, 'mode') and args.mode:
+            if args.mode in ['signal', 'portfolio']:
+                self.mode = args.mode
+            else:
+                print(f"⚠️ 无效的运行模式: {args.mode}，保持当前值 '{self.mode}'")
+        
+        if hasattr(args, 'initial_cash') and args.initial_cash:
+            self.initial_cash = args.initial_cash
+        
+        if hasattr(args, 'margin_requirement') and args.margin_requirement:
+            self.margin_requirement = args.margin_requirement
         
         if hasattr(args, 'start_date') and args.start_date:
             self.start_date = args.start_date
@@ -259,6 +281,16 @@ class LiveThinkingFundConfig:
         self.tickers = get_env_value('TICKERS', default=[], value_type=list, env_vars=self.env_vars)
         self.base_dir = get_env_value('LIVE_BASE_DIR', default=None, env_vars=self.env_vars)
         
+        # 运行模式配置（新增）
+        self.mode = get_env_value('MODE', default='signal', env_vars=self.env_vars)
+        if self.mode not in ['signal', 'portfolio']:
+            print(f"⚠️ 无效的运行模式: {self.mode}，使用默认值 'signal'")
+            self.mode = 'signal'
+        
+        # Portfolio模式配置（新增）
+        self.initial_cash = get_env_value('INITIAL_CASH', default=100000.0, value_type=float, env_vars=self.env_vars)
+        self.margin_requirement = get_env_value('MARGIN_REQUIREMENT', default=0.0, value_type=float, env_vars=self.env_vars)
+        
         # 日期配置
         # 功能开关
         self.force_run = get_env_value('FORCE_RUN', default=False, value_type=bool, env_vars=self.env_vars)
@@ -291,6 +323,16 @@ class LiveThinkingFundConfig:
 
         if hasattr(args, 'config_name') and args.config_name:
             self.config_name = args.config_name
+        
+        # Portfolio模式参数覆盖（新增）
+        if hasattr(args, 'mode') and args.mode:
+            self.mode = args.mode
+        
+        if hasattr(args, 'initial_cash') and args.initial_cash is not None:
+            self.initial_cash = args.initial_cash
+        
+        if hasattr(args, 'margin_requirement') and args.margin_requirement is not None:
+            self.margin_requirement = args.margin_requirement
 if __name__ == "__main__":
    
     

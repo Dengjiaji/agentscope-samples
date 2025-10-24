@@ -78,6 +78,26 @@ def main():
         help="股票代码列表，用逗号分隔 (例如: AAPL,MSFT,GOOGL)"
     )
     
+    # 运行模式参数
+    parser.add_argument(
+        "--mode",
+        type=str,
+        choices=["signal", "portfolio"],
+        help="运行模式: signal (信号模式) 或 portfolio (投资组合模式)。默认: signal"
+    )
+    
+    # Portfolio模式参数
+    parser.add_argument(
+        "--initial-cash",
+        type=float,
+        help="Portfolio模式的初始现金 (默认: 100000.0)"
+    )
+    parser.add_argument(
+        "--margin-requirement",
+        type=float,
+        help="Portfolio模式的保证金要求，0.0表示禁用做空，0.5表示50%%保证金 (默认: 0.0)"
+    )
+    
     # 日期参数
     parser.add_argument(
         "--start-date",
@@ -188,6 +208,10 @@ def main():
     print("多日策略分析配置:")
     print(f"   分析标的: {', '.join(config.tickers)}")
     print(f"   时间范围: {config.start_date} 到 {config.end_date} ({total_days} 天)")
+    print(f"   运行模式: {config.mode.upper()}")
+    if config.mode == "portfolio":
+        print(f"   初始现金: ${config.initial_cash:,.2f}")
+        print(f"   保证金要求: {config.margin_requirement:.0%}")
     print(f"   沟通机制: {'禁用' if config.disable_communications else '启用'}")
     print(f"   通知机制: {'禁用' if config.disable_notifications else '启用'}")
     if not config.disable_communications:
@@ -197,7 +221,7 @@ def main():
     print(f"   输出目录: {config.output_dir}")
     print(f"   数据预取: {'禁用' if config.disable_data_prefetch else '启用'}")
     print(f"   详细推理: {'启用' if config.show_reasoning else '禁用'}")
-    print(f"   OKR机制: {'启用' if config.enable_okr else '禁用'}")
+    print(f"   OKR机制: {'启用' if config.enable_okr else '启用'}")
     
     if config.dry_run:
         print("\n干运行模式 - 配置验证完成，未执行实际分析")
@@ -228,7 +252,10 @@ def main():
             enable_communications=not config.disable_communications,
             enable_notifications=not config.disable_notifications,
             show_reasoning=config.show_reasoning,
-            progress_callback=progress_callback if config.verbose else None
+            progress_callback=progress_callback if config.verbose else None,
+            mode=config.mode,  # 传递运行模式
+            initial_cash=config.initial_cash,  # Portfolio模式初始现金
+            margin_requirement=config.margin_requirement  # Portfolio模式保证金要求
         )
         
         end_time = datetime.now()

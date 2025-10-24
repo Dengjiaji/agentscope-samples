@@ -172,9 +172,9 @@ class LiveTradingSystem:
     
     # ==================== 策略分析部分 ====================
     
-    def run_single_day_analysis(self, tickers: List[str], date: str, max_comm_cycles: int = 2,enable_communications:bool = False,enalbe_notifications:bool=False) -> dict:
+    def run_single_day_analysis(self, tickers: List[str], date: str, max_comm_cycles: int = 2,enable_communications:bool = False,enalbe_notifications:bool=False, mode: str = "signal", initial_cash: float = 100000.0, margin_requirement: float = 0.0) -> dict:
         """运行单日策略分析"""
-        print(f"开始分析 {date} 的策略...")
+        print(f"开始分析 {date} 的策略... (模式: {mode})")
         
         # 创建包含策略日期的自定义session_id
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -196,7 +196,10 @@ class LiveTradingSystem:
             enable_communications=enable_communications,
             enable_notifications=enalbe_notifications,
             show_reasoning=False,
-            progress_callback=None
+            progress_callback=None,
+            mode=mode,
+            initial_cash=initial_cash,
+            margin_requirement=margin_requirement
         )
         # pdb.set_trace()
         if results and results['period']['successful_days'] > 0:
@@ -212,11 +215,14 @@ class LiveTradingSystem:
                 
     
     def _extract_signals(self, daily_result: dict) -> dict:
-        """从分析结果中提取交易信号"""
+        """从分析结果中提取交易信号（支持signal和portfolio两种模式）"""
         signals = {}
         
-        final_decisions = daily_result['results']['portfolio_management_results']['final_decisions']
-        if final_decisions:
+        pm_results = daily_result['results'].get('portfolio_management_results', {})
+        
+        # Signal模式：从final_decisions提取
+        if 'final_decisions' in pm_results and pm_results['final_decisions']:
+            final_decisions = pm_results['final_decisions']
             for ticker, decision in final_decisions.items():
                 action = decision['action']
                 confidence = decision['confidence']
@@ -235,8 +241,38 @@ class LiveTradingSystem:
                     'action': action,
                     'reasoning': decision['reasoning']
                 }
+        
+        # Portfolio模式：从messages提取
+        elif 'messages' in pm_results and pm_results['messages']:
+            for msg in reversed(pm_results['messages']):
+                if hasattr(msg, 'name') and 'portfolio_manager' in str(msg.name):
+                    try:
+                        decisions = json.loads(msg.content)
+                        for ticker, decision in decisions.items():
+                            action = decision.get('action', 'hold')
+                            confidence = decision.get('confidence', 0)
+                            quantity = decision.get('quantity', 0)
+                            
+                            # 转换portfolio action到signal
+                            if action == 'buy':
+                                signal = 'bullish'
+                            elif action in ['short', 'sell']:
+                                signal = 'bearish'
+                            else:  # hold, cover
+                                signal = 'neutral'
+                            
+                            signals[ticker] = {
+                                'signal': signal,
+                                'confidence': confidence,
+                                'action': action,
+                                'quantity': quantity,
+                                'reasoning': decision.get('reasoning', '')
+                            }
+                        break
+                    except (json.JSONDecodeError, KeyError, AttributeError) as e:
+                        print(f"警告: 解析portfolio决策失败: {e}")
+                        continue
             
-                           
         return signals
     
     def calculate_daily_returns(self, date: str, signals: dict) -> dict:

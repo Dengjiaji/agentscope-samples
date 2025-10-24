@@ -289,7 +289,8 @@ class AdvancedInvestmentAnalysisEngine:
             }
     
     def run_full_analysis_with_communications(self, tickers: List[str], start_date: str, end_date: str, 
-                                            parallel: bool = True, enable_communications: bool = True, enable_notifications: bool = True, state=None) -> Dict[str, Any]:
+                                            parallel: bool = True, enable_communications: bool = True, 
+                                            enable_notifications: bool = True, state=None, mode: str = "signal") -> Dict[str, Any]:
         """运行带通信机制的完整分析流程
         
         Args:
@@ -300,6 +301,7 @@ class AdvancedInvestmentAnalysisEngine:
             enable_communications: 是否启用通信机制
             enable_notifications: 是否启用通知机制
             state: 预创建的状态对象（用于多日模式中的状态继承）
+            mode: 运行模式 ("signal" 或 "portfolio")
         """
         # 创建或使用提供的状态
         if state is None:
@@ -308,6 +310,7 @@ class AdvancedInvestmentAnalysisEngine:
             print(f"分析股票: {', '.join(tickers)}")
             print(f"时间范围: {start_date} 至 {end_date}")
             print(f"执行模式: {'并行' if parallel else '串行'}")
+            print(f"运行模式: {mode.upper()}")
             print(f"通信功能: {'启用' if enable_communications else '禁用'}")
             print(f"通知功能: {'启用' if enable_notifications else '禁用'}")
 
@@ -315,6 +318,20 @@ class AdvancedInvestmentAnalysisEngine:
             state = self.create_base_state(tickers, start_date, end_date)
             state["metadata"]["communication_enabled"] = enable_communications
             state["metadata"]["notifications_enabled"] = enable_notifications
+            state["metadata"]["mode"] = mode
+            
+            # 如果是portfolio模式，初始化投资组合
+            if mode == "portfolio":
+                # 从metadata或使用默认值
+                initial_cash = state["metadata"].get("initial_cash", 100000.0)
+                margin_requirement = state["metadata"].get("margin_requirement", 0.0)
+                
+                state["data"]["portfolio"] = {
+                    "cash": initial_cash,
+                    "positions": {},
+                    "margin_requirement": margin_requirement,
+                    "margin_used": 0.0
+                }
             # 提前确定本次会话的输出文件路径，供通信过程落盘复用
             output_dir = os.path.join(current_dir, "analysis_results_logs")
             output_file = f"{output_dir}/communications_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
@@ -343,12 +360,12 @@ class AdvancedInvestmentAnalysisEngine:
         
         # 第三步：风险管理分析
         print("\n开始风险管理分析...")
-        risk_analysis_results = self.run_risk_management_analysis(state)
+        risk_analysis_results = self.run_risk_management_analysis(state, mode)
         
         # 第四步：投资组合管理决策（包含通信机制）
         print("\n开始投资组合管理决策...")
         portfolio_management_results = self.run_portfolio_management_with_communications(
-            state, enable_communications
+            state, enable_communications, mode
         )
         # print(portfolio_management_results.keys())
         # print(portfolio_management_results['portfolio_summary'])
@@ -650,15 +667,29 @@ class AdvancedInvestmentAnalysisEngine:
                 "status": "error"
             }
     
-    def run_risk_management_analysis(self, state: AgentState) -> Dict[str, Any]:
-        """运行风险管理分析"""
+    def run_risk_management_analysis(self, state: AgentState, mode: str = "signal") -> Dict[str, Any]:
+        """
+        运行风险管理分析
+        
+        Args:
+            state: 当前状态
+            mode: 运行模式 ("signal" 或 "portfolio")
+        """
         print("执行风险管理分析...")
         if self.streamer:
             self.streamer.print("system", "===== 风险管理分析 =====")
         
         try:
-            risk_result = risk_management_agent(state, agent_id="risk_management_agent")
-            risk_analysis = state["data"]["analyst_signals"].get("risk_management_agent", {})
+            # 根据模式选择相应的Risk Manager
+            if mode == "portfolio":
+                from src.agents.risk_manager_portfolio import risk_management_agent_portfolio
+                agent_id = "risk_management_agent_portfolio"
+                risk_result = risk_management_agent_portfolio(state, agent_id=agent_id)
+            else:
+                agent_id = "risk_management_agent"
+                risk_result = risk_management_agent(state, agent_id=agent_id)
+            
+            risk_analysis = state["data"]["analyst_signals"].get(agent_id, {})
             
             if risk_analysis:
                 print("风险管理分析完成")
@@ -667,25 +698,49 @@ class AdvancedInvestmentAnalysisEngine:
                 
                 # 显示每个ticker的风险分析
                 for ticker, risk_data in risk_analysis.items():
-                    risk_level = risk_data.get("risk_level", "unknown")
-                    risk_score = risk_data.get("risk_score", 0)
-                    current_price = risk_data.get("current_price", 0)
-                    vol_info = risk_data.get("volatility_info", {})
-                    annualized_vol = vol_info.get("annualized_volatility", 0)
-                    risk_assessment = risk_data.get("risk_assessment", "")
-                    
-                    print(f"  {ticker}:")
-                    print(f"     风险等级: {risk_level.upper()}")
-                    print(f"     风险评分: {risk_score}/100")
-                    # print(f"     当前价格: ${current_price:.2f}")
-                    print(f"     年化波动率: {annualized_vol:.1%}")
-                    print(f"     风险评估: {risk_assessment}")
-                    
-                    if self.streamer:
-                        self.streamer.print("agent", 
-                            f"{ticker}: 风险等级 {risk_level.upper()}, 风险评分 {risk_score}/100, 年化波动率 {annualized_vol:.1%}\n{risk_assessment}",
-                            role_key="risk_manager"
-                        )
+                    # 判断是signal模式还是portfolio模式
+                    if "risk_level" in risk_data:
+                        # Signal模式
+                        risk_level = risk_data.get("risk_level", "unknown")
+                        risk_score = risk_data.get("risk_score", 0)
+                        current_price = risk_data.get("current_price", 0)
+                        vol_info = risk_data.get("volatility_info", {})
+                        annualized_vol = vol_info.get("annualized_volatility", 0)
+                        risk_assessment = risk_data.get("risk_assessment", "")
+                        
+                        print(f"  {ticker}:")
+                        print(f"     风险等级: {risk_level.upper()}")
+                        print(f"     风险评分: {risk_score}/100")
+                        print(f"     年化波动率: {annualized_vol:.1%}")
+                        print(f"     风险评估: {risk_assessment}")
+                        
+                        if self.streamer:
+                            self.streamer.print("agent", 
+                                f"{ticker}: 风险等级 {risk_level.upper()}, 风险评分 {risk_score}/100, 年化波动率 {annualized_vol:.1%}\n{risk_assessment}",
+                                role_key="risk_manager"
+                            )
+                    else:
+                        # Portfolio模式
+                        current_price = risk_data.get("current_price", 0)
+                        max_shares = risk_data.get("max_shares", 0)
+                        remaining_limit = risk_data.get("remaining_position_limit", 0)
+                        vol_metrics = risk_data.get("volatility_metrics", {})
+                        annualized_vol = vol_metrics.get("annualized_volatility", 0)
+                        reasoning = risk_data.get("reasoning", {})
+                        position_limit_pct = reasoning.get("base_position_limit_pct", 0)
+                        
+                        print(f"  {ticker}:")
+                        print(f"     当前价格: ${current_price:.2f}")
+                        print(f"     最大可买股数: {max_shares}")
+                        print(f"     年化波动率: {annualized_vol:.1%}")
+                        print(f"     仓位限制: {position_limit_pct:.1%}")
+                        print(f"     剩余可用额度: ${remaining_limit:,.2f}")
+                        
+                        if self.streamer:
+                            self.streamer.print("agent", 
+                                f"{ticker}: 价格 ${current_price:.2f}, 最大可买 {max_shares} 股, 波动率 {annualized_vol:.1%}, 仓位限制 {position_limit_pct:.1%}",
+                                role_key="risk_manager"
+                            )
                 
                 return {
                     "agent_id": "risk_management_agent",
@@ -714,21 +769,34 @@ class AdvancedInvestmentAnalysisEngine:
             }
     
     def run_portfolio_management_with_communications(self, state: AgentState, 
-                                                   enable_communications: bool = True) -> Dict[str, Any]:
-        """运行投资组合管理（包含通信机制）"""
+                                                   enable_communications: bool = True,
+                                                   mode: str = "signal") -> Dict[str, Any]:
+        """
+        运行投资组合管理（包含通信机制）
+        
+        Args:
+            state: 当前状态
+            enable_communications: 是否启用通信机制
+            mode: 运行模式 ("signal" 或 "portfolio")
+        """
         # print("执行投资组合管理决策...")
         
         try:
-            # 首先运行传统的投资组合管理
-            portfolio_result = portfolio_management_agent(state, agent_id="portfolio_manager")
+            # 根据模式选择相应的Portfolio Manager
+            if mode == "portfolio":
+                from src.agents.portfolio_manager_portfolio import portfolio_management_agent_portfolio
+                portfolio_result = portfolio_management_agent_portfolio(state, agent_id="portfolio_manager_portfolio")
+            else:
+                portfolio_result = portfolio_management_agent(state, agent_id="portfolio_manager")
             
             # 更新state
             if portfolio_result and "messages" in portfolio_result:
                 state["messages"] = portfolio_result["messages"]
                 state["data"] = portfolio_result["data"]
 
-            # 获取初始投资决策
-            initial_decisions = self._extract_portfolio_decisions(state)
+            # 获取初始投资决策（根据模式使用正确的agent名称）
+            agent_name = "portfolio_manager_portfolio" if mode == "portfolio" else "portfolio_manager"
+            initial_decisions = self._extract_portfolio_decisions(state, agent_name=agent_name)
             print('initial_decisions',initial_decisions)
             if not initial_decisions:
                 print("警告: 未能获取初始投资决策")
@@ -821,14 +889,20 @@ class AdvancedInvestmentAnalysisEngine:
                         # print("重新运行风险管理分析...")
                         # risk_analysis_results = self.run_risk_management_analysis(state)
                         
-                        # 重新运行投资组合管理（使用标准agent_id以便访问风险管理数据）
-                        final_portfolio_result = portfolio_management_agent(state, agent_id="portfolio_manager")
+                        # 重新运行投资组合管理（根据模式选择正确的agent）
+                        if mode == "portfolio":
+                            from src.agents.portfolio_manager_portfolio import portfolio_management_agent_portfolio
+                            final_portfolio_result = portfolio_management_agent_portfolio(state, agent_id="portfolio_manager_portfolio")
+                            agent_name_for_extract = "portfolio_manager_portfolio"
+                        else:
+                            final_portfolio_result = portfolio_management_agent(state, agent_id="portfolio_manager")
+                            agent_name_for_extract = "portfolio_manager"
                         
                         if final_portfolio_result and "messages" in final_portfolio_result:
                             state["messages"] = final_portfolio_result["messages"]
                             state["data"] = final_portfolio_result["data"]
                         
-                        new_final_decisions = self._extract_portfolio_decisions(state, agent_name="portfolio_manager")
+                        new_final_decisions = self._extract_portfolio_decisions(state, agent_name=agent_name_for_extract)
                         if new_final_decisions:
                             final_decisions = new_final_decisions
                             print("基于通信结果的投资决策已更新")
@@ -853,21 +927,34 @@ class AdvancedInvestmentAnalysisEngine:
                         reasoning = decision.get('reasoning', '')
                         
                         # 为不同的action添加emoji
-                        action_emoji = {
-                            'long': '📈 做多',
-                            'short': '📉 做空',
-                            'hold': '⏸️ 持有'
-                        }
+                        if mode == "portfolio":
+                            action_emoji = {
+                                'buy': '📈 买入',
+                                'sell': '📉 卖出',
+                                'short': '🔻 做空',
+                                'cover': '🔺 平空',
+                                'hold': '⏸️ 持有'
+                            }
+                        else:
+                            action_emoji = {
+                                'long': '📈 做多',
+                                'short': '📉 做空',
+                                'hold': '⏸️ 持有'
+                            }
                         action_display = action_emoji.get(action, action)
                         
                         decision_lines.append(f"\n【{ticker}】")
                         decision_lines.append(f"  决策: {action_display}")
+                        if mode == "portfolio":
+                            quantity = decision.get('quantity', 0)
+                            decision_lines.append(f"  数量: {quantity}股")
                         decision_lines.append(f"  置信度: {confidence}%")
                         decision_lines.append(f"  理由: {reasoning[:200]}...")  # 限制长度
                     
-                    self.streamer.print("agent", "\n".join(decision_lines), role_key="portfolio_manager")
+                    agent_key = "portfolio_manager_portfolio" if mode == "portfolio" else "portfolio_manager"
+                    self.streamer.print("agent", "\n".join(decision_lines), role_key=agent_key)
                 
-                final_execution_report = self._execute_portfolio_trades(state, final_decisions)
+                final_execution_report = self._execute_portfolio_trades(state, final_decisions, mode)
                 
                 # 生成简化的摘要信息
                 portfolio_summary = {"status": "signal_based_analysis"}
@@ -888,7 +975,7 @@ class AdvancedInvestmentAnalysisEngine:
             else:
                 # 不启用通信机制，直接执行初始决策的交易
                 print("\n执行初始交易决策...")
-                execution_report = self._execute_portfolio_trades(state, initial_decisions)
+                execution_report = self._execute_portfolio_trades(state, initial_decisions, mode)
                 
                 # 生成简化的摘要信息
                 portfolio_summary = {"status": "signal_based_analysis"}
@@ -1037,8 +1124,15 @@ class AdvancedInvestmentAnalysisEngine:
             print(f"警告: 提取投资决策失败: {str(e)}")
             return {}
     
-    def _execute_portfolio_trades(self, state: AgentState, decisions: Dict[str, Any]) -> Dict[str, Any]:
-        """执行投资组合交易决策"""
+    def _execute_portfolio_trades(self, state: AgentState, decisions: Dict[str, Any], mode: str = "signal") -> Dict[str, Any]:
+        """
+        执行投资组合交易决策
+        
+        Args:
+            state: 当前状态
+            decisions: PM的决策
+            mode: 运行模式 ("signal" 或 "portfolio")
+        """
         try:
             # 获取当前价格数据
             current_prices = state["data"].get("current_prices", {})
@@ -1053,18 +1147,47 @@ class AdvancedInvestmentAnalysisEngine:
                 print(f"价格数据: {current_prices}")
                 return {"status": "skipped", "reason": "无有效价格数据"}
             
-            # 执行交易决策（记录方向信号）
-            execution_report = execute_trading_decisions(
-                pm_decisions=decisions,
-                current_date=state["data"].get("end_date")
-            )
-            
-            # 添加执行报告到state
-            if "execution_reports" not in state["data"]:
-                state["data"]["execution_reports"] = []
-            state["data"]["execution_reports"].append(execution_report)
-            
-            print(f"信号记录完成，记录了{execution_report.get('total_signals', 0)}个方向信号")
+            if mode == "portfolio":
+                # Portfolio模式：执行具体交易并更新持仓
+                from src.utils.trade_executor import execute_portfolio_trades
+                
+                portfolio = state["data"].get("portfolio", {
+                    "cash": 100000.0,
+                    "positions": {},
+                    "margin_requirement": 0.5,
+                    "margin_used": 0.0
+                })
+                
+                execution_report = execute_portfolio_trades(
+                    pm_decisions=decisions,
+                    current_prices=current_prices,
+                    portfolio=portfolio,
+                    current_date=state["data"].get("end_date")
+                )
+                
+                # 更新state中的投资组合
+                state["data"]["portfolio"] = execution_report.get("updated_portfolio", portfolio)
+                
+                # 添加执行报告到state
+                if "execution_reports" not in state["data"]:
+                    state["data"]["execution_reports"] = []
+                state["data"]["execution_reports"].append(execution_report)
+                
+                print(f"Portfolio交易执行完成，执行了{len(execution_report.get('executed_trades', []))}笔交易")
+                
+            else:
+                # Signal模式：只记录方向信号
+                execution_report = execute_trading_decisions(
+                    pm_decisions=decisions,
+                    current_date=state["data"].get("end_date")
+                )
+                
+                # 添加执行报告到state
+                if "execution_reports" not in state["data"]:
+                    state["data"]["execution_reports"] = []
+                state["data"]["execution_reports"].append(execution_report)
+                
+                print(f"信号记录完成，记录了{execution_report.get('total_signals', 0)}个方向信号")
             
             return execution_report
             

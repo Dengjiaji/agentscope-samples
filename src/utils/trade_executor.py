@@ -1,11 +1,13 @@
 """
-交易执行引擎 - 简化版本，只记录方向信号决策
-基于单位资产的方向信号，不涉及复杂的资金和持仓计算
+交易执行引擎 - 支持两种模式
+1. Signal模式：只记录方向信号决策
+2. Portfolio模式：执行具体交易并跟踪持仓
 """
 
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 import json
 from datetime import datetime
+from copy import deepcopy
 
 
 class DirectionSignalRecorder:
@@ -102,12 +104,296 @@ def parse_pm_decisions(pm_output: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         return {}
 
 
+class PortfolioTradeExecutor:
+    """Portfolio模式的交易执行器，执行具体交易并跟踪持仓"""
+    
+    def __init__(self, initial_portfolio: Optional[Dict[str, Any]] = None):
+        """
+        初始化Portfolio交易执行器
+        
+        Args:
+            initial_portfolio: 初始投资组合状态
+        """
+        if initial_portfolio is None:
+            self.portfolio = {
+                "cash": 100000.0,
+                "positions": {},
+                "margin_requirement": 0.0,  # 默认0.0（禁用做空）
+                "margin_used": 0.0
+            }
+        else:
+            self.portfolio = deepcopy(initial_portfolio)
+        
+        self.trade_history = []  # 交易历史
+        self.portfolio_history = []  # 投资组合历史
+    
+    def execute_trades(
+        self,
+        decisions: Dict[str, Dict[str, Any]],
+        current_prices: Dict[str, float],
+        current_date: str = None
+    ) -> Dict[str, Any]:
+        """
+        执行交易决策并更新持仓
+        
+        Args:
+            decisions: {ticker: {action, quantity, confidence, reasoning}}
+            current_prices: {ticker: current_price}
+            current_date: 当前日期
+            
+        Returns:
+            交易执行报告
+        """
+        if current_date is None:
+            current_date = datetime.now().strftime("%Y-%m-%d")
+        
+        execution_report = {
+            "date": current_date,
+            "timestamp": datetime.now().isoformat(),
+            "executed_trades": [],
+            "failed_trades": [],
+            "portfolio_before": deepcopy(self.portfolio),
+            "portfolio_after": None
+        }
+        
+        print(f"\n💼 执行 {current_date} 的Portfolio交易...")
+        
+        # 执行每个ticker的交易
+        for ticker, decision in decisions.items():
+            action = decision.get("action", "hold")
+            quantity = decision.get("quantity", 0)
+            
+            if action == "hold" or quantity == 0:
+                continue
+            
+            price = current_prices.get(ticker, 0)
+            if price <= 0:
+                execution_report["failed_trades"].append({
+                    "ticker": ticker,
+                    "action": action,
+                    "quantity": quantity,
+                    "reason": "无有效价格数据"
+                })
+                print(f"   ❌ {ticker}: 无法执行 {action} - 无有效价格")
+                continue
+            
+            # 执行交易
+            trade_result = self._execute_single_trade(ticker, action, quantity, price, current_date)
+            
+            if trade_result["status"] == "success":
+                execution_report["executed_trades"].append(trade_result)
+                action_emoji = {
+                    "buy": "📈 买入",
+                    "sell": "📉 卖出",
+                    "short": "🔻 做空",
+                    "cover": "🔺 平空"
+                }
+                emoji = action_emoji.get(action, action)
+                print(f"   ✅ {ticker}: {emoji} {quantity}股 @ ${price:.2f}")
+            else:
+                execution_report["failed_trades"].append(trade_result)
+                print(f"   ❌ {ticker}: 无法执行 {action} - {trade_result['reason']}")
+        
+        # 记录最终投资组合状态
+        execution_report["portfolio_after"] = deepcopy(self.portfolio)
+        self.portfolio_history.append({
+            "date": current_date,
+            "portfolio": deepcopy(self.portfolio)
+        })
+        
+        # 计算投资组合价值
+        portfolio_value = self._calculate_portfolio_value(current_prices)
+        execution_report["portfolio_value"] = portfolio_value
+        
+        print(f"\n✅ 交易执行完成:")
+        print(f"   成功: {len(execution_report['executed_trades'])} 笔")
+        print(f"   失败: {len(execution_report['failed_trades'])} 笔")
+        print(f"   投资组合价值: ${portfolio_value:,.2f}")
+        print(f"   现金余额: ${self.portfolio['cash']:,.2f}")
+        
+        return execution_report
+    
+    def _execute_single_trade(
+        self,
+        ticker: str,
+        action: str,
+        quantity: int,
+        price: float,
+        date: str
+    ) -> Dict[str, Any]:
+        """执行单笔交易"""
+        
+        # 确保持仓存在
+        if ticker not in self.portfolio["positions"]:
+            self.portfolio["positions"][ticker] = {
+                "long": 0,
+                "short": 0,
+                "long_cost_basis": 0.0,
+                "short_cost_basis": 0.0
+            }
+        
+        position = self.portfolio["positions"][ticker]
+        trade_value = quantity * price
+        
+        if action == "buy":
+            # 买入多头
+            if self.portfolio["cash"] < trade_value:
+                return {
+                    "status": "failed",
+                    "ticker": ticker,
+                    "action": action,
+                    "quantity": quantity,
+                    "price": price,
+                    "reason": f"现金不足 (需要: ${trade_value:.2f}, 可用: ${self.portfolio['cash']:.2f})"
+                }
+            
+            # 更新持仓成本基础
+            old_long = position["long"]
+            old_cost_basis = position["long_cost_basis"]
+            new_long = old_long + quantity
+            position["long_cost_basis"] = ((old_long * old_cost_basis) + (quantity * price)) / new_long
+            position["long"] = new_long
+            
+            # 扣除现金
+            self.portfolio["cash"] -= trade_value
+            
+        elif action == "sell":
+            # 卖出多头
+            if position["long"] < quantity:
+                return {
+                    "status": "failed",
+                    "ticker": ticker,
+                    "action": action,
+                    "quantity": quantity,
+                    "price": price,
+                    "reason": f"多头持仓不足 (持有: {position['long']}, 尝试卖出: {quantity})"
+                }
+            
+            # 减少持仓
+            position["long"] -= quantity
+            if position["long"] == 0:
+                position["long_cost_basis"] = 0.0
+            
+            # 增加现金
+            self.portfolio["cash"] += trade_value
+            
+        elif action == "short":
+            # 做空
+            margin_needed = trade_value * self.portfolio["margin_requirement"]
+            if self.portfolio["cash"] < margin_needed:
+                return {
+                    "status": "failed",
+                    "ticker": ticker,
+                    "action": action,
+                    "quantity": quantity,
+                    "price": price,
+                    "reason": f"保证金不足 (需要: ${margin_needed:.2f}, 可用: ${self.portfolio['cash']:.2f})"
+                }
+            
+            # 更新持仓成本基础
+            old_short = position["short"]
+            old_cost_basis = position["short_cost_basis"]
+            new_short = old_short + quantity
+            position["short_cost_basis"] = ((old_short * old_cost_basis) + (quantity * price)) / new_short
+            position["short"] = new_short
+            
+            # 增加现金（卖空收入）和保证金使用
+            self.portfolio["cash"] += trade_value - margin_needed
+            self.portfolio["margin_used"] += margin_needed
+            
+        elif action == "cover":
+            # 平空
+            if position["short"] < quantity:
+                return {
+                    "status": "failed",
+                    "ticker": ticker,
+                    "action": action,
+                    "quantity": quantity,
+                    "price": price,
+                    "reason": f"空头持仓不足 (持有: {position['short']}, 尝试平空: {quantity})"
+                }
+            
+            # 计算释放的保证金
+            margin_released = trade_value * self.portfolio["margin_requirement"]
+            
+            # 减少持仓
+            position["short"] -= quantity
+            if position["short"] == 0:
+                position["short_cost_basis"] = 0.0
+            
+            # 扣除现金（买入平空）并释放保证金
+            self.portfolio["cash"] -= trade_value
+            self.portfolio["cash"] += margin_released
+            self.portfolio["margin_used"] -= margin_released
+        
+        # 记录交易
+        trade_record = {
+            "status": "success",
+            "ticker": ticker,
+            "action": action,
+            "quantity": quantity,
+            "price": price,
+            "value": trade_value,
+            "date": date,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        self.trade_history.append(trade_record)
+        
+        return trade_record
+    
+    def _calculate_portfolio_value(self, current_prices: Dict[str, float]) -> float:
+        """计算投资组合总价值（净清算价值）"""
+        total_value = self.portfolio["cash"]
+        
+        for ticker, position in self.portfolio["positions"].items():
+            if ticker in current_prices:
+                price = current_prices[ticker]
+                # 加上多头持仓价值
+                total_value += position["long"] * price
+                # 减去空头持仓价值（负债）
+                total_value -= position["short"] * price
+        
+        return total_value
+    
+    def get_portfolio_summary(self, current_prices: Dict[str, float]) -> Dict[str, Any]:
+        """获取投资组合摘要"""
+        portfolio_value = self._calculate_portfolio_value(current_prices)
+        
+        positions_summary = []
+        for ticker, position in self.portfolio["positions"].items():
+            if position["long"] > 0 or position["short"] > 0:
+                price = current_prices.get(ticker, 0)
+                long_value = position["long"] * price
+                short_value = position["short"] * price
+                
+                positions_summary.append({
+                    "ticker": ticker,
+                    "long_shares": position["long"],
+                    "short_shares": position["short"],
+                    "long_value": long_value,
+                    "short_value": short_value,
+                    "long_cost_basis": position["long_cost_basis"],
+                    "short_cost_basis": position["short_cost_basis"],
+                    "long_pnl": long_value - (position["long"] * position["long_cost_basis"]) if position["long"] > 0 else 0,
+                    "short_pnl": (position["short"] * position["short_cost_basis"]) - short_value if position["short"] > 0 else 0
+                })
+        
+        return {
+            "portfolio_value": portfolio_value,
+            "cash": self.portfolio["cash"],
+            "margin_used": self.portfolio["margin_used"],
+            "positions": positions_summary,
+            "total_trades": len(self.trade_history)
+        }
+
+
 def execute_trading_decisions(
     pm_decisions: Dict[str, Any], 
     current_date: str = None
 ) -> Dict[str, Any]:
     """
-    记录方向信号决策的便捷函数（简化版本）
+    记录方向信号决策的便捷函数（Signal模式）
     
     Args:
         pm_decisions: PM的方向决策
@@ -126,3 +412,39 @@ def execute_trading_decisions(
     signal_report = recorder.record_direction_signals(decisions, current_date)
     
     return signal_report
+
+
+def execute_portfolio_trades(
+    pm_decisions: Dict[str, Any],
+    current_prices: Dict[str, float],
+    portfolio: Dict[str, Any],
+    current_date: str = None
+) -> Dict[str, Any]:
+    """
+    执行Portfolio模式的交易决策
+    
+    Args:
+        pm_decisions: PM的交易决策
+        current_prices: 当前价格
+        portfolio: 当前投资组合状态
+        current_date: 当前日期（可选）
+        
+    Returns:
+        交易执行报告和更新后的投资组合
+    """
+    # 解析PM决策
+    decisions = parse_pm_decisions(pm_decisions)
+    
+    # 创建Portfolio交易执行器
+    executor = PortfolioTradeExecutor(initial_portfolio=portfolio)
+    
+    # 执行交易
+    execution_report = executor.execute_trades(decisions, current_prices, current_date)
+    
+    # 添加投资组合摘要
+    execution_report["portfolio_summary"] = executor.get_portfolio_summary(current_prices)
+    
+    # 返回更新后的投资组合
+    execution_report["updated_portfolio"] = executor.portfolio
+    
+    return execution_report

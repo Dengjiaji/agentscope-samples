@@ -163,7 +163,8 @@ class MultiDayManager:
             "analyst_memory": state.get("data", {}).get("analyst_memory"),
             "communication_logs": complete_comm_logs,
             "metadata": state.get("metadata", {}),
-            "okr_state": state.get("data", {}).get("okr_state")
+            "okr_state": state.get("data", {}).get("okr_state"),
+            "portfolio": state.get("data", {}).get("portfolio")  # 保存投资组合状态
         }
         
         try:
@@ -229,7 +230,10 @@ class MultiDayManager:
             if "communication_decisions" not in comm_logs:
                 comm_logs["communication_decisions"] = []
         
-        # 投资组合状态已移除，不再需要恢复仓位
+        # 恢复投资组合状态（Portfolio模式）
+        if previous_state.get("portfolio"):
+            current_state["data"]["portfolio"] = previous_state["portfolio"]
+            print(f"已恢复投资组合状态 (现金: ${previous_state['portfolio'].get('cash', 0):,.2f})")
         
         # 恢复OKR状态
         if previous_state.get("okr_state") and self.okr_enabled:
@@ -262,7 +266,9 @@ class MultiDayManager:
         enable_communications: bool = True,
         enable_notifications: bool = True,
         show_reasoning: bool = False,
-        progress_callback: Optional[Callable] = None
+        progress_callback: Optional[Callable] = None,
+        mode: str = "signal",
+        **kwargs
     ) -> Dict[str, Any]:
         """
         运行多日投资策略
@@ -275,6 +281,8 @@ class MultiDayManager:
             enable_notifications: 是否启用通知机制
             show_reasoning: 是否显示详细推理过程
             progress_callback: 进度回调函数
+            mode: 运行模式 ("signal" 或 "portfolio")
+            **kwargs: 其他参数
             
         Returns:
             多日分析汇总结果
@@ -333,6 +341,11 @@ class MultiDayManager:
                 daily_state["metadata"]["show_reasoning"] = show_reasoning
                 daily_state["metadata"]["max_communication_cycles"] = self.max_communication_cycles
                 daily_state["metadata"]["session_id"] = self.session_id
+                daily_state["metadata"]["mode"] = mode
+                # Portfolio模式参数
+                if mode == "portfolio":
+                    daily_state["metadata"]["initial_cash"] = kwargs.get("initial_cash", 100000.0)
+                    daily_state["metadata"]["margin_requirement"] = kwargs.get("margin_requirement", 0.0)
                 daily_state["metadata"]["trading_date"] = current_date_str
                 daily_state["metadata"]["day_number"] = i + 1
                 
@@ -344,6 +357,22 @@ class MultiDayManager:
                 if i > 0:
                     previous_state = self.load_previous_state(current_date_str)
                     self.restore_state_to_engine(previous_state, daily_state)
+                else:
+                    # 第一天：初始化Portfolio状态（如果是portfolio模式）
+                    if mode == "portfolio":
+                        initial_cash = kwargs.get("initial_cash", 100000.0)
+                        margin_requirement = kwargs.get("margin_requirement", 0.0)
+                        
+                        if "data" not in daily_state:
+                            daily_state["data"] = {}
+                        
+                        daily_state["data"]["portfolio"] = {
+                            "cash": initial_cash,
+                            "positions": {},
+                            "margin_requirement": margin_requirement,
+                            "margin_used": 0.0
+                        }
+                        print(f"已初始化投资组合 (现金: ${initial_cash:,.2f}, 保证金要求: {margin_requirement*100:.1f}%)")
                 
                 # OKR：在运行分析前，基于过往数据更新权重，并注入到state中
                 if self.okr_enabled:
@@ -364,13 +393,14 @@ class MultiDayManager:
                     daily_state.setdefault("data", {})["okr_state"] = self.okr_manager.export_okr_data()
                     daily_state["data"]["analyst_weights"] = self.okr_manager.get_analyst_weights_for_prompt()
                 
-                # 执行当日完整分析流程 
+                # 执行当日完整分析流程
                 daily_results = self.engine.run_full_analysis_with_communications(
                     tickers=tickers,
                     start_date=lookback_start,
                     end_date=current_date_str,
                     enable_communications=enable_communications,
                     enable_notifications=enable_notifications,
+                    mode=mode,
                     state=daily_state
                 )
                 
@@ -385,8 +415,8 @@ class MultiDayManager:
                     except Exception as e:
                         print(f"警告: 记录OKR信号失败: {e}")
                 
-                # 保存当日状态
-                # self.save_daily_state(current_date_str, daily_results, daily_state)
+                # 保存当日状态（包括投资组合）
+                self.save_daily_state(current_date_str, daily_results, daily_state)
                 
                 # 记录成功
                 successful_days += 1
