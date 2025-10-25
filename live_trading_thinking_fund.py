@@ -388,6 +388,17 @@ class LiveTradingThinkingFund:
                 if sig:
                     self.streamer.print("agent", f"{ticker}: {sig}",  role_key=agent)
 
+        # 如果是Portfolio模式，收集Portfolio相关信息
+        if self.mode == "portfolio":
+            # 从分析结果中提取Portfolio信息
+            raw_results = analysis_result.get('raw_results', {})
+            portfolio_summary = raw_results.get('portfolio_summary', {})
+            updated_portfolio = raw_results.get('updated_portfolio', {})
+            
+            # 将Portfolio信息添加到live_env
+            live_env['portfolio_summary'] = portfolio_summary
+            live_env['updated_portfolio'] = updated_portfolio
+
         return {
             'status': 'success',
             'date': target_date,
@@ -442,27 +453,78 @@ class LiveTradingThinkingFund:
         ana_signals = live_env['ana_signals']
         real_returns = live_env['real_returns']
 
-        # 1. Portfolio Manager 信号回顾（合并为一次输出）
+        # 1. Portfolio Manager 信号回顾（根据模式显示不同信息）
         pm_review_lines = ["基于交易前分析进行复盘...", "Portfolio Manager信号回顾:"]
-        for ticker in tickers:
-            if ticker in pm_signals:
-                signal_info = pm_signals[ticker]
-                pm_review_lines.append(
-                    f"  {ticker}: {signal_info.get('signal', 'N/A')} ({signal_info.get('action', 'N/A')}, 置信度: {signal_info.get('confidence', 'N/A')}%)"
-                )
-            else:
-                pm_review_lines.append(f"  {ticker}: 无信号数据")
-        # self.streamer.print("agent", "\n".join(pm_review_lines), role_key="portfolio_manager")
+        
+        if self.mode == "portfolio":
+            # Portfolio模式：显示详细的操作信息
+            for ticker in tickers:
+                if ticker in pm_signals:
+                    signal_info = pm_signals[ticker]
+                    action = signal_info.get('action', 'N/A')
+                    quantity = signal_info.get('quantity', 0)
+                    confidence = signal_info.get('confidence', 'N/A')
+                    signal = signal_info.get('signal', 'N/A')
+                    
+                    # 显示操作和数量
+                    if quantity > 0:
+                        pm_review_lines.append(
+                            f"  {ticker}: {signal} ({action} {quantity}股, 置信度: {confidence}%)"
+                        )
+                    else:
+                        pm_review_lines.append(
+                            f"  {ticker}: {signal} ({action}, 置信度: {confidence}%)"
+                        )
+                else:
+                    pm_review_lines.append(f"  {ticker}: 无信号数据")
+        else:
+            # Signal模式：显示传统信号信息
+            for ticker in tickers:
+                if ticker in pm_signals:
+                    signal_info = pm_signals[ticker]
+                    pm_review_lines.append(
+                        f"  {ticker}: {signal_info.get('signal', 'N/A')} ({signal_info.get('action', 'N/A')}, 置信度: {signal_info.get('confidence', 'N/A')}%)"
+                    )
+                else:
+                    pm_review_lines.append(f"  {ticker}: 无信号数据")
 
-        # 2. 实际收益表现（合并为一次输出）
+        # 2. 实际收益表现（Portfolio模式增加价值变化信息）
         returns_lines = ["实际收益表现:"]
-        for ticker in tickers:
-            if ticker in real_returns:
-                daily_ret = real_returns[ticker] * 100
-                returns_lines.append(f"  {ticker}: {daily_ret:.2f}% (信号: {pm_signals.get(ticker, {}).get('signal', 'N/A')})")
-            else:
-                returns_lines.append(f"  {ticker}: 无收益数据")
-        # self.streamer.print("system", "\n".join(returns_lines))
+        
+        if self.mode == "portfolio":
+            # Portfolio模式：显示价值变化
+            portfolio_value_change = 0.0
+            for ticker in tickers:
+                if ticker in real_returns:
+                    daily_ret = real_returns[ticker] * 100
+                    signal_info = pm_signals.get(ticker, {})
+                    action = signal_info.get('action', 'N/A')
+                    quantity = signal_info.get('quantity', 0)
+                    
+                    # 计算价值变化（简化计算，实际应该基于持仓）
+                    if quantity > 0 and action in ['buy', 'sell', 'short', 'cover']:
+                        # 这里需要从portfolio状态获取实际持仓来计算
+                        # 暂时显示收益率
+                        returns_lines.append(f"  {ticker}: {daily_ret:.2f}% (操作: {action} {quantity}股)")
+                    else:
+                        returns_lines.append(f"  {ticker}: {daily_ret:.2f}% (信号: {signal_info.get('signal', 'N/A')})")
+                else:
+                    returns_lines.append(f"  {ticker}: 无收益数据")
+            
+            # 显示Portfolio总价值变化（需要从portfolio状态获取）
+            portfolio_info = live_env.get('portfolio_summary', {})
+            if portfolio_info:
+                total_value = portfolio_info.get('total_value', 0)
+                cash = portfolio_info.get('cash', 0)
+                returns_lines.append(f"\nPortfolio总价值: ${total_value:,.2f} (现金: ${cash:,.2f})")
+        else:
+            # Signal模式：显示传统收益信息
+            for ticker in tickers:
+                if ticker in real_returns:
+                    daily_ret = real_returns[ticker] * 100
+                    returns_lines.append(f"  {ticker}: {daily_ret:.2f}% (信号: {pm_signals.get(ticker, {}).get('signal', 'N/A')})")
+                else:
+                    returns_lines.append(f"  {ticker}: 无收益数据")
 
         # 3. Analyst 信号对比（合并为一次输出）
         analyst_lines = ["Analyst信号对比:"]
@@ -471,6 +533,7 @@ class LiveTradingThinkingFund:
             for ticker in tickers:
                 signal = agent_signals.get(ticker, 'N/A')
                 analyst_lines.append(f"  {ticker}: {signal}")
+        
         self.streamer.print("agent", "\n".join(pm_review_lines)+"\n"+ "\n".join(returns_lines)+"\n"+"\n".join(analyst_lines), role_key="portfolio_manager")
 
         self.streamer.print("system", "===== Portfolio Manager 记忆管理决策 =====")

@@ -220,7 +220,7 @@ class LiveTradingSystem:
         
         pm_results = daily_result['results'].get('portfolio_management_results', {})
         
-        # Signal模式：从final_decisions提取
+        # 先处理final_decisions（如果有）
         if 'final_decisions' in pm_results and pm_results['final_decisions']:
             final_decisions = pm_results['final_decisions']
             for ticker, decision in final_decisions.items():
@@ -239,11 +239,12 @@ class LiveTradingSystem:
                     'signal': signal,
                     'confidence': confidence,
                     'action': action,
-                    'reasoning': decision['reasoning']
+                    'reasoning': decision.get('reasoning', ''),
+                    'quantity': decision.get('quantity', 0)  # 添加quantity字段，默认为0
                 }
         
-        # Portfolio模式：从messages提取
-        elif 'messages' in pm_results and pm_results['messages']:
+        # 再处理messages（Portfolio模式，补充quantity等详细信息）
+        if 'messages' in pm_results and pm_results['messages']:
             for msg in reversed(pm_results['messages']):
                 if hasattr(msg, 'name') and 'portfolio_manager' in str(msg.name):
                     try:
@@ -261,13 +262,21 @@ class LiveTradingSystem:
                             else:  # hold, cover
                                 signal = 'neutral'
                             
-                            signals[ticker] = {
-                                'signal': signal,
-                                'confidence': confidence,
-                                'action': action,
-                                'quantity': quantity,
-                                'reasoning': decision.get('reasoning', '')
-                            }
+                            # 如果ticker已经存在，更新quantity等字段；否则创建新条目
+                            if ticker in signals:
+                                signals[ticker].update({
+                                    'action': action,
+                                    'quantity': quantity,
+                                    'reasoning': decision.get('reasoning', signals[ticker].get('reasoning', ''))
+                                })
+                            else:
+                                signals[ticker] = {
+                                    'signal': signal,
+                                    'confidence': confidence,
+                                    'action': action,
+                                    'quantity': quantity,
+                                    'reasoning': decision.get('reasoning', '')
+                                }
                         break
                     except (json.JSONDecodeError, KeyError, AttributeError) as e:
                         print(f"警告: 解析portfolio决策失败: {e}")
