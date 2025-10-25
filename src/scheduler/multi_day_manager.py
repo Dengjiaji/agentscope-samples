@@ -647,7 +647,7 @@ class MultiDayManager:
                     })
                     
                     # 基于方向信号计算日收益率
-                    daily_return,real_return = self._calculate_stock_daily_return_from_signal(
+                    daily_return,real_return,close_price = self._calculate_stock_daily_return_from_signal(
                         ticker, daily_result["date"], action
                     )
                     daily_returns.append(daily_return)
@@ -734,15 +734,15 @@ class MultiDayManager:
         # pdb.set_trace()
         # 找到最接近目标日期的收益率
         market_return = prices_df.loc[target_date, 'ret']
-        
+        price = prices_df.loc[target_date, 'close']
         
         # 根据交易方向计算最终收益率
         if action == "long":
-            return float(market_return), float(market_return) # 做多：获得市场收益率
+            return float(market_return), float(market_return), float(price) # 做多：获得市场收益率
         elif action == "short":
-            return float(-market_return) ,float(market_return) # 做空：获得市场收益率的相反收益
+            return float(-market_return) ,float(market_return),float(price) # 做空：获得市场收益率的相反收益
         else:  # hold
-            return 0.0,float(market_return), # 持有：无收益
+            return 0.0,float(market_return), float(price)# 持有：无收益
                 
    
     

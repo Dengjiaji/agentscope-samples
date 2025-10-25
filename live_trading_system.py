@@ -311,7 +311,7 @@ class LiveTradingSystem:
                 trade_action = "long"  # 默认做多
             
             # 计算收益率
-            daily_return,real_return = multi_day_manager._calculate_stock_daily_return_from_signal(
+            daily_return,real_return,close_price = multi_day_manager._calculate_stock_daily_return_from_signal(
                 ticker, date, trade_action
             )
         

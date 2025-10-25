@@ -378,10 +378,18 @@ class LiveTradingThinkingFund:
             signal = data['signal']
             action = data['action']
             confidence = data['confidence']
-            self.streamer.print("agent", 
-                f"{ticker}: 最终信号 {signal}({action}, {confidence}% ,日收益 {daily_ret:.2f}%, 累计收益 {cum_ret:.2f}%)",
-                role_key='portfolio_manager'
-            )
+            real_ret = data['real_return'] * 100
+            if self.mode == "signal":
+                self.streamer.print("agent", 
+                    f"{ticker}: 最终信号 {signal}({action},置信度 {confidence}% ,日收益 {daily_ret:.2f}%, 累计收益 {cum_ret:.2f}%)",
+                    role_key='portfolio_manager'
+                )
+            elif self.mode == "portfolio":
+                quantity = pm_signals[ticker]['quantity']
+                self.streamer.print("agent", 
+                    f"{ticker}: 最终信号 {signal}({action} {quantity}股,置信度 {confidence}% ,股票当日收益率 {real_ret:.2f}%",
+                    role_key='portfolio_manager'
+                )
             # 分析师逐票事件
             for agent in ['sentiment_analyst', 'technical_analyst', 'fundamentals_analyst', 'valuation_analyst']:
                 sig = live_env['ana_signals'][agent].get(ticker, '')
@@ -506,6 +514,8 @@ class LiveTradingThinkingFund:
                         # 这里需要从portfolio状态获取实际持仓来计算
                         # 暂时显示收益率
                         returns_lines.append(f"  {ticker}: {daily_ret:.2f}% (操作: {action} {quantity}股)")
+                    elif quantity==0 and action in ['hold']:
+                        returns_lines.append(f"  {ticker}: {daily_ret:.2f}% (操作: {action} )")
                     else:
                         returns_lines.append(f"  {ticker}: {daily_ret:.2f}% (信号: {signal_info.get('signal', 'N/A')})")
                 else:
