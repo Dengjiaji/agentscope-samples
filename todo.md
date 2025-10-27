@@ -2,20 +2,25 @@
 
 [ ] features:
 
-    - multi agent communication
+    - multi agent communication: notification (in analysts); private_chat & meeting (pm)
 
     - memory: 接入了mem0 & reme
+
+    - pre-market investing mode: signal & portfolio
+
+    - post-market memory management
 
     - ...
 
     
 [ ] 实验
 
-    - 回测 实验(2025-01-01 start VS long and hold)
+    - 回测 实验(2025-01-01 start VS long and hold, 传统规则策略等)
 
-    - 消融（memory/communication/...)
+    - 消融（memory/communication/post-market memory management/不同的沟通轮次...)
 
-    - 
+    - different LLMs? different memory framework?
+
 
 [ ] 文档
 
