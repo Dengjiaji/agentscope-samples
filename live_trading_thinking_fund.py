@@ -33,6 +33,7 @@ import time
 import random
 
 from src.servers.streamer import ConsoleStreamer
+from src.dashboard.team_dashboard_generator import TeamDashboardGenerator
 
 load_dotenv()
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -274,6 +275,16 @@ class LiveTradingThinkingFund:
         self.mode = mode
         self.initial_cash = initial_cash
         self.margin_requirement = margin_requirement
+        
+        # 初始化团队仪表盘生成器
+        dashboard_dir = self.sandbox_dir / "team_dashboard"
+        self.dashboard_generator = TeamDashboardGenerator(
+            dashboard_dir=dashboard_dir,
+            initial_cash=initial_cash
+        )
+        # 初始化空仪表盘（如果不存在）
+        if not (dashboard_dir / "summary.json").exists():
+            self.dashboard_generator.initialize_empty_dashboard()
 
     def is_trading_day(self, date: str) -> bool:
         """检查是否为交易日"""
@@ -361,6 +372,7 @@ class LiveTradingThinkingFund:
 
         # 4. 计算当日收益
         target_date = str(target_date)
+        pdb.set_trace()
         daily_returns = self.live_system.calculate_daily_returns(target_date, pm_signals)
 
         for ticker in tickers:
@@ -399,9 +411,10 @@ class LiveTradingThinkingFund:
         # 如果是Portfolio模式，收集Portfolio相关信息
         if self.mode == "portfolio":
             # 从分析结果中提取Portfolio信息
+            # pdb.set_trace()
             raw_results = analysis_result.get('raw_results', {})
-            portfolio_summary = raw_results.get('portfolio_summary', {})
-            updated_portfolio = raw_results.get('updated_portfolio', {})
+            portfolio_summary = raw_results['results']['portfolio_management_results']['execution_report']['portfolio_summary']
+            updated_portfolio = raw_results['results']['portfolio_management_results']['execution_report']['updated_portfolio']
             
             # 将Portfolio信息添加到live_env
             live_env['portfolio_summary'] = portfolio_summary
@@ -438,6 +451,19 @@ class LiveTradingThinkingFund:
             'timestamp': datetime.now().isoformat(),
             'details': result
         })
+        
+        # 更新团队仪表盘数据
+        try:
+            dashboard_update_stats = self.dashboard_generator.update_from_day_result(
+                date=date,
+                pre_market_result=result,
+                mode=self.mode
+            )
+            self.streamer.print("system", f"团队仪表盘已更新: 新增 {dashboard_update_stats.get('trades_added', 0)} 笔交易, 更新 {dashboard_update_stats.get('agents_updated', 0)} 个Agent")
+        except Exception as e:
+            self.streamer.print("system", f"⚠️ 团队仪表盘更新失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
 
         return result
 

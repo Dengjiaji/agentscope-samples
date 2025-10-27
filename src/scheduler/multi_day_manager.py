@@ -727,7 +727,7 @@ class MultiDayManager:
             return self._fallback_simulated_return(ticker, str(target_date), action)
         
         # 计算日收益率
-        prices_df['ret'] = prices_df['close'].pct_change()
+        # prices_df['ret'] = prices_df['close'].pct_change()
         
         # 查找指定日期的收益率
         prices_df.index = pd.to_datetime(prices_df['Date']).dt.date
