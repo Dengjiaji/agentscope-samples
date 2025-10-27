@@ -241,7 +241,7 @@ class LLMMemoryDecisionSystem:
 class LiveTradingThinkingFund:
     """Live交易思考基金 - 时间Sandbox系统"""
 
-    def __init__(self, base_dir: str, streamer=None, mode: str = "signal", initial_cash: float = 100000.0, margin_requirement: float = 0.0):
+    def __init__(self, base_dir: str, streamer=None, mode: str = "portfolio", initial_cash: float = 100000.0, margin_requirement: float = 0.0):
         """初始化思考基金系统"""
         from live_trading_system import LiveTradingSystem
 
@@ -372,7 +372,7 @@ class LiveTradingThinkingFund:
 
         # 4. 计算当日收益
         target_date = str(target_date)
-        pdb.set_trace()
+        # pdb.set_trace()
         daily_returns = self.live_system.calculate_daily_returns(target_date, pm_signals)
 
         for ticker in tickers:
@@ -413,10 +413,12 @@ class LiveTradingThinkingFund:
             # 从分析结果中提取Portfolio信息
             # pdb.set_trace()
             raw_results = analysis_result.get('raw_results', {})
-            portfolio_summary = raw_results['results']['portfolio_management_results']['execution_report']['portfolio_summary']
-            updated_portfolio = raw_results['results']['portfolio_management_results']['execution_report']['updated_portfolio']
-            
-            # 将Portfolio信息添加到live_env
+            try:
+                portfolio_summary = raw_results['results']['portfolio_management_results']['final_execution_report']['portfolio_summary']
+                updated_portfolio = raw_results['results']['portfolio_management_results']['final_execution_report']['updated_portfolio']
+            except:
+                portfolio_summary = raw_results['results']['portfolio_management_results']['execution_report']['portfolio_summary']
+                updated_portfolio = raw_results['results']['portfolio_management_results']['execution_report']['updated_portfolio']            # 将Portfolio信息添加到live_env
             live_env['portfolio_summary'] = portfolio_summary
             live_env['updated_portfolio'] = updated_portfolio
 

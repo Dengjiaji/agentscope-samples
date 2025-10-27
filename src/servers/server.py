@@ -85,6 +85,7 @@ async def run_realtime_to_ws(ws, cfg: dict):
 
         # Initialize core fund with streamer so it can emit events to the frontend
         fund = LiveTradingThinkingFund(base_dir=env_config.config_name, streamer=streamer)
+        
 
         # NOTE: This is synchronous; emitted websocket sends are scheduled via create_task and
         # will flush when control returns to the event loop.

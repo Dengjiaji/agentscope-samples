@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from typing_extensions import Literal
 from src.utils.progress import progress
 from src.utils.llm import call_llm
-
+import pdb
 
 class PortfolioDecision(BaseModel):
     """Portfolio模式的投资决策"""
@@ -46,7 +46,18 @@ def portfolio_management_agent_portfolio(state: AgentState, agent_id: str = "por
     current_prices = {}
     max_shares = {}
     signals_by_ticker = {}
-    
+    print(f"投资组合管理器收到的分析师信号键: {list(analyst_signals.keys())}")
+    for agent_key, signals in analyst_signals.items():
+        if isinstance(signals, dict):
+            #format_second_round_result_for_state 因为第二轮结果经过这个函数有一个特定的格式
+            if "ticker_signals" in signals:
+                print(f"  {agent_key}: 第二轮格式，包含 {len(signals['ticker_signals'])} 个ticker信号")
+            else:
+                ticker_keys = [k for k in signals.keys() if k in tickers]
+                print(f"  {agent_key}: 第一轮格式，包含ticker: {ticker_keys}")
+        else:
+            print(f"  警告: {agent_key}: 未知格式 - {type(signals)}")
+    # pdb.set_trace()
     for ticker in tickers:
         progress.update_status(agent_id, ticker, "处理分析师信号")
         
@@ -70,33 +81,49 @@ def portfolio_management_agent_portfolio(state: AgentState, agent_id: str = "por
         
         # 获取ticker的信号
         ticker_signals = {}
+        print(f"Portfolio Manager 处理 {ticker} 的信号，可用分析师: {list(analyst_signals.keys())}")
         for agent, signals in analyst_signals.items():
             # 跳过所有风险管理agent（它们的信号结构不同）
-            if not agent.startswith("risk_management_agent") and ticker in signals:
-                # 处理不同的信号格式
-                if isinstance(signals[ticker], dict):
-                    if "signal" in signals[ticker] and "confidence" in signals[ticker]:
-                        ticker_signals[agent] = {
-                            "signal": signals[ticker]["signal"],
-                            "confidence": signals[ticker]["confidence"]
-                        }
-                    # 处理第二轮格式
-                    elif "ticker_signals" in signals[ticker]:
-                        for ts in signals[ticker]["ticker_signals"]:
-                            if isinstance(ts, dict) and ts.get("ticker") == ticker:
-                                ticker_signals[agent] = {
-                                    "signal": ts["signal"],
-                                    "confidence": ts["confidence"]
-                                }
-                                break
+            if not agent.startswith("risk_management_agent"):
+                # 处理新的分析师结果格式（包含ticker_signals数组）
+                if isinstance(signals, dict) and "ticker_signals" in signals:
+                    # 新格式：signals包含ticker_signals数组
+                    print(f"  处理 {agent} 的新格式信号")
+                    for ts in signals["ticker_signals"]:
+                        if isinstance(ts, dict) and ts.get("ticker") == ticker:
+                            ticker_signals[agent] = {
+                                "signal": ts["signal"],
+                                "confidence": ts["confidence"]
+                            }
+                            print(f"    找到 {ticker} 信号: {ts['signal']} (置信度: {ts['confidence']})")
+                            break
+                # 处理旧格式：signals直接包含ticker键
+                elif isinstance(signals, dict) and ticker in signals:
+                    # 处理不同的信号格式
+                    if isinstance(signals[ticker], dict):
+                        if "signal" in signals[ticker] and "confidence" in signals[ticker]:
+                            ticker_signals[agent] = {
+                                "signal": signals[ticker]["signal"],
+                                "confidence": signals[ticker]["confidence"]
+                            }
+                        # 处理第二轮格式
+                        elif "ticker_signals" in signals[ticker]:
+                            for ts in signals[ticker]["ticker_signals"]:
+                                if isinstance(ts, dict) and ts.get("ticker") == ticker:
+                                    ticker_signals[agent] = {
+                                        "signal": ts["signal"],
+                                        "confidence": ts["confidence"]
+                                    }
+                                    break
         
+        print(f"  {ticker} 最终收集到的信号: {ticker_signals}")
         signals_by_ticker[ticker] = ticker_signals
     
     # 将current_prices添加到state data中，使其在整个工作流中可用
     state["data"]["current_prices"] = current_prices
     
     progress.update_status(agent_id, None, "生成交易决策")
-    
+    # pdb.set_trace()
     # 生成交易决策
     result = generate_trading_decision(
         tickers=tickers,

@@ -951,7 +951,7 @@ class AdvancedInvestmentAnalysisEngine:
                         decision_lines.append(f"  置信度: {confidence}%")
                         decision_lines.append(f"  理由: {reasoning[:200]}...")  # 限制长度
                     
-                    agent_key = "portfolio_manager_portfolio" if mode == "portfolio" else "portfolio_manager"
+                    agent_key = "portfolio_manager"
                     self.streamer.print("agent", "\n".join(decision_lines), role_key=agent_key)
                 
                 final_execution_report = self._execute_portfolio_trades(state, final_decisions, mode)
