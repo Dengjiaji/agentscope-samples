@@ -9,6 +9,23 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
  */
 
 // ====== Configuration ======
+const ASSET_BASE_URL = "/assets/company_room";
+
+const ASSETS = {
+  roomBg: `${ASSET_BASE_URL}/full_room_with_roles_tech_style.png`,
+};
+
+const SCENE_NATIVE = { width: 1184, height: 864 };
+
+const AGENT_SEATS = [
+  { x: 545, y: 380 },
+  { x: 600, y: 470 },
+  { x: 460, y: 490 },
+  { x: 540, y: 590 },
+  { x: 710, y: 560 },
+  { x: 780, y: 490 },
+];
+
 const AGENTS = [
   { id: "alpha", name: "Bob", role: "Portfolio Manager" },
   { id: "beta", name: "Carl", role: "Risk Manager" },
@@ -18,6 +35,7 @@ const AGENTS = [
   { id: "zeta", name: "Frank", role: "Technical Analyst" },
 ];
 
+const BUBBLE_LIFETIME_MS = 4000;
 const CHART_MARGIN = { left: 60, right: 20, top: 20, bottom: 40 };
 const AXIS_TICKS = 5;
 
@@ -451,6 +469,222 @@ function GlobalStyles() {
         width: 100%;
         height: 100%;
         max-width: none;
+      }
+      
+      /* Room View */
+      .room-view {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background: #ffffff;
+        position: relative;
+        width: 100%;
+        max-width: none;
+      }
+      
+      .room-agents-indicator {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 16px;
+        padding: 12px 20px;
+        border-bottom: 1px solid #e0e0e0;
+        background: #fafafa;
+        flex-wrap: wrap;
+      }
+      
+      .agent-indicator {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        color: #666666;
+        transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      
+      .agent-indicator.speaking {
+        color: #000000;
+        transform: scale(1.05);
+      }
+      
+      .agent-indicator-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #e0e0e0;
+        transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      
+      .agent-indicator.speaking .agent-indicator-dot {
+        background: #00C853;
+        box-shadow: 0 0 12px rgba(0, 200, 83, 0.8);
+        transform: scale(1.3);
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+      
+      @keyframes pulse {
+        0%, 100% {
+          box-shadow: 0 0 12px rgba(0, 200, 83, 0.8);
+        }
+        50% {
+          box-shadow: 0 0 20px rgba(0, 200, 83, 1);
+        }
+      }
+      
+      .room-canvas-container {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        padding: 24px;
+        position: relative;
+      }
+      
+      .room-scene {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .room-canvas {
+        display: block;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+      }
+      
+      .room-bubble {
+        position: absolute;
+        max-width: 200px;
+        font-size: 11px;
+        background: #ffffff;
+        color: #000000;
+        padding: 8px 10px;
+        border: 2px solid #000000;
+        box-shadow: 3px 3px 0 0 rgba(0, 0, 0, 0.2);
+        font-family: 'Courier New', monospace;
+        line-height: 1.4;
+        animation: bubbleAppear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      
+      @keyframes bubbleAppear {
+        0% {
+          opacity: 0;
+          transform: scale(0.5) translateY(10px);
+        }
+        100% {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+      }
+      
+      .room-bubble::after {
+        content: "";
+        position: absolute;
+        left: 12px;
+        bottom: -8px;
+        width: 10px;
+        height: 10px;
+        background: #ffffff;
+        border-left: 2px solid #000000;
+        border-bottom: 2px solid #000000;
+        transform: rotate(-45deg);
+      }
+      
+      .room-bubble-name {
+        font-weight: 900;
+        margin-bottom: 4px;
+        font-size: 10px;
+        letter-spacing: 0.5px;
+      }
+      
+      /* View Toggle Button */
+      .view-toggle-btn {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 20;
+        width: 32px;
+        height: 80px;
+        background: #ffffff;
+        border: 1px solid #e0e0e0;
+        cursor: pointer;
+        transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        font-size: 18px;
+        color: #666666;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      }
+      
+      .view-toggle-btn:hover {
+        background: #000000;
+        border-color: #000000;
+        color: #ffffff;
+        transform: translateY(-50%) scale(1.1);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+      }
+      
+      .view-toggle-btn:active {
+        transform: translateY(-50%) scale(0.95);
+      }
+      
+      .view-toggle-btn.left {
+        left: 0;
+        border-left: none;
+        border-radius: 0 4px 4px 0;
+      }
+      
+      .view-toggle-btn.right {
+        right: 0;
+        border-right: none;
+        border-radius: 4px 0 0 4px;
+      }
+      
+      .view-toggle-btn:focus {
+        outline: none;
+      }
+      
+      /* View Transition */
+      .view-container {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+      
+      .view-slider {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        transition: transform 1.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      
+      .view-slider.normal-speed {
+        transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      
+      .view-slider.show-chart {
+        transform: translateX(-100%);
+      }
+      
+      .view-slider.show-room {
+        transform: translateX(0);
+      }
+      
+      .view-panel {
+        flex: 0 0 100%;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
       }
       
       /* Chart Tabs - Floating inside chart */
@@ -992,6 +1226,10 @@ export default function LiveTradingApp() {
   const [now, setNow] = useState(() => new Date());
   const [mainTab, setMainTab] = useState('live'); // 'live' | 'statistics' | 'performance'
   
+  // View toggle: 'room' or 'chart'
+  const [currentView, setCurrentView] = useState('chart'); // Start with chart, then animate to room
+  const [isInitialAnimating, setIsInitialAnimating] = useState(true);
+  
   // Chart data
   const [chartTab, setChartTab] = useState('all');
   const [portfolioData, setPortfolioData] = useState({
@@ -1016,6 +1254,9 @@ export default function LiveTradingApp() {
   const [tickers, setTickers] = useState(MOCK_TICKERS);
   const [rollingTickers, setRollingTickers] = useState({});
   
+  // Room bubbles
+  const [bubbles, setBubbles] = useState({});
+  
   // Resizable panels
   const [leftWidth, setLeftWidth] = useState(70); // percentage
   const [isResizing, setIsResizing] = useState(false);
@@ -1028,6 +1269,32 @@ export default function LiveTradingApp() {
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
+  
+  // Initial animation: show room drawer sliding in
+  useEffect(() => {
+    // Wait a bit after mount, then trigger slide to room
+    const slideTimer = setTimeout(() => {
+      setCurrentView('room');
+    }, 1200); // Wait 1200ms before starting animation (2x slower)
+    
+    // Disable animation flag after animation completes
+    const completeTimer = setTimeout(() => {
+      setIsInitialAnimating(false);
+    }, 5000); // 1200ms delay + 1600ms animation duration + 400ms buffer
+    
+    return () => {
+      clearTimeout(slideTimer);
+      clearTimeout(completeTimer);
+    };
+  }, []);
+  
+  // Helper to check if bubble should still be visible
+  const bubbleFor = (id) => {
+    const b = bubbles[id];
+    if (!b) return null;
+    if (Date.now() - b.ts > BUBBLE_LIFETIME_MS) return null;
+    return b;
+  };
   
   // Auto-connect to server on mount
   useEffect(() => {
@@ -1315,6 +1582,16 @@ export default function LiveTradingApp() {
             content: e.content
           };
           setFeed(prev => [{ type: 'message', data: message, id: message.id }, ...prev].slice(0, 200));
+          
+          // Update bubbles for room view
+          setBubbles(prev => ({
+            ...prev,
+            [e.agentId]: {
+              text: e.content,
+              ts: Date.now(),
+              agentName: agent?.name || e.agentName || e.agentId
+            }
+          }));
         },
         
         team_summary: (e) => {
@@ -1556,32 +1833,66 @@ export default function LiveTradingApp() {
           </div>
           
           <div className="main-container" ref={containerRef}>
-            {/* Left Panel: Chart */}
+            {/* Left Panel: Chart/Room Toggle View */}
             <div className="left-panel" style={{ width: `${leftWidth}%` }}>
               <div className="chart-section">
-                {/* Chart with Floating Tabs */}
-                <div className="chart-container">
-                  {/* Floating Timeframe Tabs */}
-                  <div className="chart-tabs-floating">
+                <div className="view-container">
+                  {/* Left toggle button - show when chart is visible */}
+                  {currentView === 'chart' && (
                     <button
-                      className={`chart-tab ${chartTab === 'all' ? 'active' : ''}`}
-                      onClick={() => setChartTab('all')}
+                      className="view-toggle-btn left"
+                      onClick={() => setCurrentView('room')}
+                      title="Show Room View"
                     >
-                      ALL
+                      ▶
                     </button>
+                  )}
+                  
+                  {/* Right toggle button - show when room is visible */}
+                  {currentView === 'room' && (
                     <button
-                      className={`chart-tab ${chartTab === '30d' ? 'active' : ''}`}
-                      onClick={() => setChartTab('30d')}
+                      className="view-toggle-btn right"
+                      onClick={() => setCurrentView('chart')}
+                      title="Show Chart View"
                     >
-                      30D
+                      ◀
                     </button>
-                  </div>
+                  )}
+                  
+                  {/* Slider container with both views */}
+                  <div className={`view-slider ${currentView === 'room' ? 'show-room' : 'show-chart'} ${!isInitialAnimating ? 'normal-speed' : ''}`}>
+                    {/* Room View Panel */}
+                    <div className="view-panel">
+                      <RoomView bubbles={bubbles} bubbleFor={bubbleFor} />
+                    </div>
+                    
+                    {/* Chart View Panel */}
+                    <div className="view-panel">
+                      <div className="chart-container">
+                        {/* Floating Timeframe Tabs */}
+                        <div className="chart-tabs-floating">
+                          <button
+                            className={`chart-tab ${chartTab === 'all' ? 'active' : ''}`}
+                            onClick={() => setChartTab('all')}
+                          >
+                            ALL
+                          </button>
+                          <button
+                            className={`chart-tab ${chartTab === '30d' ? 'active' : ''}`}
+                            onClick={() => setChartTab('30d')}
+                          >
+                            30D
+                          </button>
+                        </div>
 
-                  <NetValueChart 
-                    equity={portfolioData.equity}
-                    baseline={portfolioData.baseline}
-                    strategies={portfolioData.strategies}
-                  />
+                        <NetValueChart 
+                          equity={portfolioData.equity}
+                          baseline={portfolioData.baseline}
+                          strategies={portfolioData.strategies}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1616,6 +1927,147 @@ export default function LiveTradingApp() {
 }
 
 // ====== Subcomponents ======
+
+function RoomView({ bubbles, bubbleFor }) {
+  const canvasRef = useRef(null);
+  const containerRef = useRef(null);
+  const bgImg = useImage(ASSETS.roomBg);
+  
+  // Calculate scale to fit canvas in container
+  const [scale, setScale] = useState(1);
+  
+  useEffect(() => {
+    const updateScale = () => {
+      const container = containerRef.current;
+      if (!container) return;
+      
+      const { clientWidth, clientHeight } = container;
+      if (clientWidth <= 0 || clientHeight <= 0) return;
+      
+      const scaleX = clientWidth / SCENE_NATIVE.width;
+      const scaleY = clientHeight / SCENE_NATIVE.height;
+      const newScale = Math.min(scaleX, scaleY, 1.0);
+      setScale(Math.max(0.3, newScale));
+    };
+    
+    updateScale();
+    const resizeObserver = new ResizeObserver(updateScale);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+    window.addEventListener('resize', updateScale);
+    
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', updateScale);
+    };
+  }, []);
+  
+  // Set canvas size
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    canvas.width = SCENE_NATIVE.width;
+    canvas.height = SCENE_NATIVE.height;
+    
+    const displayWidth = Math.round(SCENE_NATIVE.width * scale);
+    const displayHeight = Math.round(SCENE_NATIVE.height * scale);
+    canvas.style.width = `${displayWidth}px`;
+    canvas.style.height = `${displayHeight}px`;
+  }, [scale]);
+  
+  // Draw room background
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !bgImg) return;
+    
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(bgImg, 0, 0, SCENE_NATIVE.width, SCENE_NATIVE.height);
+    };
+    
+    draw();
+  }, [bgImg, scale]); // Re-draw when scale changes
+  
+  // Determine which agents are speaking
+  const speakingAgents = useMemo(() => {
+    const speaking = {};
+    AGENTS.forEach(agent => {
+      const bubble = bubbleFor(agent.id);
+      speaking[agent.id] = !!bubble;
+    });
+    return speaking;
+  }, [bubbles, bubbleFor]);
+  
+  return (
+    <div className="room-view">
+      {/* Agents Indicator Bar */}
+      <div className="room-agents-indicator">
+        {AGENTS.map(agent => (
+          <div 
+            key={agent.id} 
+            className={`agent-indicator ${speakingAgents[agent.id] ? 'speaking' : ''}`}
+          >
+            <span className="agent-indicator-dot"></span>
+            <span>{agent.name}</span>
+          </div>
+        ))}
+      </div>
+      
+      {/* Room Canvas */}
+      <div className="room-canvas-container" ref={containerRef}>
+        <div className="room-scene">
+          <div style={{ position: 'relative', width: Math.round(SCENE_NATIVE.width * scale), height: Math.round(SCENE_NATIVE.height * scale) }}>
+            <canvas ref={canvasRef} className="room-canvas" />
+            
+            {/* Speech Bubbles */}
+            {AGENTS.map((agent, idx) => {
+              const bubble = bubbleFor(agent.id);
+              if (!bubble) return null;
+              
+              const pos = AGENT_SEATS[idx];
+              const left = Math.round((pos.x - 20) * scale);
+              const top = Math.round((pos.y - 150) * scale);
+              
+              // Truncate long text
+              const maxLength = 80;
+              const displayText = bubble.text.length > maxLength 
+                ? bubble.text.substring(0, maxLength) + '...' 
+                : bubble.text;
+              
+              return (
+                <div 
+                  key={agent.id} 
+                  className="room-bubble"
+                  style={{ left, top }}
+                >
+                  <div className="room-bubble-name">{bubble.agentName || agent.name}</div>
+                  {displayText}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Hook to load image
+function useImage(src) {
+  const [img, setImg] = useState(null);
+  useEffect(() => {
+    if (!src) return;
+    const image = new Image();
+    image.src = src;
+    image.onload = () => setImg(image);
+  }, [src]);
+  return img;
+}
 
 function NetValueChart({ equity, baseline, strategies }) {
   const [activePoint, setActivePoint] = useState(null);
