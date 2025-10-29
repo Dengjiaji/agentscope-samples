@@ -1,1125 +1,2217 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 /**
- * LiveTradingCompanyApp
- * 1) 抽出常量（CHANNELS、颜色、图表边距等），去重魔法字符串。
- * 2) 将 run/replay 的启动逻辑合并为 startClient()，减少重复。
- * 3) WebSocket 事件通过 handlers 映射集中处理，pushEvent 更简洁。
- * 4) Drawer 订阅/退订使用统一的 TEAM_CHANNELS 常量。
- * 5) 提炼小工具函数（truncate、getRoleColor），减少内联逻辑噪音。
- * 6) NetValueChart 抽出边距 & 刻度常量，复用 drawAxes。
+ * Live Trading Intelligence Platform - Read-Only Dashboard
+ * Geek Style - Terminal-inspired, minimal, monochrome
+ * 
+ * 连接到持续运行的后端服务器，实时显示交易系统状态
  */
 
 // ====== Configuration ======
-const ASSET_BASE_URL = "/assets/company_room"; // Place all PNGs under public/assets
-
-const ASSETS = {
-  roomBg: `${ASSET_BASE_URL}/full_room_with_roles_tech_style.png`,
-  worker1: `${ASSET_BASE_URL}/null.png`,
-  worker2: `${ASSET_BASE_URL}/null.png`,
-  worker4: `${ASSET_BASE_URL}/null.png`,
-  boss: `${ASSET_BASE_URL}/null.png`,
-  agent1: `${ASSET_BASE_URL}/agent_1.png`,
-  agent2: `${ASSET_BASE_URL}/agent_2.png`,
-  agent3: `${ASSET_BASE_URL}/agent_3.png`,
-  agent4: `${ASSET_BASE_URL}/agent_4.png`,
-  agent5: `${ASSET_BASE_URL}/agent_5.png`,
-  agent6: `${ASSET_BASE_URL}/agent_6.png`,
-};
-
-const SCENE_NATIVE = { width: 1184, height: 864 };
-
-const AGENT_SEATS = [
-  { x: 545, y: 380 },
-  { x: 600, y: 470 },
-  { x: 460, y: 490 },
-  { x: 540, y: 590 },
-  { x: 710, y: 560 },
-  { x: 780, y: 490 },
-];
-
 const AGENTS = [
-  { id: "alpha", name: "Bob", role: "Portfolio Manager", avatar: "agent1" },
-  { id: "beta", name: "Carl", role: "Risk Manager", avatar: "agent2" },
-  { id: "gamma", name: "Alice", role: "Valuation Analyst", avatar: "agent3" },
-  { id: "delta", name: "David", role: "Sentiment Analyst", avatar: "agent4" },
-  { id: "epsilon", name: "Eve", role: "Fundamentals Analyst", avatar: "agent5" },
-  { id: "zeta", name: "Frank", role: "Technical Analyst", avatar: "agent6" },
+  { id: "alpha", name: "Bob", role: "Portfolio Manager" },
+  { id: "beta", name: "Carl", role: "Risk Manager" },
+  { id: "gamma", name: "Alice", role: "Valuation Analyst" },
+  { id: "delta", name: "David", role: "Sentiment Analyst" },
+  { id: "epsilon", name: "Eve", role: "Fundamentals Analyst" },
+  { id: "zeta", name: "Frank", role: "Technical Analyst" },
 ];
 
-// Neon, cold, hacker-ish accents (no warm oranges)
-const ROLE_COLORS = {
-  "Portfolio Manager": "#00B3CC",
-  "Risk Manager": "#CC2E70",
-  "Valuation Analyst": "#5C49CC",
-  "Sentiment Analyst": "#6EB300",
-  "Fundamentals Analyst": "#00B87A",
-  "Technical Analyst": "#BFA300",
-  System: "#000000",
-};
-
-const TEAM_CHANNELS = [
-  "team_summary",
-  "team_portfolio",
-  "team_stats",
-  "team_trades",
-  "team_leaderboard",
-];
-
-const BUBBLE_LIFETIME_MS = 4000;
-const CHART_MARGIN = { left: 48, right: 12, top: 12, bottom: 32 };
+const CHART_MARGIN = { left: 60, right: 20, top: 20, bottom: 40 };
 const AXIS_TICKS = 5;
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+// WebSocket服务器地址（生产环境需要修改为实际部署地址）
+const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8765";
 
-// ====== Client abstraction（仅保留统一 PythonClient） ======
-class IClient {
-  /** @param {(evt: any) => void} onEvent */
-  constructor(onEvent) { this.onEvent = onEvent; }
-  start(_config) {}
-  stop() {}
-}
+// Mock stock prices for ticker bar (MAG7 companies)
+const MOCK_TICKERS = [
+  { symbol: 'AAPL', price: 237.50, change: 2.34 },
+  { symbol: 'MSFT', price: 425.30, change: -1.2 },
+  { symbol: 'GOOGL', price: 161.50, change: 5.67 },
+  { symbol: 'AMZN', price: 218.45, change: 0.89 },
+  { symbol: 'NVDA', price: 950.00, change: -3.21 },
+  { symbol: 'META', price: 573.22, change: 1.45 }
+];
 
-/**
- * PythonClient
- * 后端支持：WebSocket ws://<host>/ws ，发送 {type:'run', config} 启动；
- * config: { mode: 'run' | 'replay', date?: 'YYYY-MM-DD' }
- */
-class PythonClient extends IClient {
-  constructor(onEvent, { wsUrl = "ws://localhost:8765/ws" } = {}) {
-    super(onEvent);
+// ====== WebSocket Client (Read-Only) ======
+class ReadOnlyClient {
+  constructor(onEvent, { wsUrl = WS_URL, reconnectDelay = 3000, heartbeatInterval = 5000 } = {}) {
+    this.onEvent = onEvent;
     this.wsUrl = wsUrl;
+    this.reconnectDelay = reconnectDelay;
+    this.heartbeatInterval = heartbeatInterval;
     this.ws = null;
+    this.shouldReconnect = false;
+    this.reconnectTimer = null;
+    this.heartbeatTimer = null;
   }
-  start(config) {
-    this.stop();
+  
+  connect() {
+    this.shouldReconnect = true;
+    this._connect();
+  }
+  
+  _connect() {
+    if (!this.shouldReconnect) return;
+    
     this.ws = new WebSocket(this.wsUrl);
+    
     this.ws.onopen = () => {
-      this.onEvent({ type: 'system', content: 'Python client connected.' });
-      this.ws?.send(JSON.stringify({ type: 'run', config }));
+      this.onEvent({ type: 'system', content: '✅ Connected to live server' });
+      console.log('WebSocket connected');
+      this._startHeartbeat();
     };
+    
     this.ws.onmessage = (ev) => {
       try {
         const msg = JSON.parse(ev.data);
-        this.onEvent(msg);
+        console.log('[WebSocket] Message received:', msg.type || 'unknown');
+        
+        // Safely call onEvent with error protection
+        try {
+          this.onEvent(msg);
+        } catch (eventError) {
+          console.error('[WebSocket] Error in event handler:', eventError);
+        }
       } catch (e) {
-        this.onEvent({ type: 'system', content: `Bad message from server: ${e.message}` });
+        console.error('[WebSocket] Parse error:', e, 'Raw data:', ev.data);
+        this.onEvent({ type: 'system', content: `⚠️ Parse error: ${e.message}` });
       }
     };
-    this.ws.onerror = () => this.onEvent({ type: 'system', content: 'Python client error.' });
-    this.ws.onclose = () => this.onEvent({ type: 'system', content: 'Python client disconnected.' });
+    
+    this.ws.onerror = (error) => {
+      this.onEvent({ type: 'system', content: '❌ Connection error' });
+      console.error('WebSocket error:', error);
+    };
+    
+    this.ws.onclose = (event) => {
+      const reason = event.reason || 'Unknown reason';
+      const code = event.code || 'Unknown code';
+      console.log(`[WebSocket] Connection closed: Code=${code}, Reason=${reason}, WasClean=${event.wasClean}`);
+      
+      this.onEvent({ 
+        type: 'system', 
+        content: `🔌 Disconnected (${code}) - reconnecting...` 
+      });
+      this._stopHeartbeat();
+      
+      // 自动重连
+      if (this.shouldReconnect) {
+        this.reconnectTimer = setTimeout(() => {
+          console.log('[WebSocket] Attempting to reconnect...');
+          this._connect();
+        }, this.reconnectDelay);
+      }
+    };
   }
-  stop() {
+  
+  _startHeartbeat() {
+    this._stopHeartbeat();
+    
+    // Send first ping immediately
+    this._sendPing();
+    
+    // Then send periodically
+    this.heartbeatTimer = setInterval(() => {
+      this._sendPing();
+    }, this.heartbeatInterval);
+  }
+  
+  _sendPing() {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      try {
+        this.ws.send(JSON.stringify({ type: 'ping' }));
+      } catch (e) {
+        console.error('Heartbeat send error:', e);
+      }
+    }
+  }
+  
+  _stopHeartbeat() {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+  }
+  
+  disconnect() {
+    this.shouldReconnect = false;
+    this._stopHeartbeat();
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     if (this.ws) {
-      try { this.ws.close(); } catch {}
+      try { this.ws.close(); } catch (e) { console.error('Close error:', e); }
     }
     this.ws = null;
   }
 }
 
-// ====== Global style ======
-function RevampStyles() {
+// ====== Global Styles ======
+function GlobalStyles() {
   return (
     <style>{`
-      @font-face {font-family: 'Pixeloid'; src: local('Pixeloid'), url('/fonts/PixeloidSans.ttf') format('truetype'); font-display: swap;}
-      html, body, #root { height: 100%; width: 100%; }
-      body { margin:0; padding:0; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Pixeloid', 'Courier New', monospace; background:#ffffff; color:#0b1220; letter-spacing:0.2px; }
-      canvas, img { image-rendering: pixelated; image-rendering: crisp-edges; }
-
-      .wrap { display:flex; flex-direction:column; min-height:100vh; width:100%; position:relative; overflow-x:hidden; }
-      .topbar { background:#ffffff; padding:14px 0; border-bottom:2px solid #000; z-index: 100; width:100%; }
-      .title { font-size:clamp(14px, 3vw, 18px); font-weight:900; letter-spacing:clamp(1px, 0.3vw, 3px); text-align:center; text-transform:uppercase; }
+      * { box-sizing: border-box; }
+      html, body, #root { 
+        height: 100%; 
+        width: 100%;
+        margin: 0; 
+        padding: 0;
+        max-width: none;
+      }
+      body {
+        font-family: 'Courier New', Courier, monospace;
+        background: #f5f5f5;
+        color: #000000;
+        font-size: 13px;
+        line-height: 1.5;
+      }
       
-      .content-wrap { flex:1; display:flex; flex-direction:column; width:100%; max-width:1600px; margin:0 auto; padding:0 clamp(12px, 1.5vw, 24px); box-sizing:border-box; }
-      @media (max-width: 1280px) { .content-wrap { padding:0 16px; } }
-
-      /* ===== Dashboard Shell (Top) ===== */
-      .dashboardShell { width:100%; z-index: 90; background:#fff; border-bottom:2px solid #000; }
+      /* Layout */
+      .app {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        width: 100%;
+        overflow: hidden;
+        background: #f5f5f5;
+        max-width: none;
+      }
       
-      /* ===== Meter Bar + Drawer - Responsive ===== */
-      .bar { width:100%; background:#fff; display:flex; align-items:center; justify-content:center; gap:clamp(8px, 2vw, 12px); padding:clamp(10px, 2vw, 12px) clamp(12px, 2vw, 16px); border:none; cursor:pointer; transition: all .3s ease; position:relative; flex-wrap:wrap; }
-      .bar::before { content:''; position:absolute; left:0; right:0; bottom:0; height:2px; background: linear-gradient(90deg, #00B3CC 0%, #CC2E70 25%, #5C49CC 50%, #6EB300 75%, #00B87A 100%); opacity:0; transition: opacity .3s ease; }
-      .bar:hover::before { opacity:1; }
-      .bar:focus { outline: none; outline-offset:-2px; }
-      .bar-title { font-weight:900; letter-spacing:clamp(1px, 0.3vw, 2px); font-size:clamp(12px, 2.5vw, 14px); }
-      .bar-metrics { font-size:clamp(11px, 2vw, 13px); opacity:.85; display:flex; gap:clamp(12px, 2vw, 16px); align-items:center; flex-wrap:wrap; }
-      .bar b { font-weight:900; font-size:clamp(13px, 2.5vw, 15px); }
-      .chev { width:clamp(10px, 2vw, 12px); height:clamp(10px, 2vw, 12px); border-right:2px solid #000; border-bottom:2px solid #000; transform:rotate(45deg); transition: transform .35s ease; }
-      .chev.up { transform: rotate(-135deg); }
-
-      /* Drawer */
-      .drawer { width:100%; background:#fff; border-bottom:2px solid #000; overflow:hidden; max-height:0; transition: max-height .5s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 12px rgba(0,0,0,0.1); box-sizing:border-box; }
-      .drawer.open { max-height: 85vh; overflow-y:auto; }
-
-      .teamWrap { width:100%; margin:0; padding:clamp(12px, 2vw, 20px) clamp(12px, 2vw, 16px); display:flex; flex-direction:column; gap:clamp(12px, 2vw, 20px); box-sizing:border-box; }
-
-      .panel { border:2px solid #000; background:#fff; border-radius:0; padding:clamp(8px, 1.5vw, 12px); box-shadow: 4px 4px 0 0 rgba(0,0,0,0.1); }
-      .teamPanel { border:2px solid #000 !important; padding:clamp(12px, 2vw, 16px) !important; background:#fff; }
-      .panel-title { font-size:clamp(14px, 2.5vw, 18px); font-weight:900; letter-spacing:clamp(1px, 0.3vw, 2px); display:flex; align-items:center; justify-content:space-between; text-transform:uppercase; flex-wrap:wrap; gap:8px; }
-
-      /* Team Record Layout - Responsive */
-      .recordLayout { display:grid; grid-template-columns: 1.2fr 1fr; gap:clamp(12px, 2vw, 20px); align-items:start; }
-      @media (max-width: 1024px) { .recordLayout { grid-template-columns: 1fr; } }
-      .recordChart { border:2px solid #000; padding:clamp(12px, 2vw, 16px); background:#fff; box-shadow: 4px 4px 0 0 rgba(0,0,0,0.1); overflow:hidden; }
-      .recordRight { border:2px solid #000; padding:0; background:#fff; box-shadow: 4px 4px 0 0 rgba(0,0,0,0.1); overflow:hidden; }
-
-      .tabs { display:flex; border-bottom:2px solid #000; background:#f8f8f8; flex-wrap:wrap; }
-      .tab { font-size:clamp(11px, 2vw, 13px); font-weight:900; padding:clamp(8px, 1.5vw, 10px) clamp(10px, 2vw, 14px); border-right:2px solid #000; background:#fff; cursor:pointer; transition: all .2s ease; letter-spacing:0.5px; white-space:nowrap; }
-      .tab:hover { background:#f0f0f0; }
-      .tab.active { background:#000; color:#fff; position:relative; }
-      .tab.active::after { content:''; position:absolute; bottom:-2px; left:0; right:0; height:2px; background:#00B3CC; }
-
-      /* Chart - Responsive */
-      .chart { height:clamp(200px, 35vh, 280px); width:100%; max-width:100%; display:block; }
-
-      /* ===== Agents row - Auto-fit Responsive with max-width ===== */
-      .agentsShell { position:relative; width:100%; display:flex; justify-content:center; padding:clamp(12px, 2vw, 16px) 0; box-sizing:border-box; }
-      .agents { 
-        display:grid; 
-        grid-template-columns:repeat(6, minmax(100px, 150px)); 
-        gap:clamp(12px, 2vw, 20px); 
-        justify-content:center;
-        width:100%;
-        max-width:1200px;
-        margin:0 auto;
+      /* Header */
+      .header {
+        background: #ffffff;
+        border-bottom: 1px solid #e0e0e0;
+        padding: 0;
+        display: flex;
+        align-items: stretch;
+        flex-shrink: 0;
+        font-family: 'Courier New', Courier, monospace;
+        width: 100%;
+        max-width: none;
       }
-      @media (max-width: 1024px) { .agents { grid-template-columns:repeat(3, minmax(100px, 150px)); } }
-      @media (max-width: 600px) { .agents { grid-template-columns:repeat(2, minmax(100px, 150px)); } }
-      .agent-card { display:flex; flex-direction:column; align-items:center; gap:clamp(4px, 1vw, 6px); background:#fff; border:2px solid #000; border-radius:0; padding:clamp(6px, 1.5vw, 10px) clamp(4px, 1vw, 8px); box-shadow: 3px 3px 0 0 rgba(0,0,0,0.1); transition: transform .2s ease; min-width:0; }
-      .agent-card:hover { transform: translateY(-2px); box-shadow: 4px 4px 0 0 rgba(0,0,0,0.15); }
-      .avatar-square { width:100%; max-width:110px; aspect-ratio:1; position:relative; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:0; background:#ffffff; border:none; }
-      .avatar-img { width:100%; height:100%; object-fit:contain; }
-      .talk-dot { position:absolute; top:clamp(4px, 1vw, 6px); right:clamp(4px, 1vw, 6px); width:clamp(8px, 1.5vw, 10px); height:clamp(8px, 1.5vw, 10px); border-radius:0; border:2px solid #000; }
-      .agent-name { font-size:clamp(10px, 1.6vw, 13px); font-weight:900; letter-spacing:0.5px; text-align:center; }
-      .agent-role { font-size:clamp(9px, 1.4vw, 11px); margin-top:2px; opacity:.95; text-align:center; }
-
-      /* Leaderboard - MVP Style - Fully Responsive */
-      .leaderboard { border:2px solid #000; box-shadow: 4px 4px 0 0 rgba(0,0,0,0.1); overflow-x:auto; }
-      .lb-header { font-size:clamp(14px, 2.5vw, 18px); font-weight:900; letter-spacing:clamp(1px, 0.3vw, 2px); padding:clamp(12px, 2vw, 14px) clamp(12px, 2vw, 16px); border-bottom:2px solid #000; display:flex; align-items:center; justify-content:space-between; text-transform:uppercase; background: linear-gradient(180deg, #fff 0%, #f8f8f8 100%); flex-wrap:wrap; gap:8px; }
-      .lb-table { width:100%; border-collapse:separate; border-spacing:0; font-size:clamp(10px, 1.8vw, 12px); }
-      .lb-table thead th { position:sticky; top:0; background:#000; color:#fff; border-bottom:2px solid #000; padding:clamp(8px, 1.5vw, 10px) clamp(10px, 1.5vw, 12px); text-align:left; font-weight:900; letter-spacing:1px; text-transform:uppercase; font-size:clamp(9px, 1.5vw, 11px); white-space:nowrap; }
-      .lb-row { transition: all .3s ease; cursor:pointer; }
-      .lb-row:hover { background:rgba(0,179,204,0.05); }
-      .lb-row.movedUp { animation: bumpUp .5s ease; }
-      @keyframes bumpUp { 0%{transform:translateY(8px); background:rgba(110,179,0,0.2);} 100%{transform:translateY(0); background:transparent;} }
-      .lb-cell { padding:clamp(8px, 1.5vw, 10px) clamp(10px, 1.5vw, 12px); border-top:1px dotted #ccc; }
-      .lb-avatar { width:clamp(24px, 4vw, 32px); height:clamp(24px, 4vw, 32px); image-rendering:pixelated; border:2px solid #000; }
-      .lb-expand { cursor:pointer; text-decoration:underline; font-size:clamp(10px, 1.5vw, 11px); font-weight:900; }
-      .lb-log { padding:clamp(10px, 2vw, 12px) clamp(12px, 2vw, 16px); background:#f8f8f8; border-top:2px dotted #000; white-space:pre-wrap; font-size:clamp(10px, 1.5vw, 11px); line-height:1.6; }
-
-      /* Main content - Centered with max-width */
-      .main { 
-        width:100%; 
-        max-width:1420px;
-        margin:0 auto;
-        display:flex;
-        gap:clamp(20px, 3vw, 60px); 
-        align-items:start; 
-        justify-content:center;
-        box-sizing:border-box;
-        padding:clamp(12px, 2vw, 20px) 0;
+      
+      .header-title {
+        padding: 14px 20px;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        color: #000000;
+        border-right: 1px solid #e0e0e0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
       }
-      @media (max-width: 1280px) { .main { gap:20px; } }
-      @media (max-width: 1024px) { .main { flex-direction:column; gap:16px; max-width:100%; } }
-
-      /* Scene panel — NO bg, NO border, limited max size */
-      .panel-scene { 
-        background:transparent; 
-        border:none; 
-        border-radius:0; 
-        flex:1 1 auto;
-        max-width:900px;
-        min-width:0; 
-        overflow:hidden; 
-        display:flex; 
-        align-items:center; 
-        justify-content:center;
+      
+      .header-tabs {
+        display: flex;
+        align-items: stretch;
+        flex: 1;
       }
-      .scene { 
-        position:relative; 
-        width:100%; 
-        height:clamp(500px, 60vh, 650px); 
-        background:transparent; 
-        display:flex; 
-        align-items:center; 
-        justify-content:center; 
-        overflow:visible; 
+      
+      .header-tab {
+        padding: 14px 24px;
+        border: none;
+        border-right: 1px solid #e0e0e0;
+        border-radius: 0;
+        background: transparent;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        color: #666666;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-transform: uppercase;
+        position: relative;
       }
-      .scene-inner { position:relative; display:flex; align-items:center; justify-content:center; opacity:1; transition: opacity .2s ease; }
-      .scene-inner.loading { opacity:0; }
-
-      /* Square bubble (retro) - responsive */
-      .bubble { position:absolute; max-width:clamp(180px, 35vw, 300px); font-size:clamp(10px, 1.8vw, 12px); background:#ffffff; color:#0b1220; padding:clamp(8px, 1.5vw, 10px) clamp(10px, 2vw, 12px); border-radius:0; border:2px solid #000; box-shadow: 3px 3px 0 0 rgba(0,0,0,0.2); }
-      .bubble::after{ content:""; position:absolute; left:14px; bottom:-9px; width:12px; height:12px; background:#ffffff; border-left:2px solid #000; border-bottom:2px solid #000; transform:rotate(45deg); }
-
-      /* Right dock: Agent Logs - height matches scene */
-      .dock { 
-        display:flex; 
-        flex-direction:column; 
-        height:clamp(500px, 60vh, 650px); 
-        flex:0 0 auto;
-        width:420px;
-        min-width:320px;
-        max-width:420px;
+      
+      .header-tab:hover {
+        background: #f5f5f5;
+        color: #000000;
+        border-radius: 0;
       }
-      @media (max-width: 1280px) { .dock { width:380px; } }
-      @media (max-width: 1024px) { .dock { height:auto; min-height:400px; flex:1; width:100%; max-width:100%; } }
-      .dock-box { display:flex; flex-direction:column; border:2px solid #000; border-radius:0; height:100%; overflow:hidden; box-shadow: 4px 4px 0 0 rgba(0,0,0,0.1); }
-      .dock-body { flex:1; display:flex; flex-direction:column; padding:clamp(8px, 1.5vw, 10px); overflow:auto; }
-      .section-title { font-size:clamp(11px, 2vw, 13px); font-weight:900; margin:0 0 clamp(8px, 1.5vw, 10px); color:#0b1220; text-transform:uppercase; letter-spacing:1px; border-bottom:2px solid #000; padding-bottom:6px; }
-
-      /* Log list */
-      .logs { overflow:auto; display:flex; flex-direction:column; gap:10px; }
-      .log-card { border:2px dotted #ccc; border-radius:0; padding:10px; position:relative; box-sizing:border-box; transition: all .2s ease; }
-      .log-card:hover { border-color:#000; box-shadow: 2px 2px 0 0 rgba(0,0,0,0.1); }
-      .log-header { display:flex; align-items:center; gap:8px; font-size:12px; }
-      .log-badge { height:10px; width:10px; border-radius:0; border:2px solid #000; }
-      .log-agent { font-weight:900; letter-spacing:0.3px; }
-      .log-time { margin-left:auto; color:#0b1220; font-size:11px; opacity:.7; }
-      .log-text { font-size:12px; line-height:1.5; margin-top:6px; white-space:pre-wrap; }
-      .log-expand { position:absolute; right:10px; bottom:8px; font-size:11px; color:#000; cursor:pointer; user-select:none; text-decoration:underline; font-weight:900; }
-
-      /* Tables - MVP/Poker Style - Fully Responsive */
-      .portfolio-table { width:100%; border-collapse:collapse; font-size:clamp(10px, 1.8vw, 12px); }
-      .portfolio-table thead th { background:#000; color:#fff; padding:clamp(8px, 1.5vw, 10px) clamp(10px, 1.5vw, 12px); text-align:left; font-weight:900; letter-spacing:1px; text-transform:uppercase; font-size:clamp(9px, 1.5vw, 11px); border-right:1px solid #333; white-space:nowrap; }
-      .portfolio-table thead th:last-child { border-right:none; }
-      .portfolio-table tbody tr { transition: all .2s ease; border-bottom:1px solid #e0e0e0; }
-      .portfolio-table tbody tr:hover { background:rgba(0,179,204,0.05); }
-      .portfolio-table tbody td { padding:clamp(8px, 1.5vw, 10px) clamp(10px, 1.5vw, 12px); white-space:nowrap; }
-      .portfolio-table tbody tr:last-child { border-bottom:none; }
-
-      /* Footer buttons - Sticky at bottom */
-      .footer { 
-        width:100%;
-        background:#ffffff; 
-        border-top:2px solid #000; 
-        box-shadow: 0 -2px 0 0 rgba(0,0,0,0.05); 
-        position:sticky; 
-        bottom:0; 
-        z-index:80;
-        margin-top:auto;
+      
+      .header-tab.active {
+        background: #000000;
+        color: #ffffff;
+        border-radius: 0;
       }
-      .footer-inner { width:100%; margin:0; display:flex; gap:clamp(8px, 1.5vw, 12px); align-items:center; justify-content:space-between; padding:clamp(10px, 1.5vw, 12px) clamp(12px, 2vw, 16px); box-sizing:border-box; }
-      .footer-left { display:flex; gap:clamp(6px, 1vw, 8px); align-items:center; }
-      .footer-right { display:flex; gap:clamp(8px, 1.5vw, 10px); align-items:center; white-space:nowrap; }
-      @media (max-width: 768px) { .footer-inner { flex-wrap:wrap; gap:10px; } .footer-left, .footer-right { flex:1; min-width:max-content; } }
-      .btn { border:2px solid #000; background:#ffffff; color:#000; padding:clamp(7px, 1.5vw, 9px) clamp(12px, 2vw, 16px); font-weight:900; border-radius:0; cursor:pointer; transition: all .2s ease; letter-spacing:0.5px; box-shadow: 2px 2px 0 0 rgba(0,0,0,0.1); font-size:clamp(11px, 2vw, 13px); white-space:nowrap; }
-      .btn:hover { background:#000; color:#fff; transform: translateY(-1px); box-shadow: 3px 3px 0 0 rgba(0,0,0,0.2); }
-      .btn-primary { background:#000; color:#fff; }
-      .btn-primary:hover { background:#00B3CC; border-color:#00B3CC; }
-      .btn-danger { border-color:#FF3B8D; color:#FF3B8D; }
-      .btn-danger:hover { background:#FF3B8D; color:#fff; border-color:#FF3B8D; }
-
-      .toolbar { display:none; }
-      select, input[type="date"], input[type="text"] { padding:clamp(6px, 1.5vw, 8px) clamp(8px, 1.5vw, 10px); border:2px solid #000; border-radius:0; font-weight:700; box-shadow: 2px 2px 0 0 rgba(0,0,0,0.1); font-size:clamp(11px, 2vw, 13px); }
-      select:focus, input:focus { outline:none; border-color:#00B3CC; }
+      
+      .header-tab:focus {
+        background: #000000;
+        color: #ffffff;
+        outline: none;
+        border-radius: 0;
+      }
+      
+      .header-tab.divider::after {
+        content: '';
+        position: absolute;
+        right: 0;
+        top: 25%;
+        height: 50%;
+        width: 2px;
+        background: #000000;
+      }
+      
+      .header-status {
+        margin-left: auto;
+        padding: 14px 20px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        font-size: 11px;
+        color: #666666;
+        border-left: 1px solid #e0e0e0;
+      }
+      
+      .status-indicator {
+        font-weight: 700;
+      }
+      
+      .status-indicator.live { 
+        color: #00C853;
+      }
+      
+      .status-indicator.disconnected { 
+        color: #FF1744;
+      }
+      
+      /* Ticker Bar */
+      .ticker-bar {
+        background: #000000;
+        border-bottom: 1px solid #333333;
+        padding: 12px 20px;
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        overflow-x: auto;
+        flex-shrink: 0;
+        width: 100%;
+        max-width: none;
+      }
+      
+      .ticker-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+      }
+      
+      .ticker-symbol {
+        font-size: 11px;
+        font-weight: 700;
+        color: #ffffff;
+        letter-spacing: 1px;
+      }
+      
+      .ticker-price {
+        font-size: 13px;
+        font-weight: 700;
+        color: #ffffff;
+        position: relative;
+        overflow: hidden;
+        display: inline-block;
+        min-width: 60px;
+      }
+      
+      .ticker-price-value {
+        display: inline-block;
+        transition: transform 0.3s ease-out;
+      }
+      
+      .ticker-price-value.rolling {
+        animation: roll 0.5s ease-out;
+      }
+      
+      @keyframes roll {
+        0% {
+          transform: translateY(-100%);
+          opacity: 0;
+        }
+        50% {
+          opacity: 0.5;
+        }
+        100% {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+      
+      .ticker-change {
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 6px;
+        border-radius: 0;
+      }
+      
+      .ticker-change.positive {
+        color: #00C853;
+        background: rgba(0, 200, 83, 0.1);
+      }
+      
+      .ticker-change.negative {
+        color: #FF1744;
+        background: rgba(255, 23, 68, 0.1);
+      }
+      
+      .portfolio-value {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding-left: 24px;
+        border-left: 1px solid #333333;
+      }
+      
+      .portfolio-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: #999999;
+        letter-spacing: 1px;
+      }
+      
+      .portfolio-amount {
+        font-size: 16px;
+        font-weight: 700;
+        color: #ffffff;
+      }
+      
+      /* Main Container */
+      .main-container {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+        background: #f5f5f5;
+        position: relative;
+        width: 100%;
+        max-width: none;
+      }
+      
+      .left-panel {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background: #ffffff;
+        min-width: 400px;
+        max-width: none;
+      }
+      
+      .resizer {
+        width: 4px;
+        background: #e0e0e0;
+        cursor: col-resize;
+        flex-shrink: 0;
+        transition: background 0.2s;
+      }
+      
+      .resizer:hover {
+        background: #000000;
+      }
+      
+      .resizer.resizing {
+        background: #000000;
+      }
+      
+      .right-panel {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background: #ffffff;
+        min-width: 300px;
+        max-width: none;
+      }
+      
+      /* Chart Section */
+      .chart-section {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background: #ffffff;
+        position: relative;
+        width: 100%;
+        max-width: none;
+      }
+      
+      .chart-container {
+        flex: 1;
+        padding: 24px;
+        overflow: hidden;
+        position: relative;
+        background: #ffffff;
+        width: 100%;
+        max-width: none;
+      }
+      
+      .chart-canvas {
+        width: 100%;
+        height: 100%;
+        max-width: none;
+      }
+      
+      /* Chart Tabs - Floating inside chart */
+      .chart-tabs-floating {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        display: flex;
+        gap: 0;
+        border: 1px solid #cccccc;
+        background: #ffffff;
+        z-index: 10;
+      }
+      
+      .chart-tab {
+        padding: 4px 8px;
+        border: none;
+        border-right: 1px solid #cccccc;
+        border-radius: 0;
+        background: #ffffff;
+        font-family: inherit;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        color: #666666;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      
+      .chart-tab:last-child {
+        border-right: none;
+      }
+      
+      .chart-tab:hover {
+        background: #f5f5f5;
+        color: #000000;
+        border-radius: 0;
+      }
+      
+      .chart-tab.active {
+        background: #000000;
+        color: #ffffff;
+        border-color: #000000;
+        border-radius: 0;
+      }
+      
+      .chart-tab:focus {
+        outline: none;
+        border-radius: 0;
+      }
+      
+      /* Intelligence Feed */
+      .intelligence-feed {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow: hidden;
+        width: 100%;
+        max-width: none;
+      }
+      
+      .feed-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid #e0e0e0;
+        background: #ffffff;
+        width: 100%;
+        max-width: none;
+      }
+      
+      .feed-title {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 2px;
+        margin: 0;
+        color: #000000;
+        text-transform: uppercase;
+      }
+      
+      .feed-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        background: #fafafa;
+        width: 100%;
+        max-width: none;
+      }
+      
+      /* Feed Cards */
+      .feed-card {
+        border: none;
+        border-bottom: 1px solid #e0e0e0;
+        background: transparent;
+        font-size: 11px;
+        transition: all 0.2s;
+        padding: 12px 0;
+      }
+      
+      .feed-card:hover {
+        background: #fafafa;
+      }
+      
+      .card-header {
+        padding: 0 0 6px 0;
+        border-bottom: none;
+        background: transparent;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      
+      .card-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 10px;
+        font-weight: 700;
+        color: #666666;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+      
+      .card-icon {
+        font-size: 10px;
+      }
+      
+      .card-time {
+        font-size: 9px;
+        color: #999999;
+      }
+      
+      .message-content-wrapper {
+        padding: 4px 0;
+      }
+      
+      .message-text {
+        font-size: 12px;
+        line-height: 1.6;
+        color: #333333;
+        word-wrap: break-word;
+      }
+      
+      .message-expand-btn {
+        margin-top: 6px;
+        padding: 0;
+        border: none;
+        background: none;
+        font-family: inherit;
+        font-size: 10px;
+        font-weight: 700;
+        color: #666666;
+        cursor: pointer;
+        text-decoration: underline;
+        transition: color 0.2s;
+      }
+      
+      .message-expand-btn:hover {
+        color: #000000;
+      }
+      
+      .message-expand-btn:focus {
+        outline: none;
+      }
+      
+      .live-badge {
+        font-size: 10px;
+        font-weight: 700;
+        color: #00C853;
+      }
+      
+      .conference-meta {
+        padding: 4px 0 8px 0;
+        background: transparent;
+        border-bottom: none;
+        font-size: 9px;
+        color: #999999;
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      
+      .conference-messages {
+        padding: 8px 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      
+      .conf-message {
+        padding: 6px 0;
+        border-bottom: 1px dotted #e0e0e0;
+      }
+      
+      .conf-message:last-child {
+        border-bottom: none;
+      }
+      
+      .msg-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 4px;
+      }
+      
+      .msg-agent {
+        font-size: 10px;
+        font-weight: 700;
+        color: #666666;
+      }
+      
+      .msg-time {
+        font-size: 9px;
+        color: #999999;
+      }
+      
+      .msg-content {
+        font-size: 12px;
+        line-height: 1.6;
+        color: #333333;
+      }
+      
+      .expand-btn {
+        width: 100%;
+        padding: 8px 0;
+        border: none;
+        border-top: 1px solid #e0e0e0;
+        border-radius: 0;
+        background: transparent;
+        font-family: inherit;
+        font-size: 10px;
+        font-weight: 700;
+        color: #666666;
+        cursor: pointer;
+        text-align: center;
+        transition: color 0.2s;
+        letter-spacing: 0.5px;
+      }
+      
+      .expand-btn:hover {
+        background: transparent;
+        color: #000000;
+        border-radius: 0;
+      }
+      
+      .expand-btn:focus {
+        outline: none;
+        border-radius: 0;
+      }
+      
+      /* Statistics/Performance Pages */
+      .leaderboard-page, .performance-page {
+        flex: 1;
+        overflow-y: auto;
+        padding: 24px;
+        background: #f5f5f5;
+        width: 100%;
+        max-width: none;
+      }
+      
+      .section {
+        margin-bottom: 32px;
+        background: #ffffff;
+        border: 1px solid #e0e0e0;
+        padding: 20px;
+        width: 100%;
+        max-width: none;
+      }
+      
+      .section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #000000;
+      }
+      
+      .section-title {
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: 2px;
+        margin: 0;
+        color: #000000;
+        text-transform: uppercase;
+      }
+      
+      .section-tabs {
+        display: flex;
+        gap: 0;
+        border: 1px solid #000000;
+      }
+      
+      .section-tab {
+        padding: 8px 16px;
+        border: none;
+        border-right: 1px solid #000000;
+        border-radius: 0;
+        background: #ffffff;
+        font-family: inherit;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        color: #000000;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      
+      .section-tab:last-child {
+        border-right: none;
+      }
+      
+      .section-tab:hover {
+        background: #f5f5f5;
+        border-radius: 0;
+      }
+      
+      .section-tab.active {
+        background: #000000;
+        color: #ffffff;
+        border-radius: 0;
+      }
+      
+      .section-tab:focus {
+        outline: none;
+        border-radius: 0;
+      }
+      
+      /* Tables */
+      .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        border: 1px solid #e0e0e0;
+        table-layout: auto;
+        max-width: none;
+      }
+      
+      .table-wrapper {
+        width: 100%;
+        overflow-x: auto;
+        max-width: none;
+      }
+      
+      .data-table thead th {
+        background: #000000;
+        color: #ffffff;
+        padding: 12px 14px;
+        text-align: left;
+        font-weight: 700;
+        letter-spacing: 1px;
+        font-size: 11px;
+        border-right: 1px solid #333333;
+        text-transform: uppercase;
+      }
+      
+      .data-table thead th:last-child {
+        border-right: none;
+      }
+      
+      .data-table tbody tr {
+        border-bottom: 1px solid #e0e0e0;
+        transition: all 0.15s;
+      }
+      
+      .data-table tbody tr:hover {
+        background: #f9f9f9;
+      }
+      
+      .data-table tbody td {
+        padding: 12px 14px;
+        color: #000000;
+      }
+      
+      .rank-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 36px;
+        padding: 6px 10px;
+        background: #ffffff;
+        border: 2px solid #e0e0e0;
+        font-weight: 700;
+        font-size: 11px;
+        color: #000000;
+      }
+      
+      .rank-badge.first {
+        background: #000000;
+        border-color: #000000;
+        color: #ffffff;
+      }
+      
+      .rank-badge.second {
+        background: #ffffff;
+        border-color: #000000;
+        color: #000000;
+      }
+      
+      .rank-badge.third {
+        background: #ffffff;
+        border-color: #666666;
+        color: #666666;
+      }
+      
+      /* Stats Grid */
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        width: 100%;
+        max-width: none;
+      }
+      
+      .stat-card {
+        border: 1px solid #e0e0e0;
+        padding: 16px;
+        background: #fafafa;
+        transition: all 0.2s;
+      }
+      
+      .stat-card:hover {
+        border-color: #000000;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      
+      .stat-card-label {
+        font-size: 11px;
+        color: #666666;
+        font-weight: 700;
+        letter-spacing: 1px;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+      }
+      
+      .stat-card-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: #000000;
+      }
+      
+      .stat-card-value.positive { color: #00C853; }
+      .stat-card-value.negative { color: #FF1744; }
+      
+      /* Empty State */
+      .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #999999;
+        font-size: 12px;
+        letter-spacing: 0.5px;
+      }
+      
+      /* Scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      
+      ::-webkit-scrollbar-track {
+        background: #f0f0f0;
+      }
+      
+      ::-webkit-scrollbar-thumb {
+        background: #cccccc;
+        border-radius: 0;
+      }
+      
+      ::-webkit-scrollbar-thumb:hover {
+        background: #999999;
+      }
+      
+      /* Responsive */
+      @media (max-width: 900px) {
+        .resizer {
+          display: none;
+        }
+        
+        .right-panel {
+          display: none;
+        }
+        
+        .left-panel {
+          min-width: 100%;
+        }
+      }
+      
+      @media (max-width: 600px) {
+        .header-tabs {
+          overflow-x: auto;
+        }
+        
+        .header-tab {
+          padding: 12px 16px;
+          font-size: 11px;
+        }
+        
+        .leaderboard-page, .performance-page {
+          padding: 16px;
+        }
+        
+        .section {
+          padding: 12px;
+        }
+        
+        .data-table {
+          font-size: 10px;
+          display: block;
+          overflow-x: auto;
+        }
+        
+        .data-table thead th,
+        .data-table tbody td {
+          padding: 8px 6px;
+          white-space: nowrap;
+        }
+        
+        .stats-grid {
+          grid-template-columns: 1fr;
+        }
+        
+        .ticker-bar {
+          padding: 8px 12px;
+          gap: 16px;
+        }
+      }
     `}</style>
   );
 }
 
-export default function LiveTradingCompanyApp() {
-  const [isRunning, setIsRunning] = useState(false);
-  const [balance, setBalance] = useState(1250000);
-  const [logs, setLogs] = useState([]);
-  const [bubbles, setBubbles] = useState({});
-  const [holdings, setHoldings] = useState([]); // Team panel portfolio
-
-  const [selectedDate, setSelectedDate] = useState(todayISO());
+// ====== Main App Component ======
+export default function LiveTradingApp() {
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState('connecting'); // 'connecting' | 'connected' | 'disconnected'
+  const [systemStatus, setSystemStatus] = useState('initializing'); // 'initializing' | 'running' | 'completed'
+  const [currentDate, setCurrentDate] = useState(null);
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [now, setNow] = useState(() => new Date());
-  useEffect(() => { const id = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(id); }, []);
-
-  // Drawer state
-  const [showTeam, setShowTeam] = useState(false);
-
-  const containerRef = useRef(null);
-  const canvasRef = useRef(null);
-  const { scale, isReady: scaleReady } = useResizeScale(containerRef, SCENE_NATIVE);
-
-  const bgImg = useImage(ASSETS.roomBg);
-  const avatars = {
-    agent1: useImage(ASSETS.boss),
-    agent2: useImage(ASSETS.worker2),
-    agent3: useImage(ASSETS.worker4),
-    agent4: useImage(ASSETS.worker1),
-    agent5: useImage(ASSETS.worker1),
-    agent6: useImage(ASSETS.worker4),
-  };
-
-  // Keep canvas internal size fixed, scale CSS size only
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    canvas.width = SCENE_NATIVE.width;
-    canvas.height = SCENE_NATIVE.height;
-    const displayWidth = Math.round(SCENE_NATIVE.width * scale);
-    const displayHeight = Math.round(SCENE_NATIVE.height * scale);
-    canvas.style.width = `${displayWidth}px`;
-    canvas.style.height = `${displayHeight}px`;
-  }, [scale]);
-
-  // Draw scene on canvas
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    let raf;
-    const draw = () => {
-      ctx.imageSmoothingEnabled = false;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (bgImg) ctx.drawImage(bgImg, 0, 0, SCENE_NATIVE.width, SCENE_NATIVE.height);
-      const w = 128, h = 128;
-      AGENTS.forEach((a, i) => {
-        const pos = AGENT_SEATS[i];
-        const img = avatars[a.avatar] || avatars.worker1;
-        if (img) ctx.drawImage(img, Math.round(pos.x - w / 2), Math.round(pos.y - h), w, h);
-      });
-      raf = requestAnimationFrame(draw);
-    };
-    draw();
-    return () => cancelAnimationFrame(raf);
-  }, [bgImg, avatars.worker1, avatars.worker2, avatars.worker4, avatars.boss, avatars.agent1]);
-
-  const clientRef = useRef(null);
-
-  // Unified start logic for run/replay
-  const startClient = (config) => {
-    clientRef.current?.stop?.();
-    clientRef.current = new PythonClient(pushEvent, { wsUrl: "ws://localhost:8765/ws" });
-    clientRef.current.start(config);
-    setIsRunning(true);
-  };
-
-  const handleRun = () => startClient({ mode: 'realtime' });
-  const handleReplay = () => startClient({ mode: 'replay', date: selectedDate });
-  const handleStop = () => { clientRef.current?.stop?.(); setIsRunning(false); };
-
-  // Helpers
-  const bubbleFor = (id) => {
-    const b = bubbles[id];
-    if (!b) return null;
-    if (Date.now() - b.ts > BUBBLE_LIFETIME_MS) return null;
-    return b;
-  };
-  const getRoleColor = (role) => ROLE_COLORS[role] || '#000';
-
-  // ===== Team Record state =====
-  const [teamTab, setTeamTab] = useState('stats'); // 'stats' | 'portfolio' | 'trades'
-  const [teamSummary, setTeamSummary] = useState({ pnlPct: 0, equity: [] });
-  const [leaderboard, setLeaderboard] = useState([]);
-  const [tradeLogs, setTradeLogs] = useState([]);
+  const [mainTab, setMainTab] = useState('live'); // 'live' | 'statistics' | 'performance'
+  
+  // Chart data
+  const [chartTab, setChartTab] = useState('all');
+  const [portfolioData, setPortfolioData] = useState({
+    netValue: 1000000,
+    pnl: 0,
+    equity: [],
+    baseline: [], // Baseline strategy
+    strategies: [] // Other strategies
+  });
+  
+  // Feed data
+  const [feed, setFeed] = useState([]);
+  const [conferences, setConferences] = useState({ active: null, history: [] });
+  
+  // Statistics data
+  const [holdings, setHoldings] = useState([]);
+  const [trades, setTrades] = useState([]);
   const [stats, setStats] = useState(null);
-
-  // 使用 selfTest() 的结果来注入 mock（开发时方便预览）
+  const [leaderboard, setLeaderboard] = useState([]);
+  
+  // Ticker prices (now from real-time data)
+  const [tickers, setTickers] = useState(MOCK_TICKERS);
+  const [rollingTickers, setRollingTickers] = useState({});
+  
+  // Resizable panels
+  const [leftWidth, setLeftWidth] = useState(70); // percentage
+  const [isResizing, setIsResizing] = useState(false);
+  
+  const clientRef = useRef(null);
+  const containerRef = useRef(null);
+  
+  // Clock
   useEffect(() => {
-    if (!isRunning && window.__LB_SELFTEST_OK) {
-      const ms = mockSummary();
-      const hs = mockHoldings();
-      const st = mockStats();
-      const tr = mockTrades();
-      const lb = mockLeaderboard();
-      setTeamSummary(ms);
-      setHoldings(hs);
-      setStats(st);
-      setTradeLogs(tr);
-      setLeaderboard(lb);
-    }
-  }, [isRunning]);
-
-  // Subscribe/unsubscribe based on Drawer visibility
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  
+  // Auto-connect to server on mount
   useEffect(() => {
-    const ws = clientRef.current?.ws;
-    if (!ws) return;
-    const payload = { channels: TEAM_CHANNELS };
-    ws.send(JSON.stringify({ type: showTeam ? 'subscribe' : 'unsubscribe', ...payload }));
-    if (showTeam) ws.send(JSON.stringify({ type: 'request_snapshot', ...payload }));
-  }, [showTeam]);
-
-  // Centralized event dispatcher
-  const pushEvent = (evt) => {
-    if (!evt) return;
-    const handlers = {
-      agent_message: (e) => {
-        const a = AGENTS.find((x) => x.id === e.agentId);
-        const entry = { id: `${Date.now()}-${Math.random()}`, ts: new Date(), who: a?.name || e.agentId, role: a?.role, text: e.content };
-        setLogs((prev) => [entry, ...prev].slice(0, 400));
-        setBubbles((prev) => ({ ...prev, [e.agentId]: { text: e.content, ts: Date.now(), role: a?.role } }));
-      },
-      system: (e) => {
-        const entry = { id: `${Date.now()}-${Math.random()}`, ts: new Date(), who: 'System', role: 'System', text: e.content };
-        setLogs((prev) => [entry, ...prev].slice(0, 400));
-      },
-      team_summary: (e) => {
-        setTeamSummary({ pnlPct: e.pnlPct ?? 0, equity: e.equity || [], balance: e.balance });
-        if (typeof e.balance === 'number') setBalance(e.balance);
-      },
-      team_portfolio: (e) => setHoldings(e.holdings || []),
-      team_stats: (e) => setStats(e),
-      team_trades: (e) => {
-        if (Array.isArray(e.trades)) setTradeLogs(e.trades);
-        else if (e.trade) setTradeLogs((prev)=>[e.trade, ...prev].slice(0,400));
-      },
-      team_leaderboard: (e) => { if (Array.isArray(e.rows)) setLeaderboard(e.rows); },
+    // Define pushEvent inside useEffect to avoid dependency issues
+    const handlePushEvent = (evt) => {
+      if (!evt) return;
+      
+      try {
+        handleEventInternal(evt);
+      } catch (error) {
+        console.error('[Event Handler] Error:', error);
+      }
     };
-    (handlers[evt.type] || (()=>{}))(evt);
+    
+    const handleEventInternal = (evt) => {
+      // 辅助函数：更新ticker价格
+      const updateTickersFromPrices = (realtimePrices) => {
+        try {
+          setTickers(prevTickers => {
+            return prevTickers.map(ticker => {
+              const realtimeData = realtimePrices[ticker.symbol];
+              if (realtimeData && realtimeData.price) {
+                return {
+                  ...ticker,
+                  price: realtimeData.price
+                };
+              }
+              return ticker;
+            });
+          });
+        } catch (error) {
+          console.error('Error updating tickers from prices:', error);
+        }
+      };
+      
+      const handlers = {
+        // Connection events
+        system: (e) => {
+          console.log('[System]', e.content);
+          if (e.content.includes('Connected')) {
+            setConnectionStatus('connected');
+            setIsConnected(true);
+          } else if (e.content.includes('Disconnected')) {
+            setConnectionStatus('disconnected');
+            setIsConnected(false);
+          }
+          
+          // Add all system messages to feed
+          const message = {
+            id: `sys-${Date.now()}-${Math.random()}`,
+            timestamp: e.timestamp || Date.now(),
+            agent: 'System',
+            role: 'System',
+            content: e.content
+          };
+          setFeed(prev => [{ type: 'message', data: message, id: message.id }, ...prev].slice(0, 200));
+        },
+        
+        // Pong response from server
+        pong: (e) => {
+          console.log('[Heartbeat] Pong received');
+        },
+        
+        // Initial state from server
+        initial_state: (e) => {
+          try {
+            const state = e.state;
+            if (!state) return;
+            
+            setSystemStatus(state.status || 'initializing');
+            setCurrentDate(state.current_date);
+            
+            if (state.trading_days_total) {
+              setProgress({
+                current: state.trading_days_completed || 0,
+                total: state.trading_days_total
+              });
+            }
+            
+            if (state.portfolio) {
+              setPortfolioData(prev => ({
+                ...prev,
+                netValue: state.portfolio.total_value || prev.netValue,
+                pnl: state.portfolio.pnl_percent || 0,
+                equity: state.portfolio.equity || prev.equity,
+                baseline: state.portfolio.baseline || prev.baseline,
+                strategies: state.portfolio.strategies || prev.strategies
+              }));
+            }
+            
+            if (state.holdings) setHoldings(state.holdings);
+            if (state.trades) setTrades(state.trades);
+            if (state.stats) setStats(state.stats);
+            if (state.leaderboard) setLeaderboard(state.leaderboard);
+            if (state.realtime_prices) updateTickersFromPrices(state.realtime_prices);
+            
+            // 加载历史feed数据 - 后端已经统一格式化
+            if (state.feed_history && Array.isArray(state.feed_history)) {
+              console.log(`✅ Loading ${state.feed_history.length} historical feed items`);
+              setFeed(state.feed_history);
+            }
+            
+            console.log('Initial state loaded');
+          } catch (error) {
+            console.error('Error loading initial state:', error);
+          }
+        },
+        
+        // Real-time price updates
+        price_update: (e) => {
+          try {
+            const { symbol, price, portfolio } = e;
+            
+            if (!symbol || !price) {
+              console.warn('[Price Update] Missing symbol or price:', e);
+              return;
+            }
+            
+            // Update ticker price with animation
+            setTickers(prevTickers => {
+              return prevTickers.map(ticker => {
+                if (ticker.symbol === symbol) {
+                  const oldPrice = ticker.price;
+                  const change = ((price - oldPrice) / oldPrice) * 100;
+                  
+                  // Trigger rolling animation
+                  setRollingTickers(prev => ({ ...prev, [symbol]: true }));
+                  setTimeout(() => {
+                    setRollingTickers(prev => ({ ...prev, [symbol]: false }));
+                  }, 500);
+                  
+                  return {
+                    ...ticker,
+                    price: price,
+                    change: ticker.change + change
+                  };
+                }
+                return ticker;
+              });
+            });
+            
+            // Update portfolio value if provided
+            if (portfolio && portfolio.total_value) {
+              setPortfolioData(prev => ({
+                ...prev,
+                netValue: portfolio.total_value,
+                pnl: portfolio.pnl_percent || 0
+              }));
+            }
+          } catch (error) {
+            console.error('[Price Update] Error:', error);
+          }
+        },
+        
+        // Day progress events
+        day_start: (e) => {
+          setCurrentDate(e.date);
+          if (e.progress !== undefined) {
+            setProgress(prev => ({
+              ...prev,
+              current: Math.floor(e.progress * (prev.total || 1))
+            }));
+          }
+          setSystemStatus('running');
+          
+          // Add to feed
+          const message = {
+            id: `day-start-${Date.now()}-${Math.random()}`,
+            timestamp: e.timestamp || Date.now(),
+            agent: 'System',
+            role: 'System',
+            content: `Starting day: ${e.date}`
+          };
+          setFeed(prev => [{ type: 'message', data: message, id: message.id }, ...prev].slice(0, 200));
+        },
+        
+        day_complete: (e) => {
+          // Update from day result
+          const result = e.result;
+          if (result && typeof result === 'object') {
+            // Update portfolio equity if available
+            if (result.portfolio_summary) {
+              const summary = result.portfolio_summary;
+              setPortfolioData(prev => {
+                const newEquity = [...prev.equity];
+                // Add new data point
+                const dateObj = new Date(e.date);
+                newEquity.push({
+                  t: dateObj.getTime(),
+                  v: summary.total_value || summary.cash || prev.netValue
+                });
+                
+                return {
+                  ...prev,
+                  netValue: summary.total_value || summary.cash || prev.netValue,
+                  pnl: summary.pnl_percent || 0,
+                  equity: newEquity
+                };
+              });
+            }
+            
+            // Update signals if available
+            if (result.pre_market && result.pre_market.signals) {
+              // Could update signal display here
+            }
+          }
+          
+          // Add to feed
+          const message = {
+            id: `day-complete-${Date.now()}-${Math.random()}`,
+            timestamp: e.timestamp || Date.now(),
+            agent: 'System',
+            role: 'System',
+            content: `Day completed: ${e.date}`
+          };
+          setFeed(prev => [{ type: 'message', data: message, id: message.id }, ...prev].slice(0, 200));
+        },
+        
+        day_error: (e) => {
+          console.error('Day error:', e.date, e.error);
+          
+          // Add to feed
+          const message = {
+            id: `day-error-${Date.now()}-${Math.random()}`,
+            timestamp: e.timestamp || Date.now(),
+            agent: 'System',
+            role: 'System',
+            content: `Day error: ${e.date} - ${e.error || 'Unknown error'}`
+          };
+          setFeed(prev => [{ type: 'message', data: message, id: message.id }, ...prev].slice(0, 200));
+        },
+        
+        conference_start: (e) => {
+          const conference = {
+            id: e.conferenceId,
+            title: e.title,
+            startTime: e.timestamp || Date.now(),
+            endTime: null,
+            isLive: true,
+            participants: e.participants || [],
+            messages: []
+          };
+          setConferences(prev => ({ ...prev, active: conference }));
+          setFeed(prev => [{ type: 'conference', data: conference, id: conference.id }, ...prev]);
+        },
+        
+        conference_message: (e) => {
+          setConferences(prev => {
+            if (prev.active?.id === e.conferenceId) {
+              const updated = { ...prev.active, messages: [...prev.active.messages, e] };
+              setFeed(f => f.map(item => 
+                item.type === 'conference' && item.id === e.conferenceId ? { ...item, data: updated } : item
+              ));
+              return { ...prev, active: updated };
+            }
+            return prev;
+          });
+        },
+        
+        conference_end: (e) => {
+          setConferences(prev => {
+            if (prev.active) {
+              const ended = {
+                ...prev.active,
+                endTime: e.timestamp || Date.now(),
+                isLive: false,
+                duration: calculateDuration(prev.active.startTime, e.timestamp || Date.now())
+              };
+              setFeed(f => f.map(item =>
+                item.type === 'conference' && item.id === prev.active.id ? { ...item, data: ended } : item
+              ));
+              return { active: null, history: [ended, ...prev.history] };
+            }
+            return prev;
+          });
+        },
+        
+        agent_message: (e) => {
+          const agent = AGENTS.find(a => a.id === e.agentId);
+          const message = {
+            id: `msg-${Date.now()}-${Math.random()}`,
+            timestamp: e.timestamp || Date.now(),
+            agent: agent?.name || e.agentName || e.agentId || 'Agent',
+            role: agent?.role || e.role || 'Agent',
+            content: e.content
+          };
+          setFeed(prev => [{ type: 'message', data: message, id: message.id }, ...prev].slice(0, 200));
+        },
+        
+        team_summary: (e) => {
+          setPortfolioData(prev => ({
+            ...prev,
+            netValue: e.balance || prev.netValue,
+            pnl: e.pnlPct || 0,
+            equity: e.equity || prev.equity
+          }));
+          
+          // Add to feed
+          const message = {
+            id: `team-summary-${Date.now()}-${Math.random()}`,
+            timestamp: e.timestamp || Date.now(),
+            agent: 'System',
+            role: 'System',
+            content: `Portfolio update: $${formatNumber(e.balance || 0)} (${e.pnlPct >= 0 ? '+' : ''}${(e.pnlPct || 0).toFixed(2)}%)`
+          };
+          setFeed(prev => [{ type: 'message', data: message, id: message.id }, ...prev].slice(0, 200));
+        },
+        
+        team_portfolio: (e) => {
+          if (e.holdings) setHoldings(e.holdings);
+        },
+        
+        team_trades: (e) => {
+          if (Array.isArray(e.trades)) setTrades(e.trades);
+          else if (e.trade) setTrades(prev => [e.trade, ...prev].slice(0, 100));
+        },
+        
+        team_stats: (e) => {
+          if (e.stats) setStats(e.stats);
+        },
+        
+        team_leaderboard: (e) => {
+          if (Array.isArray(e.rows)) setLeaderboard(e.rows);
+          else if (Array.isArray(e.leaderboard)) setLeaderboard(e.leaderboard);
+        }
+      };
+      
+      // Call handler or do nothing
+      try {
+        const handler = handlers[evt.type];
+        if (handler) {
+          handler(evt);
+        } else {
+          console.log('[handleEvent] Unknown event type:', evt.type);
+        }
+      } catch (error) {
+        console.error('[handleEvent] Error handling event:', evt.type, error);
+      }
+    };
+    
+    // Create and connect WebSocket client
+    const client = new ReadOnlyClient(handlePushEvent);
+    clientRef.current = client;
+    client.connect();
+    setConnectionStatus('connecting');
+    
+    return () => {
+      // Cleanup on unmount
+      if (clientRef.current) {
+        clientRef.current.disconnect();
+      }
+    };
+  }, []); // Empty dependency array - only run once on mount
+  
+  // Resizing handlers
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    setIsResizing(true);
+  };
+  
+  useEffect(() => {
+    if (!isResizing) return;
+    
+    const handleMouseMove = (e) => {
+      if (!containerRef.current) return;
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const newLeftWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+      
+      // Limit between 30% and 85%
+      if (newLeftWidth >= 30 && newLeftWidth <= 85) {
+        setLeftWidth(newLeftWidth);
+      }
+    };
+    
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+  
+  const loadMockData = () => {
+    // Mock portfolio with multiple strategies
+    const equity = Array.from({ length: 90 }).map((_, i) => ({
+      t: Date.now() - (90 - i) * 3600e3,
+      v: 1000000 + Math.sin(i / 8) * 60000 + i * 3000 + Math.random() * 20000
+    }));
+    
+    // Baseline strategy (simple buy-and-hold)
+    const baseline = Array.from({ length: 90 }).map((_, i) => ({
+      t: Date.now() - (90 - i) * 3600e3,
+      v: 1000000 + i * 2000 + Math.random() * 10000
+    }));
+    
+    // Other strategies
+    const strategies = Array.from({ length: 90 }).map((_, i) => ({
+      t: Date.now() - (90 - i) * 3600e3,
+      v: 1000000 + Math.sin(i / 6) * 40000 + i * 2500 + Math.random() * 15000
+    }));
+    
+    setPortfolioData({ 
+      netValue: 1347500, 
+      pnl: 34.75, 
+      equity,
+      baseline,
+      strategies
+    });
+    
+    // Mock holdings
+    setHoldings([
+      { ticker: 'AAPL', qty: 120, avg: 192.3, pl: 5401.2, weight: 0.21, currentPrice: 237.5 },
+      { ticker: 'NVDA', qty: 40, avg: 980.1, pl: -1204.4, weight: 0.18, currentPrice: 950.0 },
+      { ticker: 'MSFT', qty: 20, avg: 420.2, pl: 2100.2, weight: 0.15, currentPrice: 525.3 },
+      { ticker: 'GOOGL', qty: 80, avg: 142.5, pl: 1520.0, weight: 0.12, currentPrice: 161.5 }
+    ]);
+    
+    // Mock trades
+    setTrades([
+      { id: 't1', timestamp: Date.now() - 3600e3, side: 'BUY', ticker: 'AAPL', qty: 20, price: 190.23, pnl: 243.0 },
+      { id: 't2', timestamp: Date.now() - 7200e3, side: 'SELL', ticker: 'TSLA', qty: 10, price: 201.90, pnl: -101.0 },
+      { id: 't3', timestamp: Date.now() - 10800e3, side: 'BUY', ticker: 'MSFT', qty: 5, price: 420.50, pnl: 525.0 }
+    ]);
+    
+    // Mock stats
+    setStats({
+      winRate: 0.62,
+      hitRate: 0.58,
+      totalTrades: 44,
+      bullBear: { bull: { n: 26, win: 17 }, bear: { n: 18, win: 10 } }
+    });
+    
+    // Mock leaderboard
+    setLeaderboard([
+      { agentId: 'alpha', name: 'Bob', role: 'Portfolio Manager', rank: 1, accountValue: 18744, returnPct: 87.44, totalPL: 8744, fees: 441.98, winRate: 0.318, biggestWin: 7378, biggestLoss: -1072, sharpe: 0.448, trades: 22 },
+      { agentId: 'beta', name: 'Carl', role: 'Risk Manager', rank: 2, accountValue: 15423, returnPct: 54.23, totalPL: 5423, fees: 1218, winRate: 0.333, biggestWin: 8176, biggestLoss: -1728, sharpe: 0.339, trades: 30 },
+      { agentId: 'gamma', name: 'Alice', role: 'Valuation Analyst', rank: 3, accountValue: 9847, returnPct: -1.53, totalPL: -153, fees: 431.49, winRate: 0.333, biggestWin: 2112, biggestLoss: -1579, sharpe: 0.035, trades: 24 },
+      { agentId: 'delta', name: 'David', role: 'Sentiment Analyst', rank: 4, accountValue: 8915, returnPct: -10.85, totalPL: -1085, fees: 215.17, winRate: 0.19, biggestWin: 1356, biggestLoss: -657, sharpe: 0.040, trades: 21 },
+      { agentId: 'epsilon', name: 'Eve', role: 'Fundamentals Analyst', rank: 5, accountValue: 3519, returnPct: -64.81, totalPL: -6481, fees: 1171, winRate: 0.254, biggestWin: 347, biggestLoss: -750, sharpe: -0.709, trades: 189 },
+      { agentId: 'zeta', name: 'Frank', role: 'Technical Analyst', rank: 6, accountValue: 3239, returnPct: -67.61, totalPL: -6761, fees: 390.93, winRate: 0.189, biggestWin: 265, biggestLoss: -621, sharpe: -0.639, trades: 74 }
+    ]);
+    
+    // Mock messages
+    setFeed([
+      { type: 'message', id: 'm1', data: { id: 'm1', timestamp: Date.now() - 300000, agent: 'Bob', role: 'Portfolio Manager', content: 'Markets showing strong momentum. Increasing allocation to tech sector based on positive earnings outlook.' }},
+      { type: 'message', id: 'm2', data: { id: 'm2', timestamp: Date.now() - 600000, agent: 'Carl', role: 'Risk Manager', content: 'Volatility spike detected. Recommend hedging with index puts to protect downside.' }}
+    ]);
   };
 
   return (
-    <div className="wrap">
-      <RevampStyles />
-      <div className="topbar"><div className="title">LIVE TRADING COMPANY</div></div>
+    <div className="app">
+      <GlobalStyles />
+      
+      {/* Header */}
+      <div className="header">
+        <div className="header-title">
+          <span>TRADING INTELLIGENCE</span>
+        </div>
+        
+        <div className="header-tabs">
+          <button
+            className={`header-tab ${mainTab === 'live' ? 'active' : ''}`}
+            onClick={() => setMainTab('live')}
+          >
+            Live
+          </button>
+          <button
+            className={`header-tab ${mainTab === 'statistics' ? 'active' : ''}`}
+            onClick={() => setMainTab('statistics')}
+          >
+            Statistics
+          </button>
+          <button
+            className={`header-tab ${mainTab === 'performance' ? 'active' : ''}`}
+            onClick={() => setMainTab('performance')}
+          >
+            Agent Performance
+          </button>
+        </div>
 
-      {/* Dashboard Shell */}
-      <div className="dashboardShell">
-        {/* Meter Bar */}
-        <button
-          className="bar"
-          aria-expanded={showTeam}
-          aria-controls="team-drawer"
-          onClick={() => setShowTeam(v => !v)}
-          style={{ background: (teamSummary.pnlPct ?? 0) >= 0 ? '#E8F8E0' : '#FFE8EE' }}
-        >
-          <span className="bar-title">TEAM DASHBOARD</span>
-          <span className="bar-metrics">
-            <span>P&L <b>{(teamSummary.pnlPct ?? 0) >= 0 ? '+' : ''}{(teamSummary.pnlPct||0).toFixed(1)}%</b></span>
-            <span>Holdings <b>{holdings?.length || 0}</b></span>
+        <div className="header-status">
+          <span className={`status-indicator ${isConnected ? 'live' : 'disconnected'}`}>
+            {isConnected ? '● LIVE' : '○ OFFLINE'}
           </span>
-          <span className={`chev ${showTeam ? 'up' : ''}`} aria-hidden />
-        </button>
-
-        {/* Drawer */}
-        <div id="team-drawer" className={`drawer ${showTeam ? 'open' : ''}`}>
-          <div className="teamWrap">
-            {/* TEAM RECORD - New Layout */}
-            <section className="teamPanel">
-              <div className="panel-title" style={{ marginBottom: 16 }}>
-                <span>TEAM RECORD</span>
-                <strong style={{ color: (teamSummary.pnlPct ?? 0) >= 0 ? '#6EB300' : '#FF3B8D', fontSize: 20 }}>
-                  {(teamSummary.pnlPct ?? 0) >= 0 ? '+' : ''}{(teamSummary.pnlPct||0).toFixed(1)}%
-                </strong>
-              </div>
-              <div className="recordLayout">
-                {/* Left: Chart */}
-                <div className="recordChart">
-                  <div style={{ fontSize: 14, fontWeight: 900, letterSpacing: 1, marginBottom: 12, textTransform: 'uppercase' }}>NET VALUE CURVE</div>
-                  <NetValueChart data={teamSummary.equity || []} />
-                  <div style={{ fontSize: 12, marginTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>Balance: <span style={{ fontWeight: 900 }}>${balance.toLocaleString()}</span></span>
-                    <span style={{ opacity: 0.7, fontSize: 11 }}>Data Points: {teamSummary.equity?.length || 0}</span>
-                  </div>
-                </div>
-
-                {/* Right: Tabs */}
-                <div className="recordRight">
-                  <div className="tabs">
-                    <div className={`tab ${teamTab==='stats'?'active':''}`} onClick={()=>setTeamTab('stats')}>STATISTICS</div>
-                    <div className={`tab ${teamTab==='portfolio'?'active':''}`} onClick={()=>setTeamTab('portfolio')}>PORTFOLIO</div>
-                    <div className={`tab ${teamTab==='trades'?'active':''}`} onClick={()=>setTeamTab('trades')}>TRADING LOGS</div>
-                  </div>
-                  <div style={{ padding: 12 }}>
-                    {teamTab==='stats' && <StatisticsPanel stats={stats} />}
-                    {teamTab==='portfolio' && <PortfolioTable holdings={holdings} />}
-                    {teamTab==='trades' && <TradesTable trades={tradeLogs} />}
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* INDIVIDUAL LEADERBOARD */}
-            <section className="leaderboard">
-              <div className="lb-header">
-                <span>INDIVIDUAL LEADERBOARD</span>
-                <small style={{ fontSize:11, opacity:.7, fontWeight: 400 }}>Click row to expand</small>
-              </div>
-              <div style={{ maxHeight: '42vh', minHeight: 200, overflowY:'auto' }}>
-                <LeaderboardTable rows={leaderboard} />
-              </div>
-            </section>
-          </div>
+          {currentDate && (
+            <span style={{ fontSize: '11px', color: '#666' }}>
+              Trading: {currentDate}
+            </span>
+          )}
+          {progress.total > 0 && (
+            <span style={{ fontSize: '11px', color: '#666' }}>
+              {progress.current}/{progress.total}
+            </span>
+          )}
+          <span>{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
         </div>
       </div>
-
-      {/* Content wrapper for centered layout */}
-      <div className="content-wrap">
-        {/* Agent Cards */}
-        <div className="agentsShell">
-          <div className="agents">
-            {AGENTS.map((a) => {
-              const talk = bubbleFor(a.id);
-              const speaking = !!talk;
-              const color = getRoleColor(a.role);
-              return (
-                <div key={a.id} className="agent-card">
-                  <div className="avatar-square">
-                    <img src={ASSETS[a.avatar]} alt={a.name} className="avatar-img" />
-                    <span className="talk-dot" style={{ background: speaking ? color : '#fff' }} />
-                  </div>
-                  <div className="agent-labels" style={{ textAlign: 'center' }}>
-                    <div className="agent-name" style={{ color }}>{a.name}</div>
-                    <div className="agent-role" style={{ color }}>{a.role}</div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Main content: scene + right dock */}
-        <div className="main">
-          {/* Full room scene (no bg/border) */}
-          <div className="panel-scene">
-            <div ref={containerRef} className="scene">
-              <div
-                className={`scene-inner ${!scaleReady ? 'loading' : ''}`}
-                style={{
-                  width: Math.round(SCENE_NATIVE.width * scale),
-                  height: Math.round(SCENE_NATIVE.height * scale),
-                  position: 'relative'
-                }}
-              >
-                <canvas ref={canvasRef} style={{ display: 'block' }} />
-                {AGENTS.map((a, i) => {
-                  const pos = AGENT_SEATS[i];
-                  const b = bubbleFor(a.id);
-                  if (!b) return null;
-                  const color = getRoleColor(a.role);
-                  const left = Math.round((pos.x - 20) * scale);
-                  const top = Math.round((pos.y - 150) * scale);
-                  return (
-                    <div key={a.id} className="bubble" style={{ left, top }}>
-                      <div style={{ fontWeight: 900, marginBottom: 4, color }}>{a.name}</div>
-                      {truncate(b.text || '', 50)}
-                    </div>
-                  );
-                })}
+      
+      {/* Main Content */}
+      {mainTab === 'live' ? (
+        <>
+          {/* Ticker Bar */}
+          <div className="ticker-bar">
+            {tickers.map(ticker => (
+              <div key={ticker.symbol} className="ticker-item">
+                <span className="ticker-symbol">{ticker.symbol}</span>
+                <span className="ticker-price">
+                  <span className={`ticker-price-value ${rollingTickers[ticker.symbol] ? 'rolling' : ''}`}>
+                    ${formatTickerPrice(ticker.price)}
+                  </span>
+                </span>
+                <span className={`ticker-change ${ticker.change >= 0 ? 'positive' : 'negative'}`}>
+                  {ticker.change >= 0 ? '+' : ''}{ticker.change.toFixed(2)}%
+                </span>
               </div>
+            ))}
+            <div className="portfolio-value">
+              <span className="portfolio-label">PORTFOLIO</span>
+              <span className="portfolio-amount">${formatNumber(portfolioData.netValue)}</span>
             </div>
           </div>
+          
+          <div className="main-container" ref={containerRef}>
+            {/* Left Panel: Chart */}
+            <div className="left-panel" style={{ width: `${leftWidth}%` }}>
+              <div className="chart-section">
+                {/* Chart with Floating Tabs */}
+                <div className="chart-container">
+                  {/* Floating Timeframe Tabs */}
+                  <div className="chart-tabs-floating">
+                    <button
+                      className={`chart-tab ${chartTab === 'all' ? 'active' : ''}`}
+                      onClick={() => setChartTab('all')}
+                    >
+                      ALL
+                    </button>
+                    <button
+                      className={`chart-tab ${chartTab === '30d' ? 'active' : ''}`}
+                      onClick={() => setChartTab('30d')}
+                    >
+                      30D
+                    </button>
+                  </div>
 
-          {/* Right dock (Agent Logs only) */}
-          <div className="dock">
-            <div className="dock-box">
-              <div className="dock-body">
-                <h3 className="section-title">Agent Logs</h3>
-                <AgentLogs logs={logs} />
+                  <NetValueChart 
+                    equity={portfolioData.equity}
+                    baseline={portfolioData.baseline}
+                    strategies={portfolioData.strategies}
+                  />
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Footer */}
-      <div className="footer">
-        <div className="footer-inner">
-          <div className="footer-left">
-            <button onClick={handleRun} className="btn btn-primary" title="Run (live)">RUN</button>
-            <button onClick={handleReplay} className="btn" title="Replay (by date)">REPLAY</button>
-            <button onClick={handleStop} className="btn btn-danger">STOP</button>
+            {/* Resizer */}
+            <div 
+              className={`resizer ${isResizing ? 'resizing' : ''}`}
+              onMouseDown={handleMouseDown}
+            />
+
+            {/* Right Panel: Intelligence Feed */}
+            <div className="right-panel" style={{ width: `${100 - leftWidth}%` }}>
+              <IntelligenceFeed feed={feed} conferences={conferences} />
+            </div>
           </div>
-          <div className="footer-right">
-            <label htmlFor="replay-date" style={{ fontSize:'12px', fontWeight:900 }}>DATE</label>
-            <input id="replay-date" type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />
-            <span style={{ fontSize:'12px' }}>|</span>
-            <div style={{ fontVariantNumeric:'tabular-nums', fontSize:'13px', fontWeight:700 }}>{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
-          </div>
+        </>
+      ) : mainTab === 'statistics' ? (
+        <div className="leaderboard-page">
+          <StatisticsView
+            trades={trades}
+            holdings={holdings}
+            stats={stats}
+          />
         </div>
-      </div>
+      ) : (
+        <div className="performance-page">
+          <PerformanceView leaderboard={leaderboard} />
+        </div>
+      )}
     </div>
   );
 }
 
 // ====== Subcomponents ======
-function AgentLogs({ logs }) {
-  const [expanded, setExpanded] = useState({});
-  const MAX = 200;
-  return (
-    <div className="logs">
-      {logs.length === 0 && (<div style={{ opacity:.6, fontSize:12 }}>No logs yet. Use Replay or Run.</div>)}
-      {logs.map((l) => {
-        const color = ROLE_COLORS[l.role] || '#000';
-        const light = hexToRgba(color, 0.08);
-        const isLong = l.text && l.text.length > MAX;
-        const open = !!expanded[l.id];
-        const shown = !isLong || open ? l.text : `${l.text.slice(0, MAX)}…`;
-        return (
-          <div key={l.id} className="log-card" style={{ background: light }}>
-            <div className="log-header">
-              <span className="log-badge" style={{ background: color }} />
-              <span className="log-agent" style={{ color }}>{l.who}</span>
-              {l.who !== l.role && (
-                <>
-                  <span style={{ color }}>:</span>
-                  <span style={{ color }}>{l.role}</span>
-                </>
-              )}
-              <span className="log-time">{formatTime(l.ts)}</span>
-            </div>
-            <div className="log-text">{shown}</div>
-            {isLong && (
-              <div className="log-expand" onClick={() => setExpanded((s) => ({ ...s, [l.id]: !open }))}>{open ? 'collapse' : 'click to expand'}</div>
-            )}
+
+function NetValueChart({ equity, baseline, strategies }) {
+  const [activePoint, setActivePoint] = useState(null);
+  
+  const chartData = useMemo(() => {
+    if (!equity || equity.length === 0) return [];
+    
+    return equity.map((d, idx) => {
+      const date = new Date(d.t);
+      return {
+        index: idx,
+        time: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + 
+              ' ' + date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+        timestamp: d.t,
+        portfolio: d.v,
+        baseline: baseline?.[idx]?.v || null,
+        strategy: strategies?.[idx]?.v || null
+      };
+    });
+  }, [equity, baseline, strategies]);
+  
+  const { yMin, yMax, xTickIndices } = useMemo(() => {
+    if (chartData.length === 0) return { yMin: 0, yMax: 1, xTickIndices: [] };
+    
+    // Calculate min and max from all series
+    const allValues = chartData.flatMap(d => 
+      [d.portfolio, d.baseline, d.strategy].filter(v => v !== null && isFinite(v))
+    );
+    
+    if (allValues.length === 0) {
+      return { yMin: 0, yMax: 1000000, xTickIndices: [] };
+    }
+    
+    const dataMin = Math.min(...allValues);
+    const dataMax = Math.max(...allValues);
+    const range = dataMax - dataMin || 1000000; // Prevent division by zero
+    
+    // Add 10% padding and round to nearest 10000
+    const yMinCalc = Math.floor((dataMin - range * 0.1) / 10000) * 10000;
+    const yMaxCalc = Math.ceil((dataMax + range * 0.1) / 10000) * 10000;
+    
+    // Calculate x-axis tick indices (show 5-8 ticks)
+    // Limit chartData to reasonable size to prevent crash
+    const safeLength = Math.min(chartData.length, 10000); // Max 10k points
+    const targetTicks = Math.min(8, Math.max(5, Math.floor(safeLength / 10)));
+    const step = Math.max(1, Math.floor(safeLength / (targetTicks - 1))); // Ensure step >= 1
+    
+    const indices = [];
+    for (let i = 0; i < safeLength && indices.length < 100; i += step) {
+      indices.push(i);
+    }
+    
+    // Always include the last point
+    if (safeLength > 0 && indices[indices.length - 1] !== safeLength - 1) {
+      indices.push(safeLength - 1);
+    }
+    
+    return { yMin: yMinCalc, yMax: yMaxCalc, xTickIndices: indices };
+  }, [chartData]);
+
+  if (!equity || equity.length === 0) {
+    return (
+      <div style={{ 
+        width: '100%', 
+        height: '100%', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        color: '#cccccc',
+        fontFamily: '"Courier New", monospace',
+        fontSize: '12px'
+      }}>
+        NO DATA AVAILABLE
+      </div>
+    );
+  }
+
+  const CustomTooltip = ({ active, payload }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div style={{
+          background: '#000000',
+          border: '1px solid #333333',
+          padding: '10px 14px',
+          fontFamily: '"Courier New", monospace',
+          fontSize: '10px',
+          color: '#ffffff'
+        }}>
+          <div style={{ fontWeight: 700, marginBottom: '6px', fontSize: '11px' }}>
+            {payload[0].payload.time}
           </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function PortfolioTable({ holdings }) {
-  return (
-    <div style={{ maxHeight: 320, overflowY: 'auto' }}>
-      <table className="portfolio-table">
-        <thead>
-          <tr>
-            <th>TICKER</th>
-            <th>QTY</th>
-            <th>AVG COST</th>
-            <th>P/L</th>
-            <th>WEIGHT</th>
-          </tr>
-        </thead>
-        <tbody>
-          {(!holdings || holdings.length === 0) ? (
-            <tr><td colSpan={5} style={{ padding: 16, opacity:.6, textAlign: 'center' }}>No positions</td></tr>
-          ) : holdings.map((h) => (
-            <tr key={h.ticker}>
-              <td style={{ fontWeight: 900, fontSize: 13 }}>{h.ticker}</td>
-              <td>{h.qty}</td>
-              <td>${Number(h.avg).toFixed(2)}</td>
-              <td style={{ color: h.pl >= 0 ? '#6EB300' : '#FF3B8D', fontWeight: 900 }}>
-                {h.pl >= 0 ? '▲ +' : '▼ '}{Number(h.pl).toFixed(2)}
-              </td>
-              <td>{(Number(h.weight) * 100).toFixed(1)}%</td>
-            </tr>
+          {payload.map((entry, index) => (
+            <div key={index} style={{ color: entry.color, marginTop: '2px' }}>
+              <span style={{ fontWeight: 700 }}>{entry.name}:</span> ${formatNumber(entry.value)}
+            </div>
           ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
+        </div>
+      );
+    }
+    return null;
+  };
 
-function NetValueChart({ data }) {
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const drawChart = () => {
-      const cnv = ref.current;
-      if (!cnv) return;
-      const ctx = cnv.getContext('2d');
-      const parent = cnv.parentElement;
-      if (!parent) return;
-      const W = Math.max(280, parent.clientWidth);
-      const H = Math.min(280, Math.max(200, parent.clientHeight || 280));
-      cnv.width = W;
-      cnv.height = H;
-      cnv.style.width = '100%';
-      cnv.style.height = '100%';
-
-      ctx.imageSmoothingEnabled = false;
-      ctx.clearRect(0,0,W,H);
-      ctx.fillStyle = '#fff'; ctx.fillRect(0,0,W,H);
-
-      if (!data || data.length === 0) {
-        drawAxes(ctx, W, H, { lo: 0, hi: 1 }, [], CHART_MARGIN, AXIS_TICKS);
-        ctx.fillStyle = '#ccc';
-        ctx.font = '12px ui-monospace, monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('NO DATA AVAILABLE', W/2, H/2);
-        return;
-      }
-
-      const vals = data.map(d => d.v);
-      const hi = Math.max(...vals), lo = Math.min(...vals);
-      drawAxes(ctx, W, H, { lo, hi }, data, CHART_MARGIN, AXIS_TICKS);
-
-      const m = CHART_MARGIN;
-      const chartW = W - m.left - m.right;
-      const chartH = H - m.top - m.bottom;
-      const y = (v) => m.top + Math.round((1 - (v - lo) / ((hi - lo) || 1)) * chartH);
-      const x = (i) => m.left + Math.round((i / Math.max(1, data.length - 1)) * chartW);
-
-      const gradient = ctx.createLinearGradient(0, m.top, 0, m.top + chartH);
-      gradient.addColorStop(0, 'rgba(0, 179, 204, 0.15)');
-      gradient.addColorStop(1, 'rgba(0, 179, 204, 0.01)');
-      ctx.beginPath();
-      ctx.moveTo(x(0), m.top + chartH);
-      data.forEach((d, i) => ctx.lineTo(x(i), y(d.v)));
-      ctx.lineTo(x(data.length - 1), m.top + chartH);
-      ctx.closePath();
-      ctx.fillStyle = gradient;
-      ctx.fill();
-
-      ctx.beginPath();
-      data.forEach((d, i) => {
-        const px = x(i), py = y(d.v);
-        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-      });
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = '#00B3CC';
-      ctx.stroke();
-
-      data.forEach((d, i) => {
-        if (i % Math.max(1, Math.floor(data.length / 20)) === 0 || i === data.length - 1) {
-          ctx.beginPath();
-          ctx.arc(x(i), y(d.v), 3, 0, Math.PI * 2);
-          ctx.fillStyle = '#00B3CC';
-          ctx.fill();
-          ctx.strokeStyle = '#fff';
-          ctx.lineWidth = 1;
-          ctx.stroke();
-        }
-      });
+  const CustomDot = ({ dataKey, ...props }) => {
+    const { cx, cy, payload, index } = props;
+    const isActive = activePoint === index;
+    
+    const colors = {
+      portfolio: '#00C853',
+      baseline: '#FF6B00',
+      strategy: '#9C27B0'
     };
-
-    drawChart();
-    window.addEventListener('resize', drawChart);
-    return () => window.removeEventListener('resize', drawChart);
-  }, [data]);
-
-  return <canvas ref={ref} className="chart" />;
-}
-
-function drawAxes(ctx, W, H, range, data, m = CHART_MARGIN, ticks = AXIS_TICKS) {
-  const chartW = W - m.left - m.right;
-  const chartH = H - m.top - m.bottom;
-
-  // Grid lines (subtle)
-  ctx.strokeStyle = '#e8e8e8';
-  ctx.lineWidth = 1;
-  for (let i = 0; i <= ticks; i++) {
-    const t = i / ticks;
-    const py = m.top + Math.round(t * chartH) + 0.5;
-    ctx.beginPath();
-    ctx.moveTo(m.left, py);
-    ctx.lineTo(m.left + chartW, py);
-    ctx.stroke();
-  }
-
-  // Axes lines (bold)
-  ctx.strokeStyle = '#000';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(m.left, m.top); ctx.lineTo(m.left, m.top + chartH);
-  ctx.moveTo(m.left, m.top + chartH); ctx.lineTo(m.left + chartW, m.top + chartH);
-  ctx.stroke();
-
-  // Y ticks & labels
-  ctx.font = 'bold 10px ui-monospace, Menlo, monospace';
-  ctx.fillStyle = '#000';
-  ctx.textAlign = 'right';
-  for (let i = 0; i <= ticks; i++) {
-    const t = i / ticks;
-    const val = range.lo + (range.hi - range.lo) * (1 - t);
-    const py = m.top + Math.round(t * chartH) + 0.5;
-    ctx.beginPath();
-    ctx.moveTo(m.left - 6, py); ctx.lineTo(m.left, py);
-    ctx.lineWidth = 2; ctx.stroke();
-    ctx.fillText(formatMoney(val), m.left - 10, py + 3);
-  }
-
-  // X ticks & labels (start / mid / end dates)
-  const n = data?.length || 0;
-  const xIdx = (i) => m.left + Math.round((i / Math.max(1, n - 1)) * chartW);
-  const picks = n >= 3 ? [0, Math.floor((n - 1) / 2), n - 1] : [0, n - 1].filter((v, i, a) => a.indexOf(v) === i);
-  ctx.textAlign = 'center';
-  picks.forEach((idx) => {
-    if (idx < 0 || idx >= n) return;
-    const px = xIdx(idx);
-    ctx.beginPath();
-    ctx.moveTo(px, m.top + chartH);
-    ctx.lineTo(px, m.top + chartH + 6);
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    const label = formatDateLabel(data[idx]?.t);
-    ctx.fillText(label, px, H - 8);
-  });
-}
-
-function StatisticsPanel({ stats }) {
-  if (!stats) return <div style={{ opacity:.6, fontSize:12, padding: 20, textAlign: 'center' }}>No statistics available</div>;
-  const winRate = Math.round((stats.winRate||0)*100);
-  const hitRate = Math.round((stats.hitRate||0)*100);
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ border: '2px solid #000', padding: 12, background: '#fff', boxShadow: '3px 3px 0 0 rgba(0,0,0,0.1)' }}>
-        <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: 1, opacity: 0.7, marginBottom: 6 }}>WIN RATE</div>
-        <div style={{ fontSize: 28, fontWeight: 900, color: winRate >= 50 ? '#6EB300' : '#FF3B8D' }}>{winRate}%</div>
-      </div>
-      <div style={{ border: '2px solid #000', padding: 12, background: '#fff', boxShadow: '3px 3px 0 0 rgba(0,0,0,0.1)' }}>
-        <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: 1, opacity: 0.7, marginBottom: 6 }}>HIT RATE</div>
-        <div style={{ fontSize: 28, fontWeight: 900, color: hitRate >= 50 ? '#6EB300' : '#FF3B8D' }}>{hitRate}%</div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        <div style={{ border: '2px solid #6EB300', padding: 10, background: 'rgba(110,179,0,0.05)' }}>
-          <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: 1, color: '#6EB300', marginBottom: 6 }}>▲ BULL</div>
-          <div style={{ fontSize: 13, fontWeight: 900 }}>{stats.bullBear?.bull?.n||0} trades</div>
-          <div style={{ fontSize: 11, marginTop: 4 }}>Win: {stats.bullBear?.bull?.win||0}</div>
-        </div>
-        <div style={{ border: '2px solid #FF3B8D', padding: 10, background: 'rgba(255,59,141,0.05)' }}>
-          <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: 1, color: '#FF3B8D', marginBottom: 6 }}>▼ BEAR</div>
-          <div style={{ fontSize: 13, fontWeight: 900 }}>{stats.bullBear?.bear?.n||0} trades</div>
-          <div style={{ fontSize: 11, marginTop: 4 }}>Win: {stats.bullBear?.bear?.win||0}</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function TradesTable({ trades }) {
-  return (
-    <div style={{ maxHeight: 320, overflowY: 'auto' }}>
-      <table className="portfolio-table">
-        <thead>
-          <tr>
-            <th>TIME</th>
-            <th>TICKER</th>
-            <th>SIDE</th>
-            <th>QTY</th>
-            <th>PRICE</th>
-            <th>P/L</th>
-          </tr>
-        </thead>
-        <tbody>
-          {(!trades || trades.length===0) ? (
-            <tr><td colSpan={6} style={{ padding: 16, opacity:.6, textAlign: 'center' }}>No trades recorded</td></tr>
-          ) : trades.map(t => (
-            <tr key={t.id}>
-              <td style={{ fontSize: 11, opacity: 0.8 }}>{formatTime(t.ts)}</td>
-              <td style={{ fontWeight: 900, fontSize: 13 }}>{t.ticker}</td>
-              <td>
-                <span style={{
-                  display: 'inline-block',
-                  padding: '2px 6px',
-                  fontSize: 10,
-                  fontWeight: 900,
-                  border: `2px solid ${t.side === 'BUY' ? '#6EB300' : '#FF3B8D'}`,
-                  color: t.side === 'BUY' ? '#6EB300' : '#FF3B8D',
-                  background: t.side === 'BUY' ? 'rgba(110,179,0,0.05)' : 'rgba(255,59,141,0.05)'
-                }}>
-                  {t.side}
-                </span>
-              </td>
-              <td>{t.qty}</td>
-              <td>${Number(t.price).toFixed(2)}</td>
-              <td style={{ color: t.pnl >= 0 ? '#6EB300' : '#FF3B8D', fontWeight: 900 }}>
-                {t.pnl >= 0 ? '▲ +' : '▼ '}{Number(t.pnl).toFixed(2)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function LeaderboardTable({ rows }) {
-  const prevRanksRef = useRef({});
-  const [openRow, setOpenRow] = useState(null);
-
-  const baseRows = useMemo(() => {
-    if (rows && rows.length) return rows;
-    return AGENTS.map((a, i) => ({
-      agentId: a.id,
-      name: a.name,
-      role: a.role,
-      avatar: a.avatar,
-      rank: i + 1,
-      winRate: null,
-      bull: { n: null, win: null },
-      bear: { n: null, win: null },
-      logs: []
-    }));
-  }, [rows]);
-
-  const sorted = useMemo(() => baseRows.slice().sort((a,b)=>a.rank - b.rank), [baseRows]);
-  const fmt = (v) => (v === null || v === undefined ? '-' : v);
-
-  const getRankBadge = (rank) => {
-    if (rank === 1) return { bg: '#FFD700', icon: '👑', label: '1ST' };
-    if (rank === 2) return { bg: '#C0C0C0', icon: '🥈', label: '2ND' };
-    if (rank === 3) return { bg: '#CD7F32', icon: '🥉', label: '3RD' };
-    return { bg: '#e0e0e0', icon: '•', label: `${rank}TH` };
+    
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={isActive ? 5 : 3}
+        fill={colors[dataKey]}
+        stroke="#ffffff"
+        strokeWidth={2}
+        style={{ cursor: 'pointer' }}
+        onMouseEnter={() => setActivePoint(index)}
+        onMouseLeave={() => setActivePoint(null)}
+        onClick={() => console.log('Clicked point:', { dataKey, ...payload })}
+      />
+    );
+  };
+  
+  const CustomXAxisTick = ({ x, y, payload }) => {
+    const shouldShow = xTickIndices.includes(payload.index);
+    if (!shouldShow) return null;
+    
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text
+          x={0}
+          y={0}
+          dy={16}
+          textAnchor="middle"
+          fill="#666666"
+          fontSize="10px"
+          fontFamily='"Courier New", monospace'
+          fontWeight="700"
+        >
+          {payload.value}
+        </text>
+      </g>
+    );
   };
 
   return (
-    <div>
-      <table className="lb-table">
-        <thead>
-          <tr>
-            <th style={{ width:70 }}>RANK</th>
-            <th colSpan={2}>AGENT</th>
-            <th style={{ width:90 }}>WIN %</th>
-            <th style={{ width:140 }}>BULL</th>
-            <th style={{ width:140 }}>BEAR</th>
-            <th style={{ width:80 }}></th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((r) => {
-            const color = ROLE_COLORS[r.role] || '#000';
-            const movedUp = prevRanksRef.current[r.agentId] && prevRanksRef.current[r.agentId] > r.rank;
-            prevRanksRef.current[r.agentId] = r.rank;
-            const open = openRow === r.agentId;
-            const badge = getRankBadge(r.rank);
-            const winPct = r.winRate==null ? null : Math.round((r.winRate||0)*100);
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart 
+        data={chartData} 
+        margin={{ top: 20, right: 30, bottom: 50, left: 60 }}
+      >
+        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+        <XAxis 
+          dataKey="time" 
+          stroke="#666666"
+          tick={<CustomXAxisTick />}
+          interval={0}
+        />
+        <YAxis 
+          domain={[yMin, yMax]}
+          stroke="#000000"
+          style={{ fontFamily: '"Courier New", monospace', fontSize: '11px', fontWeight: 700 }}
+          tick={{ fill: '#000000' }}
+          tickFormatter={(value) => formatMoney(value)}
+          width={55}
+        />
+        <Tooltip content={<CustomTooltip />} />
+        <Legend 
+          wrapperStyle={{
+            fontFamily: '"Courier New", monospace',
+            fontSize: '11px',
+            fontWeight: 700
+          }}
+        />
+        
+        {/* Portfolio line - Bright Green */}
+        <Line 
+          type="monotone" 
+          dataKey="portfolio" 
+          name="Portfolio"
+          stroke="#00C853" 
+          strokeWidth={2.5}
+          dot={(props) => <CustomDot {...props} dataKey="portfolio" />}
+          activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 2 }}
+          isAnimationActive={false}
+        />
+        
+        {/* Baseline line - Orange */}
+        {baseline && baseline.length > 0 && (
+          <Line 
+            type="monotone" 
+            dataKey="baseline" 
+            name="Baseline"
+            stroke="#FF6B00" 
+            strokeWidth={2}
+            strokeDasharray="5 5"
+            dot={(props) => <CustomDot {...props} dataKey="baseline" />}
+            activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 2 }}
+            isAnimationActive={false}
+          />
+        )}
+        
+        {/* Strategy line - Purple */}
+        {strategies && strategies.length > 0 && (
+          <Line 
+            type="monotone" 
+            dataKey="strategy" 
+            name="Strategy"
+            stroke="#9C27B0" 
+            strokeWidth={2}
+            dot={(props) => <CustomDot {...props} dataKey="strategy" />}
+            activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 2 }}
+            isAnimationActive={false}
+          />
+        )}
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
 
-            return (
-              <React.Fragment key={r.agentId}>
-                <tr className={`lb-row ${movedUp ? 'movedUp' : ''}`} onClick={()=> setOpenRow(open ? null : r.agentId)}>
-                  <td className="lb-cell">
-                    <div style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      padding: '4px 8px',
-                      background: badge.bg,
-                      border: '2px solid #000',
-                      fontWeight: 900,
-                      fontSize: 11,
-                      letterSpacing: 0.5
-                    }}>
-                      <span>{badge.icon}</span>
-                      <span>{badge.label}</span>
-                    </div>
-                  </td>
-                  <td className="lb-cell" style={{ width:40 }}>
-                    <img className="lb-avatar" src={ASSETS[r.avatar]} alt={r.name} />
-                  </td>
-                  <td className="lb-cell" style={{ fontWeight:900, color }}>
-                    <div style={{ fontSize: 13 }}>{r.name}</div>
-                    <div style={{ fontSize: 10, opacity: 0.7, fontWeight: 400, marginTop: 2 }}>{r.role}</div>
-                  </td>
-                  <td className="lb-cell">
-                    <div style={{
-                      fontWeight: 900,
-                      fontSize: 15,
-                      color: winPct === null ? '#999' : (winPct >= 50 ? '#6EB300' : '#FF3B8D')
-                    }}>
-                      {winPct === null ? '-' : `${winPct}%`}
-                    </div>
-                  </td>
-                  <td className="lb-cell" style={{ fontSize: 11 }}>
-                    <div style={{ color: '#6EB300', fontWeight: 900 }}>▲ {fmt(r.bull?.n)} trades</div>
-                    <div style={{ fontSize: 10, opacity: 0.7, marginTop: 2 }}>Win: {fmt(r.bull?.win)}</div>
-                  </td>
-                  <td className="lb-cell" style={{ fontSize: 11 }}>
-                    <div style={{ color: '#FF3B8D', fontWeight: 900 }}>▼ {fmt(r.bear?.n)} trades</div>
-                    <div style={{ fontSize: 10, opacity: 0.7, marginTop: 2 }}>Win: {fmt(r.bear?.win)}</div>
-                  </td>
-                  <td className="lb-cell">
-                    <span className="lb-expand">{open ? '▲' : '▼'}</span>
-                  </td>
-                </tr>
-                {open && (
-                  <tr>
-                    <td className="lb-log" colSpan={7}>
-                      {(r.logs || []).length ? (
-                        <div>
-                          <div style={{ fontWeight: 900, marginBottom: 8, fontSize: 11, letterSpacing: 1 }}>ACTIVITY LOG</div>
-                          {(r.logs||[]).map((l,i)=> (
-                            <div key={i} style={{ marginBottom: 4, paddingLeft: 8, borderLeft: '2px solid #ccc' }}>
-                              {i+1}. {l}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div style={{ opacity: 0.6 }}>No activity logs available</div>
-                      )}
-                    </td>
-                  </tr>
-                )}
-              </React.Fragment>
-            );
-          })}
-        </tbody>
-      </table>
+function IntelligenceFeed({ feed, conferences }) {
+  return (
+    <div className="intelligence-feed">
+      <div className="feed-header">
+        <h3 className="feed-title">Intelligence Feed</h3>
+      </div>
+      
+      <div className="feed-content">
+        {feed.length === 0 && (
+          <div className="empty-state">Waiting for system updates...</div>
+        )}
+        
+        {feed.map(item => {
+          if (item.type === 'conference') {
+            return <ConferenceCard key={item.id} conference={item.data} />;
+          } else {
+            return <MessageCard key={item.id} message={item.data} />;
+          }
+        })}
+      </div>
     </div>
   );
 }
 
-// ====== Helpers ======
-function useImage(src) {
-  const [img, setImg] = useState(null);
-  useEffect(() => { if (!src) return; const i = new Image(); i.src = src; i.onload = () => setImg(i); }, [src]);
-  return img;
+function ConferenceCard({ conference }) {
+  const [expanded, setExpanded] = useState(false);
+  const displayMessages = expanded ? conference.messages : conference.messages.slice(0, 3);
+  
+  return (
+    <div className="feed-card conference-card">
+      <div className="card-header">
+        <div className="card-title">
+          <span className="card-icon">▶</span>
+          <span>CONF: {conference.title}</span>
+        </div>
+        {conference.isLive && <span className="live-badge">● LIVE</span>}
+      </div>
+      
+      <div className="conference-meta">
+        <span>{formatTime(conference.startTime)} - {conference.endTime ? formatTime(conference.endTime) : 'now'}</span>
+        {conference.duration && <span>({conference.duration})</span>}
+        <span>👥 {conference.participants.length}</span>
+      </div>
+      
+      <div className="conference-messages">
+        {displayMessages.map((msg, idx) => (
+          <div className="conf-message" key={idx}>
+            <div className="msg-header">
+              <span className="msg-agent">{msg.agent} ({msg.role})</span>
+              <span className="msg-time">{formatTime(msg.timestamp)}</span>
+            </div>
+            <div className="msg-content">{msg.content}</div>
+          </div>
+        ))}
+      </div>
+      
+      {conference.messages.length > 3 && (
+        <button className="expand-btn" onClick={() => setExpanded(!expanded)}>
+          {expanded ? '▲ COLLAPSE' : `▼ VIEW ${conference.messages.length - 3} MORE`}
+        </button>
+      )}
+    </div>
+  );
 }
 
-function useResizeScale(containerRef, native) {
-  const [scale, setScale] = useState(1);
-  const [isReady, setIsReady] = useState(false);
-  const readyRef = useRef(false);
-
-  useEffect(() => {
-    const onResize = () => {
-      const el = containerRef.current;
-      if (!el) return;
-      const { clientWidth: containerWidth, clientHeight: containerHeight } = el;
-      if (containerWidth <= 0 || containerHeight <= 0) return;
-      const scaleX = containerWidth / native.width;
-      const scaleY = containerHeight / native.height;
-      const newScale = Math.min(scaleX, scaleY, 1.0);
-      setScale(Math.max(0.3, newScale));
-      if (!readyRef.current) { readyRef.current = true; setIsReady(true); }
-    };
-    onResize();
-    const resizeObserver = new ResizeObserver(onResize);
-    if (containerRef.current) resizeObserver.observe(containerRef.current);
-    window.addEventListener("resize", onResize);
-    return () => { resizeObserver.disconnect(); window.removeEventListener("resize", onResize); };
-  }, [native.width, native.height]);
-
-  return { scale, isReady };
-}
-
-function formatTime(ts) { try { const d = new Date(ts); return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch { return '' } }
-function hexToRgba(hex, a = 1) { if (!hex) return `rgba(0,0,0,${a})`; const c = hex.replace('#', ''); const bigint = parseInt(c.length === 3 ? c.split('').map(x=>x+x).join('') : c, 16); const r = (bigint >> 16) & 255; const g = (bigint >> 8) & 255; const b = bigint & 255; return `rgba(${r}, ${g}, ${b}, ${a})`; }
-function formatMoney(v) { if (!isFinite(v)) return '-'; const abs = Math.abs(v); const sign = v < 0 ? '-' : ''; if (abs >= 1e9) return `${sign}${(abs/1e9).toFixed(2)}B`; if (abs >= 1e6) return `${sign}${(abs/1e6).toFixed(2)}M`; if (abs >= 1e3) return `${sign}${(abs/1e3).toFixed(2)}K`; return `${sign}${abs.toFixed(2)}`; }
-function formatDateLabel(t) { if (!t) return ''; const d = new Date(t); if (isNaN(d)) return ''; return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`; }
-const truncate = (s = '', n = 50) => (s.length > n ? `${s.slice(0, n)}…` : s);
-
-// ===== Mock fallbacks =====
-function mockSummary(){
-  const equity = Array.from({length: 90}).map((_,i)=>({ t: Date.now() - (90-i)*3600e3, v: 100 + Math.sin(i/8)*6 + i*0.3 + Math.random()*2 }));
-  return { pnlPct: 34.7, equity, balance: 1250000 };
-}
-function mockHoldings(){
-  return [
-    { ticker:'AAPL', qty: 120, avg: 192.3, pl: 540.12, weight: .21 },
-    { ticker:'NVDA', qty: 40, avg: 980.1, pl: -120.44, weight: .18 },
-    { ticker:'MSFT', qty: 20, avg: 420.2, pl: 210.02, weight: .15 }
-  ];
-}
-function mockStats(){
-  return { winRate:.62, hitRate:.58, bullBear:{ bull:{ n: 26, win: 17 }, bear:{ n: 18, win: 10 } } };
-}
-function mockTrades(){
-  return [
-    { id:'t1', ts: Date.now()-3600e3, side:'BUY', ticker:'AAPL', qty:20, price:190.23, pnl: 24.3 },
-    { id:'t2', ts: Date.now()-3200e3, side:'SELL', ticker:'TSLA', qty:10, price:201.90, pnl: -10.1 }
-  ];
-}
-function mockLeaderboard(){
-  return [
-    { agentId:'alpha', name:'Bob', role:'Portfolio Manager', avatar:'agent1', rank:1, winRate:.70, bull:{n:15, win:12}, bear:{n:6, win:4}, logs:["Bull on AAPL ✓","Bear on SNAP ✗"] },
-    { agentId:'beta', name:'Carl', role:'Risk Manager', avatar:'agent2', rank:2, winRate:.62, bull:{n:11, win:7}, bear:{n:8, win:6}, logs:["Bear hedge on QQQ ✓"] },
-    { agentId:'gamma', name:'Alice', role:'Valuation Analyst', avatar:'agent3', rank:3, winRate:.58, bull:{n:9, win:6}, bear:{n:12, win:7} },
-    { agentId:'delta', name:'David', role:'Sentiment Analyst', avatar:'agent4', rank:4, winRate:.39, bull:{n:14, win:7}, bear:{n:18, win:7} },
-    { agentId:'epsilon', name:'Eve', role:'Fundamentals Analyst', avatar:'agent5', rank:5, winRate:.39, bull:{n:14, win:7}, bear:{n:18, win:7} },
-    { agentId:'zeta', name:'Frank', role:'Technical Analyst', avatar:'agent6', rank:5, winRate:.39, bull:{n:14, win:7}, bear:{n:18, win:7} }
-  ];
-}
-
-// ======= Dev self-test (now actually used) =======
-(function selfTest(){
-  try {
-    const lb = mockLeaderboard();
-    console.assert(Array.isArray(lb) && lb.length >= 1, 'mockLeaderboard should return non-empty array');
-    console.assert(lb[0].agentId && lb[0].name && lb[0].role, 'leaderboard row shape');
-    const hs = mockHoldings();
-    console.assert(Array.isArray(hs), 'mockHoldings array');
-    const ms = mockSummary();
-    console.assert(ms && Array.isArray(ms.equity), 'mockSummary equity array');
-    window.__LB_SELFTEST_OK = true;
-  } catch (e) {
-    window.__LB_SELFTEST_OK = false;
+function MessageCard({ message }) {
+  const [expanded, setExpanded] = useState(false);
+  
+  // Use agent name as title, or 'SYSTEM' for system messages
+  const messageTitle = message.agent === 'System' ? 'SYSTEM' : (message.agent || 'MESSAGE');
+  
+  const content = message.content || '';
+  const needsTruncation = content.length > 200;
+  const MAX_EXPANDED_LENGTH = 1000;
+  
+  let displayContent = content;
+  if (!expanded && needsTruncation) {
+    displayContent = content.substring(0, 200) + '...';
+  } else if (expanded && content.length > MAX_EXPANDED_LENGTH) {
+    displayContent = content.substring(0, MAX_EXPANDED_LENGTH) + '...';
   }
-})();
+  
+  return (
+    <div className="feed-card message-card">
+      <div className="card-header">
+        <div className="card-title">
+          <span>{messageTitle}</span>
+        </div>
+        <span className="card-time">{formatTime(message.timestamp)}</span>
+      </div>
+      
+      <div className="message-content-wrapper">
+        <div className="message-text">{displayContent}</div>
+        {needsTruncation && (
+          <button 
+            className="message-expand-btn"
+            onClick={() => setExpanded(!expanded)}
+          >
+            {expanded ? 'Show less' : 'Show more'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Statistics View (Positions & Trades)
+function StatisticsView({ trades, holdings, stats }) {
+  return (
+    <div>
+      
+      {/* Positions Section */}
+      <div className="section">
+        <div className="section-header">
+          <h2 className="section-title">Current Positions</h2>
+        </div>
+        
+        {holdings.length === 0 ? (
+          <div className="empty-state">No positions currently held</div>
+        ) : (
+          <div className="table-wrapper">
+            <table className="data-table">
+            <thead>
+              <tr>
+                <th>Ticker</th>
+                <th>Qty</th>
+                <th>Avg Cost</th>
+                <th>Current Price</th>
+                <th>P&L</th>
+                <th>Weight</th>
+              </tr>
+            </thead>
+            <tbody>
+              {holdings.map(h => (
+                <tr key={h.ticker}>
+                  <td style={{ fontWeight: 700, color: '#000000' }}>{h.ticker}</td>
+                  <td>{h.qty}</td>
+                  <td>${Number(h.avg).toFixed(2)}</td>
+                  <td>${Number(h.currentPrice || h.avg).toFixed(2)}</td>
+                  <td style={{ color: h.pl >= 0 ? '#00C853' : '#FF1744', fontWeight: 700 }}>
+                    {h.pl >= 0 ? '+' : ''}{Number(h.pl).toFixed(2)}
+                  </td>
+                  <td>{(Number(h.weight) * 100).toFixed(1)}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          </div>
+        )}
+      </div>
+      
+      {/* Statistics Section */}
+      {stats && (
+        <div className="section">
+          <div className="section-header">
+            <h2 className="section-title">Statistics</h2>
+          </div>
+          
+          <div className="stats-grid">
+            <div className="stat-card">
+              <div className="stat-card-label">Win Rate</div>
+              <div className={`stat-card-value ${stats.winRate >= 0.5 ? 'positive' : 'negative'}`}>
+                {Math.round(stats.winRate * 100)}%
+              </div>
+            </div>
+            
+            <div className="stat-card">
+              <div className="stat-card-label">Hit Rate</div>
+              <div className={`stat-card-value ${stats.hitRate >= 0.5 ? 'positive' : 'negative'}`}>
+                {Math.round(stats.hitRate * 100)}%
+              </div>
+            </div>
+            
+            <div className="stat-card">
+              <div className="stat-card-label">Total Trades</div>
+              <div className="stat-card-value">{stats.totalTrades || 0}</div>
+            </div>
+            
+            <div className="stat-card">
+              <div className="stat-card-label">Bull Trades</div>
+              <div className="stat-card-value positive">
+                {stats.bullBear?.bull?.n || 0}
+              </div>
+              <div style={{ fontSize: 10, color: '#666666', marginTop: 4 }}>
+                Win: {stats.bullBear?.bull?.win || 0}
+              </div>
+            </div>
+            
+            <div className="stat-card">
+              <div className="stat-card-label">Bear Trades</div>
+              <div className="stat-card-value negative">
+                {stats.bullBear?.bear?.n || 0}
+              </div>
+              <div style={{ fontSize: 10, color: '#666666', marginTop: 4 }}>
+                Win: {stats.bullBear?.bear?.win || 0}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Trade History Section */}
+      <div className="section">
+        <div className="section-header">
+          <h2 className="section-title">Completed Trades</h2>
+        </div>
+        
+        {trades.length === 0 ? (
+          <div className="empty-state">No trades recorded</div>
+        ) : (
+          <div className="table-wrapper">
+            <table className="data-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Ticker</th>
+                <th>Side</th>
+                <th>Qty</th>
+                <th>Price</th>
+                <th>P&L</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trades.map(t => (
+                <tr key={t.id}>
+                  <td style={{ fontSize: 10, color: '#666666' }}>
+                    {formatTime(t.timestamp)}
+                  </td>
+                  <td style={{ fontWeight: 700, color: '#000000' }}>{t.ticker}</td>
+                  <td>
+                    <span style={{
+                      display: 'inline-block',
+                      padding: '2px 8px',
+                      fontSize: 10,
+                      fontWeight: 700,
+                      border: `1px solid ${t.side === 'BUY' ? '#00C853' : '#FF1744'}`,
+                      color: t.side === 'BUY' ? '#00C853' : '#FF1744'
+                    }}>
+                      {t.side}
+                    </span>
+                  </td>
+                  <td>{t.qty}</td>
+                  <td>${Number(t.price).toFixed(2)}</td>
+                  <td style={{ color: t.pnl >= 0 ? '#00C853' : '#FF1744', fontWeight: 700 }}>
+                    {t.pnl >= 0 ? '+' : ''}{Number(t.pnl).toFixed(2)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Agent Performance View
+function PerformanceView({ leaderboard }) {
+  return (
+    <div>
+      {/* Agent Performance Section */}
+      <div className="section">
+        <div className="section-header">
+          <h2 className="section-title">Agent Performance - Overall</h2>
+        </div>
+        
+        {leaderboard.length === 0 ? (
+          <div className="empty-state">No leaderboard data available</div>
+        ) : (
+          <div className="table-wrapper">
+            <table className="data-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Agent</th>
+                <th>Acct Value</th>
+                <th>Return %</th>
+                <th>Total P&L</th>
+                <th>Fees</th>
+                <th>Win Rate</th>
+                <th>Biggest Win</th>
+                <th>Biggest Loss</th>
+                <th>Sharpe</th>
+                <th>Trades</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leaderboard.map(agent => (
+                <tr key={agent.agentId}>
+                  <td>
+                    <span className={`rank-badge ${agent.rank === 1 ? 'first' : agent.rank === 2 ? 'second' : agent.rank === 3 ? 'third' : ''}`}>
+                      {agent.rank === 1 ? '★ 1' : agent.rank}
+                    </span>
+                  </td>
+                  <td>
+                    <div style={{ fontWeight: 700, color: '#000000' }}>{agent.name}</div>
+                    <div style={{ fontSize: 10, color: '#666666' }}>{agent.role}</div>
+                  </td>
+                  <td style={{ fontWeight: 700, color: '#000000' }}>${formatNumber(agent.accountValue)}</td>
+                  <td style={{ color: agent.returnPct >= 0 ? '#00C853' : '#FF1744', fontWeight: 700 }}>
+                    {agent.returnPct >= 0 ? '+' : ''}{agent.returnPct.toFixed(2)}%
+                  </td>
+                  <td style={{ color: agent.totalPL >= 0 ? '#00C853' : '#FF1744' }}>
+                    ${formatNumber(agent.totalPL)}
+                  </td>
+                  <td>${formatNumber(agent.fees)}</td>
+                  <td>{(agent.winRate * 100).toFixed(1)}%</td>
+                  <td style={{ color: '#00C853' }}>${formatNumber(agent.biggestWin)}</td>
+                  <td style={{ color: '#FF1744' }}>-${formatNumber(Math.abs(agent.biggestLoss))}</td>
+                  <td>{agent.sharpe.toFixed(3)}</td>
+                  <td>{agent.trades}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ====== Helper Functions ======
+function formatTime(ts) {
+  try {
+    const d = new Date(ts);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '';
+  }
+}
+
+function formatNumber(num) {
+  if (!isFinite(num)) return '-';
+  return Math.abs(num).toLocaleString(undefined, { maximumFractionDigits: 0 });
+}
+
+function formatTickerPrice(price) {
+  if (!isFinite(price)) return '-';
+  if (price >= 1000) {
+    return price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  } else if (price >= 1) {
+    return price.toFixed(2);
+  } else {
+    return price.toFixed(4);
+  }
+}
+
+function formatMoney(v) {
+  if (!isFinite(v)) return '-';
+  const abs = Math.abs(v);
+  const sign = v < 0 ? '-' : '';
+  if (abs >= 1e9) return `${sign}${(abs / 1e9).toFixed(2)}B`;
+  if (abs >= 1e6) return `${sign}${(abs / 1e6).toFixed(2)}M`;
+  if (abs >= 1e3) return `${sign}${(abs / 1e3).toFixed(1)}K`;
+  return `${sign}${abs.toFixed(0)}`;
+}
+
+function formatDateLabel(t) {
+  if (!t) return '';
+  const d = new Date(t);
+  if (isNaN(d)) return '';
+  return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function calculateDuration(start, end) {
+  const diff = end - start;
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${hours}h ${mins}m`;
+}
