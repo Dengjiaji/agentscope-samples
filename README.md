@@ -34,6 +34,29 @@ python live_trading_thinking_fund.py \
     --config_name new_reme 
 
 ## 显示界面
+
+### 方法1: 持续运行服务器（推荐）
+使用便捷启动脚本：
+
+```bash
+# 正常模式 - 启动时会询问是否清空历史记录
+./start_continuous_server.sh
+
+# Mock模式 - 测试前端，不需要真实数据
+./start_continuous_server.sh --mock
+
+# 自动清空历史记录模式 - 跳过询问，直接清空
+./start_continuous_server.sh --clean
+```
+
+**使用说明：**
+- 首次运行会自动检测历史数据
+- 如果检测到以往记录，会显示数据目录大小和最后更新时间
+- 用户可选择：
+  - `y` - 清空历史记录，从头开始运行
+  - `n` - 在现有记录基础上继续运行（默认选项）
+
+### 方法2: 传统方式
 先启动后端脚本(根目录下运行）：
 
 ```bash
