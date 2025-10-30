@@ -727,22 +727,50 @@ class CommunicationManager:
                                  conversation_history: List[Dict], 
                                  current_signal: Dict[str, Any], 
                                  state) -> Dict[str, Any]:
-        """获取分析师在私聊中的回应"""
+        """获取分析师在私聊中的回应（两阶段记忆检索）"""
         
-        # 获取分析师的完整记忆上下文
+        # ========== 第一阶段：让analyst生成记忆查询query ⭐⭐⭐ ==========
         analyst_memory = memory_manager.get_analyst_memory(analyst_id)
-        full_context = ""
+        relevant_memories = ""
+        
         if analyst_memory:
             tickers = state.get("data", {}).get("tickers", [])
-            full_context = analyst_memory.get_full_context_for_communication(tickers)
+            
+            # 1. 生成记忆查询query
+            memory_query = self._generate_memory_query_for_chat(
+                analyst_id, topic, conversation_history, tickers, state
+            )
+            
+            # 2. 使用生成的query检索相关记忆
+            if memory_query:
+                try:
+                    search_results = analyst_memory.memory.search(
+                        query=memory_query,
+                        user_id=analyst_id,
+                        top_k=1  # ⭐ 修正参数名：limit -> top_k (reme框架标准参数)
+                    )
+                    
+                    if search_results and search_results.get('results'):
+                        relevant_memories = "\n".join([
+                            f"- {mem.get('memory', '')}" 
+                            for mem in search_results['results']
+                        ])
+                        print(f"✅ {analyst_id} 检索到 {len(search_results['results'])} 条相关记忆")
+                        # print(relevant_memories)
+                    else:
+                        print(f"⚠️ {analyst_id} 未检索到相关记忆")
+                except Exception as e:
+                    print(f"⚠️ {analyst_id} 记忆检索失败: {e}")
+                    relevant_memories = ""
         
+        # ========== 第二阶段：基于检索到的记忆生成回应 ⭐⭐⭐ ==========
         prompt_template = ChatPromptTemplate.from_messages([
     ("system", """You are {analyst_id} analyst. You are having a one-on-one discussion with the portfolio manager.
 
-Your complete memory and analysis history:
-{full_context}
+Your relevant memories and past experiences (retrieved based on this conversation topic):
+{relevant_memories}
 
-Based on your memory, conversation history and current analysis signal, please:
+Based on your relevant memories, conversation history and current analysis signal, please:
 1. Respond to the manager's questions or viewpoints
 2. Explain your analysis logic (you can reference your previous analysis process)
 3. If necessary, adjust your signal, confidence level or reasoning based on new information
@@ -787,7 +815,7 @@ Please respond to the latest conversation content based on your complete memory 
         
         messages = prompt_template.format_messages(
             analyst_id=analyst_id,
-            full_context=full_context,
+            relevant_memories=relevant_memories if relevant_memories else "No relevant past memories found for this topic.",
             current_signal=quiet_json_dumps(current_signal, ensure_ascii=False),
             topic=topic,
             conversation_history=self._format_conversation_history(conversation_history),
@@ -964,20 +992,48 @@ Please respond to the analyst's latest statement.""")
                                     current_signal: Dict[str, Any],
                                     all_signals: Dict[str, Any],
                                     state, round_num: int) -> Dict[str, Any]:
-        """获取分析师在会议中的发言"""
+        """获取分析师在会议中的发言（两阶段记忆检索）"""
         
-        # 获取分析师的完整记忆上下文
+        # ========== 第一阶段：让analyst生成记忆查询query ⭐⭐⭐ ==========
         analyst_memory = memory_manager.get_analyst_memory(analyst_id)
-        full_context = ""
+        relevant_memories = ""
+        
         if analyst_memory:
             tickers = state.get("data", {}).get("tickers", [])
-            full_context = analyst_memory.get_full_context_for_communication(tickers)
+            
+            # 1. 生成记忆查询query
+            memory_query = self._generate_memory_query_for_meeting(
+                analyst_id, topic, meeting_transcript, tickers, state
+            )
+            
+            # 2. 使用生成的query检索相关记忆
+            if memory_query:
+                try:
+                    search_results = analyst_memory.memory.search(
+                        query=memory_query,
+                        user_id=analyst_id,
+                        top_k=1  # ⭐ 修正参数名：limit -> top_k (reme框架标准参数)
+                    )
+                    
+                    if search_results and search_results.get('results'):
+                        relevant_memories = "\n".join([
+                            f"- {mem.get('memory', '')}" 
+                            for mem in search_results['results']
+                        ])
+                        print(f"✅ {analyst_id} 在会议中检索到 {len(search_results['results'])} 条相关记忆")
+                        print(relevant_memories)
+                    else:
+                        print(f"⚠️ {analyst_id} 在会议中未检索到相关记忆")
+                except Exception as e:
+                    print(f"⚠️ {analyst_id} 会议记忆检索失败: {e}")
+                    relevant_memories = ""
         
+        # ========== 第二阶段：基于检索到的记忆生成发言 ⭐⭐⭐ ==========
         prompt_template = ChatPromptTemplate.from_messages([
     ("system", """You are {analyst_id} analyst participating in an investment meeting.
 
-Your complete memory and analysis history:
-{full_context}
+Your relevant memories and past experiences (retrieved based on this meeting topic):
+{relevant_memories}
 
 Your current analysis signal:
 {current_signal}
@@ -1030,7 +1086,7 @@ Please speak based on meeting transcript and discussion content, showing genuine
         
         messages = prompt_template.format_messages(
             analyst_id=analyst_id,
-            full_context=full_context,
+            relevant_memories=relevant_memories if relevant_memories else "No relevant past memories found for this topic.",
             round_num=round_num,
             current_signal=quiet_json_dumps(current_signal, ensure_ascii=False),
             topic=topic,
@@ -1038,7 +1094,7 @@ Please speak based on meeting transcript and discussion content, showing genuine
             other_signals=quiet_json_dumps({k: v for k, v in all_signals.items() if k != analyst_id}, ensure_ascii=False, indent=2),
             max_chars=self._get_max_chars(state)
         )
-        
+        # pdb.set_trace()
         # 获取LLM模型（启用JSON模式）
         llm = self._get_llm_model(state, use_json_mode=True)
         
@@ -1112,6 +1168,122 @@ Please speak based on meeting transcript and discussion content, showing genuine
             round_info = f"第{entry['round']}轮" if isinstance(entry['round'], int) else entry['round']
             formatted.append(f"[{round_info}] {entry['speaker']}: {entry['content']}")
         return "\n".join(formatted)
+    
+    def _generate_memory_query_for_chat(self, analyst_id: str, topic: str, 
+                                       conversation_history: List[Dict],
+                                       tickers: List[str], state) -> str:
+        """
+        第一阶段：让analyst根据私聊话题和上下文生成记忆查询query
+        
+        Args:
+            analyst_id: 分析师ID
+            topic: 私聊话题
+            conversation_history: 对话历史
+            tickers: 股票代码列表
+            state: 系统状态
+            
+        Returns:
+            记忆查询query字符串
+        """
+        prompt_template = ChatPromptTemplate.from_messages([
+            ("system", """You are {analyst_id} analyst. You are about to respond in a private chat with the portfolio manager.
+
+Before responding, you need to search your past analysis experiences and memories to inform your response.
+
+Please generate a concise search query (in Chinese or English, 1-2 sentences) to retrieve relevant memories from your past experiences.
+
+The query should focus on:
+1. The specific stocks being discussed: {tickers}
+2. The conversation topic: {topic}
+3. Key themes from recent conversation
+4. Similar analysis scenarios or lessons learned
+
+Return ONLY the search query text, no explanations or extra formatting."""),
+            
+            ("human", """Conversation topic: {topic}
+Stocks: {tickers}
+
+Recent conversation:
+{conversation_history}
+
+Generate a focused search query to retrieve relevant past memories and experiences.""")
+        ])
+        
+        messages = prompt_template.format_messages(
+            analyst_id=analyst_id,
+            topic=topic,
+            tickers=", ".join(tickers),
+            conversation_history=self._format_conversation_history(conversation_history[-3:]) if conversation_history else "No previous conversation"
+        )
+        
+        try:
+            llm = self._get_llm_model(state)
+            response = llm.invoke(messages)
+            query = response.content.strip()
+            print(f"📝 {analyst_id} 生成记忆查询: {query}")
+            return query
+        except Exception as e:
+            print(f"⚠️ {analyst_id} 生成记忆查询失败: {e}")
+            # 返回默认查询
+            return f"{topic} {' '.join(tickers)} 分析经验"
+    
+    def _generate_memory_query_for_meeting(self, analyst_id: str, topic: str,
+                                          meeting_transcript: List[Dict],
+                                          tickers: List[str], state) -> str:
+        """
+        第一阶段：让analyst根据会议话题和上下文生成记忆查询query
+        
+        Args:
+            analyst_id: 分析师ID
+            topic: 会议话题
+            meeting_transcript: 会议记录
+            tickers: 股票代码列表
+            state: 系统状态
+            
+        Returns:
+            记忆查询query字符串
+        """
+        prompt_template = ChatPromptTemplate.from_messages([
+            ("system", """You are {analyst_id} analyst. You are about to speak in an investment meeting.
+
+Before speaking, you need to search your past analysis experiences and memories to inform your contribution.
+
+Please generate a concise search query (in Chinese or English, 1-2 sentences) to retrieve relevant memories from your past experiences.
+
+The query should focus on:
+1. The specific stocks being discussed: {tickers}
+2. The meeting topic: {topic}
+3. Key themes from meeting discussion so far
+4. Similar analysis scenarios or lessons learned
+
+Return ONLY the search query text, no explanations or extra formatting."""),
+            
+            ("human", """Meeting topic: {topic}
+Stocks: {tickers}
+
+Recent meeting discussion:
+{meeting_transcript}
+
+Generate a focused search query to retrieve relevant past memories and experiences.""")
+        ])
+        
+        messages = prompt_template.format_messages(
+            analyst_id=analyst_id,
+            topic=topic,
+            tickers=", ".join(tickers),
+            meeting_transcript=self._format_meeting_transcript(meeting_transcript[-5:]) if meeting_transcript else "Meeting just started"
+        )
+        
+        try:
+            llm = self._get_llm_model(state)
+            response = llm.invoke(messages)
+            query = response.content.strip()
+            print(f"📝 {analyst_id} 在会议中生成记忆查询: {query}")
+            return query
+        except Exception as e:
+            print(f"⚠️ {analyst_id} 会议记忆查询生成失败: {e}")
+            # 返回默认查询
+            return f"{topic} {' '.join(tickers)} 分析经验"
     
     def _extract_and_clean_json(self, content: str) -> Optional[Dict[str, Any]]:
         """从响应中提取和清理JSON"""
