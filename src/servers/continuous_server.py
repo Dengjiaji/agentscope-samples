@@ -45,6 +45,19 @@ class ContinuousServer:
         self.lock = asyncio.Lock()
         self.loop = None  # 事件循环引用，在start时设置
         
+        # ========== 方案B：Dashboard 文件路径 ⭐⭐⭐ ==========
+        self.dashboard_dir = BASE_DIR / "logs_and_memory" / config.config_name / "sandbox_logs" / "team_dashboard"
+        self.dashboard_files = {
+            'summary': self.dashboard_dir / 'summary.json',
+            'holdings': self.dashboard_dir / 'holdings.json',
+            'stats': self.dashboard_dir / 'stats.json',
+            'trades': self.dashboard_dir / 'trades.json',
+            'leaderboard': self.dashboard_dir / 'leaderboard.json'
+        }
+        # 记录文件修改时间，用于检测变化
+        self.dashboard_file_mtimes = {}
+        logger.info(f"✅ Dashboard 文件目录: {self.dashboard_dir}")
+        
         # 使用StateManager管理状态
         self.state_manager = StateManager(
             config_name=config.config_name,
@@ -150,6 +163,119 @@ class ContinuousServer:
         except Exception as e:
             logger.error(f"发送消息失败: {e}")
     
+    def _load_dashboard_file(self, file_type: str) -> Any:
+        """
+        读取 Dashboard JSON 文件
+        
+        Args:
+            file_type: 文件类型 ('summary', 'holdings', 'stats', 'trades', 'leaderboard')
+            
+        Returns:
+            文件内容（字典或列表），如果文件不存在或读取失败返回 None
+        """
+        file_path = self.dashboard_files.get(file_type)
+        if not file_path or not file_path.exists():
+            return None
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"读取 Dashboard 文件失败 ({file_type}): {e}")
+            return None
+    
+    def _check_dashboard_files_updated(self) -> Dict[str, bool]:
+        """
+        检查哪些 Dashboard 文件被更新了
+        
+        Returns:
+            字典，key 为文件类型，value 为是否更新（True/False）
+        """
+        updated = {}
+        
+        for file_type, file_path in self.dashboard_files.items():
+            if not file_path.exists():
+                updated[file_type] = False
+                continue
+            
+            try:
+                current_mtime = file_path.stat().st_mtime
+                last_mtime = self.dashboard_file_mtimes.get(file_type, 0)
+                
+                if current_mtime > last_mtime:
+                    updated[file_type] = True
+                    self.dashboard_file_mtimes[file_type] = current_mtime
+                else:
+                    updated[file_type] = False
+            except Exception as e:
+                logger.error(f"检查文件更新失败 ({file_type}): {e}")
+                updated[file_type] = False
+        
+        return updated
+    
+    async def _broadcast_dashboard_from_files(self):
+        """
+        从文件读取 Dashboard 数据并广播
+        仅广播已更新的文件
+        """
+        updated_files = self._check_dashboard_files_updated()
+        timestamp = datetime.now().isoformat()
+        
+        # 只广播有更新的文件
+        for file_type, is_updated in updated_files.items():
+            if not is_updated:
+                continue
+            
+            data = self._load_dashboard_file(file_type)
+            if data is None:
+                continue
+            
+            # 根据文件类型构建消息
+            if file_type == 'summary':
+                await self.broadcast({
+                    'type': 'team_summary',
+                    'data': data,
+                    'timestamp': timestamp
+                })
+                logger.info(f"✅ 广播 team_summary (从文件)")
+                
+            elif file_type == 'holdings':
+                self.state_manager.update('holdings', data)
+                await self.broadcast({
+                    'type': 'team_holdings',
+                    'data': data,
+                    'timestamp': timestamp
+                })
+                logger.info(f"✅ 广播 team_holdings: {len(data)} 个持仓 (从文件)")
+                
+            elif file_type == 'stats':
+                self.state_manager.update('stats', data)
+                await self.broadcast({
+                    'type': 'team_stats',
+                    'data': data,
+                    'timestamp': timestamp
+                })
+                logger.info(f"✅ 广播 team_stats (从文件)")
+                
+            elif file_type == 'trades':
+                self.state_manager.update('trades', data)
+                await self.broadcast({
+                    'type': 'team_trades',
+                    'mode': 'full',
+                    'data': data,
+                    'timestamp': timestamp
+                })
+                logger.info(f"✅ 广播 team_trades: {len(data)} 笔交易 (从文件)")
+                
+            elif file_type == 'leaderboard':
+                self.state_manager.update('leaderboard', data)
+                await self.broadcast({
+                    'type': 'team_leaderboard',
+                    'data': data,
+                    'timestamp': timestamp
+                })
+                logger.info(f"✅ 广播 team_leaderboard: {len(data)} 个 Agent (从文件)")
+    
     async def handle_client(self, websocket: WebSocketServerProtocol):
         """处理客户端连接"""
         client_id = id(websocket)
@@ -161,6 +287,26 @@ class ContinuousServer:
         try:
             # 准备发送给新客户端的初始状态（不修改全局状态）
             initial_state = self.state_manager.get_full_state()
+            
+            # ========== 方案B：从文件加载 Dashboard 数据 ⭐⭐⭐ ==========
+            try:
+                initial_state['dashboard'] = {
+                    'summary': self._load_dashboard_file('summary'),
+                    'holdings': self._load_dashboard_file('holdings'),
+                    'stats': self._load_dashboard_file('stats'),
+                    'trades': self._load_dashboard_file('trades'),
+                    'leaderboard': self._load_dashboard_file('leaderboard')
+                }
+                logger.info(f"✅ 从文件加载 Dashboard 数据成功")
+            except Exception as e:
+                logger.error(f"⚠️ 从文件加载 Dashboard 数据失败: {e}")
+                initial_state['dashboard'] = {
+                    'summary': None,
+                    'holdings': [],
+                    'stats': None,
+                    'trades': [],
+                    'leaderboard': []
+                }
             
             # 加载历史equity数据并合并到portfolio（仅用于新客户端）
             historical_data = self.state_manager.load_historical_equity()
@@ -738,6 +884,20 @@ class ContinuousServer:
             await asyncio.sleep(300)  # 5分钟
             self.state_manager.save()
     
+    async def _periodic_dashboard_monitor(self):
+        """
+        定期监控 Dashboard 文件变化并广播（每5秒）
+        方案B的核心：通过文件监控实现数据广播
+        """
+        logger.info("🔍 Dashboard 文件监控已启动（每5秒检查一次）")
+        
+        while True:
+            try:
+                await asyncio.sleep(5)  # 每5秒检查一次
+                await self._broadcast_dashboard_from_files()
+            except Exception as e:
+                logger.error(f"❌ Dashboard 文件监控异常: {e}")
+    
     async def start(self, host: str = "0.0.0.0", port: int = 8765, mock: bool = False):
         """启动服务器
         
@@ -766,6 +926,9 @@ class ContinuousServer:
             # 启动定期保存任务
             saver_task = asyncio.create_task(self._periodic_state_saver())
             
+            # ========== 方案B：启动 Dashboard 文件监控任务 ⭐⭐⭐ ==========
+            dashboard_monitor_task = asyncio.create_task(self._periodic_dashboard_monitor())
+            
             # 选择运行模式
             if mock:
                 logger.info("🎭 使用Mock模式")
@@ -788,6 +951,10 @@ class ContinuousServer:
                 
                 # 取消定期保存任务
                 saver_task.cancel()
+                
+                # ========== 方案B：取消 Dashboard 监控任务 ⭐⭐⭐ ==========
+                dashboard_monitor_task.cancel()
+                logger.info("✅ Dashboard 监控任务已取消")
                 
                 if self.price_manager:
                     self.price_manager.stop()
