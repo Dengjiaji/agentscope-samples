@@ -1599,7 +1599,8 @@ export default function LiveTradingApp() {
             ...prev,
             netValue: e.balance || prev.netValue,
             pnl: e.pnlPct || 0,
-            equity: e.equity || prev.equity
+            equity: e.equity || prev.equity,
+            baseline: e.baseline || prev.baseline  // 添加 baseline 数据
           }));
           
           // Add to feed
@@ -2265,7 +2266,7 @@ function NetValueChart({ equity, baseline, strategies }) {
           <Line 
             type="monotone" 
             dataKey="baseline" 
-            name="Baseline"
+            name="Buy & Hold"
             stroke="#FF6B00" 
             strokeWidth={2}
             strokeDasharray="5 5"

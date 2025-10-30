@@ -234,7 +234,10 @@ class ContinuousServer:
             if file_type == 'summary':
                 await self.broadcast({
                     'type': 'team_summary',
-                    'data': data,
+                    'balance': data.get('balance'),
+                    'pnlPct': data.get('pnlPct'),
+                    'equity': data.get('equity', []),
+                    'baseline': data.get('baseline', []),  # ⭐ 添加 baseline
                     'timestamp': timestamp
                 })
                 logger.info(f"✅ 广播 team_summary (从文件)")
@@ -290,13 +293,39 @@ class ContinuousServer:
             
             # ========== 方案B：从文件加载 Dashboard 数据 ⭐⭐⭐ ==========
             try:
+                summary_data = self._load_dashboard_file('summary')
+                holdings_data = self._load_dashboard_file('holdings')
+                stats_data = self._load_dashboard_file('stats')
+                trades_data = self._load_dashboard_file('trades')
+                leaderboard_data = self._load_dashboard_file('leaderboard')
+                
                 initial_state['dashboard'] = {
-                    'summary': self._load_dashboard_file('summary'),
-                    'holdings': self._load_dashboard_file('holdings'),
-                    'stats': self._load_dashboard_file('stats'),
-                    'trades': self._load_dashboard_file('trades'),
-                    'leaderboard': self._load_dashboard_file('leaderboard')
+                    'summary': summary_data,
+                    'holdings': holdings_data,
+                    'stats': stats_data,
+                    'trades': trades_data,
+                    'leaderboard': leaderboard_data
                 }
+                
+                # 将 summary 数据映射到 portfolio（供前端使用）
+                if summary_data and 'portfolio' in initial_state:
+                    initial_state['portfolio'].update({
+                        'total_value': summary_data.get('balance'),
+                        'pnl_percent': summary_data.get('pnlPct'),
+                        'equity': summary_data.get('equity', []),
+                        'baseline': summary_data.get('baseline', [])  # ⭐ 添加 baseline
+                    })
+                
+                # 更新其他数据
+                if holdings_data:
+                    initial_state['holdings'] = holdings_data
+                if stats_data:
+                    initial_state['stats'] = stats_data
+                if trades_data:
+                    initial_state['trades'] = trades_data
+                if leaderboard_data:
+                    initial_state['leaderboard'] = leaderboard_data
+                
                 logger.info(f"✅ 从文件加载 Dashboard 数据成功")
             except Exception as e:
                 logger.error(f"⚠️ 从文件加载 Dashboard 数据失败: {e}")

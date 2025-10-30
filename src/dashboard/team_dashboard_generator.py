@@ -107,11 +107,16 @@ class TeamDashboardGenerator:
         """加载内部状态"""
         state = self._load_json(self.state_file, {
             'equity_history': [],  # [{t: timestamp, v: value}]
+            'baseline_history': [],  # Buy & Hold 基准线历史
             'all_trades': [],  # 所有交易历史
             'agent_performance': {},  # agent_id -> {signals: [], bull_count: 0, bull_win: 0, ...}
             'portfolio_state': {  # 当前持仓状态
                 'cash': self.initial_cash,
                 'positions': {}  # ticker -> {qty, avg_cost}
+            },
+            'baseline_state': {  # Buy & Hold 持仓状态
+                'initial_allocation': {},  # ticker -> {qty, buy_price, buy_date}
+                'initialized': False
             },
             'last_update_date': None,
             'total_value_history': [],  # 用于计算收益率
@@ -128,6 +133,17 @@ class TeamDashboardGenerator:
         # 确保total_value_history存在
         if 'total_value_history' not in state:
             state['total_value_history'] = []
+        
+        # 确保baseline_state存在
+        if 'baseline_state' not in state:
+            state['baseline_state'] = {
+                'initial_allocation': {},
+                'initialized': False
+            }
+        
+        # 确保baseline_history存在
+        if 'baseline_history' not in state:
+            state['baseline_history'] = []
         
         return state
     
@@ -239,6 +255,10 @@ class TeamDashboardGenerator:
             'agents_updated': 0
         }
         
+        # 0. 初始化 Buy & Hold（仅第一次）
+        available_tickers = list(pm_signals.keys())
+        self._initialize_buy_and_hold(date, available_tickers, state)
+        
         # 1. 更新交易记录和持仓
         if mode == "portfolio":
             self._update_portfolio_mode(date, timestamp_ms, pm_signals, real_returns, 
@@ -259,7 +279,10 @@ class TeamDashboardGenerator:
         # 5. 更新权益曲线
         self._update_equity_curve(date, timestamp_ms, state)
         
-        # 5. 保存内部状态
+        # 6. 更新 Buy & Hold 基准线
+        self._update_baseline_curve(date, timestamp_ms, state)
+        
+        # 7. 保存内部状态
         state['last_update_date'] = date
         self._save_internal_state(state)
         
@@ -632,13 +655,13 @@ class TeamDashboardGenerator:
         
         total_value = cash + positions_value
         
-        # 归一化为百分比（相对初始资金）
-        normalized_value = (total_value / self.initial_cash) * 100
+        # 直接使用实际金额（不再归一化为百分比）
+        # normalized_value = (total_value / self.initial_cash) * 100
         
         # 添加到权益曲线
         equity_point = {
             't': timestamp_ms,
-            'v': round(normalized_value, 2)
+            'v': round(total_value, 2)  # 存储实际金额
         }
         state['equity_history'].append(equity_point)
         
@@ -647,6 +670,132 @@ class TeamDashboardGenerator:
             'date': date,
             'total_value': total_value
         })
+    
+    def _initialize_buy_and_hold(self, date: str, available_tickers: list, state: Dict):
+        """
+        初始化 Buy & Hold 策略
+        
+        在第一个交易日收盘时，使用收盘价买入股票
+        这样确保和 Portfolio 的初始状态一致
+        
+        Args:
+            date: 交易日期
+            available_tickers: 可交易的股票列表
+            state: 内部状态
+        """
+        baseline_state = state['baseline_state']
+        
+        if baseline_state['initialized']:
+            return  # 已经初始化过了
+        
+        if not available_tickers:
+            print("⚠️ 没有可交易的股票，跳过 Buy & Hold 初始化")
+            return
+        
+        # 计算每只股票的分配资金（等权重）
+        cash_per_ticker = self.initial_cash / len(available_tickers)
+        
+        initial_allocation = {}
+        total_invested = 0.0
+        
+        for ticker in available_tickers:
+            # 使用收盘价买入（和 Portfolio 保持一致）
+            price = self._get_price_from_csv(ticker, date, 'close')
+            
+            if price is None or price <= 0:
+                print(f"⚠️ {ticker} 在 {date} 没有有效价格，跳过")
+                continue
+            
+            # 计算可购买的数量（向下取整）
+            quantity = int(cash_per_ticker / price)
+            
+            if quantity > 0:
+                initial_allocation[ticker] = {
+                    'qty': quantity,
+                    'buy_price': price,
+                    'buy_date': date
+                }
+                total_invested += quantity * price
+        
+        baseline_state['initial_allocation'] = initial_allocation
+        baseline_state['initialized'] = True
+        
+        print(f"✅ Buy & Hold 策略已初始化: {len(initial_allocation)} 只股票，投资 ${total_invested:,.2f}")
+        for ticker, info in initial_allocation.items():
+            print(f"   {ticker}: {info['qty']} 股 @ ${info['buy_price']:.2f}")
+    
+    def _calculate_buy_and_hold_value(self, date: str, state: Dict) -> float:
+        """
+        计算 Buy & Hold 策略的当前净值
+        
+        Args:
+            date: 当前日期
+            state: 内部状态
+            
+        Returns:
+            Buy & Hold 策略的总资产价值
+        """
+        baseline_state = state['baseline_state']
+        
+        if not baseline_state['initialized']:
+            return self.initial_cash  # 还未初始化，返回初始资金
+        
+        total_value = 0.0
+        initial_allocation = baseline_state['initial_allocation']
+        
+        for ticker, info in initial_allocation.items():
+            # 获取当前价格
+            current_price = self._get_current_price(ticker, date, state)
+            
+            if current_price is None or current_price <= 0:
+                # 如果无法获取价格，使用购买价格作为后备
+                current_price = info['buy_price']
+                print(f"⚠️ {ticker} 在 {date} 无法获取价格，使用买入价 ${current_price:.2f}")
+            
+            # 计算持仓市值
+            position_value = info['qty'] * current_price
+            total_value += position_value
+        
+        return total_value
+    
+    def _update_baseline_curve(self, date: str, timestamp_ms: int, state: Dict):
+        """
+        更新 Buy & Hold 基准线
+        
+        Args:
+            date: 交易日期
+            timestamp_ms: 时间戳（毫秒）
+            state: 内部状态
+        """
+        baseline_state = state['baseline_state']
+        
+        # 如果 baseline 刚初始化，且历史记录为空，先添加初始点
+        if baseline_state['initialized'] and len(state['baseline_history']) == 0:
+            # 添加初始资金作为起始点（和 Portfolio 保持一致）
+            initial_point = {
+                't': timestamp_ms,
+                'v': round(self.initial_cash, 2)  # $100,000
+            }
+            state['baseline_history'].append(initial_point)
+            print(f"📊 Buy & Hold 初始点: ${self.initial_cash:,.2f}")
+        
+        # 计算 Buy & Hold 策略的当前总价值
+        baseline_value = self._calculate_buy_and_hold_value(date, state)
+        
+        # 直接使用实际金额（不再归一化为百分比）
+        # normalized_value = (baseline_value / self.initial_cash) * 100
+        
+        # 添加到基准线历史
+        baseline_point = {
+            't': timestamp_ms,
+            'v': round(baseline_value, 2)  # 存储实际金额
+        }
+        
+        state['baseline_history'].append(baseline_point)
+        
+        # 计算收益率用于日志显示
+        return_pct = ((baseline_value - self.initial_cash) / self.initial_cash) * 100
+        print(f"📊 Buy & Hold 基准: ${baseline_value:,.2f} ({return_pct:+.2f}%)")
     
     def _generate_summary(self, state: Dict):
         """生成账户概览数据（使用真实价格）"""
@@ -670,7 +819,8 @@ class TeamDashboardGenerator:
         summary = {
             'pnlPct': round(pnl_pct, 2),
             'balance': round(balance, 2),
-            'equity': state.get('equity_history', [])
+            'equity': state.get('equity_history', []),
+            'baseline': state.get('baseline_history', [])  # 添加 Buy & Hold 基准线
         }
         
         self._save_json(self.summary_file, summary)
