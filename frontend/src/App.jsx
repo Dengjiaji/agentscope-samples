@@ -2557,7 +2557,7 @@ function PerformanceView({ leaderboard }) {
       {/* Agent Performance Section */}
       <div className="section">
         <div className="section-header">
-          <h2 className="section-title">Agent Performance - Overall</h2>
+          <h2 className="section-title">Agent Performance - Signal Accuracy</h2>
         </div>
         
         {leaderboard.length === 0 ? (
@@ -2569,49 +2569,108 @@ function PerformanceView({ leaderboard }) {
               <tr>
                 <th>Rank</th>
                 <th>Agent</th>
-                <th>Acct Value</th>
-                <th>Return %</th>
-                <th>Total P&L</th>
-                <th>Fees</th>
                 <th>Win Rate</th>
-                <th>Biggest Win</th>
-                <th>Biggest Loss</th>
-                <th>Sharpe</th>
-                <th>Trades</th>
+                <th>Bull Signals</th>
+                <th>Bull Win Rate</th>
+                <th>Bear Signals</th>
+                <th>Bear Win Rate</th>
+                <th>Total Signals</th>
               </tr>
             </thead>
             <tbody>
-              {leaderboard.map(agent => (
-                <tr key={agent.agentId}>
-                  <td>
-                    <span className={`rank-badge ${agent.rank === 1 ? 'first' : agent.rank === 2 ? 'second' : agent.rank === 3 ? 'third' : ''}`}>
-                      {agent.rank === 1 ? '★ 1' : agent.rank}
-                    </span>
-                  </td>
-                  <td>
-                    <div style={{ fontWeight: 700, color: '#000000' }}>{agent.name}</div>
-                    <div style={{ fontSize: 10, color: '#666666' }}>{agent.role}</div>
-                  </td>
-                  <td style={{ fontWeight: 700, color: '#000000' }}>${formatNumber(agent.accountValue)}</td>
-                  <td style={{ color: agent.returnPct >= 0 ? '#00C853' : '#FF1744', fontWeight: 700 }}>
-                    {agent.returnPct >= 0 ? '+' : ''}{agent.returnPct.toFixed(2)}%
-                  </td>
-                  <td style={{ color: agent.totalPL >= 0 ? '#00C853' : '#FF1744' }}>
-                    ${formatNumber(agent.totalPL)}
-                  </td>
-                  <td>${formatNumber(agent.fees)}</td>
-                  <td>{(agent.winRate * 100).toFixed(1)}%</td>
-                  <td style={{ color: '#00C853' }}>${formatNumber(agent.biggestWin)}</td>
-                  <td style={{ color: '#FF1744' }}>-${formatNumber(Math.abs(agent.biggestLoss))}</td>
-                  <td>{agent.sharpe.toFixed(3)}</td>
-                  <td>{agent.trades}</td>
-                </tr>
-              ))}
+              {leaderboard.map(agent => {
+                const bullTotal = agent.bull?.n || 0;
+                const bullWins = agent.bull?.win || 0;
+                const bearTotal = agent.bear?.n || 0;
+                const bearWins = agent.bear?.win || 0;
+                const totalSignals = bullTotal + bearTotal;
+                const bullWinRate = bullTotal > 0 ? (bullWins / bullTotal) : 0;
+                const bearWinRate = bearTotal > 0 ? (bearWins / bearTotal) : 0;
+                
+                return (
+                  <tr key={agent.agentId}>
+                    <td>
+                      <span className={`rank-badge ${agent.rank === 1 ? 'first' : agent.rank === 2 ? 'second' : agent.rank === 3 ? 'third' : ''}`}>
+                        {agent.rank === 1 ? '★ 1' : agent.rank}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: 700, color: '#000000' }}>{agent.name}</div>
+                      <div style={{ fontSize: 10, color: '#666666' }}>{agent.role}</div>
+                    </td>
+                    <td style={{ fontWeight: 700, color: agent.winRate >= 0.5 ? '#00C853' : '#FF1744' }}>
+                      {(agent.winRate * 100).toFixed(1)}%
+                    </td>
+                    <td>
+                      <div style={{ fontSize: 12 }}>{bullTotal} signals</div>
+                      <div style={{ fontSize: 10, color: '#666666' }}>{bullWins} wins</div>
+                    </td>
+                    <td style={{ color: bullWinRate >= 0.5 ? '#00C853' : '#999999' }}>
+                      {bullTotal > 0 ? `${(bullWinRate * 100).toFixed(1)}%` : 'N/A'}
+                    </td>
+                    <td>
+                      <div style={{ fontSize: 12 }}>{bearTotal} signals</div>
+                      <div style={{ fontSize: 10, color: '#666666' }}>{bearWins} wins</div>
+                    </td>
+                    <td style={{ color: bearWinRate >= 0.5 ? '#00C853' : '#999999' }}>
+                      {bearTotal > 0 ? `${(bearWinRate * 100).toFixed(1)}%` : 'N/A'}
+                    </td>
+                    <td style={{ fontWeight: 700 }}>{totalSignals}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           </div>
         )}
       </div>
+      
+      {/* Recent Activity Logs */}
+      {leaderboard.length > 0 && leaderboard.some(agent => agent.logs && agent.logs.length > 0) && (
+        <div className="section" style={{ marginTop: 32 }}>
+          <div className="section-header">
+            <h2 className="section-title">Recent Signal Activity</h2>
+          </div>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
+            {leaderboard.map(agent => {
+              if (!agent.logs || agent.logs.length === 0) return null;
+              
+              return (
+                <div key={agent.agentId} style={{ 
+                  border: '1px solid #e0e0e0', 
+                  padding: 16,
+                  background: '#fafafa'
+                }}>
+                  <div style={{ 
+                    fontWeight: 700, 
+                    fontSize: 12, 
+                    marginBottom: 12,
+                    paddingBottom: 8,
+                    borderBottom: '2px solid #000000',
+                    letterSpacing: 1,
+                    textTransform: 'uppercase'
+                  }}>
+                    {agent.name}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {agent.logs.slice(0, 8).map((log, idx) => (
+                      <div key={idx} style={{ 
+                        fontSize: 11, 
+                        color: '#333333',
+                        fontFamily: '"Courier New", monospace',
+                        lineHeight: 1.4
+                      }}>
+                        {log}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
