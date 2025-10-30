@@ -24,6 +24,7 @@ const STOCK_LOGOS = {
   'AMZN': `${LOGO_BASE_URL}/AMZN.png`,
   'NVDA': `${LOGO_BASE_URL}/NVDA.png`,
   'META': `${LOGO_BASE_URL}/META.png`,
+  'TSLA': `${LOGO_BASE_URL}/TSLA.png`,
 };
 
 const SCENE_NATIVE = { width: 1184, height: 864 };
@@ -60,7 +61,8 @@ const MOCK_TICKERS = [
   { symbol: 'GOOGL', price: null, change: null },
   { symbol: 'AMZN', price: null, change: null },
   { symbol: 'NVDA', price: null, change: null },
-  { symbol: 'META', price: null, change: null }
+  { symbol: 'META', price: null, change: null },
+  { symbol: 'TSLA', price: null, change: null }
 ];
 
 // ====== WebSocket Client (Read-Only) ======
