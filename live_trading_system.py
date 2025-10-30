@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib import rcParams
@@ -172,9 +172,20 @@ class LiveTradingSystem:
     
     # ==================== 策略分析部分 ====================
     
-    def run_single_day_analysis(self, tickers: List[str], date: str, max_comm_cycles: int = 2,enable_communications:bool = False,enalbe_notifications:bool=False, mode: str = "signal", initial_cash: float = 100000.0, margin_requirement: float = 0.0) -> dict:
-        """运行单日策略分析"""
+    def run_single_day_analysis(self, tickers: List[str], date: str, max_comm_cycles: int = 2,enable_communications:bool = False,enalbe_notifications:bool=False, mode: str = "signal", initial_cash: float = 100000.0, margin_requirement: float = 0.0, portfolio_state: Optional[Dict[str, Any]] = None) -> dict:  # ⭐ 新增参数
+        """运行单日策略分析
+        
+        Args:
+            portfolio_state: 当前Portfolio状态（如果有），用于继续多日运行 ⭐
+        """
         print(f"开始分析 {date} 的策略... (模式: {mode})")
+        
+        # ========== 显示Portfolio状态（如果有）⭐ ==========
+        if mode == "portfolio" and portfolio_state:
+            positions_count = len([p for p in portfolio_state.get('positions', {}).values() 
+                                  if p.get('long', 0) > 0 or p.get('short', 0) > 0])
+            print(f"📌 使用现有Portfolio状态: 现金 ${portfolio_state['cash']:,.2f}, "
+                  f"持仓数 {positions_count}")
         
         # 创建包含策略日期的自定义session_id
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -189,6 +200,34 @@ class LiveTradingSystem:
             custom_session_id=custom_session_id
         )
         
+        # ========== 如果有portfolio_state，需要预先注入到state中 ⭐⭐⭐ ==========
+        # 因为run_multi_day_strategy只会在i>0时加载previous_state
+        # 单日运行时i=0，所以需要手动注入
+        kwargs = {
+            'initial_cash': initial_cash if not portfolio_state else portfolio_state.get('cash', initial_cash),
+            'margin_requirement': margin_requirement
+        }
+        
+        # 如果有portfolio_state，将其存储为临时state供MultiDayManager使用
+        if portfolio_state and mode == "portfolio":
+            # 创建临时状态文件，让MultiDayManager.load_previous_state能够加载
+            temp_state = {
+                "portfolio": portfolio_state,
+                "date": date,
+                "session_id": custom_session_id
+            }
+            # 将temp_state保存到manager的输出目录，模拟previous_state
+            import json
+            from pathlib import Path
+            temp_dir = Path(multi_day_manager.base_output_dir)
+            temp_dir.mkdir(parents=True, exist_ok=True)
+            # 使用前一天的日期命名（模拟previous state）
+            from datetime import datetime as dt, timedelta
+            prev_date = (dt.strptime(date, "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%d")
+            temp_file = temp_dir / f"{custom_session_id}_daily_{prev_date}.json"
+            with open(temp_file, 'w') as f:
+                json.dump(temp_state, f, indent=2, default=str)
+        
         results = multi_day_manager.run_multi_day_strategy(
             tickers=tickers,
             start_date=date,
@@ -198,8 +237,7 @@ class LiveTradingSystem:
             show_reasoning=False,
             progress_callback=None,
             mode=mode,
-            initial_cash=initial_cash,
-            margin_requirement=margin_requirement
+            **kwargs
         )
         # pdb.set_trace()
         if results and results['period']['successful_days'] > 0:

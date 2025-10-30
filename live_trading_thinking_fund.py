@@ -24,7 +24,7 @@ import sys
 import argparse
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from collections import defaultdict
 from dotenv import load_dotenv
 
@@ -276,6 +276,15 @@ class LiveTradingThinkingFund:
         self.initial_cash = initial_cash
         self.margin_requirement = margin_requirement
         
+        # ========== 新增：状态管理（学习MultiDayManager）⭐⭐⭐ ==========
+        self.state_dir = self.base_dir / "state"
+        self.state_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Portfolio状态管理（跨日传递）
+        self.current_portfolio_state = None
+        if self.mode == "portfolio":
+            self._initialize_portfolio_state()
+        
         # 初始化团队仪表盘生成器
         dashboard_dir = self.sandbox_dir / "team_dashboard"
         self.dashboard_generator = TeamDashboardGenerator(
@@ -286,6 +295,63 @@ class LiveTradingThinkingFund:
         if not (dashboard_dir / "summary.json").exists():
             self.dashboard_generator.initialize_empty_dashboard()
 
+    # ========== Portfolio状态管理方法（学习MultiDayManager）⭐⭐⭐ ==========
+    
+    def _initialize_portfolio_state(self):
+        """初始化Portfolio状态（优先加载最新状态）"""
+        # 尝试加载最新的Portfolio状态
+        latest_state = self._load_latest_portfolio_state()
+        
+        if latest_state:
+            self.current_portfolio_state = latest_state
+            print(f"✅ 从磁盘加载Portfolio状态: 现金 ${latest_state['cash']:,.2f}, "
+                  f"持仓数 {len([p for p in latest_state.get('positions', {}).values() if p.get('long', 0) > 0 or p.get('short', 0) > 0])}")
+        else:
+            # 初始化新状态
+            self.current_portfolio_state = {
+                "cash": self.initial_cash,
+                "positions": {},
+                "margin_requirement": self.margin_requirement,
+                "margin_used": 0.0
+            }
+            print(f"✅ 初始化Portfolio状态: 现金 ${self.initial_cash:,.2f}")
+    
+    def _load_latest_portfolio_state(self) -> Optional[Dict[str, Any]]:
+        """加载最新的Portfolio状态（类似MultiDayManager.load_previous_state）"""
+        portfolio_files = sorted(self.state_dir.glob("portfolio_*.json"))
+        if portfolio_files:
+            latest_file = portfolio_files[-1]
+            try:
+                with open(latest_file, 'r') as f:
+                    state = json.load(f)
+                return state
+            except Exception as e:
+                print(f"⚠️ 加载Portfolio状态失败 ({latest_file}): {e}")
+        return None
+    
+    def _save_portfolio_state(self, date: str, portfolio: Dict[str, Any]):
+        """保存Portfolio状态到磁盘（类似MultiDayManager.save_daily_state）"""
+        state_file = self.state_dir / f"portfolio_{date.replace('-', '_')}.json"
+        try:
+            with open(state_file, 'w') as f:
+                json.dump(portfolio, f, indent=2, default=str)
+            # print(f"💾 已保存Portfolio状态: {state_file.name}")
+        except Exception as e:
+            print(f"❌ 保存Portfolio状态失败: {e}")
+    
+    def reset_portfolio_state(self):
+        """重置Portfolio状态（用于新的多日运行）"""
+        if self.mode == "portfolio":
+            self.current_portfolio_state = {
+                "cash": self.initial_cash,
+                "positions": {},
+                "margin_requirement": self.margin_requirement,
+                "margin_used": 0.0
+            }
+            print(f"🔄 Portfolio状态已重置: 现金 ${self.initial_cash:,.2f}")
+    
+    # ========== 原有方法 ==========
+    
     def is_trading_day(self, date: str) -> bool:
         """检查是否为交易日"""
         return self.live_system.is_trading_day(date)
@@ -311,12 +377,14 @@ class LiveTradingThinkingFund:
 
         # self.streamer.print("system", f"开始Sandbox策略分析 - {target_date}\n监控标的: {', '.join(tickers)}")
 
-        # 1. 运行策略分析（直接调用核心分析方法，绕过should_run_today检查）
+        # ========== 修改：注入Portfolio状态（学习MultiDayManager）⭐⭐⭐ ==========
+        # 1. 运行策略分析（注入当前Portfolio状态）
         analysis_result = self.live_system.run_single_day_analysis(
             tickers, target_date, max_comm_cycles, enable_communications, enable_notifications,
             mode=self.mode,  # 传递运行模式
             initial_cash=self.initial_cash,  # Portfolio模式初始现金
-            margin_requirement=self.margin_requirement  # Portfolio模式保证金要求
+            margin_requirement=self.margin_requirement,  # Portfolio模式保证金要求
+            portfolio_state=self.current_portfolio_state  # ⭐ 注入当前Portfolio状态（跨日传递）
         )
 
         # 使用defaultdict简化初始化
@@ -408,7 +476,7 @@ class LiveTradingThinkingFund:
                 if sig:
                     self.streamer.print("agent", f"{ticker}: {sig}",  role_key=agent)
 
-        # 如果是Portfolio模式，收集Portfolio相关信息
+        # ========== Portfolio模式：提取并更新状态（学习MultiDayManager）⭐⭐⭐ ==========
         if self.mode == "portfolio":
             # 从分析结果中提取Portfolio信息
             # pdb.set_trace()
@@ -418,7 +486,24 @@ class LiveTradingThinkingFund:
                 updated_portfolio = raw_results['results']['portfolio_management_results']['final_execution_report']['updated_portfolio']
             except:
                 portfolio_summary = raw_results['results']['portfolio_management_results']['execution_report']['portfolio_summary']
-                updated_portfolio = raw_results['results']['portfolio_management_results']['execution_report']['updated_portfolio']            # 将Portfolio信息添加到live_env
+                updated_portfolio = raw_results['results']['portfolio_management_results']['execution_report']['updated_portfolio']
+            
+            # ⭐⭐⭐ 更新内部Portfolio状态（传递到下一天）⭐⭐⭐
+            self.current_portfolio_state = updated_portfolio
+            
+            # 保存到磁盘（类似MultiDayManager.save_daily_state）
+            self._save_portfolio_state(target_date, updated_portfolio)
+            
+            # 打印Portfolio变化
+            print(f"\n📊 Portfolio更新:")
+            print(f"   现金: ${updated_portfolio['cash']:,.2f}")
+            positions_count = len([p for p in updated_portfolio.get('positions', {}).values() 
+                                  if p.get('long', 0) > 0 or p.get('short', 0) > 0])
+            print(f"   持仓数: {positions_count}")
+            if updated_portfolio.get('margin_used', 0) > 0:
+                print(f"   保证金使用: ${updated_portfolio['margin_used']:,.2f}")
+            
+            # 将Portfolio信息添加到live_env
             live_env['portfolio_summary'] = portfolio_summary
             live_env['updated_portfolio'] = updated_portfolio
 
@@ -832,11 +917,20 @@ class LiveTradingThinkingFund:
             'is_trading_day': self.is_trading_day(date),
             'pre_market': None,
             'post_market': None,
-            'summary': {}
+            'summary': {},
+            'portfolio_state': None  # ⭐ 新增：返回Portfolio状态
         }
 
         if results['is_trading_day']:
             self.streamer.print("system", f"{date}是交易日，将执行交易前分析 + 交易后复盘")
+            
+            # ========== 显示当前Portfolio状态 ⭐ ==========
+            if self.mode == "portfolio" and self.current_portfolio_state:
+                positions_count = len([p for p in self.current_portfolio_state.get('positions', {}).values() 
+                                      if p.get('long', 0) > 0 or p.get('short', 0) > 0])
+                self.streamer.print("system", 
+                    f"当前Portfolio: 现金 ${self.current_portfolio_state['cash']:,.2f}, "
+                    f"持仓数 {positions_count}")
 
             # 1. 交易前分析
             results['pre_market'] = self.run_pre_market_analysis(
@@ -857,6 +951,10 @@ class LiveTradingThinkingFund:
 
         # 生成日总结
         results['summary'] = self._generate_day_summary(results)
+        
+        # ========== 新增：返回Portfolio状态 ⭐ ==========
+        if self.mode == "portfolio":
+            results['portfolio_state'] = self.current_portfolio_state
 
         # self.streamer.print("system", f"{date} 完整模拟结束")
         self._print_day_summary(results['summary'])

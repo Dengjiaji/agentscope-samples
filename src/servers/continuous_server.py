@@ -626,7 +626,7 @@ class ContinuousServer:
                     signals = result['pre_market'].get('signals', {})
                     self.state_manager.update('latest_signals', signals)
                     
-                    # 更新Portfolio持仓（如果是portfolio模式）
+                    # 更新Portfolio持仓（如果是portfolio模式）⭐ 修复bug
                     if self.config.mode == "portfolio":
                         live_env = result['pre_market'].get('live_env', {})
                         portfolio_summary = live_env.get('portfolio_summary', {})
@@ -636,15 +636,27 @@ class ContinuousServer:
                             # 更新Portfolio计算器的持仓信息
                             if self.portfolio_calculator:
                                 holdings = {}
-                                for symbol, data in updated_portfolio.items():
-                                    holdings[symbol] = {
-                                        'quantity': data.get('quantity', 0),
-                                        'avg_cost': data.get('avg_price', 0)
-                                    }
+                                # ⭐ 修复：updated_portfolio结构是 {cash, positions, ...}
+                                positions = updated_portfolio.get('positions', {})
+                                for symbol, position_data in positions.items():
+                                    if isinstance(position_data, dict):
+                                        long_qty = position_data.get('long', 0)
+                                        short_qty = position_data.get('short', 0)
+                                        long_cost = position_data.get('long_cost_basis', 0)
+                                        short_cost = position_data.get('short_cost_basis', 0)
+                                        
+                                        # 计算净持仓
+                                        net_qty = long_qty - short_qty
+                                        if net_qty != 0:
+                                            avg_cost = long_cost if net_qty > 0 else short_cost
+                                            holdings[symbol] = {
+                                                'quantity': net_qty,
+                                                'avg_cost': avg_cost
+                                            }
                                 
                                 self.portfolio_calculator.update_holdings(
                                     holdings,
-                                    portfolio_summary.get('cash', 0)
+                                    updated_portfolio.get('cash', 0)
                                 )
                             
                             # 更新portfolio状态
@@ -656,20 +668,30 @@ class ContinuousServer:
                             })
                             self.state_manager.update('portfolio', portfolio)
                             
-                            # 更新holdings（转换为前端格式）
+                            # 更新holdings（转换为前端格式）⭐ 修复bug
                             realtime_prices = self.state_manager.get('realtime_prices', {})
                             holdings_list = []
-                            for symbol, data in updated_portfolio.items():
-                                if data.get('quantity', 0) > 0:
-                                    current_price = realtime_prices.get(symbol, {}).get('price', data.get('avg_price', 0))
-                                    holdings_list.append({
-                                        'ticker': symbol,
-                                        'qty': data.get('quantity', 0),
-                                        'avg': data.get('avg_price', 0),
-                                        'currentPrice': current_price,
-                                        'pl': (current_price - data.get('avg_price', 0)) * data.get('quantity', 0),
-                                        'weight': data.get('weight', 0)
-                                    })
+                            positions = updated_portfolio.get('positions', {})
+                            for symbol, position_data in positions.items():
+                                if isinstance(position_data, dict):
+                                    long_qty = position_data.get('long', 0)
+                                    short_qty = position_data.get('short', 0)
+                                    net_qty = long_qty - short_qty
+                                    
+                                    if net_qty != 0:  # 只显示有持仓的股票
+                                        long_cost = position_data.get('long_cost_basis', 0)
+                                        short_cost = position_data.get('short_cost_basis', 0)
+                                        avg_price = long_cost if net_qty > 0 else short_cost
+                                        current_price = realtime_prices.get(symbol, {}).get('price', avg_price)
+                                        
+                                        holdings_list.append({
+                                            'ticker': symbol,
+                                            'qty': net_qty,
+                                            'avg': avg_price,
+                                            'currentPrice': current_price,
+                                            'pl': (current_price - avg_price) * net_qty,
+                                            'weight': 0  # 权重需要另外计算
+                                        })
                             self.state_manager.update('holdings', holdings_list)
                 
                 # 构建简化的result用于广播（避免发送过大的数据）
