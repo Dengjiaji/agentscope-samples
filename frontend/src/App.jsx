@@ -1300,7 +1300,7 @@ export default function LiveTradingApp() {
   // Chart data
   const [chartTab, setChartTab] = useState('all');
   const [portfolioData, setPortfolioData] = useState({
-    netValue: 1000000,
+    netValue: 10000,
     pnl: 0,
     equity: [],
     baseline: [], // Baseline strategy (Buy & Hold)
