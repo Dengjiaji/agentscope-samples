@@ -10,9 +10,21 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 // ====== Configuration ======
 const ASSET_BASE_URL = "/assets/company_room";
+const LOGO_BASE_URL = "/assets/logos";
 
 const ASSETS = {
   roomBg: `${ASSET_BASE_URL}/full_room_with_roles_tech_style.png`,
+};
+
+// Stock logos mapping
+const STOCK_LOGOS = {
+  'AAPL': `${LOGO_BASE_URL}/AAPL.png`,
+  'MSFT': `${LOGO_BASE_URL}/MSFT.png`,
+  'GOOGL': `${LOGO_BASE_URL}/GOOGL.png`,
+  'AMZN': `${LOGO_BASE_URL}/AMZN.png`,
+  'NVDA': `${LOGO_BASE_URL}/NVDA.png`,
+  'META': `${LOGO_BASE_URL}/META.png`,
+  'TSLA': `${LOGO_BASE_URL}/TSLA.png`,
 };
 
 const SCENE_NATIVE = { width: 1184, height: 864 };
@@ -42,14 +54,15 @@ const AXIS_TICKS = 5;
 // WebSocket服务器地址（生产环境需要修改为实际部署地址）
 const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8765";
 
-// Mock stock prices for ticker bar (MAG7 companies)
+// Initial ticker symbols (MAG7 companies) - prices will be updated from real-time data
 const MOCK_TICKERS = [
-  { symbol: 'AAPL', price: 237.50, change: 2.34 },
-  { symbol: 'MSFT', price: 425.30, change: -1.2 },
-  { symbol: 'GOOGL', price: 161.50, change: 5.67 },
-  { symbol: 'AMZN', price: 218.45, change: 0.89 },
-  { symbol: 'NVDA', price: 950.00, change: -3.21 },
-  { symbol: 'META', price: 573.22, change: 1.45 }
+  { symbol: 'AAPL', price: null, change: null },
+  { symbol: 'MSFT', price: null, change: null },
+  { symbol: 'GOOGL', price: null, change: null },
+  { symbol: 'AMZN', price: null, change: null },
+  { symbol: 'NVDA', price: null, change: null },
+  { symbol: 'META', price: null, change: null },
+  { symbol: 'TSLA', price: null, change: null }
 ];
 
 // ====== WebSocket Client (Read-Only) ======
@@ -374,6 +387,11 @@ function GlobalStyles() {
       .ticker-change.negative {
         color: #FF1744;
         background: rgba(255, 23, 68, 0.1);
+      }
+      
+      .ticker-change:not(.positive):not(.negative) {
+        color: #666666;
+        background: transparent;
       }
       
       .portfolio-value {
@@ -1139,6 +1157,55 @@ function GlobalStyles() {
         letter-spacing: 0.5px;
       }
       
+      /* Pagination Controls */
+      .pagination-controls {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 0;
+        margin-top: 16px;
+        border-top: 1px solid #e0e0e0;
+      }
+      
+      .pagination-btn {
+        padding: 8px 16px;
+        border: 1px solid #000000;
+        border-radius: 0;
+        background: #ffffff;
+        font-family: inherit;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        color: #000000;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-transform: uppercase;
+      }
+      
+      .pagination-btn:hover:not(:disabled) {
+        background: #000000;
+        color: #ffffff;
+      }
+      
+      .pagination-btn:disabled {
+        border-color: #e0e0e0;
+        color: #cccccc;
+        cursor: not-allowed;
+        opacity: 0.5;
+      }
+      
+      .pagination-btn:focus {
+        outline: none;
+      }
+      
+      .pagination-info {
+        font-size: 11px;
+        font-weight: 700;
+        color: #000000;
+        letter-spacing: 0.5px;
+        font-family: 'Courier New', monospace;
+      }
+      
       /* Scrollbar */
       ::-webkit-scrollbar {
         width: 8px;
@@ -1316,10 +1383,16 @@ export default function LiveTradingApp() {
           setTickers(prevTickers => {
             return prevTickers.map(ticker => {
               const realtimeData = realtimePrices[ticker.symbol];
-              if (realtimeData && realtimeData.price) {
+              if (realtimeData && realtimeData.price !== null && realtimeData.price !== undefined) {
+                // Initialize change to 0 if this is the first price update
+                const newChange = (ticker.price === null || ticker.price === undefined) 
+                  ? 0 
+                  : ticker.change;
+                
                 return {
                   ...ticker,
-                  price: realtimeData.price
+                  price: realtimeData.price,
+                  change: newChange
                 };
               }
               return ticker;
@@ -1418,18 +1491,32 @@ export default function LiveTradingApp() {
               return prevTickers.map(ticker => {
                 if (ticker.symbol === symbol) {
                   const oldPrice = ticker.price;
-                  const change = ((price - oldPrice) / oldPrice) * 100;
+                  let newChange = ticker.change;
                   
-                  // Trigger rolling animation
-                  setRollingTickers(prev => ({ ...prev, [symbol]: true }));
-                  setTimeout(() => {
-                    setRollingTickers(prev => ({ ...prev, [symbol]: false }));
-                  }, 500);
+                  // Calculate change if we have a previous price
+                  if (oldPrice !== null && oldPrice !== undefined && isFinite(oldPrice)) {
+                    const priceChange = ((price - oldPrice) / oldPrice) * 100;
+                    // Initialize change if it was null, otherwise accumulate
+                    newChange = (newChange !== null && newChange !== undefined) 
+                      ? newChange + priceChange 
+                      : priceChange;
+                  } else if (newChange === null || newChange === undefined) {
+                    // First price received, set change to 0
+                    newChange = 0;
+                  }
+                  
+                  // Trigger rolling animation only if price actually changed
+                  if (oldPrice !== price) {
+                    setRollingTickers(prev => ({ ...prev, [symbol]: true }));
+                    setTimeout(() => {
+                      setRollingTickers(prev => ({ ...prev, [symbol]: false }));
+                    }, 500);
+                  }
                   
                   return {
                     ...ticker,
                     price: price,
-                    change: ticker.change + change
+                    change: newChange
                   };
                 }
                 return ticker;
@@ -1816,14 +1903,23 @@ export default function LiveTradingApp() {
           <div className="ticker-bar">
             {tickers.map(ticker => (
               <div key={ticker.symbol} className="ticker-item">
+                <StockLogo ticker={ticker.symbol} size={16} />
                 <span className="ticker-symbol">{ticker.symbol}</span>
                 <span className="ticker-price">
                   <span className={`ticker-price-value ${rollingTickers[ticker.symbol] ? 'rolling' : ''}`}>
-                    ${formatTickerPrice(ticker.price)}
+                    {ticker.price !== null && ticker.price !== undefined 
+                      ? `$${formatTickerPrice(ticker.price)}` 
+                      : '-'}
                   </span>
                 </span>
-                <span className={`ticker-change ${ticker.change >= 0 ? 'positive' : 'negative'}`}>
-                  {ticker.change >= 0 ? '+' : ''}{ticker.change.toFixed(2)}%
+                <span className={`ticker-change ${
+                  ticker.change === null || ticker.change === undefined 
+                    ? '' 
+                    : ticker.change >= 0 ? 'positive' : 'negative'
+                }`}>
+                  {ticker.change !== null && ticker.change !== undefined
+                    ? `${ticker.change >= 0 ? '+' : ''}${ticker.change.toFixed(2)}%`
+                    : '-'}
                 </span>
               </div>
             ))}
@@ -1934,8 +2030,8 @@ function RoomView({ bubbles, bubbleFor }) {
   const containerRef = useRef(null);
   const bgImg = useImage(ASSETS.roomBg);
   
-  // Calculate scale to fit canvas in container
-  const [scale, setScale] = useState(1);
+  // Calculate scale to fit canvas in container (80% of available space)
+  const [scale, setScale] = useState(0.8);
   
   useEffect(() => {
     const updateScale = () => {
@@ -1947,7 +2043,7 @@ function RoomView({ bubbles, bubbleFor }) {
       
       const scaleX = clientWidth / SCENE_NATIVE.width;
       const scaleY = clientHeight / SCENE_NATIVE.height;
-      const newScale = Math.min(scaleX, scaleY, 1.0);
+      const newScale = Math.min(scaleX, scaleY, 1.0) * 0.8; // Scale to 80% of original size
       setScale(Math.max(0.3, newScale));
     };
     
@@ -2072,6 +2168,8 @@ function useImage(src) {
 
 function NetValueChart({ equity, baseline, strategies }) {
   const [activePoint, setActivePoint] = useState(null);
+  // Store stable Y-axis range to avoid frequent updates
+  const [stableYRange, setStableYRange] = useState(null);
   
   const chartData = useMemo(() => {
     if (!equity || equity.length === 0) return [];
@@ -2104,11 +2202,71 @@ function NetValueChart({ equity, baseline, strategies }) {
     
     const dataMin = Math.min(...allValues);
     const dataMax = Math.max(...allValues);
-    const range = dataMax - dataMin || 1000000; // Prevent division by zero
+    const range = dataMax - dataMin || 1; // Prevent division by zero
     
-    // Add 10% padding and round to nearest 10000
-    const yMinCalc = Math.floor((dataMin - range * 0.1) / 10000) * 10000;
-    const yMaxCalc = Math.ceil((dataMax + range * 0.1) / 10000) * 10000;
+    // Calculate standard deviation for variance-based padding
+    const mean = allValues.reduce((sum, v) => sum + v, 0) / allValues.length;
+    const variance = allValues.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / allValues.length;
+    const stdDev = Math.sqrt(variance);
+    
+    // Use standard deviation to determine padding
+    // If stdDev is small relative to mean (low variance), use smaller padding
+    const relativeStdDev = stdDev / mean;
+    let paddingFactor;
+    if (relativeStdDev < 0.01) {
+      // Very low variance - use 2x stdDev as padding
+      paddingFactor = stdDev * 0.5;
+    } else if (relativeStdDev < 0.05) {
+      // Low variance - use 1.5x stdDev
+      paddingFactor = stdDev * 0.2;
+    } else {
+      // Normal/high variance - use 10% of range
+      paddingFactor = range * 0.1;
+    }
+    
+    let yMinCalc = dataMin - paddingFactor;
+    let yMaxCalc = dataMax + paddingFactor;
+    
+    // Smart rounding based on the magnitude of values
+    const magnitude = Math.max(Math.abs(yMinCalc), Math.abs(yMaxCalc));
+    let roundTo;
+    if (magnitude >= 1e6) {
+      roundTo = 10000; // Round to nearest 10k for millions
+    } else if (magnitude >= 1e5) {
+      roundTo = 5000; // Round to nearest 5k for 100k+
+    } else if (magnitude >= 1e4) {
+      roundTo = 1000; // Round to nearest 1k for 10k+
+    } else {
+      roundTo = 100; // Round to nearest 100 for smaller values
+    }
+    
+    yMinCalc = Math.floor(yMinCalc / roundTo) * roundTo;
+    yMaxCalc = Math.ceil(yMaxCalc / roundTo) * roundTo;
+    
+    // Only update range if data touches the boundary (within 5% of edge)
+    // This prevents frequent axis changes
+    if (stableYRange) {
+      const { min: stableMin, max: stableMax } = stableYRange;
+      const stableRange = stableMax - stableMin;
+      const threshold = stableRange * 0.05; // 5% threshold
+      
+      // Check if current data exceeds stable boundaries
+      const needsUpdate = 
+        dataMin < (stableMin + threshold) || 
+        dataMax > (stableMax - threshold);
+      
+      if (!needsUpdate) {
+        // Keep using stable range
+        yMinCalc = stableMin;
+        yMaxCalc = stableMax;
+      } else {
+        // Update stable range
+        setStableYRange({ min: yMinCalc, max: yMaxCalc });
+      }
+    } else {
+      // First time - set initial range
+      setStableYRange({ min: yMinCalc, max: yMaxCalc });
+    }
     
     // Calculate x-axis tick indices (show 5-8 ticks)
     // Limit chartData to reasonable size to prevent crash
@@ -2237,8 +2395,8 @@ function NetValueChart({ equity, baseline, strategies }) {
           stroke="#000000"
           style={{ fontFamily: '"Courier New", monospace', fontSize: '11px', fontWeight: 700 }}
           tick={{ fill: '#000000' }}
-          tickFormatter={(value) => formatMoney(value)}
-          width={55}
+          tickFormatter={(value) => formatFullNumber(value)}
+          width={75}
         />
         <Tooltip content={<CustomTooltip />} />
         <Legend 
@@ -2298,7 +2456,7 @@ function IntelligenceFeed({ feed, conferences }) {
   return (
     <div className="intelligence-feed">
       <div className="feed-header">
-        <h3 className="feed-title">Intelligence Feed</h3>
+        <h3 className="feed-title">Agent Feed</h3>
       </div>
       
       <div className="feed-content">
@@ -2400,58 +2558,56 @@ function MessageCard({ message }) {
   );
 }
 
-// Statistics View (Positions & Trades)
+// Stock Logo Component
+function StockLogo({ ticker, size = 20 }) {
+  const logoUrl = STOCK_LOGOS[ticker];
+  if (!logoUrl) return null;
+  
+  return (
+    <img 
+      src={logoUrl} 
+      alt={ticker}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: '4px',
+        objectFit: 'contain',
+        marginRight: '8px',
+        verticalAlign: 'middle'
+      }}
+      onError={(e) => { e.target.style.display = 'none'; }}
+    />
+  );
+}
+
+// Statistics View (Overview, Portfolio Holdings, Trade History)
 function StatisticsView({ trades, holdings, stats }) {
+  // Pagination state for Transaction History
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  
+  // Calculate pagination
+  const totalPages = Math.ceil(trades.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentTrades = trades.slice(startIndex, endIndex);
+  
+  // Reset to page 1 when trades change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [trades.length]);
+  
   return (
     <div>
       
-      {/* Positions Section */}
-      <div className="section">
-        <div className="section-header">
-          <h2 className="section-title">Current Positions</h2>
-        </div>
-        
-        {holdings.length === 0 ? (
-          <div className="empty-state">No positions currently held</div>
-        ) : (
-          <div className="table-wrapper">
-            <table className="data-table">
-            <thead>
-              <tr>
-                <th>Ticker</th>
-                <th>Qty</th>
-                <th>Avg Cost</th>
-                <th>Current Price</th>
-                <th>P&L</th>
-                <th>Weight</th>
-              </tr>
-            </thead>
-            <tbody>
-              {holdings.map(h => (
-                <tr key={h.ticker}>
-                  <td style={{ fontWeight: 700, color: '#000000' }}>{h.ticker}</td>
-                  <td>{h.qty}</td>
-                  <td>${Number(h.avg).toFixed(2)}</td>
-                  <td>${Number(h.currentPrice || h.avg).toFixed(2)}</td>
-                  <td style={{ color: h.pl >= 0 ? '#00C853' : '#FF1744', fontWeight: 700 }}>
-                    {h.pl >= 0 ? '+' : ''}{Number(h.pl).toFixed(2)}
-                  </td>
-                  <td>{(Number(h.weight) * 100).toFixed(1)}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
-        )}
-      </div>
-      
-      {/* Statistics Section */}
+      {/* Overview Section with Charts */}
       {stats && (
         <div className="section">
           <div className="section-header">
-            <h2 className="section-title">Statistics</h2>
+            <h2 className="section-title">Performance Overview</h2>
           </div>
           
+          {/* Stats Cards */}
           <div className="stats-grid">
             <div className="stat-card">
               <div className="stat-card-label">Win Rate</div>
@@ -2495,56 +2651,144 @@ function StatisticsView({ trades, holdings, stats }) {
         </div>
       )}
       
-      {/* Trade History Section */}
+      {/* Portfolio Holdings Section */}
       <div className="section">
         <div className="section-header">
-          <h2 className="section-title">Completed Trades</h2>
+          <h2 className="section-title">Portfolio Holdings</h2>
         </div>
         
-        {trades.length === 0 ? (
-          <div className="empty-state">No trades recorded</div>
+        {holdings.length === 0 ? (
+          <div className="empty-state">No positions currently held</div>
         ) : (
           <div className="table-wrapper">
             <table className="data-table">
             <thead>
               <tr>
-                <th>Time</th>
-                <th>Ticker</th>
-                <th>Side</th>
+                <th>Stock</th>
                 <th>Qty</th>
-                <th>Price</th>
+                <th>Avg Cost</th>
+                <th>Current Price</th>
                 <th>P&L</th>
+                <th>Weight</th>
               </tr>
             </thead>
             <tbody>
-              {trades.map(t => (
-                <tr key={t.id}>
-                  <td style={{ fontSize: 10, color: '#666666' }}>
-                    {formatTime(t.timestamp)}
-                  </td>
-                  <td style={{ fontWeight: 700, color: '#000000' }}>{t.ticker}</td>
+              {holdings.map(h => (
+                <tr key={h.ticker}>
                   <td>
-                    <span style={{
-                      display: 'inline-block',
-                      padding: '2px 8px',
-                      fontSize: 10,
-                      fontWeight: 700,
-                      border: `1px solid ${t.side === 'BUY' ? '#00C853' : '#FF1744'}`,
-                      color: t.side === 'BUY' ? '#00C853' : '#FF1744'
-                    }}>
-                      {t.side}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <StockLogo ticker={h.ticker} size={20} />
+                      <span style={{ fontWeight: 700, color: '#000000' }}>{h.ticker}</span>
+                    </div>
                   </td>
-                  <td>{t.qty}</td>
-                  <td>${Number(t.price).toFixed(2)}</td>
-                  <td style={{ color: t.pnl >= 0 ? '#00C853' : '#FF1744', fontWeight: 700 }}>
-                    {t.pnl >= 0 ? '+' : ''}{Number(t.pnl).toFixed(2)}
+                  <td>{h.qty}</td>
+                  <td>${Number(h.avg).toFixed(2)}</td>
+                  <td>${Number(h.currentPrice || h.avg).toFixed(2)}</td>
+                  <td style={{ color: h.pl >= 0 ? '#00C853' : '#FF1744', fontWeight: 700 }}>
+                    {h.pl >= 0 ? '+' : ''}{Number(h.pl).toFixed(2)}
                   </td>
+                  <td>{(Number(h.weight) * 100).toFixed(1)}%</td>
                 </tr>
               ))}
             </tbody>
           </table>
           </div>
+        )}
+      </div>
+      
+      {/* Trade History Section */}
+      <div className="section">
+        <div className="section-header">
+          <h2 className="section-title">Transaction History</h2>
+          {trades.length > 0 && (
+            <div style={{ 
+              fontSize: '11px', 
+              color: '#666666',
+              fontFamily: '"Courier New", monospace'
+            }}>
+              Total: {trades.length} trades
+            </div>
+          )}
+        </div>
+        
+        {trades.length === 0 ? (
+          <div className="empty-state">No trades recorded</div>
+        ) : (
+          <>
+            <div className="table-wrapper">
+              <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Stock</th>
+                  <th>Side</th>
+                  <th>Qty</th>
+                  <th>Price</th>
+                  <th>P&L</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentTrades.map(t => (
+                  <tr key={t.id}>
+                    <td style={{ fontSize: 10, color: '#666666' }}>
+                      {formatTime(t.timestamp)}
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <StockLogo ticker={t.ticker} size={18} />
+                        <span style={{ fontWeight: 700, color: '#000000' }}>{t.ticker}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '2px 8px',
+                        fontSize: 10,
+                        fontWeight: 700,
+                        border: `1px solid ${t.side === 'BUY' ? '#00C853' : '#FF1744'}`,
+                        color: t.side === 'BUY' ? '#00C853' : '#FF1744'
+                      }}>
+                        {t.side}
+                      </span>
+                    </td>
+                    <td>{t.qty}</td>
+                    <td>${Number(t.price).toFixed(2)}</td>
+                    <td style={{ color: t.pnl >= 0 ? '#00C853' : '#FF1744', fontWeight: 700 }}>
+                      {t.pnl >= 0 ? '+' : ''}{Number(t.pnl).toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            </div>
+            
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="pagination-controls">
+                <button 
+                  className="pagination-btn"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  ◀ Prev
+                </button>
+                
+                <div className="pagination-info">
+                  Page {currentPage} of {totalPages}
+                  <span style={{ margin: '0 8px', color: '#e0e0e0' }}>|</span>
+                  Showing {startIndex + 1}-{Math.min(endIndex, trades.length)} of {trades.length}
+                </div>
+                
+                <button 
+                  className="pagination-btn"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next ▶
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -2689,6 +2933,12 @@ function formatTime(ts) {
 function formatNumber(num) {
   if (!isFinite(num)) return '-';
   return Math.abs(num).toLocaleString(undefined, { maximumFractionDigits: 0 });
+}
+
+function formatFullNumber(num) {
+  if (!isFinite(num)) return '-';
+  // Format with commas and no decimals for Y-axis
+  return num.toLocaleString(undefined, { maximumFractionDigits: 0 });
 }
 
 function formatTickerPrice(price) {
