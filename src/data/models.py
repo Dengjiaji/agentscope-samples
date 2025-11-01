@@ -102,9 +102,9 @@ class InsiderTradeResponse(BaseModel):
 class CompanyNews(BaseModel):
     ticker: str
     title: str
-    author: str
+    author: str | None = None
     source: str
-    date: str
+    date: str | None = None
     url: str
     sentiment: str | None = None
 

@@ -43,7 +43,8 @@ class MultiDayManager:
         max_communication_cycles: int = 3,
         prefetch_data: bool = True,
         okr_enabled: bool = False,
-        custom_session_id: str = None
+        custom_session_id: str = None,
+        data_source: str = "finnhub"
     ):
         """
         初始化多日管理器
@@ -53,12 +54,16 @@ class MultiDayManager:
             base_output_dir: 基础输出目录
             max_communication_cycles: 每日最大沟通轮数
             prefetch_data: 是否预取数据
+            okr_enabled: 是否启用OKR
+            custom_session_id: 自定义会话ID
+            data_source: 数据源 ("finnhub" 或 "financial_datasets", 默认: "finnhub")
         """
         self.engine = engine
         self.base_output_dir = base_output_dir
         self.max_communication_cycles = max_communication_cycles
         self.prefetch_data = prefetch_data
         self.okr_enabled = okr_enabled
+        self.data_source = data_source
         
         # 状态追踪
         self.session_id = custom_session_id

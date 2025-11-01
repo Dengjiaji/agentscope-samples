@@ -58,57 +58,85 @@ def _make_api_request(url: str, headers: dict, method: str = "GET", json_data: d
         return response
 
 
-def get_prices(ticker: str, start_date: str, end_date: str, api_key: str = None) -> list[Price]:
+def get_prices(
+    ticker: str, 
+    start_date: str, 
+    end_date: str, 
+    api_key: str = None,
+    data_source: str = "finnhub"
+) -> list[Price]:
     """
-    Fetch price data from cache or API (using Finnhub).
+    Fetch price data from cache or API.
     
     Args:
         ticker: Stock ticker symbol
         start_date: Start date (YYYY-MM-DD)
         end_date: End date (YYYY-MM-DD)
-        api_key: Finnhub API key (optional, will use FINNHUB_API_KEY from env)
+        api_key: API key (optional, will use FINNHUB_API_KEY or FINANCIAL_DATASETS_API_KEY from env)
+        data_source: Data source ("finnhub" or "financial_datasets", default: "finnhub")
     
     Returns:
         list[Price]: List of Price objects
     """
     # Create a cache key that includes all parameters to ensure exact matches
-    cache_key = f"{ticker}_{start_date}_{end_date}"
+    cache_key = f"{ticker}_{start_date}_{end_date}_{data_source}"
     
     # Check cache first - simple exact match
     if cached_data := _cache.get_prices(cache_key):
         return [Price(**price) for price in cached_data]
 
-    # ⭐ Use Finnhub API instead of financialdatasets.ai
-    finnhub_api_key = api_key or os.environ.get("FINNHUB_API_KEY")
-    if not finnhub_api_key:
-        raise ValueError("FINNHUB_API_KEY is required. Please set it in your .env file.")
-    
-    # Initialize Finnhub client
-    client = finnhub.Client(api_key=finnhub_api_key)
-    
-    # Convert dates to timestamps
-    start_timestamp = int(datetime.datetime.strptime(start_date, "%Y-%m-%d").timestamp())
-    end_timestamp = int(datetime.datetime.strptime(end_date, "%Y-%m-%d").timestamp())
-    
-    # Fetch candle data from Finnhub
-    candles = client.stock_candles(ticker, 'D', start_timestamp, end_timestamp)
-    
-    # Check response status
-    if candles.get('s') != 'ok':
-        raise Exception(f"Error fetching data from Finnhub: {ticker} - {candles}")
-    
-    # Convert to Price objects
     prices = []
-    for i in range(len(candles['t'])):
-        price = Price(
-            open=candles['o'][i],
-            close=candles['c'][i],
-            high=candles['h'][i],
-            low=candles['l'][i],
-            volume=int(candles['v'][i]),
-            time=datetime.datetime.fromtimestamp(candles['t'][i]).strftime("%Y-%m-%d")
-        )
-        prices.append(price)
+    
+    if data_source == "finnhub":
+        # Use Finnhub API
+        finnhub_api_key = api_key or os.environ.get("FINNHUB_API_KEY")
+        if not finnhub_api_key:
+            raise ValueError("FINNHUB_API_KEY is required. Please set it in your .env file.")
+        
+        # Initialize Finnhub client
+        client = finnhub.Client(api_key=finnhub_api_key)
+        
+        # Convert dates to timestamps
+        start_timestamp = int(datetime.datetime.strptime(start_date, "%Y-%m-%d").timestamp())
+        end_timestamp = int(datetime.datetime.strptime(end_date, "%Y-%m-%d").timestamp())
+        
+        # Fetch candle data from Finnhub
+        candles = client.stock_candles(ticker, 'D', start_timestamp, end_timestamp)
+        
+        # Check response status
+        if candles.get('s') != 'ok':
+            raise Exception(f"Error fetching data from Finnhub: {ticker} - {candles}")
+        
+        # Convert to Price objects
+        for i in range(len(candles['t'])):
+            price = Price(
+                open=candles['o'][i],
+                close=candles['c'][i],
+                high=candles['h'][i],
+                low=candles['l'][i],
+                volume=int(candles['v'][i]),
+                time=datetime.datetime.fromtimestamp(candles['t'][i]).strftime("%Y-%m-%d")
+            )
+            prices.append(price)
+    
+    elif data_source == "financial_datasets":
+        # Use Financial Datasets API
+        headers = {}
+        financial_api_key = api_key or os.environ.get("FINANCIAL_DATASETS_API_KEY")
+        if financial_api_key:
+            headers["X-API-KEY"] = financial_api_key
+
+        url = f"https://api.financialdatasets.ai/prices/?ticker={ticker}&interval=day&interval_multiplier=1&start_date={start_date}&end_date={end_date}"
+        response = _make_api_request(url, headers)
+        if response.status_code != 200:
+            raise Exception(f"Error fetching data: {ticker} - {response.status_code} - {response.text}")
+
+        # Parse response with Pydantic model
+        price_response = PriceResponse(**response.json())
+        prices = price_response.prices
+    
+    else:
+        raise ValueError(f"Invalid data_source: {data_source}. Must be 'finnhub' or 'financial_datasets'")
 
     if not prices:
         return []
@@ -124,29 +152,117 @@ def get_financial_metrics(
     period: str = "ttm",
     limit: int = 10,
     api_key: str = None,
+    data_source: str = "finnhub"
 ) -> list[FinancialMetrics]:
-    """Fetch financial metrics from cache or API."""
+    """
+    Fetch financial metrics from cache or API.
+    
+    Args:
+        ticker: Stock ticker symbol
+        end_date: End date (YYYY-MM-DD)
+        period: Period type (default: "ttm")
+        limit: Number of records to fetch
+        api_key: API key (optional)
+        data_source: Data source ("finnhub" or "financial_datasets", default: "finnhub")
+    
+    Returns:
+        list[FinancialMetrics]: List of financial metrics
+    """
     # Create a cache key that includes all parameters to ensure exact matches
-    cache_key = f"{ticker}_{period}_{end_date}_{limit}"
+    cache_key = f"{ticker}_{period}_{end_date}_{limit}_{data_source}"
     
     # Check cache first - simple exact match
     if cached_data := _cache.get_financial_metrics(cache_key):
         return [FinancialMetrics(**metric) for metric in cached_data]
 
-    # If not in cache, fetch from API
-    headers = {}
-    financial_api_key = api_key or os.environ.get("FINANCIAL_DATASETS_API_KEY")
-    if financial_api_key:
-        headers["X-API-KEY"] = financial_api_key
+    financial_metrics = []
+    
+    if data_source == "finnhub":
+        # Use Finnhub API - Basic Financials
+        finnhub_api_key = api_key or os.environ.get("FINNHUB_API_KEY")
+        if not finnhub_api_key:
+            raise ValueError("FINNHUB_API_KEY is required. Please set it in your .env file.")
+        
+        client = finnhub.Client(api_key=finnhub_api_key)
+        
+        # Fetch basic financials from Finnhub
+        # metric='all' returns all available metrics
+        financials = client.company_basic_financials(ticker, 'all')
+        
+        if not financials or 'metric' not in financials:
+            return []
+        
+        # Finnhub returns {series: {...}, metric: {...}, metricType: ..., symbol: ...}
+        # We need to create a FinancialMetrics object from this
+        metric_data = financials.get('metric', {})
+        
+        # Create a FinancialMetrics object with available data
+        # Note: Finnhub's metric names don't match our model exactly, so we map what we can
+        metric = FinancialMetrics(
+            ticker=ticker,
+            report_period=end_date,
+            period=period,
+            currency="USD",  # Finnhub doesn't provide currency, assume USD
+            market_cap=metric_data.get('marketCapitalization'),
+            enterprise_value=None,  # Not directly available
+            price_to_earnings_ratio=metric_data.get('peBasicExclExtraTTM'),
+            price_to_book_ratio=metric_data.get('pbAnnual'),
+            price_to_sales_ratio=metric_data.get('psAnnual'),
+            enterprise_value_to_ebitda_ratio=None,
+            enterprise_value_to_revenue_ratio=None,
+            free_cash_flow_yield=None,
+            peg_ratio=None,
+            gross_margin=metric_data.get('grossMarginTTM'),
+            operating_margin=metric_data.get('operatingMarginTTM'),
+            net_margin=metric_data.get('netProfitMarginTTM'),
+            return_on_equity=metric_data.get('roeTTM'),
+            return_on_assets=metric_data.get('roaTTM'),
+            return_on_invested_capital=metric_data.get('roicTTM'),
+            asset_turnover=metric_data.get('assetTurnoverTTM'),
+            inventory_turnover=metric_data.get('inventoryTurnoverTTM'),
+            receivables_turnover=metric_data.get('receivablesTurnoverTTM'),
+            days_sales_outstanding=None,
+            operating_cycle=None,
+            working_capital_turnover=None,
+            current_ratio=metric_data.get('currentRatioAnnual'),
+            quick_ratio=metric_data.get('quickRatioAnnual'),
+            cash_ratio=None,
+            operating_cash_flow_ratio=None,
+            debt_to_equity=metric_data.get('totalDebt/totalEquityAnnual'),
+            debt_to_assets=None,
+            interest_coverage=None,
+            revenue_growth=metric_data.get('revenueGrowthTTMYoy'),
+            earnings_growth=None,
+            book_value_growth=None,
+            earnings_per_share_growth=metric_data.get('epsGrowthTTMYoy'),
+            free_cash_flow_growth=None,
+            operating_income_growth=None,
+            ebitda_growth=None,
+            payout_ratio=metric_data.get('payoutRatioAnnual'),
+            earnings_per_share=metric_data.get('epsBasicExclExtraItemsTTM'),
+            book_value_per_share=metric_data.get('bookValuePerShareAnnual'),
+            free_cash_flow_per_share=None
+        )
+        financial_metrics = [metric]
+    
+    elif data_source == "financial_datasets":
+        # Use Financial Datasets API
+        headers = {}
+        financial_api_key = api_key or os.environ.get("FINANCIAL_DATASETS_API_KEY")
+        if financial_api_key:
+            headers["X-API-KEY"] = financial_api_key
 
-    url = f"https://api.financialdatasets.ai/financial-metrics/?ticker={ticker}&report_period_lte={end_date}&limit={limit}&period={period}"
-    response = _make_api_request(url, headers)
-    if response.status_code != 200:
-        raise Exception(f"Error fetching data: {ticker} - {response.status_code} - {response.text}")
+        url = f"https://api.financialdatasets.ai/financial-metrics/?ticker={ticker}&report_period_lte={end_date}&limit={limit}&period={period}"
+        response = _make_api_request(url, headers)
+        if response.status_code != 200:
+            raise Exception(f"Error fetching data: {ticker} - {response.status_code} - {response.text}")
 
-    # Parse response with Pydantic model
-    metrics_response = FinancialMetricsResponse(**response.json())
-    financial_metrics = metrics_response.financial_metrics
+        # Parse response with Pydantic model
+        metrics_response = FinancialMetricsResponse(**response.json())
+        financial_metrics = metrics_response.financial_metrics
+    
+    else:
+        raise ValueError(f"Invalid data_source: {data_source}. Must be 'finnhub' or 'financial_datasets'")
 
     if not financial_metrics:
         return []
@@ -199,53 +315,114 @@ def get_insider_trades(
     start_date: str | None = None,
     limit: int = 1000,
     api_key: str = None,
+    data_source: str = "finnhub"
 ) -> list[InsiderTrade]:
-    """Fetch insider trades from cache or API."""
+    """
+    Fetch insider trades from cache or API.
+    
+    Args:
+        ticker: Stock ticker symbol
+        end_date: End date (YYYY-MM-DD)
+        start_date: Start date (YYYY-MM-DD, optional)
+        limit: Number of records to fetch
+        api_key: API key (optional)
+        data_source: Data source ("finnhub" or "financial_datasets", default: "finnhub")
+    
+    Returns:
+        list[InsiderTrade]: List of insider trades
+    """
     # Create a cache key that includes all parameters to ensure exact matches
-    cache_key = f"{ticker}_{start_date or 'none'}_{end_date}_{limit}"
+    cache_key = f"{ticker}_{start_date or 'none'}_{end_date}_{limit}_{data_source}"
     
     # Check cache first - simple exact match
     if cached_data := _cache.get_insider_trades(cache_key):
         return [InsiderTrade(**trade) for trade in cached_data]
 
-    # If not in cache, fetch from API
-    headers = {}
-    financial_api_key = api_key or os.environ.get("FINANCIAL_DATASETS_API_KEY")
-    if financial_api_key:
-        headers["X-API-KEY"] = financial_api_key
-
     all_trades = []
-    current_end_date = end_date
+    
+    if data_source == "finnhub":
+        # Use Finnhub API - Insider Transactions
+        finnhub_api_key = api_key or os.environ.get("FINNHUB_API_KEY")
+        if not finnhub_api_key:
+            raise ValueError("FINNHUB_API_KEY is required. Please set it in your .env file.")
+        
+        client = finnhub.Client(api_key=finnhub_api_key)
+        
+        # Finnhub API: stock_insider_transactions(symbol, from_date, to_date)
+        # Convert date format if needed
+        from_date = start_date if start_date else (datetime.datetime.strptime(end_date, "%Y-%m-%d") - datetime.timedelta(days=365)).strftime("%Y-%m-%d")
+        
+        try:
+            insider_data = client.stock_insider_transactions(ticker, from_date, end_date)
+            
+            if insider_data and 'data' in insider_data:
+                # Convert Finnhub format to InsiderTrade format
+                for trade in insider_data['data'][:limit]:  # Limit results
+                    # Calculate shares owned after from share and change
+                    shares_after = trade.get('share', 0)
+                    
+                    insider_trade = InsiderTrade(
+                        ticker=ticker,
+                        issuer=None,  # Not provided by Finnhub
+                        name=trade.get('name', ''),
+                        title=None,  # Not provided by Finnhub
+                        is_board_director=None,  # Not provided by Finnhub
+                        transaction_date=trade.get('transactionDate', ''),
+                        transaction_shares=abs(trade.get('change', 0)),  # Number of shares in transaction
+                        transaction_price_per_share=trade.get('transactionPrice', 0.0),
+                        transaction_value=abs(trade.get('change', 0)) * trade.get('transactionPrice', 0.0),
+                        shares_owned_before_transaction=shares_after - trade.get('change', 0) if shares_after and trade.get('change') else None,
+                        shares_owned_after_transaction=float(shares_after) if shares_after else None,
+                        security_title=None,  # Not provided by Finnhub
+                        filing_date=trade.get('filingDate', '')
+                    )
+                    all_trades.append(insider_trade)
+        except Exception as e:
+            # Finnhub may not have data for all tickers
+            print(f"Warning: Finnhub insider trades error for {ticker}: {e}")
+            return []
+    
+    elif data_source == "financial_datasets":
+        # Use Financial Datasets API
+        headers = {}
+        financial_api_key = api_key or os.environ.get("FINANCIAL_DATASETS_API_KEY")
+        if financial_api_key:
+            headers["X-API-KEY"] = financial_api_key
 
-    while True:
-        url = f"https://api.financialdatasets.ai/insider-trades/?ticker={ticker}&filing_date_lte={current_end_date}"
-        if start_date:
-            url += f"&filing_date_gte={start_date}"
-        url += f"&limit={limit}"
+        current_end_date = end_date
 
-        response = _make_api_request(url, headers)
-        if response.status_code != 200:
-            raise Exception(f"Error fetching data: {ticker} - {response.status_code} - {response.text}")
+        while True:
+            url = f"https://api.financialdatasets.ai/insider-trades/?ticker={ticker}&filing_date_lte={current_end_date}"
+            if start_date:
+                url += f"&filing_date_gte={start_date}"
+            url += f"&limit={limit}"
 
-        data = response.json()
-        response_model = InsiderTradeResponse(**data)
-        insider_trades = response_model.insider_trades
+            response = _make_api_request(url, headers)
+            if response.status_code != 200:
+                raise Exception(f"Error fetching data: {ticker} - {response.status_code} - {response.text}")
 
-        if not insider_trades:
-            break
+            data = response.json()
+            response_model = InsiderTradeResponse(**data)
+            insider_trades = response_model.insider_trades
 
-        all_trades.extend(insider_trades)
+            if not insider_trades:
+                break
 
-        # Only continue pagination if we have a start_date and got a full page
-        if not start_date or len(insider_trades) < limit:
-            break
+            all_trades.extend(insider_trades)
 
-        # Update end_date to the oldest filing date from current batch for next iteration
-        current_end_date = min(trade.filing_date for trade in insider_trades).split("T")[0]
+            # Only continue pagination if we have a start_date and got a full page
+            if not start_date or len(insider_trades) < limit:
+                break
 
-        # If we've reached or passed the start_date, we can stop
-        if current_end_date <= start_date:
-            break
+            # Update end_date to the oldest filing date from current batch for next iteration
+            current_end_date = min(trade.filing_date for trade in insider_trades).split("T")[0]
+
+            # If we've reached or passed the start_date, we can stop
+            if current_end_date <= start_date:
+                break
+    
+    else:
+        raise ValueError(f"Invalid data_source: {data_source}. Must be 'finnhub' or 'financial_datasets'")
 
     if not all_trades:
         return []
@@ -261,53 +438,105 @@ def get_company_news(
     start_date: str | None = None,
     limit: int = 1000,
     api_key: str = None,
+    data_source: str = "finnhub"
 ) -> list[CompanyNews]:
-    """Fetch company news from cache or API."""
+    """
+    Fetch company news from cache or API.
+    
+    Args:
+        ticker: Stock ticker symbol
+        end_date: End date (YYYY-MM-DD)
+        start_date: Start date (YYYY-MM-DD, optional)
+        limit: Number of records to fetch
+        api_key: API key (optional)
+        data_source: Data source ("finnhub" or "financial_datasets", default: "finnhub")
+    
+    Returns:
+        list[CompanyNews]: List of company news
+    """
     # Create a cache key that includes all parameters to ensure exact matches
-    cache_key = f"{ticker}_{start_date or 'none'}_{end_date}_{limit}"
+    cache_key = f"{ticker}_{start_date or 'none'}_{end_date}_{limit}_{data_source}"
     
     # Check cache first - simple exact match
     if cached_data := _cache.get_company_news(cache_key):
         return [CompanyNews(**news) for news in cached_data]
 
-    # If not in cache, fetch from API
-    headers = {}
-    financial_api_key = api_key or os.environ.get("FINANCIAL_DATASETS_API_KEY")
-    if financial_api_key:
-        headers["X-API-KEY"] = financial_api_key
-
     all_news = []
-    current_end_date = end_date
+    
+    if data_source == "finnhub":
+        # Use Finnhub API - Company News
+        finnhub_api_key = api_key or os.environ.get("FINNHUB_API_KEY")
+        if not finnhub_api_key:
+            raise ValueError("FINNHUB_API_KEY is required. Please set it in your .env file.")
+        
+        client = finnhub.Client(api_key=finnhub_api_key)
+        
+        # Finnhub API: company_news(symbol, _from, to)
+        # Convert date format if needed
+        from_date = start_date if start_date else (datetime.datetime.strptime(end_date, "%Y-%m-%d") - datetime.timedelta(days=30)).strftime("%Y-%m-%d")
+        
+        try:
+            news_data = client.company_news(ticker, _from=from_date, to=end_date)
+            
+            if news_data:
+                # Convert Finnhub format to CompanyNews format
+                for news_item in news_data[:limit]:  # Limit results
+                    company_news = CompanyNews(
+                        ticker=ticker,
+                        title=news_item.get('headline', ''),
+                        author=None,  # Finnhub doesn't provide author
+                        source=news_item.get('source', ''),
+                        date=datetime.datetime.fromtimestamp(news_item.get('datetime', 0)).strftime("%Y-%m-%d") if news_item.get('datetime') else None,
+                        url=news_item.get('url', ''),
+                        sentiment=None  # Could be added later if needed
+                    )
+                    all_news.append(company_news)
+        except Exception as e:
+            # Finnhub may not have data for all tickers
+            print(f"Warning: Finnhub company news error for {ticker}: {e}")
+            return []
+    
+    elif data_source == "financial_datasets":
+        # Use Financial Datasets API
+        headers = {}
+        financial_api_key = api_key or os.environ.get("FINANCIAL_DATASETS_API_KEY")
+        if financial_api_key:
+            headers["X-API-KEY"] = financial_api_key
 
-    while True:
-        url = f"https://api.financialdatasets.ai/news/?ticker={ticker}&end_date={current_end_date}"
-        if start_date:
-            url += f"&start_date={start_date}"
-        url += f"&limit={limit}"
+        current_end_date = end_date
 
-        response = _make_api_request(url, headers)
-        if response.status_code != 200:
-            raise Exception(f"Error fetching data: {ticker} - {response.status_code} - {response.text}")
+        while True:
+            url = f"https://api.financialdatasets.ai/news/?ticker={ticker}&end_date={current_end_date}"
+            if start_date:
+                url += f"&start_date={start_date}"
+            url += f"&limit={limit}"
 
-        data = response.json()
-        response_model = CompanyNewsResponse(**data)
-        company_news = response_model.news
+            response = _make_api_request(url, headers)
+            if response.status_code != 200:
+                raise Exception(f"Error fetching data: {ticker} - {response.status_code} - {response.text}")
 
-        if not company_news:
-            break
+            data = response.json()
+            response_model = CompanyNewsResponse(**data)
+            company_news = response_model.news
 
-        all_news.extend(company_news)
+            if not company_news:
+                break
 
-        # Only continue pagination if we have a start_date and got a full page
-        if not start_date or len(company_news) < limit:
-            break
+            all_news.extend(company_news)
 
-        # Update end_date to the oldest date from current batch for next iteration
-        current_end_date = min(news.date for news in company_news).split("T")[0]
+            # Only continue pagination if we have a start_date and got a full page
+            if not start_date or len(company_news) < limit:
+                break
 
-        # If we've reached or passed the start_date, we can stop
-        if current_end_date <= start_date:
-            break
+            # Update end_date to the oldest date from current batch for next iteration
+            current_end_date = min(news.date for news in company_news).split("T")[0]
+
+            # If we've reached or passed the start_date, we can stop
+            if current_end_date <= start_date:
+                break
+    
+    else:
+        raise ValueError(f"Invalid data_source: {data_source}. Must be 'finnhub' or 'financial_datasets'")
 
     if not all_news:
         return []
