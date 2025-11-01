@@ -482,11 +482,15 @@ class EnhancedMultiDayManager(MultiDayManager):
         """
         Post-Market 阶段：交易后复盘和记忆管理
         
+        支持两种模式：
+        - central_review: PM统一评估所有分析师（旧模式）
+        - individual_review: 每个Agent自主复盘（新模式，默认）
+        
         流程：
         1. 提取Pre-Market结果
         2. 显示复盘信息
-        3. LLM记忆管理决策
-        4. 执行记忆操作
+        3. 根据模式执行记忆管理
+        4. 返回结果
         
         Args:
             date: 交易日期
@@ -517,39 +521,30 @@ class EnhancedMultiDayManager(MultiDayManager):
             portfolio_summary=portfolio_summary
         )
         
-        # 3. LLM记忆管理
-        memory_operations = None
-        if self.llm_memory_system:
-            try:
-                self._log("system", "===== Portfolio Manager 记忆管理决策 =====")
-                
-                performance_data = {
-                    'pm_signals': pm_signals,
-                    'actual_returns': real_returns,
-                    'analyst_signals': ana_signals,
-                    'tickers': tickers
-                }
-                
-                # 使用LLM进行记忆管理决策
-                llm_decision = self.llm_memory_system.make_llm_memory_decision_with_tools(
-                    performance_data, date
-                )
-                
-                # 处理LLM决策结果
-                memory_operations = self._process_memory_decision(llm_decision)
-                
-            except Exception as e:
-                logger.error(f"⚠️ 记忆管理失败: {e}", exc_info=True)
-        else:
-            self._log("system", "⚠️ LLM记忆管理系统未启用")
+        # 3. 获取复盘模式
+        review_mode = os.getenv('MEMORY_REVIEW_MODE', 'individual_review').lower()
         
-        # 4. 返回结果
-        return {
-            'status': 'success',
-            'date': date,
-            'review_completed': True,
-            'memory_operations': memory_operations
-        }
+        if review_mode == 'individual_review':
+            # 新模式：每个Agent自主复盘
+            result = self._run_individual_review(
+                date=date,
+                tickers=tickers,
+                pm_signals=pm_signals,
+                ana_signals=ana_signals,
+                real_returns=real_returns,
+                portfolio_summary=portfolio_summary
+            )
+        else:
+            # 旧模式：PM统一评估
+            result = self._run_central_review(
+                date=date,
+                tickers=tickers,
+                pm_signals=pm_signals,
+                ana_signals=ana_signals,
+                real_returns=real_returns
+            )
+        
+        return result
     
     # ==================== 辅助方法 ====================
     
@@ -831,4 +826,255 @@ class EnhancedMultiDayManager(MultiDayManager):
         except Exception as e:
             logger.error(f"⚠️ 获取最新Portfolio状态失败: {e}")
         return None
+    
+    # ==================== 复盘模式实现 ====================
+    
+    def _run_individual_review(
+        self,
+        date: str,
+        tickers: List[str],
+        pm_signals: Dict[str, Any],
+        ana_signals: Dict[str, Dict[str, Any]],
+        real_returns: Dict[str, float],
+        portfolio_summary: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Individual Review模式：每个Agent自主复盘
+        
+        流程：
+        1. 各分析师独立复盘
+        2. PM自我复盘
+        3. 生成总结报告
+        """
+        import os
+        
+        self._log("system", "\n===== Individual Review 模式 =====")
+        self._log("system", "各Agent独立进行自我复盘")
+        
+        reflection_results = {}
+        
+        # 检查是否启用自主记忆管理
+        enable_individual_review = os.getenv('ENABLE_INDIVIDUAL_REVIEW', 'true').lower() == 'true'
+        
+        if not enable_individual_review:
+            self._log("system", "⚠️ Individual Review已禁用（ENABLE_INDIVIDUAL_REVIEW=false）")
+            return {
+                'status': 'skipped',
+                'mode': 'individual_review',
+                'date': date,
+                'reason': 'Individual Review disabled'
+            }
+        
+        try:
+            from src.memory.agent_self_reflection import create_reflection_system
+            
+            # ========== 1. 各分析师自我复盘 ==========
+            self._log("system", "\n--- 分析师自我复盘 ---")
+            
+            analysts = ['technical_analyst', 'fundamentals_analyst', 
+                       'sentiment_analyst', 'valuation_analyst']
+            
+            for analyst_id in analysts:
+                try:
+                    # 提取该分析师的信号
+                    my_signals = {}
+                    for ticker in tickers:
+                        if analyst_id in ana_signals and ticker in ana_signals[analyst_id]:
+                            signal_value = ana_signals[analyst_id][ticker]
+                            my_signals[ticker] = {
+                                'signal': signal_value if isinstance(signal_value, str) else 'N/A',
+                                'confidence': 'N/A',
+                                'reasoning': ''
+                            }
+                    
+                    # 创建复盘系统
+                    reflection_system = create_reflection_system(analyst_id, self.base_dir)
+                    
+                    # 执行自我复盘
+                    result = reflection_system.perform_self_reflection(
+                        date=date,
+                        reflection_data={
+                            'my_signals': my_signals,
+                            'actual_returns': real_returns,
+                            'pm_decisions': pm_signals
+                        },
+                        context={
+                            'market_condition': 'normal'
+                        }
+                    )
+                    
+                    reflection_results[analyst_id] = result
+                    
+                except Exception as e:
+                    logger.error(f"⚠️ {analyst_id} 自我复盘失败: {e}", exc_info=True)
+                    reflection_results[analyst_id] = {
+                        'status': 'failed',
+                        'error': str(e)
+                    }
+            
+            # ========== 2. PM自我复盘 ==========
+            self._log("system", "\n--- Portfolio Manager 自我复盘 ---")
+            
+            try:
+                pm_reflection_system = create_reflection_system('portfolio_manager', self.base_dir)
+                
+                pm_result = pm_reflection_system.perform_self_reflection(
+                    date=date,
+                    reflection_data={
+                        'pm_decisions': pm_signals,
+                        'analyst_signals': ana_signals,
+                        'actual_returns': real_returns,
+                        'portfolio_summary': portfolio_summary
+                    },
+                    context={
+                        'market_condition': 'normal'
+                    }
+                )
+                
+                reflection_results['portfolio_manager'] = pm_result
+                
+            except Exception as e:
+                logger.error(f"⚠️ Portfolio Manager 自我复盘失败: {e}", exc_info=True)
+                reflection_results['portfolio_manager'] = {
+                    'status': 'failed',
+                    'error': str(e)
+                }
+            
+            # ========== 3. 生成总结报告 ==========
+            summary = self._generate_individual_review_summary(
+                reflection_results=reflection_results,
+                portfolio_summary=portfolio_summary
+            )
+            
+            self._log("system", f"\n📊 Individual Review 总结:")
+            self._log("system", summary)
+            
+            return {
+                'status': 'success',
+                'mode': 'individual_review',
+                'date': date,
+                'reflection_results': reflection_results,
+                'summary': summary
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Individual Review 执行失败: {e}", exc_info=True)
+            return {
+                'status': 'failed',
+                'mode': 'individual_review',
+                'date': date,
+                'error': str(e)
+            }
+    
+    def _run_central_review(
+        self,
+        date: str,
+        tickers: List[str],
+        pm_signals: Dict[str, Any],
+        ana_signals: Dict[str, Dict[str, Any]],
+        real_returns: Dict[str, float]
+    ) -> Dict[str, Any]:
+        """
+        Central Review模式：PM统一评估所有分析师（旧模式）
+        
+        流程：
+        1. PM评估所有分析师表现
+        2. PM决定记忆操作
+        3. 执行记忆操作
+        """
+        self._log("system", "\n===== Central Review 模式 =====")
+        self._log("system", "PM统一评估所有分析师")
+        
+        memory_operations = None
+        
+        if self.llm_memory_system:
+            try:
+                self._log("system", "===== Portfolio Manager 记忆管理决策 =====")
+                
+                performance_data = {
+                    'pm_signals': pm_signals,
+                    'actual_returns': real_returns,
+                    'analyst_signals': ana_signals,
+                    'tickers': tickers
+                }
+                
+                # 使用LLM进行记忆管理决策
+                llm_decision = self.llm_memory_system.make_llm_memory_decision_with_tools(
+                    performance_data, date
+                )
+                
+                # 处理LLM决策结果
+                memory_operations = self._process_memory_decision(llm_decision)
+                
+            except Exception as e:
+                logger.error(f"⚠️ 记忆管理失败: {e}", exc_info=True)
+        else:
+            self._log("system", "⚠️ LLM记忆管理系统未启用")
+        
+        return {
+            'status': 'success',
+            'mode': 'central_review',
+            'date': date,
+            'review_completed': True,
+            'memory_operations': memory_operations
+        }
+    
+    def _generate_individual_review_summary(
+        self,
+        reflection_results: Dict[str, Dict[str, Any]],
+        portfolio_summary: Dict[str, Any]
+    ) -> str:
+        """
+        生成Individual Review总结
+        
+        Args:
+            reflection_results: 所有Agent的复盘结果
+            portfolio_summary: Portfolio总结
+        
+        Returns:
+            总结文本
+        """
+        summary_lines = []
+        
+        # 统计记忆操作
+        total_agents = len(reflection_results)
+        successful_agents = sum(1 for r in reflection_results.values() if r.get('status') == 'success')
+        total_operations = 0
+        operations_by_type = {'update': 0, 'delete': 0}
+        
+        for agent_id, result in reflection_results.items():
+            if result.get('status') == 'success':
+                ops_count = result.get('operations_count', 0)
+                total_operations += ops_count
+                
+                for op in result.get('memory_operations', []):
+                    tool_name = op.get('tool_name', '')
+                    if 'update' in tool_name:
+                        operations_by_type['update'] += 1
+                    elif 'delete' in tool_name:
+                        operations_by_type['delete'] += 1
+        
+        summary_lines.append(f"今日共 {total_agents} 位Agent完成自我复盘")
+        summary_lines.append(f"成功: {successful_agents}, 失败: {total_agents - successful_agents}")
+        summary_lines.append(f"执行记忆操作: {total_operations} 次")
+        
+        if operations_by_type['update'] > 0:
+            summary_lines.append(f"  - 更新记忆: {operations_by_type['update']} 次")
+        if operations_by_type['delete'] > 0:
+            summary_lines.append(f"  - 删除记忆: {operations_by_type['delete']} 次")
+        
+        # Portfolio表现
+        if portfolio_summary:
+            pnl = portfolio_summary.get('pnl_percent', 0)
+            summary_lines.append(f"\nPortfolio表现: {pnl:+.2f}%")
+        
+        # 各Agent状态
+        summary_lines.append("\n各Agent复盘状态:")
+        for agent_id, result in reflection_results.items():
+            status = result.get('status', 'unknown')
+            ops_count = result.get('operations_count', 0)
+            status_emoji = "✅" if status == 'success' else "❌"
+            summary_lines.append(f"  {status_emoji} {agent_id}: {status} ({ops_count} 次操作)")
+        
+        return "\n".join(summary_lines)
 

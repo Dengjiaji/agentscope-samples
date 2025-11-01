@@ -25,7 +25,7 @@ def risk_management_agent_portfolio(state: AgentState, agent_id: str = "risk_man
     portfolio = state["data"]["portfolio"]
     data = state["data"]
     tickers = data["tickers"]
-    api_key = get_api_key_from_state(state, "FINANCIAL_DATASETS_API_KEY")
+    api_key = get_api_key_from_state(state, "FINNHUB_API_KEY")
     
     # 初始化风险分析
     risk_analysis = {}
