@@ -2893,16 +2893,21 @@ function PerformanceView({ leaderboard }) {
         )}
       </div>
       
-      {/* Recent Activity Logs */}
-      {leaderboard.length > 0 && leaderboard.some(agent => agent.logs && agent.logs.length > 0) && (
+      {/* Signal History with Dates */}
+      {leaderboard.length > 0 && leaderboard.some(agent => agent.signals && agent.signals.length > 0) && (
         <div className="section" style={{ marginTop: 32 }}>
           <div className="section-header">
-            <h2 className="section-title">Recent Signal Activity</h2>
+            <h2 className="section-title">Signal History</h2>
           </div>
           
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 20 }}>
             {leaderboard.map(agent => {
-              if (!agent.logs || agent.logs.length === 0) return null;
+              if (!agent.signals || agent.signals.length === 0) return null;
+              
+              // 按日期倒序排列（最新的在前）
+              const sortedSignals = [...agent.signals].sort((a, b) => 
+                new Date(b.date).getTime() - new Date(a.date).getTime()
+              );
               
               return (
                 <div key={agent.agentId} style={{ 
@@ -2921,17 +2926,86 @@ function PerformanceView({ leaderboard }) {
                   }}>
                     {agent.name}
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {agent.logs.slice(0, 8).map((log, idx) => (
-                      <div key={idx} style={{ 
-                        fontSize: 11, 
-                        color: '#333333',
-                        fontFamily: '"Courier New", monospace',
-                        lineHeight: 1.4
-                      }}>
-                        {log}
-                      </div>
-                    ))}
+                  <div style={{ 
+                    maxHeight: 500, 
+                    overflowY: 'auto',
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: 8 
+                  }}>
+                    {sortedSignals.map((signal, idx) => {
+                      const signalType = signal.signal.toLowerCase();
+                      const isBull = signalType.includes('bull') || signalType === 'long';
+                      const isBear = signalType.includes('bear') || signalType === 'short';
+                      const isNeutral = signalType.includes('neutral') || signalType === 'hold';
+                      const isCorrect = signal.is_correct;
+                      
+                      return (
+                        <div key={idx} style={{ 
+                          fontSize: 11, 
+                          fontFamily: '"Courier New", monospace',
+                          lineHeight: 1.4,
+                          padding: '8px 10px',
+                          background: '#ffffff',
+                          border: '1px solid #e0e0e0',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}>
+                          <div style={{ flex: 1 }}>
+                            <span style={{ 
+                              color: '#666666',
+                              fontSize: 10,
+                              marginRight: 10,
+                              fontWeight: 600
+                            }}>
+                              {signal.date}
+                            </span>
+                            <span style={{ 
+                              fontWeight: 700,
+                              color: isBull ? '#00C853' : isBear ? '#FF1744' : '#999999'
+                            }}>
+                              {signal.ticker}
+                            </span>
+                            <span style={{ 
+                              marginLeft: 6, 
+                              color: isBull ? '#00C853' : isBear ? '#FF1744' : '#999999',
+                              fontSize: 12
+                            }}>
+                              {isBull ? 'Bull' : isBear ? 'Bear' : 'Neutral'}
+                            </span>
+                            {!isNeutral && (
+                              <span style={{ 
+                                marginLeft: 8,
+                                fontSize: 10,
+                                color: signal.real_return >= 0 ? '#00C853' : '#FF1744'
+                              }}>
+                                {signal.real_return >= 0 ? '+' : ''}{(signal.real_return * 100).toFixed(2)}%
+                              </span>
+                            )}
+                          </div>
+                          {!isNeutral && (
+                            <span style={{ 
+                              fontSize: 14,
+                              marginLeft: 10,
+                              color: isCorrect ? '#00C853' : '#FF1744'
+                            }}>
+                              {isCorrect ? '✓' : '✗'}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{
+                    marginTop: 10,
+                    paddingTop: 8,
+                    borderTop: '1px solid #e0e0e0',
+                    fontSize: 10,
+                    color: '#666666',
+                    textAlign: 'center'
+                  }}>
+                    Total: {sortedSignals.length} signals
                   </div>
                 </div>
               );

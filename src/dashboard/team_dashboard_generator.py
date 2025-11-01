@@ -1015,7 +1015,8 @@ class TeamDashboardGenerator:
                     'n': bear_count,
                     'win': bear_win
                 },
-                'logs': perf.get('logs', [])[:10]  # 前10条日志
+                'logs': perf.get('logs', []),  # 前10条日志
+                'signals': perf.get('signals', [])  # 完整的信号历史记录（包含日期）
             })
         
         # 按胜率排序，胜率相同时 Portfolio Manager 排在前面
