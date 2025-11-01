@@ -1,150 +1,216 @@
 # src/servers/realtime_price_manager.py
 """
-实时价格数据管理器 - Finnhub WebSocket集成
-负责从Finnhub获取实时股票价格并广播给订阅者
+实时价格数据管理器 - Finnhub REST API 集成
+使用定时轮询获取分钟级 OHLCV 数据，模拟实时价格更新
 """
-import asyncio
-import json
+import time
 import logging
-import os
-from typing import Dict, Set, Callable, Optional
-import websocket
 import threading
-from datetime import datetime
+from typing import Dict, Set, Callable, Optional
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
 
 class RealtimePriceManager:
-    """实时价格管理器 - 连接Finnhub获取实时交易数据"""
+    """实时价格管理器 - 使用 Finnhub REST API 获取分钟级 OHLCV 数据"""
     
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, poll_interval: int = 60):
+        """
+        初始化价格管理器
+        
+        Args:
+            api_key: Finnhub API Key
+            poll_interval: 轮询间隔（秒），默认60秒
+        """
         self.api_key = api_key
-        self.ws = None
         self.subscribed_symbols: Set[str] = set()
         self.latest_prices: Dict[str, float] = {}
+        self.latest_ohlcv: Dict[str, Dict] = {}  # 存储完整 OHLCV 数据
         self.price_callbacks: list[Callable] = []
         self.running = False
         self.thread = None
+        self.poll_interval = poll_interval
         
-        # Finnhub WebSocket URL
-        self.ws_url = f"wss://ws.finnhub.io?token={self.api_key}"
-        
+        # 初始化 Finnhub client
+        try:
+            import finnhub
+            self.finnhub_client = finnhub.Client(api_key=self.api_key)
+            logger.info("✅ Finnhub 客户端初始化成功")
+        except ImportError:
+            logger.error("❌ 未安装 finnhub-python，请运行: pip install finnhub-python")
+            raise
+        except Exception as e:
+            logger.error(f"❌ Finnhub 客户端初始化失败: {e}")
+            raise
+    
     def subscribe(self, symbols: list[str]):
         """订阅股票代码"""
         for symbol in symbols:
             if symbol not in self.subscribed_symbols:
                 self.subscribed_symbols.add(symbol)
-                if self.ws and self.running:
-                    try:
-                        self.ws.send(json.dumps({"type": "subscribe", "symbol": symbol}))
-                        logger.info(f"✅ 订阅实时价格: {symbol}")
-                    except Exception as e:
-                        logger.error(f"❌ 订阅失败 {symbol}: {e}")
+                logger.info(f"✅ 订阅价格更新: {symbol}")
+                
+                # 如果已经在运行，立即获取一次价格
+                if self.running:
+                    self._fetch_price_for_symbol(symbol)
     
     def unsubscribe(self, symbols: list[str]):
         """取消订阅股票代码"""
         for symbol in symbols:
             if symbol in self.subscribed_symbols:
                 self.subscribed_symbols.remove(symbol)
-                if self.ws and self.running:
-                    try:
-                        self.ws.send(json.dumps({"type": "unsubscribe", "symbol": symbol}))
-                        logger.info(f"🔕 取消订阅: {symbol}")
-                    except Exception as e:
-                        logger.error(f"❌ 取消订阅失败 {symbol}: {e}")
+                logger.info(f"🔕 取消订阅: {symbol}")
+                
+                # 清理数据
+                self.latest_prices.pop(symbol, None)
+                self.latest_ohlcv.pop(symbol, None)
     
     def add_price_callback(self, callback: Callable):
         """添加价格更新回调函数"""
         self.price_callbacks.append(callback)
+        logger.debug(f"添加价格回调，当前共 {len(self.price_callbacks)} 个回调")
     
-    def _on_message(self, ws, message):
-        """处理接收到的消息"""
+    def _fetch_price_for_symbol(self, symbol: str):
+        """获取单个股票的最新价格"""
         try:
-            data = json.loads(message)
+            # 获取当前时间和前10分钟的时间范围（确保有数据）
+            end_time = datetime.now()
+            start_time = end_time - timedelta(minutes=10)
             
-            if data.get("type") == "trade":
-                # 处理交易数据
-                for trade in data.get("data", []):
-                    symbol = trade.get("s")  # symbol
-                    price = trade.get("p")   # price
-                    volume = trade.get("v")  # volume
-                    timestamp = trade.get("t")  # timestamp
+            start_timestamp = int(start_time.timestamp())
+            end_timestamp = int(end_time.timestamp())
+            
+            # 调用 Finnhub API 获取分钟级 OHLCV 数据
+            data = self.finnhub_client.stock_candles(
+                symbol, 
+                '1',  # 1分钟 K线
+                start_timestamp, 
+                end_timestamp
+            )
+            
+            # 检查返回数据
+            if data and data.get('s') == 'ok':
+                # 确保有数据
+                if data.get('c') and len(data['c']) > 0:
+                    # 获取最新的一根 K线
+                    latest_price = data['c'][-1]  # 最新收盘价
+                    latest_open = data['o'][-1]
+                    latest_high = data['h'][-1]
+                    latest_low = data['l'][-1]
+                    latest_volume = data['v'][-1] if data.get('v') else 0
+                    latest_timestamp = data['t'][-1] * 1000  # 转为毫秒
                     
-                    if symbol and price:
-                        # 更新最新价格
-                        self.latest_prices[symbol] = price
-                        
-                        # 调用所有回调函数
-                        for callback in self.price_callbacks:
-                            try:
-                                callback({
-                                    "symbol": symbol,
-                                    "price": price,
-                                    "volume": volume,
-                                    "timestamp": timestamp
-                                })
-                            except Exception as e:
-                                logger.error(f"价格回调错误: {e}")
-            
-            elif data.get("type") == "ping":
-                # 响应心跳
-                ws.send(json.dumps({"type": "pong"}))
+                    # 更新价格缓存
+                    self.latest_prices[symbol] = latest_price
+                    
+                    # 存储完整 OHLCV
+                    self.latest_ohlcv[symbol] = {
+                        'open': latest_open,
+                        'high': latest_high,
+                        'low': latest_low,
+                        'close': latest_price,
+                        'volume': latest_volume,
+                        'timestamp': latest_timestamp
+                    }
+                    
+                    # 触发所有回调
+                    for callback in self.price_callbacks:
+                        try:
+                            callback({
+                                "symbol": symbol,
+                                "price": latest_price,
+                                "volume": latest_volume,
+                                "timestamp": latest_timestamp,
+                                "ohlcv": self.latest_ohlcv[symbol]
+                            })
+                        except Exception as e:
+                            logger.error(f"价格回调错误 ({symbol}): {e}")
+                    
+                    logger.info(f"💹 {symbol}: ${latest_price:.2f} (Vol: {latest_volume:,.0f})")
+                    return True
+                else:
+                    logger.warning(f"⚠️ {symbol}: API 返回空数据")
+                    return False
+            elif data and data.get('s') == 'no_data':
+                logger.warning(f"⚠️ {symbol}: 无可用数据（可能市场关闭或股票代码无效）")
+                return False
+            else:
+                logger.warning(f"⚠️ {symbol}: API 返回异常状态: {data.get('s') if data else 'None'}")
+                return False
                 
-        except json.JSONDecodeError as e:
-            logger.error(f"JSON解析错误: {e}")
         except Exception as e:
-            logger.error(f"消息处理错误: {e}")
+            logger.error(f"❌ 获取 {symbol} 价格失败: {e}")
+            return False
     
-    def _on_error(self, ws, error):
-        """处理错误"""
-        logger.error(f"WebSocket错误: {error}")
-    
-    def _on_close(self, ws, close_status_code, close_msg):
-        """连接关闭"""
-        logger.warning(f"WebSocket连接关闭: {close_status_code} - {close_msg}")
-        self.running = False
-    
-    def _on_open(self, ws):
-        """连接建立"""
-        logger.info("✅ Finnhub WebSocket连接已建立")
+    def _fetch_latest_prices(self):
+        """获取所有订阅股票的最新价格"""
+        if not self.subscribed_symbols:
+            logger.debug("没有订阅的股票，跳过价格获取")
+            return
         
-        # 订阅所有已添加的股票代码
-        for symbol in self.subscribed_symbols:
-            try:
-                ws.send(json.dumps({"type": "subscribe", "symbol": symbol}))
-                logger.info(f"✅ 订阅实时价格: {symbol}")
-            except Exception as e:
-                logger.error(f"❌ 订阅失败 {symbol}: {e}")
+        logger.info(f"📊 开始获取 {len(self.subscribed_symbols)} 只股票的价格...")
+        
+        success_count = 0
+        for symbol in list(self.subscribed_symbols):
+            if self._fetch_price_for_symbol(symbol):
+                success_count += 1
+            
+            # 避免 API 限流，每个请求之间稍微延迟
+            time.sleep(0.1)
+        
+        logger.info(f"✅ 价格更新完成: {success_count}/{len(self.subscribed_symbols)} 成功")
     
     def start(self):
-        """启动实时价格连接（在独立线程中）"""
+        """启动价格轮询（在独立线程中）"""
         if self.running:
             logger.warning("实时价格管理器已在运行")
             return
         
+        if not self.subscribed_symbols:
+            logger.warning("⚠️ 没有订阅任何股票，价格管理器将不会获取数据")
+        
         self.running = True
         
-        def run_websocket():
-            websocket.enableTrace(False)
-            self.ws = websocket.WebSocketApp(
-                self.ws_url,
-                on_message=self._on_message,
-                on_error=self._on_error,
-                on_close=self._on_close
-            )
-            self.ws.on_open = self._on_open
-            self.ws.run_forever()
+        def poll_prices():
+            logger.info(f"🚀 价格轮询线程启动（间隔: {self.poll_interval}秒）")
+            
+            # 立即获取一次价格
+            try:
+                self._fetch_latest_prices()
+            except Exception as e:
+                logger.error(f"初始价格获取失败: {e}")
+            
+            # 定时轮询
+            while self.running:
+                try:
+                    time.sleep(self.poll_interval)
+                    
+                    if self.running:  # 再次检查，避免在 sleep 期间被停止
+                        self._fetch_latest_prices()
+                        
+                except Exception as e:
+                    logger.error(f"价格轮询错误: {e}")
+                    if self.running:
+                        time.sleep(5)  # 错误后短暂等待再重试
         
-        self.thread = threading.Thread(target=run_websocket, daemon=True)
+        self.thread = threading.Thread(target=poll_prices, daemon=True)
         self.thread.start()
-        logger.info("🚀 实时价格管理器已启动")
+        logger.info("🚀 实时价格管理器已启动（OHLCV 轮询模式）")
     
     def stop(self):
-        """停止实时价格连接"""
+        """停止价格轮询"""
+        if not self.running:
+            logger.warning("实时价格管理器未在运行")
+            return
+        
+        logger.info("🛑 正在停止实时价格管理器...")
         self.running = False
-        if self.ws:
-            self.ws.close()
+        
+        # 等待线程结束（最多等待 2 秒）
+        if self.thread and self.thread.is_alive():
+            self.thread.join(timeout=2)
+        
         logger.info("🛑 实时价格管理器已停止")
     
     def get_latest_price(self, symbol: str) -> Optional[float]:
@@ -154,6 +220,14 @@ class RealtimePriceManager:
     def get_all_latest_prices(self) -> Dict[str, float]:
         """获取所有最新价格"""
         return self.latest_prices.copy()
+    
+    def get_ohlcv(self, symbol: str) -> Optional[Dict]:
+        """获取完整的 OHLCV 数据"""
+        return self.latest_ohlcv.get(symbol)
+    
+    def get_all_ohlcv(self) -> Dict[str, Dict]:
+        """获取所有股票的 OHLCV 数据"""
+        return self.latest_ohlcv.copy()
 
 
 class RealtimePortfolioCalculator:
@@ -235,4 +309,3 @@ class RealtimePortfolioCalculator:
             })
         
         return positions
-

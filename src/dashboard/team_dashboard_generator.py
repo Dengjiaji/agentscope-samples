@@ -413,7 +413,7 @@ class TeamDashboardGenerator:
                     pnl = quantity * price * real_return
                 elif action == 'short':
                     # 空头持仓，P&L为负的收益
-                    pnl = -quantity * price * real_return
+                        pnl = -quantity * price * real_return
                 
                 # 映射action到side（用于显示）
                 side_map = {
@@ -885,7 +885,7 @@ class TeamDashboardGenerator:
             'marketValue': round(cash, 2),
             'unrealizedPnl': 0.0,
             'weight': round(cash_weight, 4)
-        })
+            })
         
         # 按权重排序
         holdings.sort(key=lambda x: abs(x['weight']), reverse=True)

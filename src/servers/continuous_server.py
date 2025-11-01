@@ -21,10 +21,12 @@ if str(BASE_DIR) not in sys.path:
 
 import websockets
 from websockets.server import WebSocketServerProtocol
+from websockets.exceptions import ConnectionClosedError
 
 from src.memory.memory_factory import initialize_memory_system
 from src.servers.streamer import WebSocketStreamer, ConsoleStreamer, MultiStreamer, BroadcastStreamer
-from src.servers.realtime_price_manager import RealtimePriceManager, RealtimePortfolioCalculator
+from src.servers.polling_price_manager import PollingPriceManager
+from src.servers.realtime_price_manager import RealtimePortfolioCalculator
 from src.servers.state_manager import StateManager
 from live_trading_thinking_fund import LiveTradingThinkingFund
 from src.config.env_config import LiveThinkingFundConfig
@@ -75,18 +77,23 @@ class ContinuousServer:
             'strategies': []
         })
         
-        # 初始化实时价格管理器
-        api_key = os.getenv('FINANCIAL_DATASETS_API_KEY', '')
+        # 初始化实时价格管理器（使用轮询方式）
+        api_key = os.getenv('FINNHUB_API_KEY', '')
         if not api_key:
-            logger.warning("⚠️ 未找到FINANCIAL_DATASETS_API_KEY，实时价格功能将不可用")
+            logger.warning("⚠️ 未找到 FINNHUB_API_KEY，实时价格功能将不可用")
+            logger.info("   请在 .env 文件中设置 FINNHUB_API_KEY")
+            logger.info("   获取免费 API Key: https://finnhub.io/register")
             self.price_manager = None
             self.portfolio_calculator = None
         else:
-            self.price_manager = RealtimePriceManager(api_key)
+            # 使用轮询式价格管理器（每60秒更新一次）
+            self.price_manager = PollingPriceManager(api_key, poll_interval=60)
             self.portfolio_calculator = RealtimePortfolioCalculator(self.price_manager)
             
             # 添加价格更新回调
             self.price_manager.add_price_callback(self._on_price_update)
+            
+            logger.info("✅ 价格轮询管理器已初始化 (间隔: 60秒)")
         
         # 初始化记忆系统
         console_streamer = ConsoleStreamer()
@@ -282,12 +289,12 @@ class ContinuousServer:
     async def handle_client(self, websocket: WebSocketServerProtocol):
         """处理客户端连接"""
         client_id = id(websocket)
-        async with self.lock:
-            self.connected_clients.add(websocket)
-        
-        logger.info(f"✅ 新客户端连接 (总连接数: {len(self.connected_clients)})")
         
         try:
+            async with self.lock:
+                self.connected_clients.add(websocket)
+            
+            logger.info(f"✅ 新客户端连接 (总连接数: {len(self.connected_clients)})")
             # 准备发送给新客户端的初始状态（不修改全局状态）
             initial_state = self.state_manager.get_full_state()
             
@@ -389,12 +396,16 @@ class ContinuousServer:
                     except Exception as e:
                         logger.error(f"处理消息异常: {e}")
             except websockets.ConnectionClosed as e:
-                logger.info(f"连接关闭: code={e.code}")
+                logger.debug(f"连接关闭: code={e.code}")
             except Exception as e:
                 logger.error(f"连接异常: {e}")
                     
+        except ConnectionClosedError as e:
+            # WebSocket 握手失败或连接异常关闭
+            logger.debug(f"WebSocket 连接异常关闭 (可能是浏览器刷新或网络问题)")
         except websockets.ConnectionClosed:
-            pass  # 正常断开
+            # 正常断开
+            logger.debug("客户端正常断开连接")
         except Exception as e:
             logger.error(f"连接处理异常: {e}")
         finally:
