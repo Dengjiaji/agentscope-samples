@@ -67,6 +67,27 @@ fi
 echo "📦 检查依赖..."
 pip install -q websocket-client websockets
 
+# 自动更新历史数据（仅在正常模式下）
+if [ "$MODE" = "normal" ]; then
+    echo ""
+    echo "📊 检查历史数据更新..."
+    
+    # 检查是否需要更新数据
+    if python -m src.data.ret_data_updater --help &> /dev/null; then
+        echo "🔄 正在更新历史数据..."
+        python -m src.data.ret_data_updater
+        
+        if [ $? -eq 0 ]; then
+            echo "✅ 历史数据更新完成"
+        else
+            echo "⚠️  历史数据更新失败，但将继续启动服务器"
+        fi
+    else
+        echo "⚠️  数据更新模块未安装，跳过数据更新"
+    fi
+    echo ""
+fi
+
 # 获取CONFIG_NAME（从.env文件或使用默认值）
 CONFIG_NAME='mock'
 
@@ -184,8 +205,8 @@ echo "   按 Ctrl+C 停止服务器"
 echo ""
 
 if [ "$MODE" = "mock" ]; then
-    python -m src.servers.continuous_server --mock
+    python -u -m src.servers.continuous_server --mock
 else
-    python -m src.servers.continuous_server
+    python -u -m src.servers.continuous_server
 fi
 
