@@ -3,6 +3,7 @@ import os
 import pandas as pd
 import requests
 import time
+import finnhub
 
 from src.data.cache import get_cache
 from src.data.models import (
@@ -58,7 +59,18 @@ def _make_api_request(url: str, headers: dict, method: str = "GET", json_data: d
 
 
 def get_prices(ticker: str, start_date: str, end_date: str, api_key: str = None) -> list[Price]:
-    """Fetch price data from cache or API."""
+    """
+    Fetch price data from cache or API (using Finnhub).
+    
+    Args:
+        ticker: Stock ticker symbol
+        start_date: Start date (YYYY-MM-DD)
+        end_date: End date (YYYY-MM-DD)
+        api_key: Finnhub API key (optional, will use FINNHUB_API_KEY from env)
+    
+    Returns:
+        list[Price]: List of Price objects
+    """
     # Create a cache key that includes all parameters to ensure exact matches
     cache_key = f"{ticker}_{start_date}_{end_date}"
     
@@ -66,20 +78,37 @@ def get_prices(ticker: str, start_date: str, end_date: str, api_key: str = None)
     if cached_data := _cache.get_prices(cache_key):
         return [Price(**price) for price in cached_data]
 
-    # If not in cache, fetch from API
-    headers = {}
-    financial_api_key = api_key or os.environ.get("FINANCIAL_DATASETS_API_KEY")
-    if financial_api_key:
-        headers["X-API-KEY"] = financial_api_key
-
-    url = f"https://api.financialdatasets.ai/prices/?ticker={ticker}&interval=day&interval_multiplier=1&start_date={start_date}&end_date={end_date}"
-    response = _make_api_request(url, headers)
-    if response.status_code != 200:
-        raise Exception(f"Error fetching data: {ticker} - {response.status_code} - {response.text}")
-
-    # Parse response with Pydantic model
-    price_response = PriceResponse(**response.json())
-    prices = price_response.prices
+    # ⭐ Use Finnhub API instead of financialdatasets.ai
+    finnhub_api_key = api_key or os.environ.get("FINNHUB_API_KEY")
+    if not finnhub_api_key:
+        raise ValueError("FINNHUB_API_KEY is required. Please set it in your .env file.")
+    
+    # Initialize Finnhub client
+    client = finnhub.Client(api_key=finnhub_api_key)
+    
+    # Convert dates to timestamps
+    start_timestamp = int(datetime.datetime.strptime(start_date, "%Y-%m-%d").timestamp())
+    end_timestamp = int(datetime.datetime.strptime(end_date, "%Y-%m-%d").timestamp())
+    
+    # Fetch candle data from Finnhub
+    candles = client.stock_candles(ticker, 'D', start_timestamp, end_timestamp)
+    
+    # Check response status
+    if candles.get('s') != 'ok':
+        raise Exception(f"Error fetching data from Finnhub: {ticker} - {candles}")
+    
+    # Convert to Price objects
+    prices = []
+    for i in range(len(candles['t'])):
+        price = Price(
+            open=candles['o'][i],
+            close=candles['c'][i],
+            high=candles['h'][i],
+            low=candles['l'][i],
+            volume=int(candles['v'][i]),
+            time=datetime.datetime.fromtimestamp(candles['t'][i]).strftime("%Y-%m-%d")
+        )
+        prices.append(price)
 
     if not prices:
         return []
