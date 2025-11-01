@@ -789,6 +789,7 @@ class LiveTradingThinkingFund:
         }
 
     def generate_trading_dates(self, start_date: str, end_date: str) -> List[str]:
+        """生成交易日列表（使用批量查询优化性能）"""
         if not self.validate_date_format(start_date) or not self.validate_date_format(end_date):
             raise ValueError("日期格式应为 YYYY-MM-DD")
         start_dt = datetime.strptime(start_date, "%Y-%m-%d")
@@ -796,6 +797,22 @@ class LiveTradingThinkingFund:
         if start_dt > end_dt:
             raise ValueError("开始日期不得晚于结束日期")
 
+        print(f"⏳ 正在生成交易日列表 ({start_date} -> {end_date})...")
+        
+        # ⭐ 方案2：使用批量查询（一次性获取所有交易日）
+        if hasattr(self.live_system, 'nyse_calendar') and self.live_system.nyse_calendar:
+            try:
+                trading_dates = self.live_system.nyse_calendar.valid_days(
+                    start_date=start_date, 
+                    end_date=end_date
+                )
+                result = [date.strftime("%Y-%m-%d") for date in trading_dates]
+                print(f"✅ 找到 {len(result)} 个交易日")
+                return result
+            except Exception as e:
+                print(f"⚠️ 批量查询失败，使用逐日检查: {e}")
+        
+        # 备用方案：逐日检查（使用缓存的日历对象）
         trading_days: List[str] = []
         current = start_dt
         while current <= end_dt:
@@ -803,6 +820,8 @@ class LiveTradingThinkingFund:
             if self.is_trading_day(date_str):
                 trading_days.append(date_str)
             current += timedelta(days=1)
+        
+        print(f"✅ 找到 {len(trading_days)} 个交易日")
         return trading_days
 
     def run_multi_day_simulation(

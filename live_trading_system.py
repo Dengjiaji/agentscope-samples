@@ -69,6 +69,16 @@ class LiveTradingSystem:
         
         # 初始化分析引擎（传递streamer）
         self.engine = AdvancedInvestmentAnalysisEngine(streamer=streamer)
+        
+        # ⭐ 缓存NYSE日历对象（避免重复加载）
+        self.nyse_calendar = None
+        if US_TRADING_CALENDAR_AVAILABLE and 'mcal' in globals():
+            try:
+                print("⏳ 正在加载NYSE交易日历...")
+                self.nyse_calendar = mcal.get_calendar('NYSE')
+                print("✅ NYSE交易日历已加载")
+            except Exception as e:
+                print(f"⚠️ 加载NYSE日历失败: {e}")
     
     def validate_date_format(self, date_str: str) -> bool:
         """验证日期格式是否正确"""
@@ -133,19 +143,24 @@ class LiveTradingSystem:
         self._save_json_file(self.config_file, config)
     
     def is_trading_day(self, date: str) -> bool:
-        """检查是否为交易日（与主程序保持一致）"""
-        if US_TRADING_CALENDAR_AVAILABLE:
-            # 优先尝试使用 pandas_market_calendars
-            if 'mcal' in globals():
-                nyse = mcal.get_calendar('NYSE')
-                trading_dates = nyse.valid_days(start_date=date, end_date=date)
+        """检查是否为交易日（使用缓存的日历对象）"""
+        # ⭐ 使用缓存的NYSE日历对象
+        if self.nyse_calendar:
+            try:
+                trading_dates = self.nyse_calendar.valid_days(start_date=date, end_date=date)
                 return len(trading_dates) > 0
-            
-            # 备选：使用 exchange_calendars
-            elif 'xcals' in globals():
+            except Exception as e:
+                print(f"⚠️ 检查交易日失败 ({date}): {e}")
+                return True  # 出错时默认为交易日
+        
+        # 备用方案：使用 exchange_calendars
+        if US_TRADING_CALENDAR_AVAILABLE and 'xcals' in globals():
+            try:
                 nyse = xcals.get_calendar('XNYS')  # NYSE的ISO代码
                 trading_dates = nyse.sessions_in_range(date, date)
                 return len(trading_dates) > 0
+            except Exception:
+                pass
                 
          
         
