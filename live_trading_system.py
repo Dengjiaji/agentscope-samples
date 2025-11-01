@@ -293,11 +293,11 @@ class LiveTradingSystem:
                             quantity = decision.get('quantity', 0)
                             
                             # 转换portfolio action到signal
-                            if action == 'buy':
+                            if action == 'long':
                                 signal = 'bullish'
-                            elif action in ['short', 'sell']:
+                            elif action == 'short':
                                 signal = 'bearish'
-                            else:  # hold, cover
+                            else:  # hold
                                 signal = 'neutral'
                             
                             # 如果ticker已经存在，更新quantity等字段；否则创建新条目

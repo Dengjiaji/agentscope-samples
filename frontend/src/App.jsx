@@ -2610,16 +2610,23 @@ function StatisticsView({ trades, holdings, stats }) {
           {/* Stats Cards */}
           <div className="stats-grid">
             <div className="stat-card">
-              <div className="stat-card-label">Win Rate</div>
-              <div className={`stat-card-value ${stats.winRate >= 0.5 ? 'positive' : 'negative'}`}>
-                {Math.round(stats.winRate * 100)}%
+              <div className="stat-card-label">Total Asset Value</div>
+              <div className="stat-card-value">
+                ${formatNumber(stats.totalAssetValue || 0)}
               </div>
             </div>
             
             <div className="stat-card">
-              <div className="stat-card-label">Hit Rate</div>
-              <div className={`stat-card-value ${stats.hitRate >= 0.5 ? 'positive' : 'negative'}`}>
-                {Math.round(stats.hitRate * 100)}%
+              <div className="stat-card-label">Total Return</div>
+              <div className={`stat-card-value ${(stats.totalReturn || 0) >= 0 ? 'positive' : 'negative'}`}>
+                {(stats.totalReturn || 0) >= 0 ? '+' : ''}{(stats.totalReturn || 0).toFixed(2)}%
+              </div>
+            </div>
+            
+            <div className="stat-card">
+              <div className="stat-card-label">Cash Position</div>
+              <div className="stat-card-value">
+                ${formatNumber(stats.cashPosition || 0)}
               </div>
             </div>
             
@@ -2629,25 +2636,40 @@ function StatisticsView({ trades, holdings, stats }) {
             </div>
             
             <div className="stat-card">
-              <div className="stat-card-label">Bull Trades</div>
-              <div className="stat-card-value positive">
-                {stats.bullBear?.bull?.n || 0}
-              </div>
-              <div style={{ fontSize: 10, color: '#666666', marginTop: 4 }}>
-                Win: {stats.bullBear?.bull?.win || 0}
-              </div>
-            </div>
-            
-            <div className="stat-card">
-              <div className="stat-card-label">Bear Trades</div>
-              <div className="stat-card-value negative">
-                {stats.bullBear?.bear?.n || 0}
-              </div>
-              <div style={{ fontSize: 10, color: '#666666', marginTop: 4 }}>
-                Win: {stats.bullBear?.bear?.win || 0}
+              <div className="stat-card-label">Win Rate</div>
+              <div className={`stat-card-value ${stats.winRate >= 0.5 ? 'positive' : 'negative'}`}>
+                {Math.round(stats.winRate * 100)}%
               </div>
             </div>
           </div>
+          
+          {/* Ticker Weights */}
+          {stats.tickerWeights && Object.keys(stats.tickerWeights).length > 0 && (
+            <div style={{ marginTop: 24 }}>
+              <h3 style={{ 
+                fontSize: 14, 
+                fontWeight: 700, 
+                marginBottom: 12,
+                letterSpacing: 1,
+                textTransform: 'uppercase'
+              }}>
+                Ticker Weights
+              </h3>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+                {Object.entries(stats.tickerWeights).map(([ticker, weight]) => (
+                  <div key={ticker} style={{
+                    padding: '8px 12px',
+                    border: '1px solid #e0e0e0',
+                    background: '#fafafa',
+                    fontSize: 11,
+                    fontWeight: 700
+                  }}>
+                    {ticker}: {(weight * 100).toFixed(2)}%
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
       
@@ -2664,11 +2686,11 @@ function StatisticsView({ trades, holdings, stats }) {
             <table className="data-table">
             <thead>
               <tr>
-                <th>Stock</th>
-                <th>Qty</th>
-                <th>Avg Cost</th>
+                <th>Ticker</th>
+                <th>Quantity</th>
                 <th>Current Price</th>
-                <th>P&L</th>
+                <th>Market Value</th>
+                <th>Unrealized P&L</th>
                 <th>Weight</th>
               </tr>
             </thead>
@@ -2677,17 +2699,22 @@ function StatisticsView({ trades, holdings, stats }) {
                 <tr key={h.ticker}>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <StockLogo ticker={h.ticker} size={20} />
+                      {h.ticker !== 'CASH' && <StockLogo ticker={h.ticker} size={20} />}
                       <span style={{ fontWeight: 700, color: '#000000' }}>{h.ticker}</span>
                     </div>
                   </td>
-                  <td>{h.qty}</td>
-                  <td>${Number(h.avg).toFixed(2)}</td>
-                  <td>${Number(h.currentPrice || h.avg).toFixed(2)}</td>
-                  <td style={{ color: h.pl >= 0 ? '#00C853' : '#FF1744', fontWeight: 700 }}>
-                    {h.pl >= 0 ? '+' : ''}{Number(h.pl).toFixed(2)}
+                  <td>{h.ticker === 'CASH' ? '-' : h.quantity}</td>
+                  <td>{h.ticker === 'CASH' ? '-' : `$${Number(h.currentPrice).toFixed(2)}`}</td>
+                  <td style={{ fontWeight: 700 }}>${formatNumber(h.marketValue)}</td>
+                  <td style={{ 
+                    color: h.unrealizedPnl >= 0 ? '#00C853' : '#FF1744', 
+                    fontWeight: 700 
+                  }}>
+                    {h.ticker === 'CASH' ? '-' : (
+                      (h.unrealizedPnl >= 0 ? '+' : '') + '$' + formatNumber(Math.abs(h.unrealizedPnl))
+                    )}
                   </td>
-                  <td>{(Number(h.weight) * 100).toFixed(1)}%</td>
+                  <td>{(Number(h.weight) * 100).toFixed(2)}%</td>
                 </tr>
               ))}
             </tbody>
@@ -2722,16 +2749,15 @@ function StatisticsView({ trades, holdings, stats }) {
                   <th>Time</th>
                   <th>Stock</th>
                   <th>Side</th>
-                  <th>Qty</th>
+                  <th>Quantity</th>
                   <th>Price</th>
-                  <th>P&L</th>
                 </tr>
               </thead>
               <tbody>
                 {currentTrades.map(t => (
                   <tr key={t.id}>
-                    <td style={{ fontSize: 10, color: '#666666' }}>
-                      {formatTime(t.timestamp)}
+                    <td style={{ fontSize: 11, color: '#666666', fontFamily: '"Courier New", monospace' }}>
+                      {formatDateTime(t.timestamp)}
                     </td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -2745,17 +2771,14 @@ function StatisticsView({ trades, holdings, stats }) {
                         padding: '2px 8px',
                         fontSize: 10,
                         fontWeight: 700,
-                        border: `1px solid ${t.side === 'BUY' ? '#00C853' : '#FF1744'}`,
-                        color: t.side === 'BUY' ? '#00C853' : '#FF1744'
+                        border: `1px solid ${t.side === 'LONG' ? '#00C853' : t.side === 'SHORT' ? '#FF1744' : '#666666'}`,
+                        color: t.side === 'LONG' ? '#00C853' : t.side === 'SHORT' ? '#FF1744' : '#666666'
                       }}>
                         {t.side}
                       </span>
                     </td>
                     <td>{t.qty}</td>
                     <td>${Number(t.price).toFixed(2)}</td>
-                    <td style={{ color: t.pnl >= 0 ? '#00C853' : '#FF1744', fontWeight: 700 }}>
-                      {t.pnl >= 0 ? '+' : ''}{Number(t.pnl).toFixed(2)}
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -2925,6 +2948,17 @@ function formatTime(ts) {
   try {
     const d = new Date(ts);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '';
+  }
+}
+
+function formatDateTime(ts) {
+  try {
+    const d = new Date(ts);
+    const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const time = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+    return `${date} ${time}`;
   } catch {
     return '';
   }

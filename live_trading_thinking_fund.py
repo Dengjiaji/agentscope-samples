@@ -623,7 +623,7 @@ class LiveTradingThinkingFund:
                     quantity = signal_info.get('quantity', 0)
                     
                     # 计算价值变化（简化计算，实际应该基于持仓）
-                    if quantity > 0 and action in ['buy', 'sell', 'short', 'cover']:
+                    if quantity > 0 and action in ['long', 'short']:
                         # 这里需要从portfolio状态获取实际持仓来计算
                         # 暂时显示收益率
                         returns_lines.append(f"  {ticker}: {daily_ret:.2f}% (操作: {action} {quantity}股)")

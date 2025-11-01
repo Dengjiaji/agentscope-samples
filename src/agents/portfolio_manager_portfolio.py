@@ -15,8 +15,8 @@ import pdb
 
 class PortfolioDecision(BaseModel):
     """Portfolio模式的投资决策"""
-    action: Literal["buy", "sell", "short", "cover", "hold"]
-    quantity: int = Field(description="交易股数")
+    action: Literal["long", "short", "hold"]
+    quantity: int = Field(description="交易股数，hold时为0")
     confidence: float = Field(description="决策置信度，0.0到100.0之间")
     reasoning: str = Field(description="决策理由")
 
@@ -30,7 +30,7 @@ def portfolio_management_agent_portfolio(state: AgentState, agent_id: str = "por
     Portfolio模式的投资组合管理 - 做出最终交易决策并生成订单
     
     输出内容:
-    - action: buy/sell/short/cover/hold
+    - action: long/short/hold (方向性决策)
     - quantity: 交易股数
     - confidence: 置信度
     - reasoning: 决策理由
@@ -169,7 +169,7 @@ def generate_trading_decision(
         [
             (
                 "system",
-                """你是一个投资组合管理者，基于多个ticker做出最终交易决策。
+                """你是一个投资组合管理者，基于多个ticker做出最终投资方向决策。
 
               重要提示: 你正在管理一个包含现有持仓的投资组合。portfolio_positions显示:
               - "long": 当前持有的多头股数
@@ -178,28 +178,30 @@ def generate_trading_decision(
               - "short_cost_basis": 空头股票的平均卖出价
               
               交易规则:
-              - 对于多头持仓:
-                * 只有在有可用现金时才能买入
-                * 只有在当前持有该ticker的多头股票时才能卖出
-                * 卖出数量必须 ≤ 当前多头持仓股数
-                * 买入数量必须 ≤ 该ticker的max_shares
+              - 对于多头方向 (long):
+                * 需要有可用现金来建立或增加多头持仓
+                * quantity表示目标多头持仓股数（不是增量）
+                * 系统会自动处理买入/卖出以达到目标持仓
+                * quantity必须 ≤ 该ticker的max_shares
               
-              - 对于空头持仓:
-                * 只有在有可用保证金时才能做空（持仓价值 × 保证金要求）
-                * 只有在当前持有该ticker的空头股票时才能平空
-                * 平空数量必须 ≤ 当前空头持仓股数
+              - 对于空头方向 (short):
+                * 需要有可用保证金来建立或增加空头持仓
+                * quantity表示目标空头持仓股数（不是增量）
+                * 系统会自动处理做空/平空以达到目标持仓
                 * 做空数量必须遵守保证金要求
+              
+              - 对于观望 (hold):
+                * quantity应为0
+                * 保持当前持仓不变
               
               - max_shares值已经预先计算以遵守仓位限制
               - 根据信号同时考虑多头和空头机会
               - 通过多头和空头暴露维持适当的风险管理
 
               可用操作:
-              - "buy": 开仓或增加多头持仓
-              - "sell": 平仓或减少多头持仓（仅当你当前持有多头股票时）
-              - "short": 开仓或增加空头持仓
-              - "cover": 平仓或减少空头持仓（仅当你当前持有空头股票时）
-              - "hold": 维持当前持仓不做任何变化（hold时数量应为0）
+              - "long": 看多，建立或调整到目标多头持仓（quantity = 目标持仓股数）
+              - "short": 看空，建立或调整到目标空头持仓（quantity = 目标持仓股数）
+              - "hold": 观望，维持当前持仓不变（quantity = 0）
 
               输入信息:
               - signals_by_ticker: ticker → 信号的字典
@@ -234,29 +236,37 @@ def generate_trading_decision(
               {analyst_weights_info}{analyst_weights_separator}
 
               重要决策规则:
-              - 如果你当前持有某ticker的多头股票（long > 0），你可以:
-                * HOLD: 保持当前持仓（quantity = 0）
-                * SELL: 减少/平仓多头持仓（quantity = 要卖出的股数）
-                * BUY: 增加多头持仓（quantity = 要额外买入的股数）
+              - LONG (看多): 
+                * 表示你看好这只股票，想要持有多头仓位
+                * quantity = 目标多头持仓股数（例如：100表示想持有100股多头）
+                * 系统会自动计算需要买入或卖出多少股来达到目标
+                * 如果当前有空头持仓，会先平掉空头再建立多头
                 
-              - 如果你当前持有某ticker的空头股票（short > 0），你可以:
-                * HOLD: 保持当前持仓（quantity = 0）
-                * COVER: 减少/平仓空头持仓（quantity = 要平仓的股数）
-                * SHORT: 增加空头持仓（quantity = 要额外做空的股数）
+              - SHORT (看空): 
+                * 表示你看空这只股票，想要持有空头仓位
+                * quantity = 目标空头持仓股数（例如：50表示想持有50股空头）
+                * 系统会自动计算需要做空或平空多少股来达到目标
+                * 如果当前有多头持仓，会先平掉多头再建立空头
                 
-              - 如果你当前没有持有某ticker的股票（long = 0, short = 0），你可以:
-                * HOLD: 保持观望（quantity = 0）
-                * BUY: 开新的多头持仓（quantity = 要买入的股数）
-                * SHORT: 开新的空头持仓（quantity = 要做空的股数）
+              - HOLD (观望): 
+                * 表示你对这只股票持中性态度
+                * quantity = 0
+                * 保持当前持仓不变（无论是多头、空头还是空仓）
+
+              决策示例:
+              - 当前无持仓，看多 → action="long", quantity=100 (建立100股多头)
+              - 当前持有50股多头，继续看多 → action="long", quantity=100 (增加到100股多头)
+              - 当前持有100股多头，转为观望 → action="hold", quantity=0 (保持100股多头不变)
+              - 当前持有100股多头，转为看空 → action="short", quantity=50 (先平100股多头，再建50股空头)
 
               严格按照以下JSON结构输出:
               {{
                 "decisions": {{
                   "TICKER1": {{
-                    "action": "buy/sell/short/cover/hold",
-                    "quantity": 整数,
+                    "action": "long/short/hold",
+                    "quantity": 整数（long/short时为目标持仓数，hold时为0）,
                     "confidence": 0到100之间的浮点数,
-                    "reasoning": "解释你的决策的字符串，考虑当前持仓"
+                    "reasoning": "解释你的决策的字符串，包括为什么选择这个方向和数量"
                   }},
                   "TICKER2": {{
                     ...

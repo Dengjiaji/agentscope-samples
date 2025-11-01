@@ -183,13 +183,13 @@ class PortfolioTradeExecutor:
             if trade_result["status"] == "success":
                 execution_report["executed_trades"].append(trade_result)
                 action_emoji = {
-                    "buy": "📈 买入",
-                    "sell": "📉 卖出",
-                    "short": "🔻 做空",
-                    "cover": "🔺 平空"
+                    "long": "📈 看多",
+                    "short": "📉 看空",
+                    "hold": "➖ 观望"
                 }
                 emoji = action_emoji.get(action, action)
-                print(f"   ✅ {ticker}: {emoji} {quantity}股 @ ${price:.2f}")
+                trades_info = ", ".join(trade_result.get("trades", []))
+                print(f"   ✅ {ticker}: {emoji} 目标{quantity}股 ({trades_info}) @ ${price:.2f}")
             else:
                 execution_report["failed_trades"].append(trade_result)
                 print(f"   ❌ {ticker}: 无法执行 {action} - {trade_result['reason']}")
@@ -217,11 +217,20 @@ class PortfolioTradeExecutor:
         self,
         ticker: str,
         action: str,
-        quantity: int,
+        target_quantity: int,
         price: float,
         date: str
     ) -> Dict[str, Any]:
-        """执行单笔交易"""
+        """
+        执行单笔交易 - 新版本支持 long/short/hold 方向性操作
+        
+        Args:
+            ticker: 股票代码
+            action: long/short/hold
+            target_quantity: 目标持仓数量（不是增量）
+            price: 当前价格
+            date: 交易日期
+        """
         
         # 确保持仓存在
         if ticker not in self.portfolio["positions"]:
@@ -233,107 +242,71 @@ class PortfolioTradeExecutor:
             }
         
         position = self.portfolio["positions"][ticker]
-        trade_value = quantity * price
+        current_long = position["long"]
+        current_short = position["short"]
         
-        if action == "buy":
-            # 买入多头
-            if self.portfolio["cash"] < trade_value:
-                return {
-                    "status": "failed",
-                    "ticker": ticker,
-                    "action": action,
-                    "quantity": quantity,
-                    "price": price,
-                    "reason": f"现金不足 (需要: ${trade_value:.2f}, 可用: ${self.portfolio['cash']:.2f})"
-                }
+        trades_executed = []  # 记录实际执行的交易步骤
+        
+        if action == "long":
+            # 目标：持有 target_quantity 股多头
+            # 步骤1: 如果有空头持仓，先平掉
+            if current_short > 0:
+                cover_result = self._cover_short_position(ticker, current_short, price, date)
+                if cover_result["status"] == "failed":
+                    return cover_result
+                trades_executed.append(f"平空 {current_short}股")
             
-            # 更新持仓成本基础
-            old_long = position["long"]
-            old_cost_basis = position["long_cost_basis"]
-            new_long = old_long + quantity
-            position["long_cost_basis"] = ((old_long * old_cost_basis) + (quantity * price)) / new_long
-            position["long"] = new_long
-            
-            # 扣除现金
-            self.portfolio["cash"] -= trade_value
-            
-        elif action == "sell":
-            # 卖出多头
-            if position["long"] < quantity:
-                return {
-                    "status": "failed",
-                    "ticker": ticker,
-                    "action": action,
-                    "quantity": quantity,
-                    "price": price,
-                    "reason": f"多头持仓不足 (持有: {position['long']}, 尝试卖出: {quantity})"
-                }
-            
-            # 减少持仓
-            position["long"] -= quantity
-            if position["long"] == 0:
-                position["long_cost_basis"] = 0.0
-            
-            # 增加现金
-            self.portfolio["cash"] += trade_value
+            # 步骤2: 调整多头持仓到目标数量
+            if target_quantity > current_long:
+                # 需要买入
+                buy_quantity = target_quantity - current_long
+                buy_result = self._buy_long_position(ticker, buy_quantity, price, date)
+                if buy_result["status"] == "failed":
+                    return buy_result
+                trades_executed.append(f"买入 {buy_quantity}股")
+            elif target_quantity < current_long:
+                # 需要卖出
+                sell_quantity = current_long - target_quantity
+                sell_result = self._sell_long_position(ticker, sell_quantity, price, date)
+                if sell_result["status"] == "failed":
+                    return sell_result
+                trades_executed.append(f"卖出 {sell_quantity}股")
+            # else: 已经是目标数量，不需要操作
             
         elif action == "short":
-            # 做空
-            margin_needed = trade_value * self.portfolio["margin_requirement"]
-            if self.portfolio["cash"] < margin_needed:
-                return {
-                    "status": "failed",
-                    "ticker": ticker,
-                    "action": action,
-                    "quantity": quantity,
-                    "price": price,
-                    "reason": f"保证金不足 (需要: ${margin_needed:.2f}, 可用: ${self.portfolio['cash']:.2f})"
-                }
+            # 目标：持有 target_quantity 股空头
+            # 步骤1: 如果有多头持仓，先平掉
+            if current_long > 0:
+                sell_result = self._sell_long_position(ticker, current_long, price, date)
+                if sell_result["status"] == "failed":
+                    return sell_result
+                trades_executed.append(f"平多 {current_long}股")
             
-            # 更新持仓成本基础
-            old_short = position["short"]
-            old_cost_basis = position["short_cost_basis"]
-            new_short = old_short + quantity
-            position["short_cost_basis"] = ((old_short * old_cost_basis) + (quantity * price)) / new_short
-            position["short"] = new_short
-            
-            # 增加现金（卖空收入）和保证金使用
-            self.portfolio["cash"] += trade_value - margin_needed
-            self.portfolio["margin_used"] += margin_needed
-            
-        elif action == "cover":
-            # 平空
-            if position["short"] < quantity:
-                return {
-                    "status": "failed",
-                    "ticker": ticker,
-                    "action": action,
-                    "quantity": quantity,
-                    "price": price,
-                    "reason": f"空头持仓不足 (持有: {position['short']}, 尝试平空: {quantity})"
-                }
-            
-            # 计算释放的保证金
-            margin_released = trade_value * self.portfolio["margin_requirement"]
-            
-            # 减少持仓
-            position["short"] -= quantity
-            if position["short"] == 0:
-                position["short_cost_basis"] = 0.0
-            
-            # 扣除现金（买入平空）并释放保证金
-            self.portfolio["cash"] -= trade_value
-            self.portfolio["cash"] += margin_released
-            self.portfolio["margin_used"] -= margin_released
+            # 步骤2: 调整空头持仓到目标数量
+            if target_quantity > current_short:
+                # 需要做空
+                short_quantity = target_quantity - current_short
+                short_result = self._open_short_position(ticker, short_quantity, price, date)
+                if short_result["status"] == "failed":
+                    return short_result
+                trades_executed.append(f"做空 {short_quantity}股")
+            elif target_quantity < current_short:
+                # 需要平空
+                cover_quantity = current_short - target_quantity
+                cover_result = self._cover_short_position(ticker, cover_quantity, price, date)
+                if cover_result["status"] == "failed":
+                    return cover_result
+                trades_executed.append(f"平空 {cover_quantity}股")
+            # else: 已经是目标数量，不需要操作
         
         # 记录交易
         trade_record = {
             "status": "success",
             "ticker": ticker,
             "action": action,
-            "quantity": quantity,
+            "target_quantity": target_quantity,
             "price": price,
-            "value": trade_value,
+            "trades": trades_executed,
             "date": date,
             "timestamp": datetime.now().isoformat()
         }
@@ -341,6 +314,119 @@ class PortfolioTradeExecutor:
         self.trade_history.append(trade_record)
         
         return trade_record
+    
+    def _buy_long_position(self, ticker: str, quantity: int, price: float, date: str) -> Dict[str, Any]:
+        """买入多头持仓"""
+        position = self.portfolio["positions"][ticker]
+        trade_value = quantity * price
+        
+        if self.portfolio["cash"] < trade_value:
+            return {
+                "status": "failed",
+                "ticker": ticker,
+                "action": "buy",
+                "quantity": quantity,
+                "price": price,
+                "reason": f"现金不足 (需要: ${trade_value:.2f}, 可用: ${self.portfolio['cash']:.2f})"
+            }
+        
+        # 更新持仓成本基础
+        old_long = position["long"]
+        old_cost_basis = position["long_cost_basis"]
+        new_long = old_long + quantity
+        if new_long > 0:
+            position["long_cost_basis"] = ((old_long * old_cost_basis) + (quantity * price)) / new_long
+        position["long"] = new_long
+        
+        # 扣除现金
+        self.portfolio["cash"] -= trade_value
+        
+        return {"status": "success"}
+    
+    def _sell_long_position(self, ticker: str, quantity: int, price: float, date: str) -> Dict[str, Any]:
+        """卖出多头持仓"""
+        position = self.portfolio["positions"][ticker]
+        
+        if position["long"] < quantity:
+            return {
+                "status": "failed",
+                "ticker": ticker,
+                "action": "sell",
+                "quantity": quantity,
+                "price": price,
+                "reason": f"多头持仓不足 (持有: {position['long']}, 尝试卖出: {quantity})"
+            }
+        
+        # 减少持仓
+        position["long"] -= quantity
+        if position["long"] == 0:
+            position["long_cost_basis"] = 0.0
+        
+        # 增加现金
+        trade_value = quantity * price
+        self.portfolio["cash"] += trade_value
+        
+        return {"status": "success"}
+    
+    def _open_short_position(self, ticker: str, quantity: int, price: float, date: str) -> Dict[str, Any]:
+        """开立空头持仓"""
+        position = self.portfolio["positions"][ticker]
+        trade_value = quantity * price
+        margin_needed = trade_value * self.portfolio["margin_requirement"]
+        
+        if self.portfolio["cash"] < margin_needed:
+            return {
+                "status": "failed",
+                "ticker": ticker,
+                "action": "short",
+                "quantity": quantity,
+                "price": price,
+                "reason": f"保证金不足 (需要: ${margin_needed:.2f}, 可用: ${self.portfolio['cash']:.2f})"
+            }
+        
+        # 更新持仓成本基础
+        old_short = position["short"]
+        old_cost_basis = position["short_cost_basis"]
+        new_short = old_short + quantity
+        if new_short > 0:
+            position["short_cost_basis"] = ((old_short * old_cost_basis) + (quantity * price)) / new_short
+        position["short"] = new_short
+        
+        # 增加现金（卖空收入）和保证金使用
+        self.portfolio["cash"] += trade_value - margin_needed
+        self.portfolio["margin_used"] += margin_needed
+        
+        return {"status": "success"}
+    
+    def _cover_short_position(self, ticker: str, quantity: int, price: float, date: str) -> Dict[str, Any]:
+        """平仓空头持仓"""
+        position = self.portfolio["positions"][ticker]
+        
+        if position["short"] < quantity:
+            return {
+                "status": "failed",
+                "ticker": ticker,
+                "action": "cover",
+                "quantity": quantity,
+                "price": price,
+                "reason": f"空头持仓不足 (持有: {position['short']}, 尝试平空: {quantity})"
+            }
+        
+        # 计算释放的保证金
+        trade_value = quantity * price
+        margin_released = trade_value * self.portfolio["margin_requirement"]
+        
+        # 减少持仓
+        position["short"] -= quantity
+        if position["short"] == 0:
+            position["short_cost_basis"] = 0.0
+        
+        # 扣除现金（买入平空）并释放保证金
+        self.portfolio["cash"] -= trade_value
+        self.portfolio["cash"] += margin_released
+        self.portfolio["margin_used"] -= margin_released
+        
+        return {"status": "success"}
     
     def _calculate_portfolio_value(self, current_prices: Dict[str, float]) -> float:
         """计算投资组合总价值（净清算价值）"""

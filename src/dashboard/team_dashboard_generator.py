@@ -406,27 +406,20 @@ class TeamDashboardGenerator:
                 price = self._get_ticker_price(ticker, date, signal_info, portfolio_state, real_returns)
                 real_return = real_returns.get(ticker, 0)
                 
-                # 计算该笔交易的P&L
+                # 计算该笔交易的P&L（基于当日收益）
                 pnl = 0.0
-                if action in ['buy', 'cover']:
-                    # 买入类操作，P&L基于当日收益
+                if action == 'long':
+                    # 多头持仓，P&L基于当日收益
                     pnl = quantity * price * real_return
-                elif action in ['sell', 'short']:
-                    # 卖出类操作
-                    if action == 'sell':
-                        # 卖出：基于成本差
-                        cost_basis = portfolio_state.get('positions', {}).get(ticker, {}).get('avg_cost', price)
-                        pnl = quantity * (price - cost_basis)
-                    else:
-                        # 空头建仓：P&L为负的收益
-                        pnl = -quantity * price * real_return
+                elif action == 'short':
+                    # 空头持仓，P&L为负的收益
+                    pnl = -quantity * price * real_return
                 
-                # 映射action到side
+                # 映射action到side（用于显示）
                 side_map = {
-                    'buy': 'BUY',
-                    'sell': 'SELL',
+                    'long': 'LONG',
                     'short': 'SHORT',
-                    'cover': 'COVER'
+                    'hold': 'HOLD'
                 }
                 side = side_map.get(action, 'HOLD')
                 
@@ -542,8 +535,8 @@ class TeamDashboardGenerator:
                 
                 # 判断信号类型和正确性
                 signal_lower = signal.lower()
-                is_bull = 'bull' in signal_lower
-                is_bear = 'bear' in signal_lower
+                is_bull = 'bull' in signal_lower or signal_lower == 'long'
+                is_bear = 'bear' in signal_lower or signal_lower == 'short'
                 is_neutral = 'neutral' in signal_lower or signal_lower == 'hold'
                 
                 # 判断是否正确（简化：涨跌与信号一致）
@@ -607,8 +600,8 @@ class TeamDashboardGenerator:
             real_return = real_returns.get(ticker, 0)
             
             signal_lower = signal.lower()
-            is_bull = 'bull' in signal_lower
-            is_bear = 'bear' in signal_lower
+            is_bull = 'bull' in signal_lower or signal_lower == 'long'
+            is_bear = 'bear' in signal_lower or signal_lower == 'short'
             is_neutral = 'neutral' in signal_lower or signal_lower == 'hold'
             
             is_correct = False
@@ -801,53 +794,63 @@ class TeamDashboardGenerator:
         """生成账户概览数据（使用真实价格）"""
         portfolio_state = state['portfolio_state']
         last_date = state.get('last_update_date')
+        all_trades = state.get('all_trades', [])
         
         # 计算当前余额：现金 + 持仓市值（使用最新价格）
         cash = portfolio_state['cash']
         positions_value = 0.0
+        ticker_weights = {}  # 记录每个ticker的权重
         
         for ticker, pos in portfolio_state['positions'].items():
             # 使用最新的真实价格
             current_price = self._get_current_price(ticker, last_date, state) if last_date else self.DEFAULT_BASE_PRICE
-            positions_value += pos['qty'] * current_price
+            position_value = pos['qty'] * current_price
+            positions_value += position_value
         
         balance = cash + positions_value
+        total_asset_value = balance
+        
+        # 计算每个ticker的权重
+        for ticker, pos in portfolio_state['positions'].items():
+            current_price = self._get_current_price(ticker, last_date, state) if last_date else self.DEFAULT_BASE_PRICE
+            position_value = pos['qty'] * current_price
+            weight = (position_value / total_asset_value) if total_asset_value > 0 else 0
+            ticker_weights[ticker] = round(weight, 4)
         
         # 计算总收益率
-        pnl_pct = ((balance - self.initial_cash) / self.initial_cash) * 100
+        total_return = ((balance - self.initial_cash) / self.initial_cash) * 100
         
         summary = {
-            'pnlPct': round(pnl_pct, 2),
+            'totalAssetValue': round(total_asset_value, 2),
+            'totalReturn': round(total_return, 2),
+            'cashPosition': round(cash, 2),
+            'tickerWeights': ticker_weights,
+            'totalTrades': len(all_trades),  # 修复：使用all_trades的长度
+            # 保留旧字段以兼容
+            'pnlPct': round(total_return, 2),
             'balance': round(balance, 2),
             'equity': state.get('equity_history', []),
-            'baseline': state.get('baseline_history', [])  # 添加 Buy & Hold 基准线
+            'baseline': state.get('baseline_history', [])
         }
         
         self._save_json(self.summary_file, summary)
     
     def _generate_holdings(self, state: Dict):
-        """生成持仓信息（通过累积trades的pnl计算P&L）"""
+        """生成持仓信息（包括现金和未实现盈亏）"""
         portfolio_state = state['portfolio_state']
         positions = portfolio_state['positions']
+        cash = portfolio_state['cash']
         last_date = state.get('last_update_date')
-        all_trades = state.get('all_trades', [])
-        
-        # 按ticker累积所有交易的pnl
-        ticker_pnl = {}
-        for trade in all_trades:
-            ticker = trade['ticker']
-            pnl = trade.get('pnl', 0)
-            if ticker not in ticker_pnl:
-                ticker_pnl[ticker] = 0
-            ticker_pnl[ticker] += pnl
         
         # 计算总价值用于计算权重（使用真实价格）
-        total_value = portfolio_state['cash']
+        total_value = cash
         for ticker, pos in positions.items():
             current_price = self._get_current_price(ticker, last_date, state) if last_date else self.DEFAULT_BASE_PRICE
             total_value += pos['qty'] * current_price
         
         holdings = []
+        
+        # 添加股票持仓
         for ticker, pos in positions.items():
             qty = pos['qty']
             avg_cost = pos['avg_cost']
@@ -855,20 +858,34 @@ class TeamDashboardGenerator:
             # 使用真实的当前价格
             current_price = self._get_current_price(ticker, last_date, state) if last_date else self.DEFAULT_BASE_PRICE
             
-            # 使用累积的交易pnl作为P&L
-            pl = ticker_pnl.get(ticker, 0)
+            # 计算市值
+            market_value = qty * current_price
+            
+            # 计算未实现盈亏 (unrealized P&L)
+            unrealized_pnl = (current_price - avg_cost) * qty
             
             # 计算权重
-            position_value = abs(qty) * current_price
-            weight = position_value / total_value if total_value > 0 else 0
+            weight = abs(market_value) / total_value if total_value > 0 else 0
             
             holdings.append({
                 'ticker': ticker,
-                'qty': qty,
-                'avg': round(avg_cost, 2),
-                'pl': round(pl, 2),
-                'weight': round(weight, 2)
+                'quantity': qty,
+                'currentPrice': round(current_price, 2),
+                'marketValue': round(market_value, 2),
+                'unrealizedPnl': round(unrealized_pnl, 2),
+                'weight': round(weight, 4)
             })
+        
+        # 添加现金作为一个持仓项
+        cash_weight = cash / total_value if total_value > 0 else 0
+        holdings.append({
+            'ticker': 'CASH',
+            'quantity': 1,
+            'currentPrice': round(cash, 2),
+            'marketValue': round(cash, 2),
+            'unrealizedPnl': 0.0,
+            'weight': round(cash_weight, 4)
+        })
         
         # 按权重排序
         holdings.sort(key=lambda x: abs(x['weight']), reverse=True)
@@ -876,8 +893,11 @@ class TeamDashboardGenerator:
         self._save_json(self.holdings_file, holdings)
     
     def _generate_stats(self, state: Dict):
-        """生成统计数据（Portfolio Manager表现）"""
+        """生成统计数据（Portfolio Manager表现 + Overview数据）"""
         pm_perf = state.get('agent_performance', {}).get('portfolio_manager', {})
+        portfolio_state = state['portfolio_state']
+        last_date = state.get('last_update_date')
+        all_trades = state.get('all_trades', [])
         
         bull_count = pm_perf.get('bull_count', 0)
         bull_win = pm_perf.get('bull_win', 0)
@@ -888,11 +908,37 @@ class TeamDashboardGenerator:
         total_win = bull_win + bear_win
         
         win_rate = total_win / total_count if total_count > 0 else 0
-        hit_rate = win_rate  # 简化：命中率=胜率
+        
+        # 计算Overview数据（和summary中一样）
+        cash = portfolio_state['cash']
+        positions_value = 0.0
+        ticker_weights = {}
+        
+        for ticker, pos in portfolio_state['positions'].items():
+            current_price = self._get_current_price(ticker, last_date, state) if last_date else self.DEFAULT_BASE_PRICE
+            position_value = pos['qty'] * current_price
+            positions_value += position_value
+        
+        total_asset_value = cash + positions_value
+        
+        # 计算每个ticker的权重
+        for ticker, pos in portfolio_state['positions'].items():
+            current_price = self._get_current_price(ticker, last_date, state) if last_date else self.DEFAULT_BASE_PRICE
+            position_value = pos['qty'] * current_price
+            weight = (position_value / total_asset_value) if total_asset_value > 0 else 0
+            ticker_weights[ticker] = round(weight, 4)
+        
+        total_return = ((total_asset_value - self.initial_cash) / self.initial_cash) * 100
         
         stats = {
+            # Overview数据
+            'totalAssetValue': round(total_asset_value, 2),
+            'totalReturn': round(total_return, 2),
+            'cashPosition': round(cash, 2),
+            'tickerWeights': ticker_weights,
+            'totalTrades': len(all_trades),
+            # Performance数据
             'winRate': round(win_rate, 2),
-            'hitRate': round(hit_rate, 2),
             'bullBear': {
                 'bull': {
                     'n': bull_count,
@@ -914,8 +960,19 @@ class TeamDashboardGenerator:
         # 按时间倒序排序（最新的在前）
         sorted_trades = sorted(all_trades, key=lambda x: x['ts'], reverse=True)
         
-        # 限制数量（例如最近100笔）
-        trades = sorted_trades[:100]
+        # 限制数量（例如最近100笔）并格式化输出
+        trades = []
+        for trade in sorted_trades[:100]:
+            # 创建新的trade对象，去掉pnl字段
+            formatted_trade = {
+                'id': trade.get('id'),
+                'timestamp': trade.get('ts'),  # 保持毫秒时间戳，前端会格式化
+                'side': trade.get('side'),
+                'ticker': trade.get('ticker'),
+                'qty': trade.get('qty'),
+                'price': trade.get('price')
+            }
+            trades.append(formatted_trade)
         
         self._save_json(self.trades_file, trades)
     
@@ -961,8 +1018,11 @@ class TeamDashboardGenerator:
                 'logs': perf.get('logs', [])[:10]  # 前10条日志
             })
         
-        # 按胜率排序
-        leaderboard.sort(key=lambda x: x['winRate'], reverse=True)
+        # 按胜率排序，胜率相同时 Portfolio Manager 排在前面
+        leaderboard.sort(key=lambda x: (
+            -x['winRate'],  # 胜率降序
+            0 if x['agentId'] == 'portfolio_manager' else 1  # PM优先
+        ))
         
         # 填充排名
         for i, agent in enumerate(leaderboard, 1):
@@ -984,8 +1044,12 @@ class TeamDashboardGenerator:
         
         # Stats
         self._save_json(self.stats_file, {
+            'totalAssetValue': self.initial_cash,
+            'totalReturn': 0.0,
+            'cashPosition': self.initial_cash,
+            'tickerWeights': {},
+            'totalTrades': 0,
             'winRate': 0.0,
-            'hitRate': 0.0,
             'bullBear': {
                 'bull': {'n': 0, 'win': 0},
                 'bear': {'n': 0, 'win': 0}
