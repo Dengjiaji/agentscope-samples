@@ -47,7 +47,7 @@ const AGENTS = [
   { id: "zeta", name: "Frank", role: "Technical Analyst" },
 ];
 
-const BUBBLE_LIFETIME_MS = 4000;
+const BUBBLE_LIFETIME_MS = 8000; // 延长至10秒，便于阅读agent发言
 const CHART_MARGIN = { left: 60, right: 20, top: 20, bottom: 40 };
 const AXIS_TICKS = 5;
 
