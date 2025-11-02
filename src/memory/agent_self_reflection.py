@@ -113,7 +113,8 @@ class AgentSelfReflectionSystem:
         self,
         agent_id: str,
         agent_role: str,
-        base_dir: str = "mock"
+        base_dir: str = "mock",
+        streamer=None
     ):
         """
         初始化自我复盘系统
@@ -122,10 +123,12 @@ class AgentSelfReflectionSystem:
             agent_id: Agent ID（如 'technical_analyst' 或 'portfolio_manager'）
             agent_role: Agent角色描述（如 'Technical Analyst'）
             base_dir: 基础目录（config_name）
+            streamer: 消息广播器（用于向前端发送memory操作消息）
         """
         self.agent_id = agent_id
         self.agent_role = agent_role
         self.base_dir = base_dir
+        self.streamer = streamer
         
         # 初始化日志记录器
         self.logger_system = MemoryOperationLogger(base_dir)
@@ -152,6 +155,11 @@ class AgentSelfReflectionSystem:
             
             # 获取记忆管理工具
             self.memory_tools = get_memory_tools()
+            
+            # 设置memory工具的streamer
+            if self.streamer:
+                from src.tools.memory_management_tools import set_memory_tools_streamer
+                set_memory_tools_streamer(self.streamer)
             
             # 绑定工具到LLM
             self.llm = get_model(model_name, model_provider, api_keys)
@@ -581,7 +589,8 @@ class AgentSelfReflectionSystem:
 
 def create_reflection_system(
     agent_id: str,
-    base_dir: str = "mock"
+    base_dir: str = "mock",
+    streamer=None
 ) -> AgentSelfReflectionSystem:
     """
     工厂函数：为指定Agent创建自我复盘系统
@@ -589,6 +598,7 @@ def create_reflection_system(
     Args:
         agent_id: Agent ID
         base_dir: 基础目录（config_name）
+        streamer: 消息广播器
     
     Returns:
         自我复盘系统实例
@@ -602,5 +612,5 @@ def create_reflection_system(
     }
     
     agent_role = role_mapping.get(agent_id, agent_id)
-    return AgentSelfReflectionSystem(agent_id, agent_role, base_dir)
+    return AgentSelfReflectionSystem(agent_id, agent_role, base_dir, streamer=streamer)
 

@@ -303,7 +303,7 @@ class CommunicationManager:
             # 分析师回应
             analyst_response = self._get_analyst_chat_response(
                 analyst_id, topic, conversation_history, 
-                current_analyst_signal, state
+                current_analyst_signal, state, streamer=streamer
             )
             # # 截断分析师回应
             # if isinstance(analyst_response, dict) and "response" in analyst_response:
@@ -550,7 +550,7 @@ class CommunicationManager:
                 analyst_response = self._get_analyst_meeting_response(
                     analyst_id, topic, meeting_transcript, 
                     current_signals.get(analyst_id, {}), 
-                    current_signals, state, round_num + 1
+                    current_signals, state, round_num + 1, streamer=streamer
                 )
                 # # 截断分析师发言
                 # if isinstance(analyst_response, dict) and "response" in analyst_response:
@@ -726,7 +726,7 @@ class CommunicationManager:
     def _get_analyst_chat_response(self, analyst_id: str, topic: str, 
                                  conversation_history: List[Dict], 
                                  current_signal: Dict[str, Any], 
-                                 state) -> Dict[str, Any]:
+                                 state, streamer=None) -> Dict[str, Any]:
         """获取分析师在私聊中的回应（两阶段记忆检索）"""
         
         # ========== 第一阶段：让analyst生成记忆查询query ⭐⭐⭐ ==========
@@ -744,6 +744,15 @@ class CommunicationManager:
             # 2. 使用生成的query检索相关记忆
             if memory_query:
                 try:
+                    # 广播memory搜索操作
+                    if streamer:
+                        streamer.print(
+                            "memory",
+                            f"搜索记忆: {memory_query[:60]}...",
+                            agent_id=analyst_id,
+                            operation_type="search"
+                        )
+                    
                     search_results = analyst_memory.memory.search(
                         query=memory_query,
                         user_id=analyst_id,
@@ -756,12 +765,35 @@ class CommunicationManager:
                             for mem in search_results['results']
                         ])
                         print(f"✅ {analyst_id} 检索到 {len(search_results['results'])} 条相关记忆")
+                        
+                        # 广播搜索成功
+                        if streamer:
+                            streamer.print(
+                                "memory",
+                                f"找到 {len(search_results['results'])} 条相关记忆",
+                                agent_id=analyst_id,
+                                operation_type="search_success"
+                            )
                         # print(relevant_memories)
                     else:
                         print(f"⚠️ {analyst_id} 未检索到相关记忆")
+                        if streamer:
+                            streamer.print(
+                                "memory",
+                                "未找到相关记忆",
+                                agent_id=analyst_id,
+                                operation_type="search_empty"
+                            )
                 except Exception as e:
                     print(f"⚠️ {analyst_id} 记忆检索失败: {e}")
                     relevant_memories = ""
+                    if streamer:
+                        streamer.print(
+                            "memory",
+                            f"记忆检索失败: {str(e)[:50]}",
+                            agent_id=analyst_id,
+                            operation_type="search_error"
+                        )
         
         # ========== 第二阶段：基于检索到的记忆生成回应 ⭐⭐⭐ ==========
         prompt_template = ChatPromptTemplate.from_messages([
@@ -991,7 +1023,7 @@ Please respond to the analyst's latest statement.""")
                                     meeting_transcript: List[Dict],
                                     current_signal: Dict[str, Any],
                                     all_signals: Dict[str, Any],
-                                    state, round_num: int) -> Dict[str, Any]:
+                                    state, round_num: int, streamer=None) -> Dict[str, Any]:
         """获取分析师在会议中的发言（两阶段记忆检索）"""
         
         # ========== 第一阶段：让analyst生成记忆查询query ⭐⭐⭐ ==========
@@ -1009,6 +1041,15 @@ Please respond to the analyst's latest statement.""")
             # 2. 使用生成的query检索相关记忆
             if memory_query:
                 try:
+                    # 广播memory搜索操作
+                    if streamer:
+                        streamer.print(
+                            "memory",
+                            f"搜索记忆: {memory_query[:60]}...",
+                            agent_id=analyst_id,
+                            operation_type="search"
+                        )
+                    
                     search_results = analyst_memory.memory.search(
                         query=memory_query,
                         user_id=analyst_id,
@@ -1022,11 +1063,34 @@ Please respond to the analyst's latest statement.""")
                         ])
                         print(f"✅ {analyst_id} 在会议中检索到 {len(search_results['results'])} 条相关记忆")
                         print(relevant_memories)
+                        
+                        # 广播搜索成功
+                        if streamer:
+                            streamer.print(
+                                "memory",
+                                f"找到 {len(search_results['results'])} 条相关记忆",
+                                agent_id=analyst_id,
+                                operation_type="search_success"
+                            )
                     else:
                         print(f"⚠️ {analyst_id} 在会议中未检索到相关记忆")
+                        if streamer:
+                            streamer.print(
+                                "memory",
+                                "未找到相关记忆",
+                                agent_id=analyst_id,
+                                operation_type="search_empty"
+                            )
                 except Exception as e:
                     print(f"⚠️ {analyst_id} 会议记忆检索失败: {e}")
                     relevant_memories = ""
+                    if streamer:
+                        streamer.print(
+                            "memory",
+                            f"记忆检索失败: {str(e)[:50]}",
+                            agent_id=analyst_id,
+                            operation_type="search_error"
+                        )
         
         # ========== 第二阶段：基于检索到的记忆生成发言 ⭐⭐⭐ ==========
         prompt_template = ChatPromptTemplate.from_messages([

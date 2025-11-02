@@ -887,8 +887,8 @@ class EnhancedMultiDayManager(MultiDayManager):
                                 'reasoning': ''
                             }
                     
-                    # 创建复盘系统
-                    reflection_system = create_reflection_system(analyst_id, self.base_dir)
+                    # 创建复盘系统（传递streamer）
+                    reflection_system = create_reflection_system(analyst_id, self.base_dir, streamer=self.streamer)
                     
                     # 执行自我复盘
                     result = reflection_system.perform_self_reflection(
@@ -916,7 +916,7 @@ class EnhancedMultiDayManager(MultiDayManager):
             self._log("system", "\n--- Portfolio Manager 自我复盘 ---")
             
             try:
-                pm_reflection_system = create_reflection_system('portfolio_manager', self.base_dir)
+                pm_reflection_system = create_reflection_system('portfolio_manager', self.base_dir, streamer=self.streamer)
                 
                 pm_result = pm_reflection_system.perform_self_reflection(
                     date=date,
