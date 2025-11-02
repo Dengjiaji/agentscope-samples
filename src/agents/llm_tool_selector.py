@@ -10,6 +10,8 @@ import json
 import pdb
 import numpy as np
 from .prompt_loader import get_prompt_loader
+from src.utils.api_key import get_api_key_from_state
+
 # 导入所有可用的分析工具
 from src.tools.analysis_tools_unified import (
     # 基本面工具
@@ -406,9 +408,60 @@ You will flexibly select various tools based on specific situations, pursuing co
             "tool_count": len(selected_tools)
         }
     
+    def _get_api_key_for_tool(self, tool_category: str, state: dict = None) -> str:
+        """
+        根据工具类别获取对应的API key
+        
+        Args:
+            tool_category: 工具类别 (fundamental, technical, sentiment, valuation)
+            state: State对象 (可选)
+        
+        Returns:
+            API key字符串
+        """
+        import os
+        
+        # 根据工具类别决定使用哪个API key
+        if tool_category in ["fundamental", "valuation"]:
+            # 基本面和估值工具使用 FINANCIAL_DATASETS_API_KEY
+            api_key_name = "FINANCIAL_DATASETS_API_KEY"
+        elif tool_category in ["technical", "sentiment"]:
+            # 技术和情绪工具使用 FINNHUB_API_KEY
+            api_key_name = "FINNHUB_API_KEY"
+        else:
+            # 默认使用 FINNHUB_API_KEY
+            api_key_name = "FINNHUB_API_KEY"
+        
+        # 首先尝试从state获取
+        if state:
+            api_key = get_api_key_from_state(state, api_key_name)
+            if api_key:
+                return api_key
+        
+        # 然后尝试从环境变量获取
+        api_key = os.getenv(api_key_name)
+        if api_key:
+            return api_key
+        
+        # 如果都没有,打印警告并返回None
+        print(f"⚠️ 警告: 未找到 {api_key_name} (工具类别: {tool_category})")
+        print(f"   请在 .env 文件中设置 {api_key_name} 或通过 state 传递")
+        return None
+    
     def execute_selected_tools(self, selected_tools: List[Dict[str, Any]], 
-                             ticker: str, api_key: str, **kwargs) -> List[Dict[str, Any]]:
-        """Execute selected tools"""
+                             ticker: str, state: dict = None, **kwargs) -> List[Dict[str, Any]]:
+        """
+        Execute selected tools
+        
+        Args:
+            selected_tools: 选中的工具列表
+            ticker: 股票代码
+            state: State对象 (可选,用于获取API keys)
+            **kwargs: 其他参数 (start_date, end_date等)
+        
+        Returns:
+            工具执行结果列表
+        """
         
         tool_results = []
         
@@ -421,7 +474,10 @@ You will flexibly select various tools based on specific situations, pursuing co
             tool = self.all_available_tools[tool_name]["tool"]
             
             try:
-                # 准备工具参数
+                # 准备工具参数 - 根据工具类型获取对应的API key
+                tool_category = self.all_available_tools[tool_name]["category"]
+                api_key = self._get_api_key_for_tool(tool_category, state)
+                
                 tool_params = {"ticker": ticker, "api_key": api_key}
                 
                 # 根据工具类型添加特定参数
