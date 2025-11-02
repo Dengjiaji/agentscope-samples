@@ -77,14 +77,10 @@ class AnalystAgent(BaseAgent):
         tickers = data["tickers"]
         start_date = data.get("start_date")
         end_date = data["end_date"]
-        api_key = get_api_key_from_state(state, "FINANCIAL_DATASETS_API_KEY")
         
-        # 如果仍然无效，尝试环境变量作为后备
-        if not api_key:
-            import os
-            api_key = os.getenv("FINANCIAL_DATASETS_API_KEY")
-            if not api_key:
-                print(f"错误: 无法获取FINANCIAL_DATASETS_API_KEY，工具执行将失败")
+        # 不再在这里获取单一的API key
+        # 而是将整个state传递给工具选择器,让每个工具自己决定使用哪个API key
+        # api_key = None  # 不再使用单一的api_key变量
         
         # 获取 LLM
         llm = None
@@ -120,7 +116,7 @@ class AnalystAgent(BaseAgent):
             try:
                 result = loop.run_until_complete(
                     self._analyze_ticker(
-                        ticker, end_date, api_key, start_date, llm, analysis_objective
+                        ticker, end_date, state, start_date, llm, analysis_objective
                     )
                 )
                 analysis_results[ticker] = result
@@ -162,7 +158,7 @@ class AnalystAgent(BaseAgent):
             "data": data,
         }
     
-    async def _analyze_ticker(self, ticker: str, end_date: str, api_key: str,
+    async def _analyze_ticker(self, ticker: str, end_date: str, state: Dict[str, Any],
                             start_date: Optional[str], llm, 
                             analysis_objective: str) -> Dict[str, Any]:
         """
@@ -171,7 +167,7 @@ class AnalystAgent(BaseAgent):
         Args:
             ticker: 股票代码
             end_date: 结束日期
-            api_key: API 密钥
+            state: State对象 (包含API keys等信息)
             start_date: 开始日期
             llm: LLM 模型
             analysis_objective: 分析目标
@@ -204,11 +200,11 @@ class AnalystAgent(BaseAgent):
             f"已选择 {selection_result['tool_count']} 个工具"
         )
         
-        # 3. 执行选定的工具
+        # 3. 执行选定的工具 - 传递state而不是api_key
         tool_results = self.tool_selector.execute_selected_tools(
             selection_result["selected_tools"],
             ticker=ticker,
-            api_key=api_key,
+            state=state,  # 传递state,让工具自己获取需要的API key
             start_date=start_date,
             end_date=end_date
         )
