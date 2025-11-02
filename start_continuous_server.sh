@@ -75,12 +75,16 @@ if [ "$MODE" = "normal" ]; then
     # 检查是否需要更新数据
     if python -m src.data.ret_data_updater --help &> /dev/null; then
         echo "🔄 正在更新历史数据..."
-        python -m src.data.ret_data_updater
         
+        # 使用 || true 确保即使更新失败也继续运行
+        python -m src.data.ret_data_updater || {
+            echo "⚠️  历史数据更新失败（可能是周末或假期），但将继续启动服务器"
+            echo "💡 提示: 系统将使用现有历史数据运行"
+        }
+        
+        # 无论更新成功与否，都显示完成信息
         if [ $? -eq 0 ]; then
             echo "✅ 历史数据更新完成"
-        else
-            echo "⚠️  历史数据更新失败，但将继续启动服务器"
         fi
     else
         echo "⚠️  数据更新模块未安装，跳过数据更新"
