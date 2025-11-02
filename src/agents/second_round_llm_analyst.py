@@ -28,13 +28,17 @@ def create_second_round_prompt_template(use_prompt_files: bool = True) -> ChatPr
     # 尝试从文件加载
     if use_prompt_files:
         try:
-            loader = get_prompt_loader()
-            # 注意：这里我们返回占位符，实际内容将在调用时填充
-            # 因为 ChatPromptTemplate 需要在创建时指定消息
-            system_template = loader.load_prompt("analyst", "second_round_system", {})
-            human_template = loader.load_prompt("analyst", "second_round_human", {})
+            # 直接读取文件内容（不通过 prompt_loader，因为这些是 LangChain 模板）
+            import pathlib
+            prompts_dir = pathlib.Path(__file__).parent / "prompts" / "analyst"
             
-            # 创建模板时使用原有的占位符格式
+            with open(prompts_dir / "second_round_system.md", 'r', encoding='utf-8') as f:
+                system_template = f.read()
+            
+            with open(prompts_dir / "second_round_human.md", 'r', encoding='utf-8') as f:
+                human_template = f.read()
+            
+            # 创建 LangChain 模板（使用 {variable} 格式）
             template = ChatPromptTemplate.from_messages([
                 ("system", system_template),
                 ("human", human_template)
