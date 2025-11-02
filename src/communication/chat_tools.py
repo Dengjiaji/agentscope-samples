@@ -308,7 +308,7 @@ class CommunicationManager:
             # # 截断分析师回应
             # if isinstance(analyst_response, dict) and "response" in analyst_response:
             #     analyst_response["response"] = self._truncate_text(analyst_response["response"], max_chars)
-            
+            pdb.set_trace()
             conversation_history.append({
                 "speaker": analyst_id,
                 "content": analyst_response["response"],
