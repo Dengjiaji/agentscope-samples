@@ -1303,7 +1303,8 @@ export default function LiveTradingApp() {
     netValue: 1000000,
     pnl: 0,
     equity: [],
-    baseline: [], // Baseline strategy
+    baseline: [], // Baseline strategy (Buy & Hold)
+    momentum: [], // Momentum strategy
     strategies: [] // Other strategies
   });
   
@@ -2711,7 +2712,7 @@ function StatisticsView({ trades, holdings, stats }) {
                     fontWeight: 700 
                   }}>
                     {h.ticker === 'CASH' ? '-' : (
-                      (h.unrealizedPnl >= 0 ? '+' : '') + '$' + formatNumber(Math.abs(h.unrealizedPnl))
+                      (h.unrealizedPnl >= 0 ? '+' : '-') + '$' + formatNumber(Math.abs(h.unrealizedPnl))
                     )}
                   </td>
                   <td>{(Number(h.weight) * 100).toFixed(2)}%</td>
