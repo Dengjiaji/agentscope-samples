@@ -19,11 +19,33 @@ except ImportError as e:
     MEMORY_AVAILABLE = False
 
 
+# 全局streamer引用（用于广播memory操作）
+_global_streamer = None
+
+def set_memory_tools_streamer(streamer):
+    """设置全局streamer用于广播memory操作"""
+    global _global_streamer
+    _global_streamer = streamer
+
 def _get_memory_instance():
     """获取记忆实例（从工厂获取）"""
     if not MEMORY_AVAILABLE:
         return None
     return get_memory_instance()
+
+def _broadcast_memory_operation(operation_type: str, content: str, agent_id: str):
+    """广播memory操作到前端"""
+    global _global_streamer
+    if _global_streamer:
+        try:
+            _global_streamer.print(
+                "memory",
+                content,
+                agent_id=agent_id,
+                operation_type=operation_type
+            )
+        except Exception as e:
+            print(f"⚠️ 广播memory操作失败: {e}")
 
 
 # ===================== 记忆管理工具 - LangChain装饰器模式 =====================
@@ -61,6 +83,13 @@ def search_and_update_analyst_memory(
         }
         
     try:
+        # 广播搜索操作
+        _broadcast_memory_operation(
+            operation_type="search",
+            content=f"搜索记忆: {query}",
+            agent_id=analyst_id
+        )
+        
         # 搜索记忆
         search_results = memory_instance.search(
             query=query,
@@ -69,6 +98,11 @@ def search_and_update_analyst_memory(
         )
         
         if not search_results.get('results'):
+            _broadcast_memory_operation(
+                operation_type="search_failed",
+                content=f"未找到相关记忆: {query}",
+                agent_id=analyst_id
+            )
             return {
                 'status': 'failed',
                 'tool_name': 'search_and_update_analyst_memory',
@@ -130,6 +164,14 @@ def search_and_update_analyst_memory(
         print(f"   记忆ID: {memory_id}")
         print(f"   分析师: {analyst_id}\n")
         
+        # 广播更新操作
+        update_msg = f"更新记忆: {reason[:80]}..." if len(reason) > 80 else f"更新记忆: {reason}"
+        _broadcast_memory_operation(
+            operation_type="update",
+            content=update_msg,
+            agent_id=analyst_id
+        )
+        
         return {
             'status': 'success',
             'tool_name': 'search_and_update_analyst_memory',
@@ -182,6 +224,13 @@ def search_and_delete_analyst_memory(
         }
         
     try:
+        # 广播搜索操作
+        _broadcast_memory_operation(
+            operation_type="search",
+            content=f"搜索待删除记忆: {query}",
+            agent_id=analyst_id
+        )
+        
         # 搜索记忆
         search_results = memory_instance.search(
             query=query,
@@ -190,6 +239,11 @@ def search_and_delete_analyst_memory(
         )
         
         if not search_results.get('results'):
+            _broadcast_memory_operation(
+                operation_type="search_failed",
+                content=f"未找到相关记忆: {query}",
+                agent_id=analyst_id
+            )
             return {
                 'status': 'failed',
                 'tool_name': 'search_and_delete_analyst_memory',
@@ -234,6 +288,14 @@ def search_and_delete_analyst_memory(
         print(f"✅ 记忆删除成功!")
         print(f"   记忆ID: {memory_id}")
         print(f"   分析师: {analyst_id}\n")
+        
+        # 广播删除操作
+        delete_msg = f"删除记忆: {reason[:80]}..." if len(reason) > 80 else f"删除记忆: {reason}"
+        _broadcast_memory_operation(
+            operation_type="delete",
+            content=delete_msg,
+            agent_id=analyst_id
+        )
         
         return {
             'status': 'success',
