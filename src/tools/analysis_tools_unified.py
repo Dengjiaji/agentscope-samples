@@ -1205,6 +1205,10 @@ def analyze_news_sentiment(ticker: str, end_date: str, api_key: str, start_date:
     """
     分析新闻情绪
     
+    根据使用的API返回不同格式:
+    - Finnhub API: 返回最近10条新闻的原始数据（标题、来源、日期、链接）
+    - Financial Datasets API: 返回情绪统计结果
+    
     Args:
         ticker: 股票代码
         end_date: 结束日期
@@ -1241,27 +1245,40 @@ def analyze_news_sentiment(ticker: str, end_date: str, api_key: str, start_date:
                 "reasoning": "新闻情绪分析: 无新闻数据，返回中性信号"
             }
         
-        # 分析情绪
+        # 检查是否有情绪数据（判断使用的是哪个API）
         sentiment_data = pd.Series([n.sentiment for n in company_news]).dropna()
         
+        # 如果没有情绪数据，说明使用的是Finnhub API
+        # 返回最近10条新闻的原始数据供LLM分析
         if len(sentiment_data) == 0:
-            # 当情绪数据无效时，也返回中性信号
+            # 取最近的10条新闻
+            recent_news = company_news[:10]
+            
+            news_list = []
+            for idx, news in enumerate(recent_news, 1):
+                news_list.append({
+                    "index": idx,
+                    "title": news.title,
+                    "source": news.source,
+                    "date": news.date,
+                    "url": news.url
+                })
+            
             return {
-                "signal": "neutral", 
-                "metrics": {
-                    "total_articles": len(company_news),
-                    "positive_articles": 0,
-                    "negative_articles": 0,
-                    "neutral_articles": 0,
-                    "positive_ratio": 0,
-                    "negative_ratio": 0,
-                    "neutral_ratio": 0
-                },
-                "details": [f"找到{len(company_news)}篇新闻，但情绪数据无效"],
-                "reasoning": "新闻情绪分析: 情绪数据无效，返回中性信号"
+                "signal": "neutral",  # 默认中性，由LLM根据新闻内容判断
+                "data_source": "finnhub",
+                "total_news_count": len(company_news),
+                "news_list": news_list,
+                "details": [
+                    f"使用Finnhub API获取了{len(company_news)}条新闻",
+                    f"返回最近{len(news_list)}条新闻供分析",
+                    "请根据新闻标题和来源判断市场情绪"
+                ],
+                "reasoning": "新闻数据分析: 使用Finnhub API，返回原始新闻数据供LLM分析情绪"
             }
         
-        # 统计各种情绪
+        # 如果有情绪数据，说明使用的是Financial Datasets API
+        # 返回统计结果
         positive_count = (sentiment_data == "positive").sum()
         negative_count = (sentiment_data == "negative").sum()
         neutral_count = (sentiment_data == "neutral").sum()
@@ -1281,6 +1298,7 @@ def analyze_news_sentiment(ticker: str, end_date: str, api_key: str, start_date:
         
         return {
             "signal": signal,
+            "data_source": "financial_datasets",
             "metrics": {
                 "total_articles": total_count,
                 "positive_articles": positive_count,
