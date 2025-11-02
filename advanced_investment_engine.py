@@ -26,8 +26,8 @@ ensure_mem0_env_loaded()
 from src.graph.state import AgentState
 from langchain_core.messages import HumanMessage
 
-# 导入所有四个核心分析师 - 使用LLM版本
-from src.agents.intelligent_analysts import (
+# 导入所有四个核心分析师 - 使用新架构
+from src.utils.analysts import (
     intelligent_fundamentals_analyst_agent,
     intelligent_technical_analyst_agent,
     intelligent_sentiment_analyst_agent,
@@ -47,9 +47,20 @@ from src.agents.second_round_llm_analyst import (
     ANALYST_PERSONAS
 )
 
-# 导入风险管理和投资组合管理
-from src.agents.risk_manager import risk_management_agent
-from src.agents.portfolio_manager import portfolio_management_agent
+# 导入风险管理和投资组合管理 - 使用新架构
+from src.agents.risk_manager_agent import RiskManagerAgent
+from src.agents.portfolio_manager_agent import PortfolioManagerAgent
+
+# 创建兼容的包装函数
+def risk_management_agent(state, agent_id="risk_management_agent"):
+    """风险管理 - 使用新架构"""
+    agent = RiskManagerAgent(agent_id=agent_id, mode="basic")
+    return agent.execute(state)
+
+def portfolio_management_agent(state, agent_id="portfolio_manager"):
+    """投资组合管理 - 使用新架构"""
+    agent = PortfolioManagerAgent(agent_id=agent_id, mode="direction")
+    return agent.execute(state)
 
 # 导入交易执行器
 from src.utils.trade_executor import execute_trading_decisions
@@ -680,11 +691,12 @@ class AdvancedInvestmentAnalysisEngine:
             self.streamer.print("system", "===== 风险管理分析 =====")
         
         try:
-            # 根据模式选择相应的Risk Manager
+            # 根据模式选择相应的Risk Manager - 使用新架构
             if mode == "portfolio":
-                from src.agents.risk_manager_portfolio import risk_management_agent_portfolio
                 agent_id = "risk_management_agent_portfolio"
-                risk_result = risk_management_agent_portfolio(state, agent_id=agent_id)
+                # 使用新架构的 RiskManagerAgent
+                risk_agent = RiskManagerAgent(agent_id=agent_id, mode="portfolio")
+                risk_result = risk_agent.execute(state)
             else:
                 agent_id = "risk_management_agent"
                 risk_result = risk_management_agent(state, agent_id=agent_id)
@@ -782,10 +794,11 @@ class AdvancedInvestmentAnalysisEngine:
         # print("执行投资组合管理决策...")
         
         try:
-            # 根据模式选择相应的Portfolio Manager
+            # 根据模式选择相应的Portfolio Manager - 使用新架构
             if mode == "portfolio":
-                from src.agents.portfolio_manager_portfolio import portfolio_management_agent_portfolio
-                portfolio_result = portfolio_management_agent_portfolio(state, agent_id="portfolio_manager_portfolio")
+                # 使用新架构的 PortfolioManagerAgent
+                pm_agent = PortfolioManagerAgent(agent_id="portfolio_manager_portfolio", mode="portfolio")
+                portfolio_result = pm_agent.execute(state)
             else:
                 portfolio_result = portfolio_management_agent(state, agent_id="portfolio_manager")
             
@@ -889,10 +902,11 @@ class AdvancedInvestmentAnalysisEngine:
                         # print("重新运行风险管理分析...")
                         # risk_analysis_results = self.run_risk_management_analysis(state)
                         
-                        # 重新运行投资组合管理（根据模式选择正确的agent）
+                        # 重新运行投资组合管理（根据模式选择正确的agent）- 使用新架构
                         if mode == "portfolio":
-                            from src.agents.portfolio_manager_portfolio import portfolio_management_agent_portfolio
-                            final_portfolio_result = portfolio_management_agent_portfolio(state, agent_id="portfolio_manager_portfolio")
+                            # 使用新架构的 PortfolioManagerAgent
+                            pm_agent = PortfolioManagerAgent(agent_id="portfolio_manager_portfolio", mode="portfolio")
+                            final_portfolio_result = pm_agent.execute(state)
                             agent_name_for_extract = "portfolio_manager_portfolio"
                         else:
                             final_portfolio_result = portfolio_management_agent(state, agent_id="portfolio_manager")

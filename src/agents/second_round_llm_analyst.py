@@ -13,12 +13,37 @@ from ..utils.llm import call_llm
 from ..utils.json_utils import quiet_json_dumps
 from ..data.second_round_signals import SecondRoundAnalysis, AnalystPersona, TickerSignal
 from src.communication.cfg import ANALYST_PERSONAS
+from .prompt_loader import get_prompt_loader
 import pdb
 
 
 
-def create_second_round_prompt_template() -> ChatPromptTemplate:
-    """Create second-round analysis prompt template"""
+def create_second_round_prompt_template(use_prompt_files: bool = True) -> ChatPromptTemplate:
+    """
+    Create second-round analysis prompt template
+    
+    Args:
+        use_prompt_files: 是否使用外部 prompt 文件（默认 True）
+    """
+    # 尝试从文件加载
+    if use_prompt_files:
+        try:
+            loader = get_prompt_loader()
+            # 注意：这里我们返回占位符，实际内容将在调用时填充
+            # 因为 ChatPromptTemplate 需要在创建时指定消息
+            system_template = loader.load_prompt("analyst", "second_round_system", {})
+            human_template = loader.load_prompt("analyst", "second_round_human", {})
+            
+            # 创建模板时使用原有的占位符格式
+            template = ChatPromptTemplate.from_messages([
+                ("system", system_template),
+                ("human", human_template)
+            ])
+            return template
+        except FileNotFoundError:
+            print(f"⚠️ Prompt files not found for second_round, using hardcoded templates")
+    
+    # 硬编码模板（向后兼容）
     template = ChatPromptTemplate.from_messages([
     ("system", """You are a professional {analyst_name} with the following characteristics:
 

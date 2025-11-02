@@ -80,3 +80,5 @@ debug_api_functions.py
 
 *.md
 !README.md
+!src/agents/prompts/**/*.md
+!src/agents/prompts/*.md
