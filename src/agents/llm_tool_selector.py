@@ -9,6 +9,7 @@ from typing import Dict, Any, List, Optional
 import json
 import pdb
 import numpy as np
+from .prompt_loader import get_prompt_loader
 # 导入所有可用的分析工具
 from src.tools.analysis_tools_unified import (
     # 基本面工具
@@ -50,7 +51,16 @@ class NumpyEncoder(json.JSONEncoder):
 class LLMToolSelector:
     """基于LLM的智能工具选择器"""
     
-    def __init__(self):
+    def __init__(self, use_prompt_files: bool = True):
+        """
+        初始化工具选择器
+        
+        Args:
+            use_prompt_files: 是否使用外部 prompt 文件（默认 True，向后兼容）
+        """
+        self.use_prompt_files = use_prompt_files
+        self.prompt_loader = get_prompt_loader() if use_prompt_files else None
+        
         # 所有可用的分析工具
         
         self.all_available_tools = {
@@ -182,14 +192,29 @@ class LLMToolSelector:
         
         tools_text = "\n\n".join(tools_description)
         
-        # 市场条件描述
-        market_context = []
-        for key, value in market_conditions.items():
-            market_context.append(f"- {key}: {value}")
-        market_text = "\n".join(market_context) if market_context else "- No special market condition information"
-
-# **当前市场环境**:
-# {market_text}
+        # 获取 persona 描述
+        persona_description = self._get_analyst_persona_description(analyst_persona)
+        
+        # 尝试从文件加载 prompt
+        if self.use_prompt_files and self.prompt_loader:
+            try:
+                prompt = self.prompt_loader.load_prompt(
+                    "analyst",
+                    "tool_selection",
+                    {
+                        "analyst_persona": analyst_persona,
+                        "ticker": ticker,
+                        "analysis_objective": analysis_objective,
+                        "tools_description": tools_text,
+                        "persona_description": persona_description
+                    }
+                )
+                return prompt
+            except FileNotFoundError:
+                # 如果文件不存在，使用硬编码的 prompt（向后兼容）
+                print(f"⚠️ Prompt file not found, using hardcoded prompt for tool_selection")
+        
+        # 硬编码的 prompt（向后兼容）
         prompt = f"""
 You are a professional {analyst_persona}, and you need to select appropriate analysis tools for stock {ticker} to conduct investment analysis.
 
@@ -199,7 +224,7 @@ You are a professional {analyst_persona}, and you need to select appropriate ana
 {tools_text}
 
 **Your Professional Identity and Preferences**:
-{self._get_analyst_persona_description(analyst_persona)}
+{persona_description}
 
 **Task Requirements**:
 1. Based on your professional background and current market environment, select 3-6 most suitable tools from the above tools
@@ -446,8 +471,26 @@ You will flexibly select various tools based on specific situations, pursuing co
                 }
                 tool_summaries.append(tool_summary)
         
-        # 构建LLM提示
-        prompt = f"""
+        tool_summaries_json = json.dumps(tool_summaries, indent=2, ensure_ascii=False, cls=NumpyEncoder)
+        
+        # 尝试从文件加载 prompt
+        if self.use_prompt_files and self.prompt_loader:
+            try:
+                prompt = self.prompt_loader.load_prompt(
+                    "analyst",
+                    "tool_synthesis",
+                    {
+                        "analyst_persona": analyst_persona,
+                        "ticker": ticker,
+                        "analysis_strategy": selection_result.get('analysis_strategy', ''),
+                        "synthesis_approach": selection_result.get('synthesis_approach', ''),
+                        "tool_summaries": tool_summaries_json
+                    }
+                )
+            except FileNotFoundError:
+                print(f"⚠️ Prompt file not found, using hardcoded prompt for tool_synthesis")
+                # 使用硬编码 prompt
+                prompt = f"""
         As a professional {analyst_persona}, you need to synthesize the following tool analysis results and provide final investment signal and confidence level.
 
         Stock: {ticker}
@@ -455,7 +498,29 @@ You will flexibly select various tools based on specific situations, pursuing co
         Synthesis Method: {selection_result.get('synthesis_approach', '')}
 
         Tool Analysis Results:
-        {json.dumps(tool_summaries, indent=2, ensure_ascii=False, cls=NumpyEncoder)}
+        {tool_summaries_json}
+
+        Please provide final investment recommendation based on your professional judgment by synthesizing these tool results.
+
+        Output Format (JSON):
+        {{
+            "signal": "bullish/bearish/neutral",
+            "confidence": integer between 0-100,
+            "reasoning": "detailed comprehensive judgment rationale, explaining how to weigh each tool result",
+            "tool_impact_analysis": "analysis of each tool's impact on final judgment"
+        }}
+        """
+        else:
+            # 硬编码 prompt（向后兼容）
+            prompt = f"""
+        As a professional {analyst_persona}, you need to synthesize the following tool analysis results and provide final investment signal and confidence level.
+
+        Stock: {ticker}
+        Analysis Strategy: {selection_result.get('analysis_strategy', '')}
+        Synthesis Method: {selection_result.get('synthesis_approach', '')}
+
+        Tool Analysis Results:
+        {tool_summaries_json}
 
         Please provide final investment recommendation based on your professional judgment by synthesizing these tool results.
 

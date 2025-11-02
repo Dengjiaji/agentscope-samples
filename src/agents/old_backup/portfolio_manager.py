@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from typing_extensions import Literal
 from src.utils.progress import progress
 from src.utils.llm import call_llm
+from .prompt_loader import get_prompt_loader
 
 
 class PortfolioDecision(BaseModel):
@@ -17,6 +18,67 @@ class PortfolioDecision(BaseModel):
 
 class PortfolioManagerOutput(BaseModel):
     decisions: dict[str, PortfolioDecision] = Field(description="Dictionary of ticker to trading decisions")
+
+
+def _create_hardcoded_direction_template() -> ChatPromptTemplate:
+    """创建硬编码的方向决策模板（向后兼容）"""
+    return ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                """You are a portfolio manager who needs to make final investment direction decisions based on signals from multiple analysts.
+
+              Important Notes:
+              - Your task is to decide investment direction for each stock: long (bullish), short (bearish), or hold (neutral)
+              - No need to consider specific investment quantities, only decide direction
+              - Each decision is based on unit assets (e.g., 1 share)
+              - Need to comprehensively consider opinions from all analysts, including their confidence levels
+
+              Available investment directions:
+              - "long": Bullish on the stock, expecting price to rise
+              - "short": Bearish on the stock, expecting price to decline
+              - "hold": Neutral, no action taken
+
+              Input information:
+              - signals_by_ticker: Dictionary of analyst signals for each ticker
+              - analyst_weights: Performance-based analyst weights (if available)
+              - Risk manager provides risk assessment information (risk_level, risk_score, etc.), does not include investment recommendations
+              """,
+            ),
+            (
+                "human",
+                """Based on team analysis, make investment direction decisions for each stock.
+
+              Analyst signals for each stock:
+              {signals_by_ticker}
+
+              {analyst_weights_info}{analyst_weights_separator}
+
+              Decision rules:
+              - Comprehensively consider signals and confidence levels from all analysts
+              - Opinions from analysts with higher weights should receive more consideration
+              - When analysts have significant disagreements, choose hold/neutral
+              - When majority of analysts agree with high confidence, follow mainstream opinion
+              - Risk manager's risk assessment information should be used as important reference, high-risk stocks require more cautious decisions
+
+              Please strictly output in the following JSON format:
+              {{
+                "decisions": {{
+                  "TICKER1": {{
+                    "action": "long/short/hold",
+                    "confidence": float between 0-100,
+                    "reasoning": "detailed explanation of your decision rationale, including how you synthesized each analyst's opinion"
+                  }},
+                  "TICKER2": {{
+                    ...
+                  }},
+                  ...
+                }}
+              }}
+              """,
+            ),
+        ]
+    )
 
 
 ##### Portfolio Management Agent #####
@@ -128,67 +190,28 @@ def generate_trading_decision(
     signals_by_ticker: dict[str, dict],
     agent_id: str,
     state: AgentState,
+    use_prompt_files: bool = True,
 ) -> PortfolioManagerOutput:
     """Generate investment direction decisions based on analyst signals"""
-    # Create the prompt template
-    template = ChatPromptTemplate.from_messages(
-        [
-            (
-                "system",
-                """You are a portfolio manager who needs to make final investment direction decisions based on signals from multiple analysts.
-
-              Important Notes:
-              - Your task is to decide investment direction for each stock: long (bullish), short (bearish), or hold (neutral)
-              - No need to consider specific investment quantities, only decide direction
-              - Each decision is based on unit assets (e.g., 1 share)
-              - Need to comprehensively consider opinions from all analysts, including their confidence levels
-
-              Available investment directions:
-              - "long": Bullish on the stock, expecting price to rise
-              - "short": Bearish on the stock, expecting price to decline
-              - "hold": Neutral, no action taken
-
-              Input information:
-              - signals_by_ticker: Dictionary of analyst signals for each ticker
-              - analyst_weights: Performance-based analyst weights (if available)
-              - Risk manager provides risk assessment information (risk_level, risk_score, etc.), does not include investment recommendations
-              """,
-            ),
-            (
-                "human",
-                """Based on team analysis, make investment direction decisions for each stock.
-
-              Analyst signals for each stock:
-              {signals_by_ticker}
-
-              {analyst_weights_info}{analyst_weights_separator}
-
-              Decision rules:
-              - Comprehensively consider signals and confidence levels from all analysts
-              - Opinions from analysts with higher weights should receive more consideration
-              - When analysts have significant disagreements, choose hold/neutral
-              - When majority of analysts agree with high confidence, follow mainstream opinion
-              - Risk manager's risk assessment information should be used as important reference, high-risk stocks require more cautious decisions
-
-              Please strictly output in the following JSON format:
-              {{
-                "decisions": {{
-                  "TICKER1": {{
-                    "action": "long/short/hold",
-                    "confidence": float between 0-100,
-                    "reasoning": "detailed explanation of your decision rationale, including how you synthesized each analyst's opinion"
-                  }},
-                  "TICKER2": {{
-                    ...
-                  }},
-                  ...
-                }}
-              }}
-              """,
-            ),
-        ]
-    )
-
+    
+    # 尝试从文件加载 prompt
+    if use_prompt_files:
+        try:
+            loader = get_prompt_loader()
+            system_prompt = loader.load_prompt("portfolio_manager", "direction_decision_system", {})
+            human_prompt = loader.load_prompt("portfolio_manager", "direction_decision_human", {})
+            
+            template = ChatPromptTemplate.from_messages([
+                ("system", system_prompt),
+                ("human", human_prompt)
+            ])
+        except FileNotFoundError:
+            print(f"⚠️ Prompt files not found for portfolio_manager, using hardcoded prompts")
+            # 使用硬编码 prompt
+            template = _create_hardcoded_direction_template()
+    else:
+        template = _create_hardcoded_direction_template()
+    
     # 获取分析师权重信息
     analyst_weights = state.get("data", {}).get("analyst_weights", {})
     okr_state = state.get("data", {}).get("okr_state", {})
