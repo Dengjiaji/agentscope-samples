@@ -245,6 +245,7 @@ class ContinuousServer:
                     'pnlPct': data.get('pnlPct'),
                     'equity': data.get('equity', []),
                     'baseline': data.get('baseline', []),  # ⭐ 添加 baseline
+                    'momentum': data.get('momentum', []),  # ⭐ 添加 momentum
                     'timestamp': timestamp
                 })
                 logger.info(f"✅ 广播 team_summary (从文件)")
@@ -320,7 +321,8 @@ class ContinuousServer:
                         'total_value': summary_data.get('balance'),
                         'pnl_percent': summary_data.get('pnlPct'),
                         'equity': summary_data.get('equity', []),
-                        'baseline': summary_data.get('baseline', [])  # ⭐ 添加 baseline
+                        'baseline': summary_data.get('baseline', []),  # ⭐ 添加 baseline
+                        'momentum': summary_data.get('momentum', [])  # ⭐ 添加 momentum
                     })
                 
                 # 更新其他数据

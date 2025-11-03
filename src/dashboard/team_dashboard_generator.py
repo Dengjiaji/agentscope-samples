@@ -108,6 +108,7 @@ class TeamDashboardGenerator:
         state = self._load_json(self.state_file, {
             'equity_history': [],  # [{t: timestamp, v: value}]
             'baseline_history': [],  # Buy & Hold 基准线历史
+            'momentum_history': [],  # 动量策略历史
             'all_trades': [],  # 所有交易历史
             'agent_performance': {},  # agent_id -> {signals: [], bull_count: 0, bull_win: 0, ...}
             'portfolio_state': {  # 当前持仓状态
@@ -117,6 +118,15 @@ class TeamDashboardGenerator:
             'baseline_state': {  # Buy & Hold 持仓状态
                 'initial_allocation': {},  # ticker -> {qty, buy_price, buy_date}
                 'initialized': False
+            },
+            'momentum_state': {  # 动量策略持仓状态
+                'positions': {},  # ticker -> {qty, buy_price, buy_date}
+                'cash': self.initial_cash,
+                'initialized': False,
+                'last_rebalance_date': None,
+                'rebalance_period_days': 20,  # 每20个交易日再平衡一次
+                'lookback_days': 20,  # 回看20天计算动量
+                'top_n': 3  # 持有动量最强的前3只股票
             },
             'last_update_date': None,
             'total_value_history': [],  # 用于计算收益率
@@ -144,6 +154,22 @@ class TeamDashboardGenerator:
         # 确保baseline_history存在
         if 'baseline_history' not in state:
             state['baseline_history'] = []
+        
+        # 确保momentum_state存在
+        if 'momentum_state' not in state:
+            state['momentum_state'] = {
+                'positions': {},
+                'cash': self.initial_cash,
+                'initialized': False,
+                'last_rebalance_date': None,
+                'rebalance_period_days': 20,
+                'lookback_days': 20,
+                'top_n': 3
+            }
+        
+        # 确保momentum_history存在
+        if 'momentum_history' not in state:
+            state['momentum_history'] = []
         
         return state
     
@@ -177,7 +203,7 @@ class TeamDashboardGenerator:
             df = pd.read_csv(csv_file)
             
             # 解析日期列
-            df['Date'] = pd.to_datetime(df['Date'])
+            df['Date'] = pd.to_datetime(df['time'])
             
             # 提取日期（不含时间）作为索引
             df['date_str'] = df['Date'].dt.strftime('%Y-%m-%d')
@@ -282,7 +308,10 @@ class TeamDashboardGenerator:
         # 6. 更新 Buy & Hold 基准线
         self._update_baseline_curve(date, timestamp_ms, state)
         
-        # 7. 保存内部状态
+        # 7. 更新动量策略曲线
+        self._update_momentum_curve(date, timestamp_ms, available_tickers, state)
+        
+        # 8. 保存内部状态
         state['last_update_date'] = date
         self._save_internal_state(state)
         
@@ -790,6 +819,227 @@ class TeamDashboardGenerator:
         return_pct = ((baseline_value - self.initial_cash) / self.initial_cash) * 100
         print(f"📊 Buy & Hold 基准: ${baseline_value:,.2f} ({return_pct:+.2f}%)")
     
+    def _calculate_momentum_scores(self, date: str, available_tickers: list, 
+                                   lookback_days: int, state: Dict) -> Dict[str, float]:
+        """
+        计算所有股票的动量得分（过去N天的收益率）
+        
+        Args:
+            date: 当前日期
+            available_tickers: 可交易的股票列表
+            lookback_days: 回看天数
+            state: 内部状态
+            
+        Returns:
+            ticker -> momentum_score (收益率)
+        """
+        momentum_scores = {}
+        
+        # 将日期转换为 datetime
+        current_date = datetime.strptime(date, "%Y-%m-%d")
+        
+        for ticker in available_tickers:
+            # 获取当前价格
+            current_price = self._get_price_from_csv(ticker, date, 'close')
+            if current_price is None or current_price <= 0:
+                continue
+            
+            # 尝试获取 lookback_days 天前的价格
+            # 由于可能有非交易日，我们需要向前查找
+            past_price = None
+            for days_back in range(lookback_days, lookback_days + 10):  # 最多多找10天
+                past_date = current_date - timedelta(days=days_back)
+                past_date_str = past_date.strftime("%Y-%m-%d")
+                past_price = self._get_price_from_csv(ticker, past_date_str, 'close')
+                if past_price is not None and past_price > 0:
+                    break
+            
+            if past_price is None or past_price <= 0:
+                # 无法获取历史价格，跳过
+                continue
+            
+            # 计算动量得分（收益率）
+            momentum_score = (current_price - past_price) / past_price
+            momentum_scores[ticker] = momentum_score
+        
+        return momentum_scores
+    
+    def _should_rebalance_momentum(self, date: str, state: Dict) -> bool:
+        """
+        判断是否需要再平衡动量策略
+        
+        Args:
+            date: 当前日期
+            state: 内部状态
+            
+        Returns:
+            是否需要再平衡
+        """
+        momentum_state = state['momentum_state']
+        
+        # 如果还未初始化，需要初始化
+        if not momentum_state['initialized']:
+            return True
+        
+        last_rebalance = momentum_state.get('last_rebalance_date')
+        if last_rebalance is None:
+            return True
+        
+        # 计算距离上次再平衡的天数
+        current_date = datetime.strptime(date, "%Y-%m-%d")
+        last_rebalance_date = datetime.strptime(last_rebalance, "%Y-%m-%d")
+        days_since_rebalance = (current_date - last_rebalance_date).days
+        
+        rebalance_period = momentum_state.get('rebalance_period_days', 20)
+        
+        return days_since_rebalance >= rebalance_period
+    
+    def _rebalance_momentum_portfolio(self, date: str, available_tickers: list, state: Dict):
+        """
+        再平衡动量策略组合
+        
+        策略逻辑：
+        1. 计算所有股票的动量得分（过去N天收益率）
+        2. 选择动量最强的前K只股票
+        3. 卖出所有当前持仓
+        4. 等权重买入新选出的股票
+        
+        Args:
+            date: 交易日期
+            available_tickers: 可交易的股票列表
+            state: 内部状态
+        """
+        momentum_state = state['momentum_state']
+        lookback_days = momentum_state.get('lookback_days', 20)
+        top_n = momentum_state.get('top_n', 3)
+        
+        # 1. 计算动量得分
+        momentum_scores = self._calculate_momentum_scores(date, available_tickers, lookback_days, state)
+        
+        if not momentum_scores:
+            print(f"⚠️ {date} 无法计算动量得分，跳过再平衡")
+            return
+        
+        # 2. 选择动量最强的前N只股票
+        sorted_tickers = sorted(momentum_scores.items(), key=lambda x: x[1], reverse=True)
+        top_tickers = [ticker for ticker, score in sorted_tickers[:top_n]]
+        
+        print(f"🔄 动量策略再平衡 ({date}):")
+        print(f"   动量排名:")
+        for i, (ticker, score) in enumerate(sorted_tickers[:top_n], 1):
+            print(f"   {i}. {ticker}: {score*100:+.2f}%")
+        
+        # 3. 卖出所有当前持仓，回收现金
+        current_positions = momentum_state['positions']
+        for ticker, position in list(current_positions.items()):
+            sell_price = self._get_price_from_csv(ticker, date, 'close')
+            if sell_price and sell_price > 0:
+                sell_value = position['qty'] * sell_price
+                momentum_state['cash'] += sell_value
+        
+        # 清空持仓
+        momentum_state['positions'] = {}
+        
+        # 4. 等权重买入新选出的股票
+        if top_tickers:
+            cash_per_ticker = momentum_state['cash'] / len(top_tickers)
+            total_invested = 0.0
+            
+            for ticker in top_tickers:
+                buy_price = self._get_price_from_csv(ticker, date, 'close')
+                if buy_price is None or buy_price <= 0:
+                    print(f"⚠️ {ticker} 在 {date} 没有有效价格，跳过")
+                    continue
+                
+                # 计算可购买的数量（向下取整）
+                quantity = int(cash_per_ticker / buy_price)
+                
+                if quantity > 0:
+                    cost = quantity * buy_price
+                    momentum_state['positions'][ticker] = {
+                        'qty': quantity,
+                        'buy_price': buy_price,
+                        'buy_date': date
+                    }
+                    momentum_state['cash'] -= cost
+                    total_invested += cost
+                    print(f"   买入 {ticker}: {quantity} 股 @ ${buy_price:.2f}")
+        
+        # 更新状态
+        momentum_state['initialized'] = True
+        momentum_state['last_rebalance_date'] = date
+        
+        print(f"✅ 动量策略再平衡完成，剩余现金: ${momentum_state['cash']:,.2f}")
+    
+    def _calculate_momentum_value(self, date: str, state: Dict) -> float:
+        """
+        计算动量策略的当前净值
+        
+        Args:
+            date: 当前日期
+            state: 内部状态
+            
+        Returns:
+            动量策略的总资产价值（持仓 + 现金）
+        """
+        momentum_state = state['momentum_state']
+        
+        if not momentum_state['initialized']:
+            return self.initial_cash
+        
+        # 持仓市值
+        positions_value = 0.0
+        for ticker, position in momentum_state['positions'].items():
+            current_price = self._get_current_price(ticker, date, state)
+            if current_price is None or current_price <= 0:
+                current_price = position['buy_price']
+            positions_value += position['qty'] * current_price
+        
+        # 总资产 = 持仓市值 + 现金
+        total_value = positions_value + momentum_state['cash']
+        
+        return total_value
+    
+    def _update_momentum_curve(self, date: str, timestamp_ms: int, 
+                               available_tickers: list, state: Dict):
+        """
+        更新动量策略曲线
+        
+        Args:
+            date: 交易日期
+            timestamp_ms: 时间戳（毫秒）
+            available_tickers: 可交易的股票列表
+            state: 内部状态
+        """
+        momentum_state = state['momentum_state']
+        
+        # 判断是否需要再平衡
+        if self._should_rebalance_momentum(date, state):
+            self._rebalance_momentum_portfolio(date, available_tickers, state)
+        
+        # 如果动量策略刚初始化，且历史记录为空，先添加初始点
+        if momentum_state['initialized'] and len(state['momentum_history']) == 0:
+            initial_point = {
+                't': timestamp_ms,
+                'v': round(self.initial_cash, 2)
+            }
+            state['momentum_history'].append(initial_point)
+            print(f"📊 动量策略初始点: ${self.initial_cash:,.2f}")
+        
+        # 计算动量策略的当前总价值
+        momentum_value = self._calculate_momentum_value(date, state)
+        
+        # 添加到历史
+        momentum_point = {
+            't': timestamp_ms,
+            'v': round(momentum_value, 2)
+        }
+        state['momentum_history'].append(momentum_point)
+        
+        # 计算收益率用于日志显示
+        return_pct = ((momentum_value - self.initial_cash) / self.initial_cash) * 100
+        print(f"📊 动量策略: ${momentum_value:,.2f} ({return_pct:+.2f}%)")
+    
     def _generate_summary(self, state: Dict):
         """生成账户概览数据（使用真实价格）"""
         portfolio_state = state['portfolio_state']
@@ -830,17 +1080,20 @@ class TeamDashboardGenerator:
             'pnlPct': round(total_return, 2),
             'balance': round(balance, 2),
             'equity': state.get('equity_history', []),
-            'baseline': state.get('baseline_history', [])
+            'baseline': state.get('baseline_history', []),
+            'momentum': state.get('momentum_history', [])  # 添加动量策略数据
         }
         
         self._save_json(self.summary_file, summary)
     
     def _generate_holdings(self, state: Dict):
-        """生成持仓信息（包括现金和未实现盈亏）"""
+        """生成持仓信息"""
         portfolio_state = state['portfolio_state']
         positions = portfolio_state['positions']
         cash = portfolio_state['cash']
         last_date = state.get('last_update_date')
+        
+        print(f"\n🔍 生成 Holdings 数据 (日期: {last_date}):")
         
         # 计算总价值用于计算权重（使用真实价格）
         total_value = cash
@@ -853,26 +1106,23 @@ class TeamDashboardGenerator:
         # 添加股票持仓
         for ticker, pos in positions.items():
             qty = pos['qty']
-            avg_cost = pos['avg_cost']
             
             # 使用真实的当前价格
             current_price = self._get_current_price(ticker, last_date, state) if last_date else self.DEFAULT_BASE_PRICE
             
-            # 计算市值
+            # 计算当前市值
             market_value = qty * current_price
-            
-            # 计算未实现盈亏 (unrealized P&L)
-            unrealized_pnl = (current_price - avg_cost) * qty
             
             # 计算权重
             weight = abs(market_value) / total_value if total_value > 0 else 0
+            
+            print(f"   {ticker}: 数量={qty}, 当前价=${current_price:.2f}, 市值=${market_value:.2f}, 权重={weight:.2%}")
             
             holdings.append({
                 'ticker': ticker,
                 'quantity': qty,
                 'currentPrice': round(current_price, 2),
                 'marketValue': round(market_value, 2),
-                'unrealizedPnl': round(unrealized_pnl, 2),
                 'weight': round(weight, 4)
             })
         
@@ -883,7 +1133,6 @@ class TeamDashboardGenerator:
             'quantity': 1,
             'currentPrice': round(cash, 2),
             'marketValue': round(cash, 2),
-            'unrealizedPnl': 0.0,
             'weight': round(cash_weight, 4)
             })
         

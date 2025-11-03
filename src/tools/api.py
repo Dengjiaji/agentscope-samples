@@ -4,7 +4,7 @@ import pandas as pd
 import requests
 import time
 import finnhub
-
+import pdb
 from src.data.cache import get_cache
 from src.data.models import (
     CompanyNews,
@@ -102,7 +102,6 @@ def get_prices(
         
         # Fetch candle data from Finnhub
         candles = client.stock_candles(ticker, 'D', start_timestamp, end_timestamp)
-        
         # Check response status
         if candles.get('s') != 'ok':
             raise Exception(f"Error fetching data from Finnhub: {ticker} - {candles}")
