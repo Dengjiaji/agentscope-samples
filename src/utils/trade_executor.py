@@ -222,12 +222,12 @@ class PortfolioTradeExecutor:
         date: str
     ) -> Dict[str, Any]:
         """
-        执行单笔交易 - 新版本支持 long/short/hold 方向性操作
+        执行单笔交易 - 增量模式
         
         Args:
             ticker: 股票代码
-            action: long/short/hold
-            target_quantity: 目标持仓数量（不是增量）
+            action: long(加仓)/short(减仓)/hold
+            target_quantity: 增量数量（long=买入股数，short=卖出股数）
             price: 当前价格
             date: 交易日期
         """
@@ -248,56 +248,53 @@ class PortfolioTradeExecutor:
         trades_executed = []  # 记录实际执行的交易步骤
         
         if action == "long":
-            # 目标：持有 target_quantity 股多头
-            # 步骤1: 如果有空头持仓，先平掉
-            if current_short > 0:
-                cover_result = self._cover_short_position(ticker, current_short, price, date)
-                if cover_result["status"] == "failed":
-                    return cover_result
-                trades_executed.append(f"平空 {current_short}股")
+            # 加仓：买入 target_quantity 股
+            print(f"\n📈 {ticker} 加仓: 当前 {current_long}股 → 买入 {target_quantity}股 → 最终 {current_long + target_quantity}股")
             
-            # 步骤2: 调整多头持仓到目标数量
-            if target_quantity > current_long:
-                # 需要买入
-                buy_quantity = target_quantity - current_long
-                buy_result = self._buy_long_position(ticker, buy_quantity, price, date)
+            if target_quantity > 0:
+                buy_result = self._buy_long_position(ticker, target_quantity, price, date)
                 if buy_result["status"] == "failed":
                     return buy_result
-                trades_executed.append(f"买入 {buy_quantity}股")
-            elif target_quantity < current_long:
-                # 需要卖出
-                sell_quantity = current_long - target_quantity
-                sell_result = self._sell_long_position(ticker, sell_quantity, price, date)
-                if sell_result["status"] == "failed":
-                    return sell_result
-                trades_executed.append(f"卖出 {sell_quantity}股")
-            # else: 已经是目标数量，不需要操作
+                trades_executed.append(f"买入 {target_quantity}股")
+            else:
+                print(f"   ⏸️ quantity为0，无需交易")
             
         elif action == "short":
-            # 目标：持有 target_quantity 股空头
-            # 步骤1: 如果有多头持仓，先平掉
-            if current_long > 0:
-                sell_result = self._sell_long_position(ticker, current_long, price, date)
-                if sell_result["status"] == "failed":
-                    return sell_result
-                trades_executed.append(f"平多 {current_long}股")
+            # 看空：先卖出多头，如果quantity更大，剩余部分做空
+            print(f"\n📉 {ticker} 看空操作 (quantity={target_quantity}股):")
+            print(f"   当前状态: 多头{current_long}股, 空头{current_short}股")
             
-            # 步骤2: 调整空头持仓到目标数量
-            if target_quantity > current_short:
-                # 需要做空
-                short_quantity = target_quantity - current_short
-                short_result = self._open_short_position(ticker, short_quantity, price, date)
-                if short_result["status"] == "failed":
-                    return short_result
-                trades_executed.append(f"做空 {short_quantity}股")
-            elif target_quantity < current_short:
-                # 需要平空
-                cover_quantity = current_short - target_quantity
-                cover_result = self._cover_short_position(ticker, cover_quantity, price, date)
-                if cover_result["status"] == "failed":
-                    return cover_result
-                trades_executed.append(f"平空 {cover_quantity}股")
-            # else: 已经是目标数量，不需要操作
+            if target_quantity > 0:
+                remaining_quantity = target_quantity
+                
+                # 步骤1: 如果有多头持仓，先卖出
+                if current_long > 0:
+                    sell_quantity = min(remaining_quantity, current_long)
+                    print(f"   1️⃣ 卖出多头: {sell_quantity}股")
+                    sell_result = self._sell_long_position(ticker, sell_quantity, price, date)
+                    if sell_result["status"] == "failed":
+                        return sell_result
+                    trades_executed.append(f"卖出 {sell_quantity}股")
+                    remaining_quantity -= sell_quantity
+                
+                # 步骤2: 如果还有剩余quantity，建立或增加空头
+                if remaining_quantity > 0:
+                    print(f"   2️⃣ 做空: {remaining_quantity}股")
+                    short_result = self._open_short_position(ticker, remaining_quantity, price, date)
+                    if short_result["status"] == "failed":
+                        return short_result
+                    trades_executed.append(f"做空 {remaining_quantity}股")
+                
+                # 显示最终结果
+                final_long = self.portfolio["positions"][ticker]["long"]
+                final_short = self.portfolio["positions"][ticker]["short"]
+                print(f"   ✅ 最终状态: 多头{final_long}股, 空头{final_short}股")
+            else:
+                print(f"   ⏸️ quantity为0，无需交易")
+        
+        elif action == "hold":
+            # 观望：不交易
+            print(f"\n⏸️ {ticker} 持仓不变: {current_long}股")
         
         # 记录交易
         trade_record = {

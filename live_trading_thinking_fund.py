@@ -586,6 +586,7 @@ class LiveTradingThinkingFund:
                     quantity = signal_info.get('quantity', 0)
                     confidence = signal_info.get('confidence', 'N/A')
                     signal = signal_info.get('signal', 'N/A')
+                    reasoning = signal_info.get('reasoning', '')
                     
                     # 显示操作和数量
                     if quantity > 0:
@@ -596,6 +597,10 @@ class LiveTradingThinkingFund:
                         pm_review_lines.append(
                             f"  {ticker}: {signal} ({action}, 置信度: {confidence}%)"
                         )
+                    
+                    # 添加决策理由
+                    if reasoning:
+                        pm_review_lines.append(f"    💭 理由: {reasoning}")
                 else:
                     pm_review_lines.append(f"  {ticker}: 无信号数据")
         else:
@@ -603,9 +608,13 @@ class LiveTradingThinkingFund:
             for ticker in tickers:
                 if ticker in pm_signals:
                     signal_info = pm_signals[ticker]
+                    reasoning = signal_info.get('reasoning', '')
                     pm_review_lines.append(
                         f"  {ticker}: {signal_info.get('signal', 'N/A')} ({signal_info.get('action', 'N/A')}, 置信度: {signal_info.get('confidence', 'N/A')}%)"
                     )
+                    # 添加决策理由
+                    if reasoning:
+                        pm_review_lines.append(f"    💭 理由: {reasoning}")
                 else:
                     pm_review_lines.append(f"  {ticker}: 无信号数据")
 
