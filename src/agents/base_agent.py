@@ -11,6 +11,8 @@ from ..graph.state import AgentState
 
 class BaseAgent(ABC):
     """Agent 基类"""
+    # todo：继承 reactAgent注册
+    # 直接super.__init__(),其中需要注意传入 model = {} 和 toolkit，toolkit 需要修改 LLMtoolselector进行注册，按照agentscope的逻辑
     
     def __init__(self, agent_id: str, agent_type: str, config: Optional[Dict[str, Any]] = None):
         """
@@ -32,6 +34,7 @@ class BaseAgent(ABC):
         self.agent_id = agent_id
         self.agent_type = agent_type
         self.config = config or {}
+
         
         # 延迟加载 prompt_loader 以避免循环导入
         self._prompt_loader = None

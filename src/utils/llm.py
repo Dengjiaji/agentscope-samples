@@ -29,6 +29,10 @@ def call_llm(
     Returns:
         An instance of the specified Pydantic model
     """
+
+    # TODO
+    # 核心修改：不再在每次 call的时候获取 get_agent_model_config，而是直接 self.model(prompt)
+    # self.model的传入逻辑参考agentscope中逻辑，不再通过该逻辑调用
     
     # Extract model configuration if state is provided and agent_name is available
     if state and agent_name:

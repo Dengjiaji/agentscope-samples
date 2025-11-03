@@ -308,6 +308,8 @@ You will flexibly select various tools based on specific situations, pursuing co
         """Use LLM to select analysis tools"""
         
         # 生成提示词
+
+
         prompt = self.get_tool_selection_prompt(
             analyst_persona, ticker, market_conditions, analysis_objective
         )
@@ -316,6 +318,12 @@ You will flexibly select various tools based on specific situations, pursuing co
             # 调用LLM
             messages = [HumanMessage(content=prompt)]
             response = llm.invoke(messages)
+
+            # TODO:改为agentscope中的调用逻辑，传入 prompt和 tool返回结果（如果有特殊格式，就提前把json_Schema拼好，然后再按照后面的逻辑解析）
+            #res = await self.model(
+            #             prompt,
+            #             # tool = self.toolkit.get_json_schemas()
+            # )
             
             # 解析响应
             response_text = response.content.strip()

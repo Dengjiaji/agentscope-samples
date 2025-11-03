@@ -191,6 +191,9 @@ def normalize_pandas(data):
 #     return _fallback_combine_signals([r for r in tool_results if "error" not in r])
 
 
+
+
+
 # ===================== 基本面分析工具 =====================
 @tool
 def analyze_efficiency_ratios(ticker: str, end_date: str, api_key: str) -> Dict[str, Any]:
@@ -1783,3 +1786,4 @@ def residual_income_valuation_analysis(ticker: str, end_date: str, api_key: str)
         
     except Exception as e:
         return {"error": str(e), "signal": "neutral"}
+
