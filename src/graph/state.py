@@ -13,6 +13,8 @@ def merge_dicts(a: dict[str, any], b: dict[str, any]) -> dict[str, any]:
 
 # Define agent state
 class AgentState(TypedDict):
+    # TODO: 不再继承 langchain_core.messages 而是使用 agentscope message
+    # 或者 直接从 agent(self...)获取messages(如self.messages), metadata(如self.model)等信息，不再需要AgentState
     messages: Annotated[Sequence[BaseMessage], operator.add]
     data: Annotated[dict[str, any], merge_dicts]
     metadata: Annotated[dict[str, any], merge_dicts]

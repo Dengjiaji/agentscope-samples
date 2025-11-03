@@ -940,7 +940,7 @@ class ContinuousServer:
             except Exception as e:
                 logger.error(f"❌ Dashboard 文件监控异常: {e}")
     
-    async def start(self, host: str = "0.0.0.0", port: int = 8765, mock: bool = False):
+    async def start(self, host: str = "0.0.0.0", port: int = 8001, mock: bool = False):
         """启动服务器
         
         Args:
@@ -1010,7 +1010,7 @@ async def main():
     parser = argparse.ArgumentParser(description='持续运行的交易系统服务器')
     parser.add_argument('--mock', action='store_true', help='使用Mock模式（测试前端）')
     parser.add_argument('--host', default='0.0.0.0', help='监听地址 (默认: 0.0.0.0)')
-    parser.add_argument('--port', type=int, default=8765, help='监听端口 (默认: 8765)')
+    parser.add_argument('--port', type=int, default=8001, help='监听端口 (默认: 8001)')
     args = parser.parse_args()
     
     # 加载配置

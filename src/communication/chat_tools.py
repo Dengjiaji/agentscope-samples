@@ -177,6 +177,13 @@ class CommunicationManager:
         """决定交流策略"""
         
         # 构建决策提示
+        # TODO: 所有使用到ChatPromptTemplate的地方都改成agentscope中的formatter逻辑
+        #         prompt = await self.formatter.format(
+        #             msgs=[
+        #                 Msg("system", self.sys_prompt, "system"),
+        #                 *await self.memory.get_memory(),
+        #             ],
+        #         )
         prompt_template = ChatPromptTemplate.from_messages([
             ("system", """You are a portfolio manager responsible for coordinating the analyst team.
         Based on current analysis results, you need to decide whether further communication with analysts is needed.

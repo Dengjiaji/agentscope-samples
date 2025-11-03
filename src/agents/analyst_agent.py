@@ -62,6 +62,9 @@ class AnalystAgent(BaseAgent):
         
         self.description = description or f"{self.analyst_persona} - 使用LLM智能选择分析工具"
         self.tool_selector = LLMToolSelector(use_prompt_files=True)
+        # from agentscope.tool import Toolkit
+        # self.tool_selector = Toolkit()
+        # self.tool_selector.call_tool_function()
     
     def execute(self, state: AgentState) -> Dict[str, Any]:
         """
@@ -201,6 +204,8 @@ class AnalystAgent(BaseAgent):
         )
         
         # 3. 执行选定的工具 - 传递state而不是api_key
+        # TODO: 改为 agentscope逻辑执行
+        #  tool_res = await self.toolkit.call_tool_function(tool_call)
         tool_results = self.tool_selector.execute_selected_tools(
             selection_result["selected_tools"],
             ticker=ticker,
