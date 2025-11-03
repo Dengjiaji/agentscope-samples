@@ -328,22 +328,38 @@ class RiskManagerAgent(BaseAgent):
         
         return risk_level, max(0, min(100, base_score)), assessment
     
+    # def _calculate_volatility_adjusted_limit(self, annualized_volatility: float) -> float:
+    #     """计算波动率调整后的仓位限制百分比"""
+    #     base_limit = 0.20  # 20%基准
+        
+    #     if annualized_volatility < 0.15:
+    #         vol_multiplier = 1.25  # 最多25%
+    #     elif annualized_volatility < 0.30:
+    #         vol_multiplier = 1.0 - (annualized_volatility - 0.15) * 0.5
+    #     elif annualized_volatility < 0.50:
+    #         vol_multiplier = 0.75 - (annualized_volatility - 0.30) * 0.5
+    #     else:
+    #         vol_multiplier = 0.50  # 最多10%
+        
+    #     vol_multiplier = max(0.25, min(1.25, vol_multiplier))
+    #     return base_limit * vol_multiplier
+
     def _calculate_volatility_adjusted_limit(self, annualized_volatility: float) -> float:
         """计算波动率调整后的仓位限制百分比"""
-        base_limit = 0.20  # 20%基准
+        base_limit = 0.35  # 35%基准
         
         if annualized_volatility < 0.15:
-            vol_multiplier = 1.25  # 最多25%
+            vol_multiplier = 1.3  # 最多45.5% (35% * 1.3)
         elif annualized_volatility < 0.30:
-            vol_multiplier = 1.0 - (annualized_volatility - 0.15) * 0.5
+            vol_multiplier = 1.1 - (annualized_volatility - 0.15) * 0.8
         elif annualized_volatility < 0.50:
-            vol_multiplier = 0.75 - (annualized_volatility - 0.30) * 0.5
+            vol_multiplier = 0.8 - (annualized_volatility - 0.30) * 0.6
         else:
-            vol_multiplier = 0.50  # 最多10%
+            vol_multiplier = 0.4  # 最多14% (35% * 0.4)
         
-        vol_multiplier = max(0.25, min(1.25, vol_multiplier))
+        vol_multiplier = max(0.4, min(1.3, vol_multiplier))
         return base_limit * vol_multiplier
-    
+
     def _get_default_volatility(self) -> Dict[str, float]:
         """获取默认波动率"""
         return {

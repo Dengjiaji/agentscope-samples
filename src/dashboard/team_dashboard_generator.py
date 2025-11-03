@@ -314,8 +314,7 @@ class TeamDashboardGenerator:
         # 8. 保存内部状态
         state['last_update_date'] = date
         self._save_internal_state(state)
-        
-        # 6. 生成所有前端数据文件
+        # 9. 生成所有前端数据文件
         self._generate_summary(state)
         self._generate_holdings(state)
         self._generate_stats(state)
@@ -481,8 +480,8 @@ class TeamDashboardGenerator:
             signal = signal_info.get('signal', 'neutral')
             action = signal_info.get('action', 'hold')
             
-            if action == 'hold':
-                continue
+            # if action == 'hold':
+            #     continue
             
             # 获取当前价格
             price = self._get_ticker_price(ticker, date, signal_info, portfolio_state, real_returns)
@@ -1111,7 +1110,6 @@ class TeamDashboardGenerator:
             total_value += pos['qty'] * current_price
         
         holdings = []
-        
         # 添加股票持仓
         for ticker, pos in positions.items():
             qty = pos['qty']
@@ -1134,7 +1132,6 @@ class TeamDashboardGenerator:
                 'marketValue': round(market_value, 2),
                 'weight': round(weight, 4)
             })
-        
         # 添加现金作为一个持仓项
         cash_weight = cash / total_value if total_value > 0 else 0
         holdings.append({
