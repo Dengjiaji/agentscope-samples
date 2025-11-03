@@ -666,6 +666,15 @@ class TeamDashboardGenerator:
         """更新权益曲线（使用真实价格）"""
         portfolio_state = state['portfolio_state']
         
+        # 如果是第一次更新（历史记录为空），先添加初始点（和 Baseline 保持一致）
+        if len(state['equity_history']) == 0:
+            initial_point = {
+                't': timestamp_ms,
+                'v': round(self.initial_cash, 2)  # $100,000
+            }
+            state['equity_history'].append(initial_point)
+            print(f"📊 Portfolio 初始点: ${self.initial_cash:,.2f}")
+        
         # 计算当前总价值：现金 + 持仓市值（使用真实价格）
         cash = portfolio_state['cash']
         positions_value = 0.0
