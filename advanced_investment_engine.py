@@ -963,7 +963,9 @@ class AdvancedInvestmentAnalysisEngine:
                             quantity = decision.get('quantity', 0)
                             decision_lines.append(f"  数量: {quantity}股")
                         decision_lines.append(f"  置信度: {confidence}%")
-                        decision_lines.append(f"  理由: {reasoning[:200]}...")  # 限制长度
+                        # 打印完整的reasoning，不截断
+                        if reasoning:
+                            decision_lines.append(f"  💭 理由: {reasoning}")
                     
                     agent_key = "portfolio_manager"
                     self.streamer.print("agent", "\n".join(decision_lines), role_key=agent_key)

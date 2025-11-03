@@ -199,61 +199,16 @@ class MultiDayManager:
             return None
     
     def restore_state_to_engine(self, previous_state: Dict[str, Any], current_state: Dict[str, Any]):
-        """将前一日状态恢复到当前引擎状态"""
+        """将前一日Portfolio状态恢复到当前引擎状态"""
         if not previous_state:
             return
-            
-        # 恢复分析师记忆
-        if previous_state.get("analyst_memory"):
-            current_state["data"]["analyst_memory"] = previous_state["analyst_memory"]
         
-        # 恢复沟通日志（继承历史决策上下文）
-        if previous_state.get("communication_logs"):
-            # 保留历史沟通记录作为上下文，确保所有必要字段都存在
-            current_state["data"]["communication_logs"] = {
-                "decisions": previous_state["communication_logs"].get("decisions", []),
-                "private_chats": previous_state["communication_logs"].get("private_chats", []),
-                "meetings": previous_state["communication_logs"].get("meetings", []),
-                "notifications": previous_state["communication_logs"].get("notifications", []),
-                "communication_decisions": previous_state["communication_logs"].get("communication_decisions", [])
-            }
-        else:
-            # 如果没有历史记录，确保创建完整的通信日志结构
-            if "communication_logs" not in current_state["data"]:
-                current_state["data"]["communication_logs"] = {}
-            
-            # 确保所有必要的子字段都存在
-            comm_logs = current_state["data"]["communication_logs"]
-            if "decisions" not in comm_logs:
-                comm_logs["decisions"] = []
-            if "private_chats" not in comm_logs:
-                comm_logs["private_chats"] = []
-            if "meetings" not in comm_logs:
-                comm_logs["meetings"] = []
-            if "notifications" not in comm_logs:
-                comm_logs["notifications"] = []
-            if "communication_decisions" not in comm_logs:
-                comm_logs["communication_decisions"] = []
-        
-        # 恢复投资组合状态（Portfolio模式）
+        # 只恢复投资组合状态（Portfolio模式）
         if previous_state.get("portfolio"):
             current_state["data"]["portfolio"] = previous_state["portfolio"]
-            print(f"已恢复投资组合状态 (现金: ${previous_state['portfolio'].get('cash', 0):,.2f})")
-        
-        # 恢复OKR状态
-        if previous_state.get("okr_state") and self.okr_enabled:
-            if self.okr_manager is None:
-                # 从保存的数据恢复OKR管理器
-                analyst_ids = list(self.engine.core_analysts.keys())
-                self.okr_manager = OKRManager(analyst_ids)
-            # 导入OKR数据到管理器
-            okr_data = previous_state["okr_state"]
-            if okr_data:
-                self.okr_manager.import_okr_data(okr_data)
-            if "data" in current_state:
-                current_state["data"]["okr_state"] = previous_state["okr_state"]
-            
-        print(f"已恢复前一交易日状态")
+            positions_count = len([p for p in previous_state["portfolio"].get("positions", {}).values() 
+                                  if p.get("long", 0) > 0 or p.get("short", 0) > 0])
+            print(f"✅ 已恢复Portfolio状态 - 现金: ${previous_state['portfolio'].get('cash', 0):,.2f}, 持仓数: {positions_count}")
 
     def _init_okr_manager(self):
         """初始化OKR管理器"""
@@ -363,8 +318,15 @@ class MultiDayManager:
                     previous_state = self.load_previous_state(current_date_str)
                     self.restore_state_to_engine(previous_state, daily_state)
                 else:
-                    # 第一天：初始化Portfolio状态（如果是portfolio模式）
-                    if mode == "portfolio":
+                    # 第一天：尝试加载previous state（可能是多日运行的continuation）
+                    previous_state = self.load_previous_state(current_date_str)
+                    
+                    if previous_state:
+                        # 如果有previous state，恢复它（包括portfolio、analyst_memory等）
+                        print(f"🔄 检测到历史状态，正在恢复...")
+                        self.restore_state_to_engine(previous_state, daily_state)
+                    elif mode == "portfolio":
+                        # 真正的第一天：初始化新Portfolio状态
                         initial_cash = kwargs.get("initial_cash", 100000.0)
                         margin_requirement = kwargs.get("margin_requirement", 0.0)
                         
