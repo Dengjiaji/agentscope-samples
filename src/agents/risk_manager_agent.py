@@ -13,7 +13,7 @@ from ..utils.progress import progress
 from ..utils.api_key import get_api_key_from_state
 from ..tools.api import get_prices, prices_to_df
 from langchain_core.messages import HumanMessage
-
+import pdb
 
 class RiskManagerAgent(BaseAgent):
     """风险管理 Agent"""
@@ -105,7 +105,6 @@ class RiskManagerAgent(BaseAgent):
                 
                 vol_metrics = self._calculate_volatility_metrics(prices_df)
                 volatility_data[ticker] = vol_metrics
-                
                 progress.update_status(
                     self.agent_id, 
                     ticker, 

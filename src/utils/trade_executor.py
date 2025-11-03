@@ -334,8 +334,17 @@ class PortfolioTradeExecutor:
         old_long = position["long"]
         old_cost_basis = position["long_cost_basis"]
         new_long = old_long + quantity
+        
+        # 🐛 调试信息
+        print(f"   🔍 买入 {ticker}:")
+        print(f"      旧持仓: {old_long} 股 @ ${old_cost_basis:.2f}")
+        print(f"      买入: {quantity} 股 @ ${price:.2f}")
+        print(f"      新持仓: {new_long} 股")
+        
         if new_long > 0:
-            position["long_cost_basis"] = ((old_long * old_cost_basis) + (quantity * price)) / new_long
+            new_cost_basis = ((old_long * old_cost_basis) + (quantity * price)) / new_long
+            print(f"      新成本: ${new_cost_basis:.2f} = (({old_long} × ${old_cost_basis:.2f}) + ({quantity} × ${price:.2f})) / {new_long}")
+            position["long_cost_basis"] = new_cost_basis
         position["long"] = new_long
         
         # 扣除现金

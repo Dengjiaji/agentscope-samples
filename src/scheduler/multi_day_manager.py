@@ -735,7 +735,7 @@ class MultiDayManager:
         # prices_df['ret'] = prices_df['close'].pct_change()
         
         # 查找指定日期的收益率
-        prices_df.index = pd.to_datetime(prices_df['Date']).dt.date
+        prices_df.index = pd.to_datetime(prices_df['time']).dt.date
         # pdb.set_trace()
         # 找到最接近目标日期的收益率
         market_return = prices_df.loc[target_date, 'ret']

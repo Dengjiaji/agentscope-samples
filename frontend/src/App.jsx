@@ -1455,6 +1455,7 @@ export default function LiveTradingApp() {
                 pnl: state.portfolio.pnl_percent || 0,
                 equity: state.portfolio.equity || prev.equity,
                 baseline: state.portfolio.baseline || prev.baseline,
+                momentum: state.portfolio.momentum || prev.momentum,
                 strategies: state.portfolio.strategies || prev.strategies
               }));
             }
@@ -1688,7 +1689,8 @@ export default function LiveTradingApp() {
             netValue: e.balance || prev.netValue,
             pnl: e.pnlPct || 0,
             equity: e.equity || prev.equity,
-            baseline: e.baseline || prev.baseline  // 添加 baseline 数据
+            baseline: e.baseline || prev.baseline,  // 添加 baseline 数据
+            momentum: e.momentum || prev.momentum  // 添加 momentum 数据
           }));
           
           // Add to feed
@@ -1794,6 +1796,12 @@ export default function LiveTradingApp() {
       v: 1000000 + i * 2000 + Math.random() * 10000
     }));
     
+    // Momentum strategy (more volatile)
+    const momentum = Array.from({ length: 90 }).map((_, i) => ({
+      t: Date.now() - (90 - i) * 3600e3,
+      v: 1000000 + Math.sin(i / 5) * 50000 + i * 2800 + Math.random() * 18000
+    }));
+    
     // Other strategies
     const strategies = Array.from({ length: 90 }).map((_, i) => ({
       t: Date.now() - (90 - i) * 3600e3,
@@ -1805,6 +1813,7 @@ export default function LiveTradingApp() {
       pnl: 34.75, 
       equity,
       baseline,
+      momentum,
       strategies
     });
     
@@ -1986,6 +1995,7 @@ export default function LiveTradingApp() {
                         <NetValueChart 
                           equity={portfolioData.equity}
                           baseline={portfolioData.baseline}
+                          momentum={portfolioData.momentum}
                           strategies={portfolioData.strategies}
                         />
                       </div>
@@ -2167,7 +2177,7 @@ function useImage(src) {
   return img;
 }
 
-function NetValueChart({ equity, baseline, strategies }) {
+function NetValueChart({ equity, baseline, momentum, strategies }) {
   const [activePoint, setActivePoint] = useState(null);
   // Store stable Y-axis range to avoid frequent updates
   const [stableYRange, setStableYRange] = useState(null);
@@ -2184,17 +2194,18 @@ function NetValueChart({ equity, baseline, strategies }) {
         timestamp: d.t,
         portfolio: d.v,
         baseline: baseline?.[idx]?.v || null,
+        momentum: momentum?.[idx]?.v || null,
         strategy: strategies?.[idx]?.v || null
       };
     });
-  }, [equity, baseline, strategies]);
+  }, [equity, baseline, momentum, strategies]);
   
   const { yMin, yMax, xTickIndices } = useMemo(() => {
     if (chartData.length === 0) return { yMin: 0, yMax: 1, xTickIndices: [] };
     
     // Calculate min and max from all series
     const allValues = chartData.flatMap(d => 
-      [d.portfolio, d.baseline, d.strategy].filter(v => v !== null && isFinite(v))
+      [d.portfolio, d.baseline, d.momentum, d.strategy].filter(v => v !== null && isFinite(v))
     );
     
     if (allValues.length === 0) {
@@ -2337,6 +2348,7 @@ function NetValueChart({ equity, baseline, strategies }) {
     const colors = {
       portfolio: '#00C853',
       baseline: '#FF6B00',
+      momentum: '#2196F3',
       strategy: '#9C27B0'
     };
     
@@ -2430,6 +2442,21 @@ function NetValueChart({ equity, baseline, strategies }) {
             strokeWidth={2}
             strokeDasharray="5 5"
             dot={(props) => <CustomDot {...props} dataKey="baseline" />}
+            activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 2 }}
+            isAnimationActive={false}
+          />
+        )}
+        
+        {/* Momentum line - Blue */}
+        {momentum && momentum.length > 0 && (
+          <Line 
+            type="monotone" 
+            dataKey="momentum" 
+            name="Momentum"
+            stroke="#2196F3" 
+            strokeWidth={2}
+            strokeDasharray="3 3"
+            dot={(props) => <CustomDot {...props} dataKey="momentum" />}
             activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 2 }}
             isAnimationActive={false}
           />
@@ -2691,7 +2718,6 @@ function StatisticsView({ trades, holdings, stats }) {
                 <th>Quantity</th>
                 <th>Current Price</th>
                 <th>Market Value</th>
-                <th>Unrealized P&L</th>
                 <th>Weight</th>
               </tr>
             </thead>
@@ -2707,14 +2733,6 @@ function StatisticsView({ trades, holdings, stats }) {
                   <td>{h.ticker === 'CASH' ? '-' : h.quantity}</td>
                   <td>{h.ticker === 'CASH' ? '-' : `$${Number(h.currentPrice).toFixed(2)}`}</td>
                   <td style={{ fontWeight: 700 }}>${formatNumber(h.marketValue)}</td>
-                  <td style={{ 
-                    color: h.unrealizedPnl >= 0 ? '#00C853' : '#FF1744', 
-                    fontWeight: 700 
-                  }}>
-                    {h.ticker === 'CASH' ? '-' : (
-                      (h.unrealizedPnl >= 0 ? '+' : '-') + '$' + formatNumber(Math.abs(h.unrealizedPnl))
-                    )}
-                  </td>
                   <td>{(Number(h.weight) * 100).toFixed(2)}%</td>
                 </tr>
               ))}
