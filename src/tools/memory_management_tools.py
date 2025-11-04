@@ -7,8 +7,9 @@
 import json
 import os
 from typing import Dict, List, Any, Optional, Annotated
-from langchain_core.tools import tool
 from pydantic import Field
+
+# AgentScope 不需要 @tool 装饰器，工具函数可以直接定义
 
 # 导入记忆模块
 try:
@@ -48,9 +49,9 @@ def _broadcast_memory_operation(operation_type: str, content: str, agent_id: str
             print(f"⚠️ 广播memory操作失败: {e}")
 
 
-# ===================== 记忆管理工具 - LangChain装饰器模式 =====================
+# ===================== 记忆管理工具 - AgentScope 工具函数 =====================
+# 注意：AgentScope 不使用 @tool 装饰器，而是直接定义工具函数
 
-@tool
 def search_and_update_analyst_memory(
     query: Annotated[str, Field(description="搜索查询内容，用于找到需要更新的记忆。例如：'苹果股票分析'、'技术指标预测'等")],
     memory_id: Annotated[str, Field(description="要更新的记忆ID，如果不知道具体ID可以填写'auto'让系统自动搜索")],
@@ -193,7 +194,6 @@ def search_and_update_analyst_memory(
         }
 
 
-@tool
 def search_and_delete_analyst_memory(
     query: Annotated[str, Field(description="搜索查询内容，用于找到需要删除的记忆。例如：'错误的市场预测'、'不准确的技术分析'等")],
     memory_id: Annotated[str, Field(description="要删除的记忆ID，如果不知道具体ID可以填写'auto'让系统自动搜索")],
@@ -317,7 +317,6 @@ def search_and_delete_analyst_memory(
         }
 
 
-@tool
 def add_reflection_memory(analyst_id: str, content: str, reason: str, date: str) -> Dict[str, Any]:
     """
     为分析师添加反思和指导记忆

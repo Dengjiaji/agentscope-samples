@@ -19,10 +19,8 @@ try:
 except Exception:
     _pd = None
 import logging
-from langchain_core.tools import tool
-from langchain_core.messages import HumanMessage
-from src.graph.state import AgentState
-from src.llm.models import get_model
+from src.graph.state import AgentState, create_message
+from src.llm.agentscope_models import get_model
 
 # 导入新的记忆系统（延迟导入，避免在模块加载时初始化）
 # from src.memory import unified_memory_manager
@@ -162,10 +160,11 @@ class Mem0NotificationSystem:
         return self.memory_manager.notification_system.get_agent_memory(agent_id)
 
 
-@tool
 def send_notification(content: str, urgency: str = "medium", category: str = "general") -> str:
     """
     发送通知给所有其他agents的工具
+    
+    AgentScope 工具函数（不需要 @tool 装饰器）
     
     Args:
         content: 通知内容
@@ -235,24 +234,27 @@ Important: Reply content must be in pure JSON format, do not add any explanatory
     
     for attempt in range(max_retries):
         try:
-            response = model.invoke([HumanMessage(content=prompt)])
+            # 使用 AgentScope 消息格式
+            messages = [{"role": "user", "content": prompt}]
+            response = model(messages)
+            response_content = response.get("content", "")
             
-            print(f"🔍 {agent_id} LLM notification decision raw response (attempt {attempt + 1}/{max_retries}): '{response.content}'")
+            print(f"🔍 {agent_id} LLM notification decision raw response (attempt {attempt + 1}/{max_retries}): '{response_content}'")
             
-            decision = robust_json_parse(response.content)
+            decision = robust_json_parse(response_content)
             print(f"✅ {agent_id} JSON parsing successful")
             return decision
             
         except json.JSONDecodeError as e:
             print(f"⚠️ {agent_id} notification decision JSON parsing failed (attempt {attempt + 1}/{max_retries}): {str(e)}")
-            print(f"📝 Raw response content: '{response.content}'")
+            print(f"📝 Raw response content: '{response_content}'")
             
             if attempt < max_retries - 1:
                 print(f"🔄 Retrying...")
                 prompt += f"""
 
 Note: Please strictly reply in JSON format, do not include any additional text explanations.
-The previous reply format was incorrect: {response.content}
+The previous reply format was incorrect: {response_content}
 Please regenerate the correct JSON format reply."""
             else:
                 print(f"❌ {agent_id} reached maximum retry count, using fallback decision")

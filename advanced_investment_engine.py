@@ -23,8 +23,7 @@ sys.path.append(current_dir)
 from src.utils.mem0_env_loader import ensure_mem0_env_loaded
 ensure_mem0_env_loaded()
 
-from src.graph.state import AgentState
-from langchain_core.messages import HumanMessage
+from src.graph.state import AgentState, create_message
 
 # 导入所有四个核心分析师 - 使用新架构
 from src.utils.analysts import (
@@ -134,7 +133,11 @@ class AdvancedInvestmentAnalysisEngine:
         
         
         state = AgentState(
-            messages=[HumanMessage(content="Advanced investment analysis session with communications")],
+            messages=[create_message(
+                name="system",
+                content="Advanced investment analysis session with communications",
+                role="system"
+            )],
             data={
                 "tickers": tickers,
                 "start_date": start_date,
@@ -192,8 +195,10 @@ class AdvancedInvestmentAnalysisEngine:
             # notifications_context = format_notifications_for_context(agent_id, backtest_date=backtest_date)
             
             # # 可以将通知上下文添加到消息中
-            # context_message = HumanMessage(
-            #     content=f"Context information: {notifications_context}\n\nPlease analyze based on this information and latest data."
+            # context_message = create_message(
+            #     name=agent_id,
+            #     content=f"Context information: {notifications_context}\n\nPlease analyze based on this information and latest data.",
+            #     role="user"
             # )
             # state["messages"].append(context_message)
             

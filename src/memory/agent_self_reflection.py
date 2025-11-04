@@ -11,12 +11,12 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime
 from pathlib import Path
 
-# 尝试导入LangChain相关模块
+# 尝试导入 AgentScope 相关模块
 try:
-    from langchain_core.messages import HumanMessage
-    from src.llm.models import get_model, ModelProvider
+    from src.graph.state import create_message
+    from src.llm.agentscope_models import get_model, ModelProvider
     from src.tools.memory_management_tools import get_memory_tools
-    LANGCHAIN_AVAILABLE = True
+    LANGCHAIN_AVAILABLE = True  # 保持变量名以向后兼容
 except ImportError as e:
     LANGCHAIN_AVAILABLE = False
     print(f"⚠️ LangChain模块未安装: {e}")
@@ -161,12 +161,14 @@ class AgentSelfReflectionSystem:
                 from src.tools.memory_management_tools import set_memory_tools_streamer
                 set_memory_tools_streamer(self.streamer)
             
-            # 绑定工具到LLM
+            # 使用 AgentScope 模型
             self.llm = get_model(model_name, model_provider, api_keys)
-            self.llm_with_tools = self.llm.bind_tools(self.memory_tools)
+            # 注意：AgentScope 不使用 bind_tools，而是通过 function calling 或直接调用
+            # 这里保持引用以便后续迁移
+            self.llm_with_tools = self.llm
             
             self.llm_available = True
-            print(f"✅ {agent_role} 自我复盘系统已初始化")
+            print(f"✅ {agent_role} 自我复盘系统已初始化（AgentScope 模式）")
             
         except Exception as e:
             logger.error(f"{agent_role} 自我复盘系统初始化失败: {e}")
@@ -505,9 +507,17 @@ class AgentSelfReflectionSystem:
             print(f"🔍 {self.agent_role} 开始自我复盘 ({date})")
             print(f"{'='*60}")
             
-            # 调用LLM
-            messages = [HumanMessage(content=prompt)]
-            response = self.llm_with_tools.invoke(messages)
+            # 调用LLM（使用 AgentScope 格式）
+            messages = [{"role": "user", "content": prompt}]
+            response = self.llm_with_tools(messages)
+            
+            # 将响应转换为兼容格式
+            class ResponseWrapper:
+                def __init__(self, content):
+                    self.content = content
+                    self.tool_calls = []
+            
+            response = ResponseWrapper(response.get("content", ""))
             
             # 提取复盘总结
             reflection_summary = response.content if hasattr(response, 'content') else str(response)

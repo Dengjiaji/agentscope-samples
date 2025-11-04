@@ -46,8 +46,8 @@ from src.memory.memory_factory import initialize_memory_system, get_memory_insta
 # from src.memory.unified_memory import unified_memory_manager
 MEMORY_AVAILABLE = True
 from src.utils.llm import call_llm
-from src.llm.models import get_model
-from langchain_core.messages import HumanMessage
+from src.llm.agentscope_models import get_model
+from src.graph.state import create_message
 LLM_AVAILABLE = True
 MEMORY_TOOLS_AVAILABLE = True
 
@@ -67,7 +67,7 @@ class LLMMemoryDecisionSystem:
         if LLM_AVAILABLE and MEMORY_TOOLS_AVAILABLE:
             model_name = os.getenv('MEMORY_LLM_MODEL', 'gpt-4o-mini')
             model_provider_str = os.getenv('MEMORY_LLM_PROVIDER', 'OPENAI')
-            from src.llm.models import ModelProvider
+            from src.llm.agentscope_models import ModelProvider
 
             # 转换为ModelProvider枚举
             if hasattr(ModelProvider, model_provider_str):
@@ -85,12 +85,14 @@ class LLMMemoryDecisionSystem:
             # 获取记忆管理工具
             from src.tools.memory_management_tools import get_memory_tools
             self.memory_tools = get_memory_tools()
-            # 绑定工具到LLM
+            # 使用 AgentScope 模型
             self.llm = get_model(model_name, model_provider, api_keys)
-            self.llm_with_tools = self.llm.bind_tools(self.memory_tools)
+            # 注意：AgentScope 不使用 bind_tools，而是通过 function calling 或直接调用
+            # 这里保持引用以便后续迁移
+            self.llm_with_tools = self.llm  
             self.llm_available = True
             print(f"LLM记忆决策系统已启用（{model_provider_str}: {model_name}）")
-            print(f"已绑定 {len(self.memory_tools)} 个记忆管理工具")
+            print(f"已加载 {len(self.memory_tools)} 个记忆管理工具")
 
     def generate_memory_decision_prompt(self, performance_data: Dict[str, Any], date: str) -> str:
         """生成LLM记忆决策的prompt - LangChain tool_call版本"""
@@ -165,9 +167,17 @@ class LLMMemoryDecisionSystem:
             print(f"\n🤖 正在请求LLM进行记忆管理决策...")
             print(f"📝 Prompt长度: {len(prompt)} 字符")
 
-            # 调用绑定了工具的LLM
-            messages = [HumanMessage(content=prompt)]
-            response = self.llm_with_tools.invoke(messages)
+            # 调用 LLM（使用 AgentScope 格式）
+            messages = [{"role": "user", "content": prompt}]
+            response = self.llm(messages)
+            
+            # 将响应转换为兼容格式
+            class ResponseWrapper:
+                def __init__(self, content):
+                    self.content = content
+                    self.tool_calls = None  # AgentScope 目前不支持自动 tool calling
+            
+            response = ResponseWrapper(response.get("content", ""))
 
             print(f"📥 LLM响应类型: {type(response)}")
 

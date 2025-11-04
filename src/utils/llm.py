@@ -4,10 +4,8 @@ import json
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, Union
 
-# 导入新的 AgentScope 模型
+# 导入 AgentScope 模型
 from src.llm.agentscope_models import get_model as get_agentscope_model, ModelProvider
-# 保留旧的导入用于向后兼容
-from src.llm.models import get_model_info
 from src.utils.progress import progress
 from src.graph.state import AgentState
 
@@ -19,7 +17,6 @@ def call_llm(
     state: Optional[AgentState] = None,
     max_retries: int = 3,
     default_factory=None,
-    use_agentscope: bool = True,
 ) -> BaseModel:
     """
     使用 AgentScope 模型包装器调用 LLM，支持结构化输出
@@ -31,7 +28,6 @@ def call_llm(
         state: AgentState 对象（可选，用于提取 agent 特定的模型配置）
         max_retries: 最大重试次数（默认: 3）
         default_factory: 默认响应工厂函数（可选）
-        use_agentscope: 是否使用 AgentScope 模型包装器（默认: True）
     
     Returns:
         Pydantic 模型实例
@@ -52,13 +48,8 @@ def call_llm(
         if request and hasattr(request, 'api_keys'):
             api_keys = request.api_keys
 
-    # 获取模型实例
-    if use_agentscope:
-        llm = get_agentscope_model(model_name, model_provider, api_keys)
-    else:
-        # 向后兼容：使用旧的 LangChain 模型
-        from src.llm.models import get_model
-        llm = get_model(model_name, model_provider, api_keys)
+    # 获取模型实例（使用 AgentScope）
+    llm = get_agentscope_model(model_name, model_provider, api_keys)
 
     # 准备 prompt（添加 JSON 格式要求）
     if isinstance(prompt, str):
@@ -76,18 +67,13 @@ def call_llm(
     # 调用 LLM（带重试逻辑）
     for attempt in range(max_retries):
         try:
-            if use_agentscope:
-                # 使用 AgentScope 模型
-                response = llm(
-                    messages,
-                    temperature=0.7,
-                    response_format={"type": "json_object"} if model_provider == ModelProvider.OPENAI else None
-                )
-                content = response["content"]
-            else:
-                # 使用 LangChain 模型（向后兼容）
-                result = llm.invoke(messages)
-                content = result.content
+            # 使用 AgentScope 模型
+            response = llm(
+                messages,
+                temperature=0.7,
+                response_format={"type": "json_object"} if model_provider == ModelProvider.OPENAI else None
+            )
+            content = response["content"]
 
             # 解析 JSON 响应
             parsed_result = extract_json_from_response(content)

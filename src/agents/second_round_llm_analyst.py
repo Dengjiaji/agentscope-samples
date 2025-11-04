@@ -5,10 +5,8 @@
 """
 
 from typing import Dict, Any, List
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.messages import HumanMessage
 
-from ..graph.state import AgentState
+from ..graph.state import AgentState, create_message
 from ..utils.llm import call_llm
 from ..utils.json_utils import quiet_json_dumps
 from ..data.second_round_signals import SecondRoundAnalysis, AnalystPersona, TickerSignal
@@ -18,17 +16,20 @@ import pdb
 
 
 
-def create_second_round_prompt_template(use_prompt_files: bool = True) -> ChatPromptTemplate:
+def create_second_round_prompt_template(use_prompt_files: bool = True) -> Dict[str, str]:
     """
     Create second-round analysis prompt template
     
     Args:
         use_prompt_files: 是否使用外部 prompt 文件（默认 True）
+        
+    Returns:
+        包含 'system' 和 'human' 键的字典
     """
     # 尝试从文件加载
     if use_prompt_files:
         try:
-            # 直接读取文件内容（不通过 prompt_loader，因为这些是 LangChain 模板）
+            # 直接读取文件内容
             import pathlib
             prompts_dir = pathlib.Path(__file__).parent / "prompts" / "analyst"
             
@@ -38,18 +39,16 @@ def create_second_round_prompt_template(use_prompt_files: bool = True) -> ChatPr
             with open(prompts_dir / "second_round_human.md", 'r', encoding='utf-8') as f:
                 human_template = f.read()
             
-            # 创建 LangChain 模板（使用 {variable} 格式）
-            template = ChatPromptTemplate.from_messages([
-                ("system", system_template),
-                ("human", human_template)
-            ])
-            return template
+            return {
+                "system": system_template,
+                "human": human_template
+            }
         except FileNotFoundError:
             print(f"⚠️ Prompt files not found for second_round, using hardcoded templates")
     
     # 硬编码模板（向后兼容）
-    template = ChatPromptTemplate.from_messages([
-    ("system", """You are a professional {analyst_name} with the following characteristics:
+    return {
+    "system": """You are a professional {analyst_name} with the following characteristics:
 
 Professional Field: {specialty}
 Analysis Focus: {analysis_focus}
@@ -69,8 +68,8 @@ You need to provide for each stock:
 - confidence: integer from 0-100 (confidence level)
 - reasoning: detailed judgment rationale
 
-Please return structured analysis results in JSON format."""),        
-    ("human", """=== Second Round Analysis Input ===
+Please return structured analysis results in JSON format.""",
+    "human": """=== Second Round Analysis Input ===
 
 {ticker_reports}
 
@@ -102,10 +101,8 @@ Required JSON format example:
   ]
 }}
 
-Please strictly return analysis results according to this JSON format.""")
-])
-    
-    return template
+Please strictly return analysis results according to this JSON format."""
+    }
 
 
 def run_second_round_llm_analysis(
@@ -169,17 +166,25 @@ Analysis Tools Selection and Reasoning:
     
     ticker_reports_str = "\n".join(ticker_reports)
     
-    # Create prompt
-    prompt = prompt_template.format_messages(
+    # 格式化 prompt（替换模板变量）
+    system_prompt = prompt_template["system"].format(
         analyst_name=persona.name,
         specialty=persona.specialty,
         analysis_focus=analysis_focus_str,
         decision_style=persona.decision_style,
-        risk_preference=persona.risk_preference,
+        risk_preference=persona.risk_preference
+    )
+    
+    human_prompt = prompt_template["human"].format(
         ticker_reports=ticker_reports_str,
         notifications=notifications_str,
-        agent_id=agent_id  
+        analyst_name=persona.name,
+        agent_id=agent_id
     )
+    
+    # 组合成完整的 prompt
+    full_prompt = f"{system_prompt}\n\n{human_prompt}"
+    
     # 调用LLM
     
 
@@ -199,7 +204,7 @@ Analysis Tools Selection and Reasoning:
         )
     try:
         result = call_llm(
-            prompt=prompt,
+            prompt=full_prompt,
             pydantic_model=SecondRoundAnalysis,
             agent_name=f"{agent_id}_second_round",
             state=state,
