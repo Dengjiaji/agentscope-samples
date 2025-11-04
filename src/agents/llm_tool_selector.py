@@ -3,9 +3,7 @@
 让分析师通过LLM智能选择和使用分析工具
 """
 
-from langchain_core.messages import HumanMessage
-from langchain_core.tools import BaseTool
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Callable
 import json
 import pdb
 import numpy as np
@@ -315,18 +313,11 @@ You will flexibly select various tools based on specific situations, pursuing co
         )
         
         try:
-            # 调用LLM
-            messages = [HumanMessage(content=prompt)]
-            response = llm.invoke(messages)
-
-            # TODO:改为agentscope中的调用逻辑，传入 prompt和 tool返回结果（如果有特殊格式，就提前把json_Schema拼好，然后再按照后面的逻辑解析）
-            #res = await self.model(
-            #             prompt,
-            #             # tool = self.toolkit.get_json_schemas()
-            # )
-            
+            # 调用LLM（使用 AgentScope 方式）
+            messages = [{"role": "user", "content": prompt}]
+            response = llm(messages=messages, temperature=0.7)
             # 解析响应
-            response_text = response.content.strip()
+            response_text = response["content"].strip()
             
             # 尝试提取JSON部分
             if "```json" in response_text:
@@ -498,8 +489,8 @@ You will flexibly select various tools based on specific situations, pursuing co
                     if tool_category == "sentiment":
                         tool_params["start_date"] = kwargs.get("start_date")
                 
-                # 执行工具
-                result = tool.invoke(tool_params)
+                # 执行工具（现在是普通函数，直接调用）
+                result = tool(**tool_params)
                 result["tool_name"] = tool_name
                 result["selection_reason"] = tool_selection.get("reason", "")
                 
@@ -597,12 +588,12 @@ You will flexibly select various tools based on specific situations, pursuing co
         }}
         """
                 
-        from langchain_core.messages import HumanMessage
-        messages = [HumanMessage(content=prompt)]
-        response = llm.invoke(messages)
+        # 调用LLM（使用 AgentScope 方式）
+        messages = [{"role": "user", "content": prompt}]
+        response = llm(messages=messages, temperature=0.7)
         
         # 解析响应
-        response_text = response.content.strip()
+        response_text = response["content"].strip()
         # 尝试提取JSON
         if "```json" in response_text:
             json_start = response_text.find("```json") + 7

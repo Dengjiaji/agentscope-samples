@@ -9,10 +9,10 @@ import re
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 from pydantic import BaseModel, Field
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.messages import HumanMessage, AIMessage
 
-from src.llm.models import get_model
+# 使用 AgentScope 的 Prompt 模板替代 LangChain
+from src.agents.agentscope_prompts import ChatPromptTemplate
+from src.llm.agentscope_models import get_model as get_agentscope_model
 from src.utils.api_key import get_api_key_from_state
 from src.utils.json_utils import quiet_json_dumps
 from src.memory import unified_memory_manager as memory_manager
@@ -149,25 +149,26 @@ class CommunicationManager:
             print(f"错误: 写入沟通日志失败: {e}")
     
     def _get_llm_model(self, state, use_json_mode=False):
-        """获取LLM模型实例"""
+        """获取LLM模型实例（使用 AgentScope 模型包装器）"""
         # 从state中获取API密钥
         api_keys = {}
-        if state and "data" in state and "api_keys" in state["data"]:
+        if state and "metadata" in state:
+            request = state.get("metadata", {}).get("request")
+            if request and hasattr(request, 'api_keys'):
+                api_keys = request.api_keys
+        
+        # 如果metadata中没有，尝试从data中获取
+        if not api_keys and state and "data" in state and "api_keys" in state["data"]:
             api_keys = state["data"]["api_keys"]
         
-        model_name = state.get("metadata", {}).get("model_name", "gpt-3.5-turbo")
-        model_provider = state.get("metadata", {}).get("model_provider", "OpenAI")
+        model_name = state.get("metadata", {}).get("model_name", "gpt-4o-mini")
+        model_provider = state.get("metadata", {}).get("model_provider", "OPENAI")
         
-        llm = get_model(model_name, model_provider, api_keys)
+        # 使用 AgentScope 模型包装器
+        llm = get_agentscope_model(model_name, model_provider, api_keys)
         
-        # 如果需要JSON模式，配置结构化输出
-        if use_json_mode:
-            # 尝试多种JSON模式绑定方式
-            if hasattr(llm, 'bind'):
-                llm = llm.bind(response_format={"type": "json_object"})
-            elif hasattr(llm, 'with_config'):
-                llm = llm.with_config({"response_format": {"type": "json_object"}})
-            # print(f"JSON模式已启用 for {model_name}")
+        # 存储是否使用JSON模式的标志，供调用时使用
+        llm._use_json_mode = use_json_mode
         
         return llm
     
@@ -230,20 +231,24 @@ class CommunicationManager:
         # 获取LLM模型（启用JSON模式）
         llm = self._get_llm_model(state, use_json_mode=True)
         
-        # 调用模型
-        response = llm.invoke(messages)
+        # 调用模型（使用 AgentScope 方式）
+        response = llm(
+            messages=messages,
+            temperature=0.7,
+            response_format={"type": "json_object"} if llm._use_json_mode else None
+        )
         
         # 使用更健壮的JSON解析方法
         try:
             # 首先尝试直接解析
-            decision_data = json.loads(response.content)
+            decision_data = json.loads(response["content"])
             return CommunicationDecision(**decision_data)
         except json.JSONDecodeError as e:
             print(f"警告: 通信决策JSON解析失败: {str(e)}")
-            print(f"响应内容: {response.content[:200]}...")
+            print(f"响应内容: {response['content'][:200]}...")
             
             # 使用备用解析方法
-            parsed_response = self._extract_and_clean_json(response.content)
+            parsed_response = self._extract_and_clean_json(response["content"])
             if parsed_response:
                 print("使用备用方法成功解析通信决策JSON")
                 return CommunicationDecision(**parsed_response)
@@ -864,19 +869,23 @@ Please respond to the latest conversation content based on your complete memory 
         # 获取LLM模型（启用JSON模式）
         llm = self._get_llm_model(state, use_json_mode=True)
         
-        # 调用模型
-        response = llm.invoke(messages)
+        # 调用模型（使用 AgentScope 方式）
+        response = llm(
+            messages=messages,
+            temperature=0.7,
+            response_format={"type": "json_object"} if llm._use_json_mode else None
+        )
         
         # 使用更健壮的JSON解析方法
         try:
             # 首先尝试直接解析
-            return json.loads(response.content)
+            return json.loads(response["content"])
         except json.JSONDecodeError as e:
             print(f"警告: 分析师聊天响应JSON解析失败: {str(e)}")
-            print(f"响应内容: {response.content[:200]}...")
+            print(f"响应内容: {response['content'][:200]}...")
             
             # 使用备用解析方法
-            parsed_response = self._extract_and_clean_json(response.content)
+            parsed_response = self._extract_and_clean_json(response["content"])
             if parsed_response:
                 print("使用备用方法成功解析分析师聊天响应JSON")
                 return parsed_response
@@ -1022,9 +1031,9 @@ Please respond to the analyst's latest statement.""")
         # 获取LLM模型
         llm = self._get_llm_model(state)
         
-        # 调用模型
-        response = llm.invoke(messages)
-        return response.content
+        # 调用模型（使用 AgentScope 方式）
+        response = llm(messages=messages, temperature=0.7)
+        return response["content"]
     
     def _get_analyst_meeting_response(self, analyst_id: str, topic: str,
                                     meeting_transcript: List[Dict],
@@ -1169,19 +1178,23 @@ Please speak based on meeting transcript and discussion content, showing genuine
         # 获取LLM模型（启用JSON模式）
         llm = self._get_llm_model(state, use_json_mode=True)
         
-        # 调用模型
-        response = llm.invoke(messages)
+        # 调用模型（使用 AgentScope 方式）
+        response = llm(
+            messages=messages,
+            temperature=0.7,
+            response_format={"type": "json_object"} if llm._use_json_mode else None
+        )
         
         # 使用更健壮的JSON解析方法
         try:
             # 首先尝试直接解析
-            return json.loads(response.content)
+            return json.loads(response["content"])
         except json.JSONDecodeError as e:
             print(f"警告: 分析师会议响应JSON解析失败: {str(e)}")
-            print(f"响应内容: {response.content[:200]}...")
+            print(f"响应内容: {response['content'][:200]}...")
             
             # 使用备用解析方法
-            parsed_response = self._extract_and_clean_json(response.content)
+            parsed_response = self._extract_and_clean_json(response["content"])
             if parsed_response:
                 print("使用备用方法成功解析分析师会议响应JSON")
                 return parsed_response
@@ -1221,9 +1234,9 @@ Please speak based on meeting transcript and discussion content, showing genuine
         # 获取LLM模型
         llm = self._get_llm_model(state)
         
-        # 调用模型
-        response = llm.invoke(messages)
-        return response.content
+        # 调用模型（使用 AgentScope 方式）
+        response = llm(messages=messages, temperature=0.7)
+        return response["content"]
     
     def _format_conversation_history(self, history: List[Dict]) -> str:
         """格式化对话历史"""
@@ -1289,8 +1302,8 @@ Generate a focused search query to retrieve relevant past memories and experienc
         
         try:
             llm = self._get_llm_model(state)
-            response = llm.invoke(messages)
-            query = response.content.strip()
+            response = llm(messages=messages, temperature=0.7)
+            query = response["content"].strip()
             print(f"📝 {analyst_id} 生成记忆查询: {query}")
             return query
         except Exception as e:
@@ -1347,8 +1360,8 @@ Generate a focused search query to retrieve relevant past memories and experienc
         
         try:
             llm = self._get_llm_model(state)
-            response = llm.invoke(messages)
-            query = response.content.strip()
+            response = llm(messages=messages, temperature=0.7)
+            query = response["content"].strip()
             print(f"📝 {analyst_id} 在会议中生成记忆查询: {query}")
             return query
         except Exception as e:

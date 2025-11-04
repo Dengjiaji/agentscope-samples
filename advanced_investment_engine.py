@@ -810,6 +810,7 @@ class AdvancedInvestmentAnalysisEngine:
             # 获取初始投资决策（根据模式使用正确的agent名称）
             agent_name = "portfolio_manager_portfolio" if mode == "portfolio" else "portfolio_manager"
             initial_decisions = self._extract_portfolio_decisions(state, agent_name=agent_name)
+            # pdb.set_trace()
             print('initial_decisions',initial_decisions)
             if not initial_decisions:
                 print("警告: 未能获取初始投资决策")
@@ -1128,16 +1129,28 @@ class AdvancedInvestmentAnalysisEngine:
         }
     
     def _extract_portfolio_decisions(self, state: AgentState, agent_name: str = "portfolio_manager") -> Dict[str, Any]:
-        """从状态中提取投资组合决策"""
+        """从状态中提取投资组合决策（AgentScope 格式）"""
         try:
             if state["messages"]:
                 # 从后往前查找指定agent的消息
                 for message in reversed(state["messages"]):
-                    if hasattr(message, 'name') and message.name == agent_name:
-                        return json.loads(message.content)
+                    # AgentScope 格式: {"name": str, "content": str, "role": str, "metadata": dict}
+                    if isinstance(message, dict):
+                        message_name = message.get("name")
+                        message_content = message.get("content")
+                        
+                        # 检查是否匹配指定的 agent
+                        if message_name == agent_name and message_content:
+                            try:
+                                return json.loads(message_content)
+                            except json.JSONDecodeError:
+                                # 如果 content 不是 JSON，尝试直接返回
+                                return message_content if isinstance(message_content, dict) else {}
             return {}
         except Exception as e:
             print(f"警告: 提取投资决策失败: {str(e)}")
+            import traceback
+            print(f"详细错误: {traceback.format_exc()}")
             return {}
     
     def _execute_portfolio_trades(self, state: AgentState, decisions: Dict[str, Any], mode: str = "signal") -> Dict[str, Any]:
@@ -1260,7 +1273,7 @@ class AdvancedInvestmentAnalysisEngine:
         current_time = datetime.now()
         
         print(f"📊 正在生成通知摘要，分析结果数量: {len(analyst_results)}")
-        pdb.set_trace()
+        # pdb.set_trace()
         for agent_id, result in analyst_results.items():
             # 检查是否有notification_decision
             if result.get("status") == "success" and "notification_decision" in result:

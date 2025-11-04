@@ -334,7 +334,7 @@ class LiveTradingSystem:
                     except (json.JSONDecodeError, KeyError, AttributeError) as e:
                         print(f"警告: 解析portfolio决策失败: {e}")
                         continue
-            
+        # pdb.set_trace()
         return signals
     
     def calculate_daily_returns(self, date: str, signals: dict) -> dict:
@@ -376,7 +376,6 @@ class LiveTradingSystem:
                 'confidence': signal_data['confidence']
             }
             
-
         
         return returns
     

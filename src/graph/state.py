@@ -1,9 +1,5 @@
-from typing_extensions import Annotated, Sequence, TypedDict
-
+from typing_extensions import Annotated, Sequence, TypedDict, Dict, Any, List
 import operator
-from langchain_core.messages import BaseMessage
-
-
 import json
 
 
@@ -11,13 +7,77 @@ def merge_dicts(a: dict[str, any], b: dict[str, any]) -> dict[str, any]:
     return {**a, **b}
 
 
+def merge_messages(a: List[Dict[str, Any]], b: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """合并消息列表"""
+    return a + b
+
+
+# AgentScope Message 格式
+# 参考: https://github.com/agentscope-ai/agentscope
+# 消息格式: {"name": str, "content": str, "role": str, "metadata": dict}
+class AgentScopeMessage(TypedDict):
+    """AgentScope 消息格式"""
+    name: str  # Agent 名称
+    content: str  # 消息内容
+    role: str  # 角色: "user", "assistant", "system"
+    metadata: Dict[str, Any]  # 元数据
+
+
 # Define agent state
 class AgentState(TypedDict):
-    # TODO: 不再继承 langchain_core.messages 而是使用 agentscope message
-    # 或者 直接从 agent(self...)获取messages(如self.messages), metadata(如self.model)等信息，不再需要AgentState
-    messages: Annotated[Sequence[BaseMessage], operator.add]
+    """
+    Agent 状态定义
+    
+    使用 AgentScope 消息格式，不再依赖 langchain_core.messages
+    消息格式: {"name": str, "content": str, "role": str, "metadata": dict}
+    """
+    messages: Annotated[List[AgentScopeMessage], merge_messages]
     data: Annotated[dict[str, any], merge_dicts]
     metadata: Annotated[dict[str, any], merge_dicts]
+
+
+def create_message(name: str, content: str, role: str = "assistant", metadata: Dict[str, Any] = None) -> AgentScopeMessage:
+    """
+    创建 AgentScope 消息
+    
+    Args:
+        name: Agent 名称
+        content: 消息内容
+        role: 角色，可选值: "user", "assistant", "system"
+        metadata: 元数据字典
+    
+    Returns:
+        AgentScopeMessage 对象
+    """
+    return AgentScopeMessage(
+        name=name,
+        content=content,
+        role=role,
+        metadata=metadata or {}
+    )
+
+
+def langchain_to_agentscope_message(lc_message) -> AgentScopeMessage:
+    """
+    将 LangChain 消息转换为 AgentScope 消息格式
+    
+    用于兼容性和迁移过程
+    """
+    # 从 LangChain 消息中提取信息
+    name = getattr(lc_message, 'name', 'unknown')
+    content = lc_message.content
+    
+    # 映射消息类型
+    role_mapping = {
+        'human': 'user',
+        'ai': 'assistant',
+        'system': 'system',
+    }
+    
+    lc_type = lc_message.type if hasattr(lc_message, 'type') else 'ai'
+    role = role_mapping.get(lc_type, 'assistant')
+    
+    return create_message(name=name, content=content, role=role)
 
 
 def show_agent_reasoning(output, agent_name):

@@ -3,8 +3,14 @@
 包含基本面分析、技术分析、情绪分析和估值分析的所有工具
 """
 
-from langchain_core.tools import tool
+# 使用 AgentScope 的服务函数替代 LangChain 的 tool 装饰器
 from typing import Dict, Any, List, Optional, Tuple
+
+# 定义一个简单的装饰器来保持兼容性
+def tool(func):
+    """兼容性装饰器 - 将函数标记为工具函数"""
+    func._is_tool = True
+    return func
 import pandas as pd
 import numpy as np
 import json

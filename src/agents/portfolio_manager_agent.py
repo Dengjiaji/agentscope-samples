@@ -7,10 +7,9 @@ import json
 import pdb
 
 from .base_agent import BaseAgent
-from ..graph.state import AgentState, show_agent_reasoning
+from ..graph.state import AgentState, show_agent_reasoning, create_message
 from ..utils.progress import progress
-from langchain_core.messages import HumanMessage
-from langchain_core.prompts import ChatPromptTemplate
+from ..agents.agentscope_prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 from typing_extensions import Literal as LiteralType
 from ..utils.llm import call_llm
@@ -98,13 +97,15 @@ class PortfolioManagerAgent(BaseAgent):
             result = self._generate_portfolio_decision(
                 tickers, signals_by_ticker, state
             )
-        # 创建消息
-        message = HumanMessage(
+        # 创建消息（使用 AgentScope 格式）
+        message = create_message(
+            name=self.agent_id,
             content=json.dumps({
                 ticker: decision.model_dump() 
                 for ticker, decision in result.decisions.items()
             }),
-            name=self.agent_id,
+            role="assistant",
+            metadata={"mode": self.mode}
         )
         
         # 显示推理过程

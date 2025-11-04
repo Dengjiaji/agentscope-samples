@@ -2,85 +2,111 @@
 
 import json
 from pydantic import BaseModel
-from src.llm.models import get_model, get_model_info
+from typing import Optional, Dict, Any, Union
+
+# 导入新的 AgentScope 模型
+from src.llm.agentscope_models import get_model as get_agentscope_model, ModelProvider
+# 保留旧的导入用于向后兼容
+from src.llm.models import get_model_info
 from src.utils.progress import progress
 from src.graph.state import AgentState
 
 
 def call_llm(
-    prompt: any,
+    prompt: Union[str, list],
     pydantic_model: type[BaseModel],
-    agent_name: str | None = None,
-    state: AgentState | None = None,
+    agent_name: Optional[str] = None,
+    state: Optional[AgentState] = None,
     max_retries: int = 3,
     default_factory=None,
+    use_agentscope: bool = True,
 ) -> BaseModel:
     """
-    Makes an LLM call with retry logic, handling both JSON supported and non-JSON supported models.
-
-    Args:
-        prompt: The prompt to send to the LLM
-        pydantic_model: The Pydantic model class to structure the output
-        agent_name: Optional name of the agent for progress updates and model config extraction
-        state: Optional state object to extract agent-specific model configuration
-        max_retries: Maximum number of retries (default: 3)
-        default_factory: Optional factory function to create default response on failure
-
-    Returns:
-        An instance of the specified Pydantic model
-    """
-
-    # TODO
-    # 核心修改：不再在每次 call的时候获取 get_agent_model_config，而是直接 self.model(prompt)
-    # self.model的传入逻辑参考agentscope中逻辑，不再通过该逻辑调用
+    使用 AgentScope 模型包装器调用 LLM，支持结构化输出
     
-    # Extract model configuration if state is provided and agent_name is available
+    Args:
+        prompt: 提示内容（字符串或消息列表）
+        pydantic_model: Pydantic 模型类用于结构化输出
+        agent_name: Agent 名称（可选，用于进度更新和模型配置提取）
+        state: AgentState 对象（可选，用于提取 agent 特定的模型配置）
+        max_retries: 最大重试次数（默认: 3）
+        default_factory: 默认响应工厂函数（可选）
+        use_agentscope: 是否使用 AgentScope 模型包装器（默认: True）
+    
+    Returns:
+        Pydantic 模型实例
+    """
+    
+    # 提取模型配置
     if state and agent_name:
         model_name, model_provider = get_agent_model_config(state, agent_name)
     else:
-        # Use system defaults when no state or agent_name is provided
-        model_name = "gpt-4.1"
+        # 使用系统默认配置
+        model_name = "gpt-4o-mini"
         model_provider = "OPENAI"
 
-    # Extract API keys from state if available
+    # 提取 API keys
     api_keys = None
     if state:
         request = state.get("metadata", {}).get("request")
         if request and hasattr(request, 'api_keys'):
             api_keys = request.api_keys
 
-    model_info = get_model_info(model_name, model_provider)
-    llm = get_model(model_name, model_provider, api_keys)
+    # 获取模型实例
+    if use_agentscope:
+        llm = get_agentscope_model(model_name, model_provider, api_keys)
+    else:
+        # 向后兼容：使用旧的 LangChain 模型
+        from src.llm.models import get_model
+        llm = get_model(model_name, model_provider, api_keys)
 
-    # For non-JSON support models, we can use structured output
-    if not (model_info and not model_info.has_json_mode()):
-        llm = llm.with_structured_output(
-            pydantic_model,
-            method="json_mode",
-        )
+    # 准备 prompt（添加 JSON 格式要求）
+    if isinstance(prompt, str):
+        json_schema = pydantic_model.model_json_schema()
+        enhanced_prompt = f"""{prompt}
 
-    # Call the LLM with retries
+请以 JSON 格式返回结果，严格遵循以下 schema：
+{json.dumps(json_schema, indent=2, ensure_ascii=False)}
+
+只返回 JSON，不要添加任何其他文字。"""
+        messages = [{"role": "user", "content": enhanced_prompt}]
+    else:
+        messages = prompt
+
+    # 调用 LLM（带重试逻辑）
     for attempt in range(max_retries):
         try:
-            # Call the LLM
-            result = llm.invoke(prompt)
-
-            # For non-JSON support models, we need to extract and parse the JSON manually
-            if model_info and not model_info.has_json_mode():
-                parsed_result = extract_json_from_response(result.content)
-                if parsed_result:
-                    return pydantic_model(**parsed_result)
+            if use_agentscope:
+                # 使用 AgentScope 模型
+                response = llm(
+                    messages,
+                    temperature=0.7,
+                    response_format={"type": "json_object"} if model_provider == ModelProvider.OPENAI else None
+                )
+                content = response["content"]
             else:
-                return result
+                # 使用 LangChain 模型（向后兼容）
+                result = llm.invoke(messages)
+                content = result.content
+
+            # 解析 JSON 响应
+            parsed_result = extract_json_from_response(content)
+            if parsed_result:
+                return pydantic_model(**parsed_result)
+            
+            # 如果解析失败，尝试直接解析
+            try:
+                return pydantic_model(**json.loads(content))
+            except:
+                pass
 
         except Exception as e:
-            # Print detailed error information for debugging
+            # 打印详细错误信息
             error_details = f"LLM Error - Agent: {agent_name}, Model: {model_name} ({model_provider}), Attempt: {attempt + 1}/{max_retries}"
             print(f"{error_details}")
             print(f"Error Type: {type(e).__name__}")
             print(f"Error Message: {str(e)}")
             
-            # Also print the full exception traceback for debugging
             import traceback
             print(f"Full Traceback:\n{traceback.format_exc()}")
             
@@ -91,12 +117,13 @@ def call_llm(
                 print(f"🚨 FINAL ERROR: LLM call failed after {max_retries} attempts")
                 print(f"🚨 Agent: {agent_name}, Model: {model_name} ({model_provider})")
                 print(f"🚨 Final Error: {e}")
-                # Use default_factory if provided, otherwise create a basic default
+                
+                # 使用 default_factory 或创建默认响应
                 if default_factory:
                     return default_factory()
                 return create_default_response(pydantic_model)
 
-    # This should never be reached due to the retry logic above
+    # 不应该到达这里
     return create_default_response(pydantic_model)
 
 

@@ -440,7 +440,6 @@ class LiveTradingThinkingFund:
 
         # 4. 计算当日收益
         target_date = str(target_date)
-        # pdb.set_trace()
         daily_returns = self.live_system.calculate_daily_returns(target_date, pm_signals)
 
         for ticker in tickers:

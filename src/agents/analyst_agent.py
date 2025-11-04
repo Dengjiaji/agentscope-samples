@@ -7,12 +7,11 @@ from typing import Dict, Any, Optional, List
 import json
 
 from .base_agent import BaseAgent
-from ..graph.state import AgentState, show_agent_reasoning
+from ..graph.state import AgentState, show_agent_reasoning, create_message
 from ..utils.api_key import get_api_key_from_state
 from ..utils.progress import progress
-from ..llm.models import get_model
+from ..llm.agentscope_models import get_model  # 使用 AgentScope 模型
 from .llm_tool_selector import LLMToolSelector
-from langchain_core.messages import HumanMessage
 
 
 class AnalystAgent(BaseAgent):
@@ -134,10 +133,12 @@ class AnalystAgent(BaseAgent):
                 analysis=json.dumps(result, indent=2, default=str)
             )
         
-        # 创建消息
-        message = HumanMessage(
-            content=json.dumps(analysis_results, default=str),
+        # 创建消息（使用 AgentScope 格式）
+        message = create_message(
             name=self.agent_id,
+            content=json.dumps(analysis_results, default=str),
+            role="assistant",
+            metadata={"analyst_type": self.analyst_type_key}
         )
         
         # 显示推理过程

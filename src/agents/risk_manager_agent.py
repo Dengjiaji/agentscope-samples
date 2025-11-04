@@ -8,11 +8,10 @@ import numpy as np
 import pandas as pd
 
 from .base_agent import BaseAgent
-from ..graph.state import AgentState, show_agent_reasoning
+from ..graph.state import AgentState, show_agent_reasoning, create_message
 from ..utils.progress import progress
 from ..utils.api_key import get_api_key_from_state
 from ..tools.api import get_prices, prices_to_df
-from langchain_core.messages import HumanMessage
 import pdb
 
 class RiskManagerAgent(BaseAgent):
@@ -124,10 +123,12 @@ class RiskManagerAgent(BaseAgent):
                 tickers, volatility_data, current_prices, state
             )
         
-        # 创建消息
-        message = HumanMessage(
-            content=json.dumps(risk_analysis),
+        # 创建消息（使用 AgentScope 格式）
+        message = create_message(
             name=self.agent_id,
+            content=json.dumps(risk_analysis),
+            role="assistant",
+            metadata={}
         )
         
         # 显示推理
