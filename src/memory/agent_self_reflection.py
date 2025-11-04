@@ -10,7 +10,7 @@ import logging
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 from pathlib import Path
-
+import pdb
 # 尝试导入 AgentScope 相关模块
 try:
     from src.graph.state import create_message
@@ -153,8 +153,9 @@ class AgentSelfReflectionSystem:
             elif model_provider == ModelProvider.ANTHROPIC:
                 api_keys['ANTHROPIC_API_KEY'] = os.getenv('ANTHROPIC_API_KEY')
             
-            # 获取记忆管理工具
-            self.memory_tools = get_memory_tools()
+            # 创建记忆管理工具包（AgentScope Toolkit）
+            from src.tools.memory_management_tools import create_memory_toolkit
+            self.toolkit = create_memory_toolkit()
             
             # 设置memory工具的streamer
             if self.streamer:
@@ -163,12 +164,10 @@ class AgentSelfReflectionSystem:
             
             # 使用 AgentScope 模型
             self.llm = get_model(model_name, model_provider, api_keys)
-            # 注意：AgentScope 不使用 bind_tools，而是通过 function calling 或直接调用
-            # 这里保持引用以便后续迁移
-            self.llm_with_tools = self.llm
             
             self.llm_available = True
-            print(f"✅ {agent_role} 自我复盘系统已初始化（AgentScope 模式）")
+            print(f"✅ {agent_role} 自我复盘系统已初始化（AgentScope Toolkit 模式）")
+            print(f"   已注册工具: {', '.join(self.toolkit.list_functions())}")
             
         except Exception as e:
             logger.error(f"{agent_role} 自我复盘系统初始化失败: {e}")
@@ -266,14 +265,30 @@ class AgentSelfReflectionSystem:
 
 ## 输出要求
 
-1. **首先**，用1-2段话总结你的表现和反思
-2. **然后**，如果需要记忆操作，直接调用相应的工具
-3. **最后**，提出1-2条改进建议
+请以 JSON 格式返回结果，包含以下字段：
 
-注意：
+```json
+{{
+  "reflection_summary": "你的复盘总结（1-2段话）",
+  "memory_action": "none" | "update" | "delete",
+  "memory_operation": {{
+    "tool_name": "search_and_update_analyst_memory" 或 "search_and_delete_analyst_memory",
+    "query": "搜索查询内容",
+    "analyst_id": "{self.agent_id}",
+    "memory_id": "auto",
+    "new_content": "新的记忆内容（仅update需要）",
+    "reason": "操作原因"
+  }},
+  "improvements": ["改进建议1", "改进建议2"]
+}}
+```
+
+**字段说明：**
+- `memory_action`: "none"(无需操作) | "update"(更新记忆) | "delete"(删除记忆)
+- `memory_operation`: 仅当 memory_action 不是 "none" 时需要填写
 - 只管理你自己 ({self.agent_id}) 的记忆
-- 要诚实客观，不要为错误找借口
-- 关注可操作的改进建议
+
+只返回 JSON，不要添加任何其他文字。
 """
         
         return prompt
@@ -361,7 +376,7 @@ class AgentSelfReflectionSystem:
                 prompt += f"- 市场环境: {context['market_condition']}\n"
             if 'risk_metrics' in context:
                 prompt += f"- 风险指标: {context['risk_metrics']}\n"
-        
+        pdb.set_trace()
         prompt += f"""
 
 # 自我复盘指导
@@ -398,15 +413,30 @@ class AgentSelfReflectionSystem:
 
 ## 输出要求
 
-1. **首先**，用2-3段话总结你的决策表现和反思
-2. **然后**，如果需要记忆操作，直接调用相应的工具
-3. **最后**，提出2-3条改进建议
+请以 JSON 格式返回结果，包含以下字段：
 
-注意：
-- 只管理你自己 (portfolio_manager) 的记忆
-- 要诚实评估决策质量
-- 关注可操作的改进建议
-- 考虑如何更好地利用分析师意见
+```json
+{{
+  "reflection_summary": "你的复盘总结（2-3段话）",
+  "memory_action": "none" | "update" | "delete",
+  "memory_operation": {{
+    "tool_name": "search_and_update_analyst_memory" 或 "search_and_delete_analyst_memory",
+    "query": "搜索查询内容",
+    "analyst_id": "portfolio_manager",
+    "memory_id": "auto",
+    "new_content": "新的记忆内容（仅update需要）",
+    "reason": "操作原因"
+  }},
+  "improvements": ["改进建议1", "改进建议2", "改进建议3"]
+}}
+```
+
+**字段说明：**
+- `memory_action`: "none"(无需操作) | "update"(更新记忆) | "delete"(删除记忆)
+- `memory_operation`: 仅当 memory_action 不是 "none" 时需要填写
+- 诚实评估决策质量，考虑如何更好地利用分析师意见
+
+只返回 JSON，不要添加任何其他文字。
 """
         
         return prompt
@@ -507,50 +537,58 @@ class AgentSelfReflectionSystem:
             print(f"🔍 {self.agent_role} 开始自我复盘 ({date})")
             print(f"{'='*60}")
             
-            # 调用LLM（使用 AgentScope 格式）
+            # 调用 LLM（使用 AgentScope 格式）
             messages = [{"role": "user", "content": prompt}]
-            response = self.llm_with_tools(messages)
+            response = self.llm(messages)
+            # pdb.set_trace()
+            response_content = response.get("content", "")
             
-            # 将响应转换为兼容格式
-            class ResponseWrapper:
-                def __init__(self, content):
-                    self.content = content
-                    self.tool_calls = []
-            
-            response = ResponseWrapper(response.get("content", ""))
+            # 解析 JSON 响应
+            import json
+            try:
+                # 尝试提取 JSON（可能被 markdown 包裹）
+                json_start = response_content.find("{")
+                json_end = response_content.rfind("}") + 1
+                if json_start != -1 and json_end > json_start:
+                    json_str = response_content[json_start:json_end]
+                    reflection_data = json.loads(json_str)
+                else:
+                    # 如果找不到 JSON，尝试直接解析
+                    reflection_data = json.loads(response_content)
+            except json.JSONDecodeError as e:
+                print(f"⚠️ JSON 解析失败: {e}")
+                print(f"原始响应: {response_content[:500]}...")
+                # 使用默认值
+                reflection_data = {
+                    "reflection_summary": response_content,
+                    "memory_action": "none",
+                    "improvements": []
+                }
             
             # 提取复盘总结
-            reflection_summary = response.content if hasattr(response, 'content') else str(response)
+            reflection_summary = reflection_data.get("reflection_summary", response_content)
+            memory_action = reflection_data.get("memory_action", "none")
+            improvements = reflection_data.get("improvements", [])
             
-            # 检查是否有工具调用
+            # 执行记忆操作
             memory_operations = []
-            if hasattr(response, 'tool_calls') and response.tool_calls:
-                print(f"🛠️ {self.agent_role} 决定执行 {len(response.tool_calls)} 个记忆操作")
+            if memory_action != "none" and "memory_operation" in reflection_data:
+                mem_op = reflection_data["memory_operation"]
+                tool_name = mem_op.get("tool_name")
                 
-                # 执行工具调用
-                for tool_call in response.tool_calls:
-                    tool_name = tool_call['name']
-                    tool_args = tool_call['args']
-                    
-                    # 确保只操作自己的记忆
-                    if tool_args.get('analyst_id') != self.agent_id:
-                        print(f"⚠️ 警告: {self.agent_role} 试图操作其他Agent的记忆，已阻止")
-                        continue
-                    
+                # 确保只操作自己的记忆
+                if mem_op.get('analyst_id') != self.agent_id:
+                    print(f"⚠️ 警告: {self.agent_role} 试图操作其他Agent的记忆，已阻止")
+                else:
+                    print(f"🛠️ {self.agent_role} 决定执行记忆操作: {memory_action}")
                     print(f"  📞 执行: {tool_name}")
-                    print(f"     参数: {tool_args}")
                     
-                    # 调用工具
-                    tool_function = next(
-                        (tool for tool in self.memory_tools if tool.name == tool_name),
-                        None
-                    )
-                    
-                    if tool_function:
-                        result = tool_function.invoke(tool_args)
+                    try:
+                        # 使用 toolkit 调用工具
+                        result = self.toolkit.call(tool_name, **mem_op)
                         memory_operations.append({
                             'tool_name': tool_name,
-                            'args': tool_args,
+                            'args': mem_op,
                             'result': result
                         })
                         print(f"  ✅ 操作完成: {result.get('status', 'unknown')}")
@@ -560,17 +598,24 @@ class AgentSelfReflectionSystem:
                             agent_id=self.agent_id,
                             operation_type='individual_review',
                             tool_name=tool_name,
-                            args=tool_args,
+                            args=mem_op,
                             result=result,
                             context={'date': date}
                         )
-                    else:
-                        print(f"  ❌ 未找到工具: {tool_name}")
+                    except Exception as e:
+                        print(f"  ❌ 工具调用失败: {e}")
             else:
                 print(f"💭 {self.agent_role} 认为无需记忆操作")
             
+            # 显示复盘总结
             print(f"\n📝 复盘总结:")
-            print(f"{reflection_summary[:500]}{'...' if len(reflection_summary) > 500 else ''}")
+            print(reflection_summary)
+            
+            if improvements:
+                print(f"\n💡 改进建议:")
+                for i, improvement in enumerate(improvements, 1):
+                    print(f"  {i}. {improvement}")
+            
             print(f"{'='*60}\n")
             
             return {

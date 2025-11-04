@@ -376,11 +376,88 @@ def add_reflection_memory(analyst_id: str, content: str, reason: str, date: str)
         }
 
 
-# ===================== 获取工具列表的便利函数 =====================
+# ===================== AgentScope Toolkit 集成 =====================
 
+def create_memory_toolkit():
+    """
+    创建记忆管理工具包（AgentScope 格式）
+    
+    Returns:
+        ServiceToolkit 实例
+    """
+    from src.agents.agentscope_tools import ServiceToolkit
+    
+    toolkit = ServiceToolkit()
+    
+    # 注册 search_and_update_analyst_memory
+    toolkit.register(
+        name="search_and_update_analyst_memory",
+        func=search_and_update_analyst_memory,
+        description="搜索并更新分析师的记忆内容",
+        parameters={
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "搜索查询内容，用于找到需要更新的记忆"
+                },
+                "memory_id": {
+                    "type": "string",
+                    "description": "要更新的记忆ID，如果不知道填'auto'让系统自动搜索"
+                },
+                "analyst_id": {
+                    "type": "string",
+                    "description": "分析师ID：sentiment_analyst, technical_analyst, fundamentals_analyst, valuation_analyst"
+                },
+                "new_content": {
+                    "type": "string",
+                    "description": "新的记忆内容，用来替换错误的记忆"
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "更新原因"
+                }
+            },
+            "required": ["query", "memory_id", "analyst_id", "new_content", "reason"]
+        }
+    )
+    
+    # 注册 search_and_delete_analyst_memory
+    toolkit.register(
+        name="search_and_delete_analyst_memory",
+        func=search_and_delete_analyst_memory,
+        description="搜索并删除分析师的错误记忆",
+        parameters={
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "搜索查询内容，用于找到需要删除的记忆"
+                },
+                "memory_id": {
+                    "type": "string",
+                    "description": "要删除的记忆ID，如果不知道填'auto'让系统自动搜索"
+                },
+                "analyst_id": {
+                    "type": "string",
+                    "description": "分析师ID"
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "删除原因"
+                }
+            },
+            "required": ["query", "memory_id", "analyst_id", "reason"]
+        }
+    )
+    
+    return toolkit
+
+
+# 向后兼容的函数
 def get_memory_tools():
     """
-    获取所有记忆管理工具的列表
+    获取所有记忆管理工具的列表（向后兼容）
     
     Returns:
         记忆管理工具的列表
@@ -388,7 +465,6 @@ def get_memory_tools():
     return [
         search_and_update_analyst_memory,
         search_and_delete_analyst_memory,
-        # add_reflection_memory
     ]
 
 
