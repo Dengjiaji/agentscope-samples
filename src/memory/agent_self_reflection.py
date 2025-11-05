@@ -233,6 +233,10 @@ class AgentSelfReflectionSystem:
             confidence = signal_data.get('confidence', 'N/A')
             reasoning = signal_data.get('reasoning', '')
             
+            # 确保 reasoning 是字符串（可能是字典或其他类型）
+            if not isinstance(reasoning, str):
+                reasoning = str(reasoning) if reasoning else ''
+            
             # 判断预测是否正确
             is_correct = self._evaluate_prediction(signal, actual_return)
             status_emoji = "✅" if is_correct else "❌"
@@ -381,6 +385,10 @@ class AgentSelfReflectionSystem:
             quantity = decision_data.get('quantity', 0)
             confidence = decision_data.get('confidence', 'N/A')
             reasoning = decision_data.get('reasoning', '')
+            
+            # 确保 reasoning 是字符串（可能是字典或其他类型）
+            if not isinstance(reasoning, str):
+                reasoning = str(reasoning) if reasoning else ''
             
             # 判断决策是否正确
             is_correct = self._evaluate_pm_decision(action, actual_return)
