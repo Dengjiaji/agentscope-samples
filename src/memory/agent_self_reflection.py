@@ -17,6 +17,7 @@ try:
     from src.graph.state import create_message
     from src.llm.agentscope_models import get_model, ModelProvider
     from src.tools.memory_management_tools import get_memory_tools
+    from src.agents.prompt_loader import get_prompt_loader
     LANGCHAIN_AVAILABLE = True  # 保持变量名以向后兼容
 except ImportError as e:
     LANGCHAIN_AVAILABLE = False
@@ -169,6 +170,9 @@ class AgentSelfReflectionSystem:
             # 构建可用工具的描述（类似 LLMToolSelector）
             self.available_memory_tools = self._build_tool_descriptions()
             
+            # 初始化 prompt loader
+            self.prompt_loader = get_prompt_loader()
+            
             self.llm_available = True
             print(f"✅ {agent_role} 自我复盘系统已初始化（LLM 智能工具选择模式）")
             print(f"   可用记忆工具: {', '.join(self.toolkit.list_functions())}")
@@ -212,21 +216,8 @@ class AgentSelfReflectionSystem:
             pm_decisions: PM的最终决策
             context: 额外上下文
         """
-        prompt = f"""你是一位专业的 {self.agent_role}，现在需要对 {date} 的分析表现进行自我复盘。
-
-# 你的职责
-作为 {self.agent_role}，你需要：
-1. 客观评估自己的预测准确性
-2. 分析预测错误的原因
-3. 决定是否需要更新或删除错误的记忆
-4. 总结经验教训，提升未来表现
-
-# 今日复盘数据
-
-## 你的预测信号
-"""
-        
-        # 添加自己的信号
+        # 1. 构建 signals_data
+        signals_data = ""
         for ticker, signal_data in my_signals.items():
             actual_return = actual_returns.get(ticker, 0)
             signal = signal_data.get('signal', 'N/A')
@@ -241,7 +232,7 @@ class AgentSelfReflectionSystem:
             is_correct = self._evaluate_prediction(signal, actual_return)
             status_emoji = "✅" if is_correct else "❌"
             
-            prompt += f"""
+            signals_data += f"""
 {ticker}: {status_emoji}
   - 你的信号: {signal} (置信度: {confidence}%)
   - 你的理由: {reasoning[:200] if reasoning else 'N/A'}
@@ -249,84 +240,25 @@ class AgentSelfReflectionSystem:
   - PM最终决策: {pm_decisions.get(ticker, {}).get('action', 'N/A')}
 """
         
-        # 添加额外上下文
+        # 2. 构建 context_data
+        context_data = ""
         if context:
-            prompt += "\n## 额外上下文\n"
+            context_data = "\n## 额外上下文\n"
             if 'market_condition' in context:
-                prompt += f"- 市场环境: {context['market_condition']}\n"
+                context_data += f"- 市场环境: {context['market_condition']}\n"
         
-        prompt += f"""
-
-# 自我复盘指导
-
-请按以下标准评估自己的表现：
-
-## 评估标准
-1. **预测准确性**: 信号方向是否与实际收益一致？
-2. **置信度校准**: 高置信度的预测是否更准确？
-3. **分析逻辑**: 使用的分析方法是否合理？
-4. **市场理解**: 是否正确理解了市场环境？
-
-## 可用的记忆管理工具
-
-你可以选择使用以下工具来管理你的记忆：
-
-### 工具 1: search_and_update_analyst_memory
-- **功能**: 搜索并更新记忆内容
-- **适用场景**: 预测方向错误但不算离谱、分析方法需要微调优化
-- **参数**:
-  * query: 搜索查询内容（描述要找什么记忆）
-  * memory_id: 填 "auto" 让系统自动搜索
-  * analyst_id: "{self.agent_id}"
-  * new_content: 新的正确记忆内容
-  * reason: 更新原因
-
-### 工具 2: search_and_delete_analyst_memory
-- **功能**: 搜索并删除严重错误的记忆
-- **适用场景**: 连续多次严重错误、分析逻辑存在根本性问题
-- **参数**:
-  * query: 搜索查询内容
-  * memory_id: 填 "auto"
-  * analyst_id: "{self.agent_id}"
-  * reason: 删除原因
-
-## 决策要求
-
-请根据你的表现，决定是否需要调用记忆管理工具：
-
-1. **表现良好** → 不需要调用工具，直接总结经验即可
-2. **表现一般** → 考虑使用 `search_and_update_analyst_memory` 修正记忆
-3. **表现很差** → 考虑使用 `search_and_delete_analyst_memory` 删除错误记忆
-
-## 输出格式
-
-请以 JSON 格式返回，包含以下字段：
-
-```json
-{{
-  "reflection_summary": "你的复盘总结（1-2段话）",
-  "need_tool": true/false,
-  "selected_tool": {{
-    "tool_name": "search_and_update_analyst_memory" 或 "search_and_delete_analyst_memory",
-    "reason": "为什么选择这个工具",
-    "parameters": {{
-      "query": "搜索查询",
-      "memory_id": "auto",
-      "analyst_id": "{self.agent_id}",
-      "new_content": "新内容（仅update需要）",
-      "reason": "操作原因"
-    }}
-  }}
-}}
-```
-
-**注意：**
-- 如果 `need_tool` 为 false，则不需要填写 `selected_tool` 字段
-- 只能操作你自己（{self.agent_id}）的记忆
-- 谨慎决策是否真的需要调用工具
-
-请基于你的专业判断，诚实地评估自己的表现并做出明智的决策。
-"""
+        # 3. 使用 prompt loader 加载并填充模板
+        prompt = self.prompt_loader.load_prompt(
+            "reflection",
+            "analyst_reflection_system",
+            {
+                "agent_role": self.agent_role,
+                "date": date,
+                "agent_id": self.agent_id,
+                "signals_data": signals_data,
+                "context_data": context_data
+            }
+        )
         
         return prompt
     
@@ -350,33 +282,21 @@ class AgentSelfReflectionSystem:
             portfolio_summary: Portfolio总结
             context: 额外上下文
         """
-        prompt = f"""你是一位专业的 Portfolio Manager，现在需要对 {date} 的投资决策进行自我复盘。
-
-# 你的职责
-作为 Portfolio Manager，你需要：
-1. 评估自己的决策质量
-2. 分析决策失误的原因
-3. 反思是否正确综合了分析师意见
-4. 决定是否需要更新决策记忆
-5. 总结经验教训
-
-# 今日复盘数据
-
-## Portfolio 表现
-"""
-        
+        # 1. 构建 portfolio_data
+        portfolio_data = ""
         if portfolio_summary:
             total_value = portfolio_summary.get('total_value', 0)
             pnl_percent = portfolio_summary.get('pnl_percent', 0)
             cash = portfolio_summary.get('cash', 0)
             
-            prompt += f"""
+            portfolio_data = f"""
 - 总资产: ${total_value:,.2f}
 - 收益率: {pnl_percent:+.2f}%
 - 现金: ${cash:,.2f}
 """
         
-        prompt += "\n## 你的投资决策 vs 实际结果\n"
+        # 2. 构建 decisions_data
+        decisions_data = ""
         
         # 添加PM决策和实际结果
         for ticker, decision_data in pm_decisions.items():
@@ -394,7 +314,7 @@ class AgentSelfReflectionSystem:
             is_correct = self._evaluate_pm_decision(action, actual_return)
             status_emoji = "✅" if is_correct else "❌"
             
-            prompt += f"""
+            decisions_data += f"""
 {ticker}: {status_emoji}
   - 你的决策: {action}
   - 数量: {quantity} 股
@@ -404,91 +324,32 @@ class AgentSelfReflectionSystem:
 """
             
             # 添加分析师意见对比
-            prompt += "  - 分析师意见:\n"
+            decisions_data += "  - 分析师意见:\n"
             for analyst_id, signals in analyst_signals.items():
                 if ticker in signals:
                     analyst_signal = signals[ticker]
-                    prompt += f"    * {analyst_id}: {analyst_signal}\n"
+                    decisions_data += f"    * {analyst_id}: {analyst_signal}\n"
         
-        # 添加额外上下文
+        # 3. 构建 context_data
+        context_data = ""
         if context:
-            prompt += "\n## 额外上下文\n"
+            context_data = "\n## 额外上下文\n"
             if 'market_condition' in context:
-                prompt += f"- 市场环境: {context['market_condition']}\n"
+                context_data += f"- 市场环境: {context['market_condition']}\n"
             if 'risk_metrics' in context:
-                prompt += f"- 风险指标: {context['risk_metrics']}\n"
-        # pdb.set_trace()
-        prompt += f"""
-
-# 自我复盘指导
-
-请按以下标准评估自己的表现：
-
-## 评估标准
-1. **决策准确性**: 投资决策是否带来正收益？
-2. **信息整合**: 是否正确综合了分析师意见？
-3. **风险控制**: 仓位管理是否合理？
-4. **执行纪律**: 是否遵循了既定策略？
-
-## 可用的记忆管理工具
-
-你可以选择使用以下工具来管理你的记忆：
-
-### 工具 1: search_and_update_analyst_memory
-- **功能**: 搜索并更新记忆内容
-- **适用场景**: 决策方向错误但损失可控、信息整合方法需要优化
-- **参数**:
-  * query: 搜索查询内容
-  * memory_id: 填 "auto"
-  * analyst_id: "portfolio_manager"
-  * new_content: 新的决策经验
-  * reason: 更新原因
-
-### 工具 2: search_and_delete_analyst_memory
-- **功能**: 搜索并删除严重错误的记忆
-- **适用场景**: 决策导致重大损失、使用错误决策框架
-- **参数**:
-  * query: 搜索查询内容
-  * memory_id: 填 "auto"
-  * analyst_id: "portfolio_manager"
-  * reason: 删除原因
-
-## 决策要求
-
-请根据你的表现，决定是否需要调用记忆管理工具：
-
-1. **表现良好** → 不需要调用工具，总结成功经验即可
-2. **表现一般** → 考虑使用 `search_and_update_analyst_memory` 优化决策方法
-3. **表现很差** → 考虑使用 `search_and_delete_analyst_memory` 删除错误决策框架
-
-## 输出格式
-
-请以 JSON 格式返回：
-
-```json
-{{
-  "reflection_summary": "你的复盘总结",
-  "need_tool": true/false,
-  "selected_tool": {{
-    "tool_name": "工具名称",
-    "reason": "选择原因",
-    "parameters": {{
-      "query": "搜索查询",
-      "memory_id": "auto",
-      "analyst_id": "portfolio_manager",
-      "new_content": "新内容（仅update需要）",
-      "reason": "操作原因"
-    }}
-  }}
-}}
-```
-
-**注意：**
-- 如果 `need_tool` 为 false，则不需要 `selected_tool` 字段
-- 诚实评估决策质量
-
-请基于你作为 Portfolio Manager 的专业判断，客观评估自己的决策并做出明智的选择。
-"""
+                context_data += f"- 风险指标: {context['risk_metrics']}\n"
+        
+        # 4. 使用 prompt loader 加载并填充模板
+        prompt = self.prompt_loader.load_prompt(
+            "reflection",
+            "pm_reflection_system",
+            {
+                "date": date,
+                "portfolio_data": portfolio_data,
+                "decisions_data": decisions_data,
+                "context_data": context_data
+            }
+        )
         
         return prompt
     
