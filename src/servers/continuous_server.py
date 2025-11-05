@@ -74,6 +74,8 @@ class ContinuousServer:
             'pnl_percent': 0,
             'equity': [],
             'baseline': [],
+            'baseline_vw': [],
+            'momentum': [],
             'strategies': []
         })
         
@@ -266,8 +268,9 @@ class ContinuousServer:
                     'balance': data.get('balance'),
                     'pnlPct': data.get('pnlPct'),
                     'equity': data.get('equity', []),
-                    'baseline': data.get('baseline', []),  # ⭐ 添加 baseline
-                    'momentum': data.get('momentum', []),  # ⭐ 添加 momentum
+                    'baseline': data.get('baseline', []),  # ⭐ 等权重 baseline
+                    'baseline_vw': data.get('baseline_vw', []),  # ⭐ 价值加权 baseline
+                    'momentum': data.get('momentum', []),  # ⭐ 动量策略
                     'timestamp': timestamp
                 })
                 logger.info(f"✅ 广播 team_summary (从文件)")
@@ -343,8 +346,9 @@ class ContinuousServer:
                         'total_value': summary_data.get('balance'),
                         'pnl_percent': summary_data.get('pnlPct'),
                         'equity': summary_data.get('equity', []),
-                        'baseline': summary_data.get('baseline', []),  # ⭐ 添加 baseline
-                        'momentum': summary_data.get('momentum', [])  # ⭐ 添加 momentum
+                        'baseline': summary_data.get('baseline', []),  # ⭐ 等权重 baseline
+                        'baseline_vw': summary_data.get('baseline_vw', []),  # ⭐ 价值加权 baseline
+                        'momentum': summary_data.get('momentum', [])  # ⭐ 动量策略
                     })
                 
                 # 更新其他数据

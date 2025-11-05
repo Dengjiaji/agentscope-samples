@@ -1303,7 +1303,8 @@ export default function LiveTradingApp() {
     netValue: 10000,
     pnl: 0,
     equity: [],
-    baseline: [], // Baseline strategy (Buy & Hold)
+    baseline: [], // Baseline strategy (Buy & Hold - Equal Weight)
+    baseline_vw: [], // Baseline strategy (Buy & Hold - Value Weighted)
     momentum: [], // Momentum strategy
     strategies: [] // Other strategies
   });
@@ -1455,6 +1456,7 @@ export default function LiveTradingApp() {
                 pnl: state.portfolio.pnl_percent || 0,
                 equity: state.portfolio.equity || prev.equity,
                 baseline: state.portfolio.baseline || prev.baseline,
+                baseline_vw: state.portfolio.baseline_vw || prev.baseline_vw,
                 momentum: state.portfolio.momentum || prev.momentum,
                 strategies: state.portfolio.strategies || prev.strategies
               }));
@@ -1689,8 +1691,9 @@ export default function LiveTradingApp() {
             netValue: e.balance || prev.netValue,
             pnl: e.pnlPct || 0,
             equity: e.equity || prev.equity,
-            baseline: e.baseline || prev.baseline,  // 添加 baseline 数据
-            momentum: e.momentum || prev.momentum  // 添加 momentum 数据
+            baseline: e.baseline || prev.baseline,  // 等权重 baseline
+            baseline_vw: e.baseline_vw || prev.baseline_vw,  // 价值加权 baseline
+            momentum: e.momentum || prev.momentum  // 动量策略
           }));
           
           // Add to feed
@@ -1790,10 +1793,16 @@ export default function LiveTradingApp() {
       v: 1000000 + Math.sin(i / 8) * 60000 + i * 3000 + Math.random() * 20000
     }));
     
-    // Baseline strategy (simple buy-and-hold)
+    // Baseline strategy - equal weight (simple buy-and-hold)
     const baseline = Array.from({ length: 90 }).map((_, i) => ({
       t: Date.now() - (90 - i) * 3600e3,
       v: 1000000 + i * 2000 + Math.random() * 10000
+    }));
+    
+    // Baseline strategy - value weighted
+    const baseline_vw = Array.from({ length: 90 }).map((_, i) => ({
+      t: Date.now() - (90 - i) * 3600e3,
+      v: 1000000 + i * 2200 + Math.random() * 12000
     }));
     
     // Momentum strategy (more volatile)
@@ -1813,6 +1822,7 @@ export default function LiveTradingApp() {
       pnl: 34.75, 
       equity,
       baseline,
+      baseline_vw,
       momentum,
       strategies
     });
@@ -1995,6 +2005,7 @@ export default function LiveTradingApp() {
                         <NetValueChart 
                           equity={portfolioData.equity}
                           baseline={portfolioData.baseline}
+                          baseline_vw={portfolioData.baseline_vw}
                           momentum={portfolioData.momentum}
                           strategies={portfolioData.strategies}
                         />
@@ -2177,7 +2188,7 @@ function useImage(src) {
   return img;
 }
 
-function NetValueChart({ equity, baseline, momentum, strategies }) {
+function NetValueChart({ equity, baseline, baseline_vw, momentum, strategies }) {
   const [activePoint, setActivePoint] = useState(null);
   // Store stable Y-axis range to avoid frequent updates
   const [stableYRange, setStableYRange] = useState(null);
@@ -2194,18 +2205,19 @@ function NetValueChart({ equity, baseline, momentum, strategies }) {
         timestamp: d.t,
         portfolio: d.v,
         baseline: baseline?.[idx]?.v || null,
+        baseline_vw: baseline_vw?.[idx]?.v || null,
         momentum: momentum?.[idx]?.v || null,
         strategy: strategies?.[idx]?.v || null
       };
     });
-  }, [equity, baseline, momentum, strategies]);
+  }, [equity, baseline, baseline_vw, momentum, strategies]);
   
   const { yMin, yMax, xTickIndices } = useMemo(() => {
     if (chartData.length === 0) return { yMin: 0, yMax: 1, xTickIndices: [] };
     
     // Calculate min and max from all series
     const allValues = chartData.flatMap(d => 
-      [d.portfolio, d.baseline, d.momentum, d.strategy].filter(v => v !== null && isFinite(v))
+      [d.portfolio, d.baseline, d.baseline_vw, d.momentum, d.strategy].filter(v => v !== null && isFinite(v))
     );
     
     if (allValues.length === 0) {
@@ -2348,8 +2360,9 @@ function NetValueChart({ equity, baseline, momentum, strategies }) {
     const colors = {
       portfolio: '#00C853',
       baseline: '#FF6B00',
+      baseline_vw: '#9C27B0',
       momentum: '#2196F3',
-      strategy: '#9C27B0'
+      strategy: '#795548'
     };
     
     return (
@@ -2432,16 +2445,31 @@ function NetValueChart({ equity, baseline, momentum, strategies }) {
           isAnimationActive={false}
         />
         
-        {/* Baseline line - Orange */}
+        {/* Baseline line - Orange (Equal Weight) */}
         {baseline && baseline.length > 0 && (
           <Line 
             type="monotone" 
             dataKey="baseline" 
-            name="Buy & Hold"
+            name="Buy & Hold (EW)"
             stroke="#FF6B00" 
             strokeWidth={2}
             strokeDasharray="5 5"
             dot={(props) => <CustomDot {...props} dataKey="baseline" />}
+            activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 2 }}
+            isAnimationActive={false}
+          />
+        )}
+        
+        {/* Baseline Value Weighted line - Purple */}
+        {baseline_vw && baseline_vw.length > 0 && (
+          <Line 
+            type="monotone" 
+            dataKey="baseline_vw" 
+            name="Buy & Hold (VW)"
+            stroke="#9C27B0" 
+            strokeWidth={2}
+            strokeDasharray="8 4"
+            dot={(props) => <CustomDot {...props} dataKey="baseline_vw" />}
             activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 2 }}
             isAnimationActive={false}
           />
@@ -2462,13 +2490,13 @@ function NetValueChart({ equity, baseline, momentum, strategies }) {
           />
         )}
         
-        {/* Strategy line - Purple */}
+        {/* Strategy line - Brown */}
         {strategies && strategies.length > 0 && (
           <Line 
             type="monotone" 
             dataKey="strategy" 
             name="Strategy"
-            stroke="#9C27B0" 
+            stroke="#795548" 
             strokeWidth={2}
             dot={(props) => <CustomDot {...props} dataKey="strategy" />}
             activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 2 }}

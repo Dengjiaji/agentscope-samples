@@ -107,7 +107,8 @@ class TeamDashboardGenerator:
         """加载内部状态"""
         state = self._load_json(self.state_file, {
             'equity_history': [],  # [{t: timestamp, v: value}]
-            'baseline_history': [],  # Buy & Hold 基准线历史
+            'baseline_history': [],  # Buy & Hold 基准线历史 (等权重)
+            'baseline_vw_history': [],  # Buy & Hold 价值加权基准线历史
             'momentum_history': [],  # 动量策略历史
             'all_trades': [],  # 所有交易历史
             'agent_performance': {},  # agent_id -> {signals: [], bull_count: 0, bull_win: 0, ...}
@@ -115,8 +116,12 @@ class TeamDashboardGenerator:
                 'cash': self.initial_cash,
                 'positions': {}  # ticker -> {qty, avg_cost}
             },
-            'baseline_state': {  # Buy & Hold 持仓状态
+            'baseline_state': {  # Buy & Hold 持仓状态 (等权重)
                 'initial_allocation': {},  # ticker -> {qty, buy_price, buy_date}
+                'initialized': False
+            },
+            'baseline_vw_state': {  # Buy & Hold 价值加权持仓状态
+                'initial_allocation': {},  # ticker -> {qty, buy_price, buy_date, weight}
                 'initialized': False
             },
             'momentum_state': {  # 动量策略持仓状态
@@ -170,6 +175,17 @@ class TeamDashboardGenerator:
         # 确保momentum_history存在
         if 'momentum_history' not in state:
             state['momentum_history'] = []
+        
+        # 确保baseline_vw_state存在
+        if 'baseline_vw_state' not in state:
+            state['baseline_vw_state'] = {
+                'initial_allocation': {},
+                'initialized': False
+            }
+        
+        # 确保baseline_vw_history存在
+        if 'baseline_vw_history' not in state:
+            state['baseline_vw_history'] = []
         
         return state
     
@@ -281,9 +297,10 @@ class TeamDashboardGenerator:
             'agents_updated': 0
         }
         
-        # 0. 初始化 Buy & Hold（仅第一次）
+        # 0. 初始化 Buy & Hold 和价值加权 Buy & Hold（仅第一次）
         available_tickers = list(pm_signals.keys())
         self._initialize_buy_and_hold(date, available_tickers, state)
+        self._initialize_buy_and_hold_vw(date, available_tickers, state)
         
         # 1. 更新交易记录和持仓
         if mode == "portfolio":
@@ -310,10 +327,13 @@ class TeamDashboardGenerator:
             # 5a. 更新权益曲线
             self._update_equity_curve(date, timestamp_ms, state)
             
-            # 5b. 更新 Buy & Hold 基准线
+            # 5b. 更新 Buy & Hold 基准线（等权重）
             self._update_baseline_curve(date, timestamp_ms, state)
             
-            # 5c. 更新动量策略曲线
+            # 5c. 更新价值加权 Buy & Hold 基准线
+            self._update_baseline_vw_curve(date, timestamp_ms, state)
+            
+            # 5d. 更新动量策略曲线
             self._update_momentum_curve(date, timestamp_ms, available_tickers, state)
             
             curves_updated = True
@@ -880,6 +900,153 @@ class TeamDashboardGenerator:
         return_pct = ((baseline_value - self.initial_cash) / self.initial_cash) * 100
         print(f"📊 Buy & Hold 基准: ${baseline_value:,.2f} ({return_pct:+.2f}%)")
     
+    def _initialize_buy_and_hold_vw(self, date: str, available_tickers: list, state: Dict):
+        """
+        初始化价值加权 Buy & Hold 策略
+        
+        根据各股票的市值比例分配初始资金
+        
+        Args:
+            date: 交易日期
+            available_tickers: 可交易的股票列表
+            state: 内部状态
+        """
+        from src.tools.api import get_market_cap
+        
+        baseline_vw_state = state['baseline_vw_state']
+        
+        if baseline_vw_state['initialized']:
+            return  # 已经初始化过了
+        
+        if not available_tickers:
+            print("⚠️ 没有可交易的股票，跳过价值加权 Buy & Hold 初始化")
+            return
+        
+        # 获取所有股票的市值
+        market_caps = {}
+        for ticker in available_tickers:
+            try:
+                mcap = get_market_cap(ticker, date, api_key=None)
+                if mcap and mcap > 0:
+                    market_caps[ticker] = mcap
+                else:
+                    print(f"⚠️ {ticker} 市值数据无效，跳过")
+            except Exception as e:
+                print(f"⚠️ 获取 {ticker} 市值失败: {e}")
+        
+        if not market_caps:
+            print("⚠️ 无法获取任何股票的市值数据，跳过价值加权 Buy & Hold 初始化")
+            return
+        
+        # 计算总市值
+        total_market_cap = sum(market_caps.values())
+        
+        # 根据市值比例分配资金
+        initial_allocation = {}
+        total_invested = 0.0
+        
+        for ticker, mcap in market_caps.items():
+            # 计算该股票应分配的资金（按市值比例）
+            weight = mcap / total_market_cap
+            allocated_cash = self.initial_cash * weight
+            
+            # 使用收盘价买入
+            price = self._get_price_from_csv(ticker, date, 'close')
+            
+            if price is None or price <= 0:
+                print(f"⚠️ {ticker} 在 {date} 没有有效价格，跳过")
+                continue
+            
+            # 计算可购买的数量（向下取整）
+            quantity = int(allocated_cash / price)
+            
+            if quantity > 0:
+                initial_allocation[ticker] = {
+                    'qty': quantity,
+                    'buy_price': price,
+                    'buy_date': date,
+                    'weight': weight,  # 记录市值权重
+                    'market_cap': mcap
+                }
+                total_invested += quantity * price
+        
+        baseline_vw_state['initial_allocation'] = initial_allocation
+        baseline_vw_state['initialized'] = True
+        
+        print(f"✅ 价值加权 Buy & Hold 策略已初始化: {len(initial_allocation)} 只股票，投资 ${total_invested:,.2f}")
+        for ticker, info in initial_allocation.items():
+            print(f"   {ticker}: {info['qty']} 股 @ ${info['buy_price']:.2f} (权重: {info['weight']*100:.2f}%)")
+    
+    def _calculate_buy_and_hold_vw_value(self, date: str, state: Dict) -> float:
+        """
+        计算价值加权 Buy & Hold 策略的当前净值
+        
+        Args:
+            date: 当前日期
+            state: 内部状态
+            
+        Returns:
+            价值加权 Buy & Hold 策略的总资产价值
+        """
+        baseline_vw_state = state['baseline_vw_state']
+        
+        if not baseline_vw_state['initialized']:
+            return self.initial_cash  # 还未初始化，返回初始资金
+        
+        total_value = 0.0
+        initial_allocation = baseline_vw_state['initial_allocation']
+        
+        for ticker, info in initial_allocation.items():
+            # 获取当前价格
+            current_price = self._get_current_price(ticker, date, state)
+            
+            if current_price is None or current_price <= 0:
+                # 如果无法获取价格，使用购买价格作为后备
+                current_price = info['buy_price']
+                print(f"⚠️ {ticker} 在 {date} 无法获取价格，使用买入价 ${current_price:.2f}")
+            
+            # 计算持仓市值
+            position_value = info['qty'] * current_price
+            total_value += position_value
+        
+        return total_value
+    
+    def _update_baseline_vw_curve(self, date: str, timestamp_ms: int, state: Dict):
+        """
+        更新价值加权 Buy & Hold 基准线
+        
+        Args:
+            date: 交易日期
+            timestamp_ms: 时间戳（毫秒）
+            state: 内部状态
+        """
+        baseline_vw_state = state['baseline_vw_state']
+        
+        # 如果 baseline_vw 刚初始化，且历史记录为空，先添加初始点
+        if baseline_vw_state['initialized'] and len(state['baseline_vw_history']) == 0:
+            # 添加初始资金作为起始点
+            initial_point = {
+                't': timestamp_ms,
+                'v': round(self.initial_cash, 2)
+            }
+            state['baseline_vw_history'].append(initial_point)
+            print(f"📊 价值加权 Buy & Hold 初始点: ${self.initial_cash:,.2f}")
+        
+        # 计算价值加权 Buy & Hold 策略的当前总价值
+        baseline_vw_value = self._calculate_buy_and_hold_vw_value(date, state)
+        
+        # 添加到基准线历史
+        baseline_vw_point = {
+            't': timestamp_ms,
+            'v': round(baseline_vw_value, 2)
+        }
+        
+        state['baseline_vw_history'].append(baseline_vw_point)
+        
+        # 计算收益率用于日志显示
+        return_pct = ((baseline_vw_value - self.initial_cash) / self.initial_cash) * 100
+        print(f"📊 价值加权 Buy & Hold 基准: ${baseline_vw_value:,.2f} ({return_pct:+.2f}%)")
+    
     def _calculate_momentum_scores(self, date: str, available_tickers: list, 
                                    lookback_days: int, state: Dict) -> Dict[str, float]:
         """
@@ -1142,6 +1309,7 @@ class TeamDashboardGenerator:
             'balance': round(balance, 2),
             'equity': state.get('equity_history', []),
             'baseline': state.get('baseline_history', []),
+            'baseline_vw': state.get('baseline_vw_history', []),  # 价值加权基准线
             'momentum': state.get('momentum_history', [])  # 添加动量策略数据
         }
         
