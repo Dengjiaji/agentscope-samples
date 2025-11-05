@@ -302,20 +302,40 @@ class TeamDashboardGenerator:
         # 4. 更新Portfolio Manager表现
         self._update_pm_performance(date, pm_signals, real_returns, state, update_stats)
         
-        # 5. 更新权益曲线
-        self._update_equity_curve(date, timestamp_ms, state)
+        # 5. 检查是否有收盘价数据，只在有确定价格时才更新权益曲线
+        has_closing_prices = self._check_has_closing_prices(date, available_tickers)
+        curves_updated = False
         
-        # 6. 更新 Buy & Hold 基准线
-        self._update_baseline_curve(date, timestamp_ms, state)
-        
-        # 7. 更新动量策略曲线
-        self._update_momentum_curve(date, timestamp_ms, available_tickers, state)
+        if has_closing_prices:
+            # 5a. 更新权益曲线
+            self._update_equity_curve(date, timestamp_ms, state)
+            
+            # 5b. 更新 Buy & Hold 基准线
+            self._update_baseline_curve(date, timestamp_ms, state)
+            
+            # 5c. 更新动量策略曲线
+            self._update_momentum_curve(date, timestamp_ms, available_tickers, state)
+            
+            curves_updated = True
+            print(f"✅ 权益曲线已更新 ({date})")
+        else:
+            print(f"⏸️  跳过权益曲线更新 ({date}) - 等待收盘价数据")
         
         # 8. 保存内部状态
         state['last_update_date'] = date
+        state['curves_updated'] = curves_updated  # 记录曲线是否已更新
         self._save_internal_state(state)
+        
         # 9. 生成所有前端数据文件
-        self._generate_summary(state)
+        # 注意：holdings, stats, trades, leaderboard 需要每次都更新（包含实时交易信号）
+        # 但 summary 只在曲线更新时才重新生成（避免触发不必要的广播）
+        if curves_updated:
+            self._generate_summary(state)
+            print(f"✅ {date} 团队仪表盘权益曲线已更新")
+        else:
+            print(f"⏸️  {date} 跳过权益曲线更新 - 等待收盘价数据")
+        
+        # 其他数据始终更新（包含实时交易信号和Agent表现）
         self._generate_holdings(state)
         self._generate_stats(state)
         self._generate_trades(state)
@@ -348,6 +368,30 @@ class TeamDashboardGenerator:
             # 成功获取真实价格
             price_history[ticker][date] = actual_price
           
+    def _check_has_closing_prices(self, date: str, tickers: List[str]) -> bool:
+        """
+        检查指定日期是否有所有股票的收盘价数据
+        
+        Args:
+            date: 交易日期 YYYY-MM-DD
+            tickers: 股票代码列表
+            
+        Returns:
+            如果所有股票都有收盘价数据则返回True，否则返回False
+        """
+        if not tickers:
+            return False
+        
+        # 检查至少一半的股票有收盘价
+        valid_count = 0
+        for ticker in tickers:
+            price = self._get_price_from_csv(ticker, date, 'close')
+            if price is not None:
+                valid_count += 1
+        
+        # 至少需要一半的股票有收盘价数据
+        return valid_count >= len(tickers) / 2
+    
     def _get_current_price(self, ticker: str, date: str, state: Dict) -> float:
         """
         获取股票的当前价格

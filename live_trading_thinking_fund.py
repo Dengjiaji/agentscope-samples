@@ -856,10 +856,15 @@ class LiveTradingThinkingFund:
                     for ticker in tickers:
                         if analyst_id in ana_signals and ticker in ana_signals[analyst_id]:
                             signal_value = ana_signals[analyst_id][ticker]['signal']
+                            signal_data = ana_signals[analyst_id][ticker]
+                            
+                            # 优先使用 reasoning，如果不存在则使用 tool_analysis
+                            reasoning_text = signal_data.get('reasoning') or signal_data.get('tool_analysis', '')
+                            
                             my_signals[ticker] = {
                                 'signal': signal_value if isinstance(signal_value, str) else 'N/A',
-                                'confidence': ana_signals[analyst_id][ticker]['confidence'],
-                                'reasoning': ana_signals[analyst_id][ticker]['reasoning'] if ana_signals[analyst_id][ticker]['reasoning'] else ana_signals[analyst_id][ticker]['tool_analysis']
+                                'confidence': signal_data.get('confidence', 0),
+                                'reasoning': reasoning_text
                             }
                     # pdb.set_trace()
                     # 创建复盘系统
