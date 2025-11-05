@@ -2,6 +2,7 @@
 """
 Agent自我复盘系统
 每个分析师（包括PM）独立评估自己的表现并管理记忆
+使用类似 analyst 分析阶段的 LLM 智能工具选择机制
 """
 
 import os
@@ -107,7 +108,7 @@ class MemoryOperationLogger:
 
 
 class AgentSelfReflectionSystem:
-    """分析师自我复盘系统"""
+    """分析师自我复盘系统 - 使用 LLM 智能工具选择"""
     
     def __init__(
         self,
@@ -165,13 +166,33 @@ class AgentSelfReflectionSystem:
             # 使用 AgentScope 模型
             self.llm = get_model(model_name, model_provider, api_keys)
             
+            # 构建可用工具的描述（类似 LLMToolSelector）
+            self.available_memory_tools = self._build_tool_descriptions()
+            
             self.llm_available = True
-            print(f"✅ {agent_role} 自我复盘系统已初始化（AgentScope Toolkit 模式）")
-            print(f"   已注册工具: {', '.join(self.toolkit.list_functions())}")
+            print(f"✅ {agent_role} 自我复盘系统已初始化（LLM 智能工具选择模式）")
+            print(f"   可用记忆工具: {', '.join(self.toolkit.list_functions())}")
             
         except Exception as e:
             logger.error(f"{agent_role} 自我复盘系统初始化失败: {e}")
             self.llm_available = False
+    
+    def _build_tool_descriptions(self) -> Dict[str, Dict[str, str]]:
+        """构建记忆管理工具的描述信息"""
+        return {
+            "search_and_update_analyst_memory": {
+                "name": "search_and_update_analyst_memory",
+                "description": "搜索并更新分析师的记忆内容。适用于预测方向错误但不算离谱、分析方法需要微调优化的情况。",
+                "when_to_use": "预测错误但不严重，需要修正分析方法或补充经验教训",
+                "parameters": "query(搜索内容), memory_id(通常填'auto'), analyst_id(你的ID), new_content(新记忆), reason(更新原因)"
+            },
+            "search_and_delete_analyst_memory": {
+                "name": "search_and_delete_analyst_memory",
+                "description": "搜索并删除分析师的严重错误记忆。适用于连续严重预测错误、使用根本错误的分析逻辑的情况。",
+                "when_to_use": "连续多次严重错误，分析逻辑存在根本性问题",
+                "parameters": "query(搜索内容), memory_id(通常填'auto'), analyst_id(你的ID), reason(删除原因)"
+            }
+        }
     
     def generate_analyst_reflection_prompt(
         self,
@@ -242,53 +263,65 @@ class AgentSelfReflectionSystem:
 3. **分析逻辑**: 使用的分析方法是否合理？
 4. **市场理解**: 是否正确理解了市场环境？
 
-## 记忆管理决策
+## 可用的记忆管理工具
 
-根据表现决定是否需要记忆操作：
+你可以选择使用以下工具来管理你的记忆：
 
-### 🔴 需要删除记忆 (使用 search_and_delete_analyst_memory)
-- 连续多次严重预测错误
-- 使用了根本错误的分析逻辑
-- 对市场的理解存在重大偏差
-- 示例: "连续3天看多但市场暴跌，说明对趋势判断有根本性错误"
+### 工具 1: search_and_update_analyst_memory
+- **功能**: 搜索并更新记忆内容
+- **适用场景**: 预测方向错误但不算离谱、分析方法需要微调优化
+- **参数**:
+  * query: 搜索查询内容（描述要找什么记忆）
+  * memory_id: 填 "auto" 让系统自动搜索
+  * analyst_id: "{self.agent_id}"
+  * new_content: 新的正确记忆内容
+  * reason: 更新原因
 
-### 🟡 需要更新记忆 (使用 search_and_update_analyst_memory)
-- 预测方向错误但不算离谱
-- 分析方法需要微调优化
-- 需要补充新的经验教训
-- 示例: "技术指标显示超买但未考虑基本面支撑，需要综合判断"
+### 工具 2: search_and_delete_analyst_memory
+- **功能**: 搜索并删除严重错误的记忆
+- **适用场景**: 连续多次严重错误、分析逻辑存在根本性问题
+- **参数**:
+  * query: 搜索查询内容
+  * memory_id: 填 "auto"
+  * analyst_id: "{self.agent_id}"
+  * reason: 删除原因
 
-### 🟢 表现良好，无需操作
-- 预测准确，分析逻辑正确
-- 可以简单总结经验，不调用工具
-- 示例: "成功预测突破，MACD金叉信号有效"
+## 决策要求
 
-## 输出要求
+请根据你的表现，决定是否需要调用记忆管理工具：
 
-请以 JSON 格式返回结果，包含以下字段：
+1. **表现良好** → 不需要调用工具，直接总结经验即可
+2. **表现一般** → 考虑使用 `search_and_update_analyst_memory` 修正记忆
+3. **表现很差** → 考虑使用 `search_and_delete_analyst_memory` 删除错误记忆
+
+## 输出格式
+
+请以 JSON 格式返回，包含以下字段：
 
 ```json
 {{
   "reflection_summary": "你的复盘总结（1-2段话）",
-  "memory_action": "none" | "update" | "delete",
-  "memory_operation": {{
+  "need_tool": true/false,
+  "selected_tool": {{
     "tool_name": "search_and_update_analyst_memory" 或 "search_and_delete_analyst_memory",
-    "query": "搜索查询内容",
-    "analyst_id": "{self.agent_id}",
-    "memory_id": "auto",
-    "new_content": "新的记忆内容（仅update需要）",
-    "reason": "操作原因"
-  }},
-  "improvements": ["改进建议1", "改进建议2"]
+    "reason": "为什么选择这个工具",
+    "parameters": {{
+      "query": "搜索查询",
+      "memory_id": "auto",
+      "analyst_id": "{self.agent_id}",
+      "new_content": "新内容（仅update需要）",
+      "reason": "操作原因"
+    }}
+  }}
 }}
 ```
 
-**字段说明：**
-- `memory_action`: "none"(无需操作) | "update"(更新记忆) | "delete"(删除记忆)
-- `memory_operation`: 仅当 memory_action 不是 "none" 时需要填写
-- 只管理你自己 ({self.agent_id}) 的记忆
+**注意：**
+- 如果 `need_tool` 为 false，则不需要填写 `selected_tool` 字段
+- 只能操作你自己（{self.agent_id}）的记忆
+- 谨慎决策是否真的需要调用工具
 
-只返回 JSON，不要添加任何其他文字。
+请基于你的专业判断，诚实地评估自己的表现并做出明智的决策。
 """
         
         return prompt
@@ -376,7 +409,7 @@ class AgentSelfReflectionSystem:
                 prompt += f"- 市场环境: {context['market_condition']}\n"
             if 'risk_metrics' in context:
                 prompt += f"- 风险指标: {context['risk_metrics']}\n"
-        pdb.set_trace()
+        # pdb.set_trace()
         prompt += f"""
 
 # 自我复盘指导
@@ -389,54 +422,64 @@ class AgentSelfReflectionSystem:
 3. **风险控制**: 仓位管理是否合理？
 4. **执行纪律**: 是否遵循了既定策略？
 
-## 记忆管理决策
+## 可用的记忆管理工具
 
-根据表现决定是否需要记忆操作：
+你可以选择使用以下工具来管理你的记忆：
 
-### 🔴 需要删除记忆 (使用 search_and_delete_analyst_memory)
-- 决策导致重大损失（如单日损失>3%）
-- 使用了错误的决策框架
-- 忽略了明显的风险信号
-- 示例: "过度依赖单一分析师意见，导致忽视风险"
+### 工具 1: search_and_update_analyst_memory
+- **功能**: 搜索并更新记忆内容
+- **适用场景**: 决策方向错误但损失可控、信息整合方法需要优化
+- **参数**:
+  * query: 搜索查询内容
+  * memory_id: 填 "auto"
+  * analyst_id: "portfolio_manager"
+  * new_content: 新的决策经验
+  * reason: 更新原因
 
-### 🟡 需要更新记忆 (使用 search_and_update_analyst_memory)
-- 决策方向错误但损失可控
-- 信息整合方法需要优化
-- 风险控制需要加强
-- 示例: "技术面和基本面冲突时，需要更谨慎"
+### 工具 2: search_and_delete_analyst_memory
+- **功能**: 搜索并删除严重错误的记忆
+- **适用场景**: 决策导致重大损失、使用错误决策框架
+- **参数**:
+  * query: 搜索查询内容
+  * memory_id: 填 "auto"
+  * analyst_id: "portfolio_manager"
+  * reason: 删除原因
 
-### 🟢 表现良好，无需操作
-- 决策带来正收益
-- 风险控制得当
-- 可以总结成功经验
-- 示例: "成功识别趋势，及时调整仓位"
+## 决策要求
 
-## 输出要求
+请根据你的表现，决定是否需要调用记忆管理工具：
 
-请以 JSON 格式返回结果，包含以下字段：
+1. **表现良好** → 不需要调用工具，总结成功经验即可
+2. **表现一般** → 考虑使用 `search_and_update_analyst_memory` 优化决策方法
+3. **表现很差** → 考虑使用 `search_and_delete_analyst_memory` 删除错误决策框架
+
+## 输出格式
+
+请以 JSON 格式返回：
 
 ```json
 {{
-  "reflection_summary": "你的复盘总结（2-3段话）",
-  "memory_action": "none" | "update" | "delete",
-  "memory_operation": {{
-    "tool_name": "search_and_update_analyst_memory" 或 "search_and_delete_analyst_memory",
-    "query": "搜索查询内容",
-    "analyst_id": "portfolio_manager",
-    "memory_id": "auto",
-    "new_content": "新的记忆内容（仅update需要）",
-    "reason": "操作原因"
-  }},
-  "improvements": ["改进建议1", "改进建议2", "改进建议3"]
+  "reflection_summary": "你的复盘总结",
+  "need_tool": true/false,
+  "selected_tool": {{
+    "tool_name": "工具名称",
+    "reason": "选择原因",
+    "parameters": {{
+      "query": "搜索查询",
+      "memory_id": "auto",
+      "analyst_id": "portfolio_manager",
+      "new_content": "新内容（仅update需要）",
+      "reason": "操作原因"
+    }}
+  }}
 }}
 ```
 
-**字段说明：**
-- `memory_action`: "none"(无需操作) | "update"(更新记忆) | "delete"(删除记忆)
-- `memory_operation`: 仅当 memory_action 不是 "none" 时需要填写
-- 诚实评估决策质量，考虑如何更好地利用分析师意见
+**注意：**
+- 如果 `need_tool` 为 false，则不需要 `selected_tool` 字段
+- 诚实评估决策质量
 
-只返回 JSON，不要添加任何其他文字。
+请基于你作为 Portfolio Manager 的专业判断，客观评估自己的决策并做出明智的选择。
 """
         
         return prompt
@@ -446,7 +489,7 @@ class AgentSelfReflectionSystem:
         评估分析师预测是否正确
         
         Args:
-            signal: 预测信号 ('BUY', 'SELL', 'HOLD')
+            signal: 预测信号 ('BUY'/'bullish', 'SELL'/'bearish', 'HOLD'/'neutral')
             actual_return: 实际收益率
         
         Returns:
@@ -454,11 +497,21 @@ class AgentSelfReflectionSystem:
         """
         threshold = 0.005  # 0.5%的阈值
         
-        if signal == 'BUY' and actual_return > threshold:
+        # 标准化信号格式（支持多种格式）
+        signal_lower = signal.lower() if signal else ''
+        
+        # 判断是否为看涨信号
+        is_bullish = signal_lower in ['buy', 'bullish', 'long']
+        # 判断是否为看跌信号
+        is_bearish = signal_lower in ['sell', 'bearish', 'short']
+        # 判断是否为中性信号
+        is_neutral = signal_lower in ['hold', 'neutral']
+        
+        if is_bullish and actual_return > threshold:
             return True
-        elif signal == 'SELL' and actual_return < -threshold:
+        elif is_bearish and actual_return < -threshold:
             return True
-        elif signal == 'HOLD' and abs(actual_return) <= threshold:
+        elif is_neutral and abs(actual_return) <= threshold:
             return True
         else:
             return False
@@ -468,7 +521,7 @@ class AgentSelfReflectionSystem:
         评估PM决策是否正确
         
         Args:
-            action: 决策动作 ('buy', 'sell', 'hold')
+            action: 决策动作 ('buy'/'long', 'sell'/'short', 'hold'/'neutral')
             actual_return: 实际收益率
         
         Returns:
@@ -476,13 +529,21 @@ class AgentSelfReflectionSystem:
         """
         threshold = 0.005  # 0.5%的阈值
         
+        # 标准化动作格式（支持多种格式）
         action_lower = action.lower() if action else 'hold'
         
-        if action_lower == 'buy' and actual_return > threshold:
+        # 判断是否为买入动作
+        is_buy = action_lower in ['buy', 'long', 'bullish']
+        # 判断是否为卖出动作
+        is_sell = action_lower in ['sell', 'short', 'bearish']
+        # 判断是否为持有动作
+        is_hold = action_lower in ['hold', 'neutral']
+        
+        if is_buy and actual_return > threshold:
             return True
-        elif action_lower == 'sell' and actual_return < -threshold:
+        elif is_sell and actual_return < -threshold:
             return True
-        elif action_lower == 'hold' and abs(actual_return) <= threshold:
+        elif is_hold and abs(actual_return) <= threshold:
             return True
         else:
             return False
@@ -532,16 +593,21 @@ class AgentSelfReflectionSystem:
                     pm_decisions=reflection_data.get('pm_decisions', {}),
                     context=context
                 )
-            
             print(f"\n{'='*60}")
             print(f"🔍 {self.agent_role} 开始自我复盘 ({date})")
             print(f"{'='*60}")
             
             # 调用 LLM（使用 AgentScope 格式）
             messages = [{"role": "user", "content": prompt}]
-            response = self.llm(messages)
-            # pdb.set_trace()
-            response_content = response.get("content", "")
+            response = self.llm(messages=messages, temperature=0.7)
+            
+            # 获取响应内容
+            if isinstance(response, dict):
+                response_content = response.get("content", "")
+            elif hasattr(response, 'content'):
+                response_content = response.content
+            else:
+                response_content = str(response)
             
             # 解析 JSON 响应
             import json
@@ -561,61 +627,72 @@ class AgentSelfReflectionSystem:
                 # 使用默认值
                 reflection_data = {
                     "reflection_summary": response_content,
-                    "memory_action": "none",
-                    "improvements": []
+                    "need_tool": False
                 }
-            
             # 提取复盘总结
             reflection_summary = reflection_data.get("reflection_summary", response_content)
-            memory_action = reflection_data.get("memory_action", "none")
-            improvements = reflection_data.get("improvements", [])
+            need_tool = reflection_data.get("need_tool", False)
             
-            # 执行记忆操作
+            # 执行记忆工具（如果 LLM 决定需要）
             memory_operations = []
-            if memory_action != "none" and "memory_operation" in reflection_data:
-                mem_op = reflection_data["memory_operation"]
-                tool_name = mem_op.get("tool_name")
+            if need_tool and "selected_tool" in reflection_data:
+                tool_selection = reflection_data["selected_tool"]
+                tool_name = tool_selection.get("tool_name")
+                tool_reason = tool_selection.get("reason", "")
+                tool_params = tool_selection.get("parameters", {})
                 
-                # 确保只操作自己的记忆
-                if mem_op.get('analyst_id') != self.agent_id:
+                # 验证 analyst_id（确保只操作自己的记忆）
+                if tool_params.get('analyst_id') != self.agent_id:
                     print(f"⚠️ 警告: {self.agent_role} 试图操作其他Agent的记忆，已阻止")
+                    print(f"   期望: {self.agent_id}, 实际: {tool_params.get('analyst_id')}")
                 else:
-                    print(f"🛠️ {self.agent_role} 决定执行记忆操作: {memory_action}")
-                    print(f"  📞 执行: {tool_name}")
+                    print(f"🛠️ {self.agent_role} 智能选择了工具: {tool_name}")
+                    print(f"   选择理由: {tool_reason}")
                     
                     try:
-                        # 使用 toolkit 调用工具
-                        result = self.toolkit.call(tool_name, **mem_op)
+                        # 执行工具（类似 analyst 的 execute_selected_tools）
+                        result = self.toolkit.call(tool_name, **tool_params)
+                        
                         memory_operations.append({
                             'tool_name': tool_name,
-                            'args': mem_op,
+                            'selection_reason': tool_reason,
+                            'args': tool_params,
                             'result': result
                         })
-                        print(f"  ✅ 操作完成: {result.get('status', 'unknown')}")
+                        
+                        print(f"  ✅ 工具执行完成: {result.get('status', 'unknown')}")
                         
                         # 记录到日志
                         self.logger_system.log_operation(
                             agent_id=self.agent_id,
-                            operation_type='individual_review',
+                            operation_type='self_reflection_with_llm_selection',
                             tool_name=tool_name,
-                            args=mem_op,
+                            args=tool_params,
                             result=result,
-                            context={'date': date}
+                            context={
+                                'date': date,
+                                'selection_reason': tool_reason
+                            }
                         )
+                        
                     except Exception as e:
-                        print(f"  ❌ 工具调用失败: {e}")
+                        print(f"  ❌ 工具执行失败: {e}")
+                        import traceback
+                        traceback.print_exc()
+                        
+                        # 记录失败
+                        memory_operations.append({
+                            'tool_name': tool_name,
+                            'selection_reason': tool_reason,
+                            'args': tool_params,
+                            'error': str(e)
+                        })
             else:
-                print(f"💭 {self.agent_role} 认为无需记忆操作")
+                print(f"💭 {self.agent_role} 决定无需记忆工具操作")
             
             # 显示复盘总结
             print(f"\n📝 复盘总结:")
             print(reflection_summary)
-            
-            if improvements:
-                print(f"\n💡 改进建议:")
-                for i, improvement in enumerate(improvements, 1):
-                    print(f"  {i}. {improvement}")
-            
             print(f"{'='*60}\n")
             
             return {

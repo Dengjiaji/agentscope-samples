@@ -555,17 +555,26 @@ class TeamDashboardGenerator:
             
             agent_perf = state['agent_performance'][agent_id]
             
-            for ticker, signal in signals.items():
+            for ticker, signal_data in signals.items():
+                if not signal_data or signal_data == 'N/A':
+                    continue
+                
+                # 提取信号值（支持字典和字符串格式）
+                if isinstance(signal_data, dict):
+                    signal = signal_data.get('signal', 'N/A')
+                else:
+                    signal = signal_data
+                
                 if not signal or signal == 'N/A':
                     continue
                 
                 real_return = real_returns.get(ticker, 0)
                 
-                # 判断信号类型和正确性
-                signal_lower = signal.lower()
-                is_bull = 'bull' in signal_lower or signal_lower == 'long'
-                is_bear = 'bear' in signal_lower or signal_lower == 'short'
-                is_neutral = 'neutral' in signal_lower or signal_lower == 'hold'
+                # 判断信号类型和正确性（标准化格式，不区分大小写）
+                signal_lower = signal.lower() if isinstance(signal, str) else str(signal).lower()
+                is_bull = signal_lower in ['buy', 'bullish', 'long'] or 'bull' in signal_lower
+                is_bear = signal_lower in ['sell', 'bearish', 'short'] or 'bear' in signal_lower
+                is_neutral = signal_lower in ['hold', 'neutral'] or 'neutral' in signal_lower
                 
                 # 判断是否正确（简化：涨跌与信号一致）
                 is_correct = False

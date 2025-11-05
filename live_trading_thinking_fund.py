@@ -426,8 +426,9 @@ class LiveTradingThinkingFund:
                 if 'ticker_signals' in analyst_result:
                     # 第二轮格式
                     matched = next((item for item in analyst_result['ticker_signals'] if item['ticker'] == ticker), None)
-                    if matched:
-                        live_env['ana_signals'][agent][ticker] = matched['signal']
+                    if matched:                        
+                        # pdb.set_trace()
+                        live_env['ana_signals'][agent][ticker] = matched # ['signal']
                         # 输出第二轮信号
                         self.streamer.print("agent", 
                             f"{ticker} - 第二轮: {matched['signal']} (置信度: {matched.get('confidence', 'N/A')}%)", 
@@ -436,7 +437,8 @@ class LiveTradingThinkingFund:
                 elif ticker in analyst_result:
                     # 第一轮格式
                     if 'signal' in analyst_result[ticker]:
-                        live_env['ana_signals'][agent][ticker] = analyst_result[ticker]['signal']
+                        # pdb.set_trace()
+                        live_env['ana_signals'][agent][ticker] = analyst_result[ticker] #['signal']
                         # 输出第一轮信号
                         confidence = analyst_result[ticker].get('confidence', 'N/A')
                         self.streamer.print("agent", 
@@ -481,7 +483,7 @@ class LiveTradingThinkingFund:
                 )
             # 分析师逐票事件
             for agent in ['sentiment_analyst', 'technical_analyst', 'fundamentals_analyst', 'valuation_analyst']:
-                sig = live_env['ana_signals'][agent].get(ticker, '')
+                sig = live_env['ana_signals'][agent].get(ticker, '')['signal']
                 if sig:
                     self.streamer.print("agent", f"{ticker}: {sig}",  role_key=agent)
 
@@ -672,7 +674,7 @@ class LiveTradingThinkingFund:
         for agent, agent_signals in ana_signals.items():
             analyst_lines.append(f"\n{agent}:")
             for ticker in tickers:
-                signal = agent_signals.get(ticker, 'N/A')
+                signal = agent_signals.get(ticker, 'N/A')['signal']
                 analyst_lines.append(f"  {ticker}: {signal}")
         
         self.streamer.print("agent", "\n".join(pm_review_lines)+"\n"+ "\n".join(returns_lines)+"\n"+"\n".join(analyst_lines), role_key="portfolio_manager")
@@ -853,13 +855,13 @@ class LiveTradingThinkingFund:
                     my_signals = {}
                     for ticker in tickers:
                         if analyst_id in ana_signals and ticker in ana_signals[analyst_id]:
-                            signal_value = ana_signals[analyst_id][ticker]
+                            signal_value = ana_signals[analyst_id][ticker]['signal']
                             my_signals[ticker] = {
                                 'signal': signal_value if isinstance(signal_value, str) else 'N/A',
-                                'confidence': 'N/A',
-                                'reasoning': ''
+                                'confidence': ana_signals[analyst_id][ticker]['confidence'],
+                                'reasoning': ana_signals[analyst_id][ticker]['reasoning'] if ana_signals[analyst_id][ticker]['reasoning'] else ana_signals[analyst_id][ticker]['tool_analysis']
                             }
-                    
+                    # pdb.set_trace()
                     # 创建复盘系统
                     reflection_system = create_reflection_system(analyst_id, self.base_dir)
                     
