@@ -417,6 +417,150 @@ class AgentSelfReflectionSystem:
         else:
             return False
     
+    def add_daily_decision_memory(
+        self,
+        date: str,
+        pm_decisions: Dict[str, Any],
+        analyst_signals: Dict[str, Dict[str, Any]],
+        actual_returns: Dict[str, float]
+    ) -> Dict[str, Any]:
+        """
+        主动记录PM每日决策的完整信息到memory
+        
+        Args:
+            date: 交易日期
+            pm_decisions: PM的决策 {ticker: {action, quantity, confidence, reasoning}}
+            analyst_signals: 分析师信号 {analyst_id: {ticker: signal_data}}
+            actual_returns: 实际收益率 {ticker: return_rate}
+        
+        Returns:
+            记录结果
+        """
+        if not self.llm_available or self.agent_id != 'portfolio_manager':
+            return {
+                'status': 'skipped',
+                'reason': 'Not applicable for this agent',
+                'agent_id': self.agent_id
+            }
+        
+        try:
+            # ⭐ 仿照analyst的做法：使用unified_memory_manager
+            from src.memory import unified_memory_manager as memory_manager
+            from src.memory.unified_memory import safe_memory_add
+            
+            # 获取PM的memory对象（与analyst相同的方式）
+            pm_memory = memory_manager.get_analyst_memory('portfolio_manager')
+            
+            if not pm_memory:
+                return {
+                    'status': 'skipped',
+                    'reason': 'Portfolio Manager memory not available',
+                    'agent_id': self.agent_id
+                }
+            
+            # 为每个ticker构建决策记录
+            memories_added = []
+            
+            for ticker, decision_data in pm_decisions.items():
+                # 1. PM决策信息
+                pm_action = decision_data.get('action', 'N/A')
+                pm_quantity = decision_data.get('quantity', 0)
+                pm_confidence = decision_data.get('confidence', 'N/A')
+                pm_reasoning = decision_data.get('reasoning', '')
+                
+                # 确保reasoning是字符串
+                if not isinstance(pm_reasoning, str):
+                    pm_reasoning = str(pm_reasoning) if pm_reasoning else ''
+                
+                # 2. 分析师信号汇总
+                analyst_summary = []
+                for analyst_id, signals in analyst_signals.items():
+                    if ticker in signals:
+                        signal_data = signals[ticker]
+                        if isinstance(signal_data, dict):
+                            signal = signal_data.get('signal', signal_data)
+                            confidence = signal_data.get('confidence', 'N/A')
+                            analyst_summary.append(f"{analyst_id}: {signal} (confidence: {confidence})")
+                        else:
+                            analyst_summary.append(f"{analyst_id}: {signal_data}")
+                
+                analyst_info = "; ".join(analyst_summary) if analyst_summary else "无分析师信号"
+                
+                # 3. 实际表现
+                actual_return = actual_returns.get(ticker, 0)
+                
+                # 4. 判断决策是否正确
+                decision_outcome = self._evaluate_pm_decision(pm_action, actual_return)
+                outcome_label = "✅ 正确" if decision_outcome else "❌ 错误"
+                
+                # 5. 构建完整的memory内容
+                memory_content = f"""日期: {date}
+股票: {ticker}
+PM决策: {pm_action} (数量: {pm_quantity}, 置信度: {pm_confidence}%)
+决策理由: {pm_reasoning[:300] if pm_reasoning else 'N/A'}
+分析师意见: {analyst_info}
+实际收益: {actual_return:+.2%}
+决策结果: {outcome_label}"""
+                
+                # 6. 添加到memory系统（完全仿照analyst的做法）
+                # 参考: src/communication/chat_tools.py Line 717-724
+                messages = [
+                    {
+                        "role": "user",
+                        "content": f"Portfolio Manager日常决策记录: {memory_content}"
+                    }
+                ]
+                
+                metadata = {
+                    "memory_type": "daily_decision",
+                    "date": date,
+                    "ticker": ticker,
+                    "pm_action": pm_action,
+                    "pm_confidence": pm_confidence,
+                    "actual_return": actual_return,
+                    "decision_outcome": "correct" if decision_outcome else "incorrect"
+                }
+                
+                # 使用safe_memory_add（与analyst完全相同）
+                result = safe_memory_add(
+                    memory_instance=pm_memory.memory,
+                    messages=messages,
+                    user_id='portfolio_manager',
+                    metadata=metadata,
+                    infer=False,
+                    operation_name=f"PM每日决策记录-{ticker}"
+                )
+                
+                if result:
+                    memories_added.append({
+                        'ticker': ticker,
+                        'status': 'success',
+                        'memory_content': memory_content[:100] + "..."
+                    })
+                    print(f"  ✅ {ticker}: 决策记录已添加到memory")
+                else:
+                    memories_added.append({
+                        'ticker': ticker,
+                        'status': 'failed',
+                        'reason': 'Memory add returned None'
+                    })
+            return {
+                'status': 'success',
+                'agent_id': self.agent_id,
+                'date': date,
+                'memories_added': len(memories_added),
+                'details': memories_added
+            }
+            
+        except Exception as e:
+            logger.error(f"⚠️ PM每日决策记录失败: {e}", exc_info=True)
+            return {
+                'status': 'failed',
+                'agent_id': self.agent_id,
+                'date': date,
+                'error': str(e)
+            }
+    
     def perform_self_reflection(
         self,
         date: str,
@@ -443,6 +587,20 @@ class AgentSelfReflectionSystem:
             }
         
         try:
+            # ⭐ 步骤0：如果是PM，先主动记录每日决策到memory
+            daily_memory_result = None
+            if self.agent_id == 'portfolio_manager':
+                daily_memory_result = self.add_daily_decision_memory(
+                    date=date,
+                    pm_decisions=reflection_data.get('pm_decisions', {}),
+                    analyst_signals=reflection_data.get('analyst_signals', {}),
+                    actual_returns=reflection_data.get('actual_returns', {})
+                )
+                
+                if daily_memory_result.get('status') == 'success':
+                    print(f"📝 已记录 {daily_memory_result.get('memories_added', 0)} 条PM每日决策到memory")
+            
+            # 步骤1：生成复盘prompt并进行LLM自我评估
             # 根据agent类型生成不同的prompt
             if self.agent_id == 'portfolio_manager':
                 prompt = self.generate_pm_reflection_prompt(
@@ -564,7 +722,7 @@ class AgentSelfReflectionSystem:
             print(reflection_summary)
             print(f"{'='*60}\n")
             
-            return {
+            result = {
                 'status': 'success',
                 'agent_id': self.agent_id,
                 'agent_role': self.agent_role,
@@ -573,6 +731,12 @@ class AgentSelfReflectionSystem:
                 'memory_operations': memory_operations,
                 'operations_count': len(memory_operations)
             }
+            
+            # 如果有每日决策记录结果，也包含进来
+            if daily_memory_result:
+                result['daily_memory_result'] = daily_memory_result
+            
+            return result
             
         except Exception as e:
             print(f"❌ {self.agent_role} 自我复盘失败: {str(e)}")

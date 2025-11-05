@@ -206,7 +206,6 @@ class PortfolioManagerAgent(BaseAgent):
         }
         
         prompt = template.invoke(prompt_data)
-        pdb.set_trace()
         # 创建默认工厂
         def create_default_output():
             return PortfolioManagerOutput(
@@ -264,7 +263,6 @@ class PortfolioManagerAgent(BaseAgent):
     
         
         # 获取分析师权重
-        analyst_weights_info = self._format_analyst_weights(state)
         
         formatted_memories = self._format_memories_for_prompt(relevant_memories)
         
@@ -277,13 +275,14 @@ class PortfolioManagerAgent(BaseAgent):
             "portfolio_positions": json.dumps(portfolio.get("positions", {}), indent=2),
             "margin_requirement": f"{portfolio.get('margin_requirement', 0):.2f}",
             "total_margin_used": f"{portfolio.get('margin_used', 0):.2f}",
-            "analyst_weights_info": analyst_weights_info,
-            "analyst_weights_separator": "\n" if analyst_weights_info else "",
-            "relevant_past_experiences": formatted_memories,  # ⭐ 注入历史经验
+            # "analyst_weights_info": analyst_weights_info,
+            # "analyst_weights_separator": "\n" if analyst_weights_info else "",
+            "relevant_past_experiences": formatted_memories,  # 注入历史经验
         }
         
         prompt = template.invoke(prompt_data)
-        
+        # pdb.set_trace()
+
         # 创建默认工厂
         def create_default_output():
             return PortfolioManagerOutput(
