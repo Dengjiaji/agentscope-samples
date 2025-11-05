@@ -2435,7 +2435,7 @@ function NetValueChart({ equity, baseline, baseline_vw, momentum, strategies }) 
         
         {/* Portfolio line - Bright Green */}
         <Line 
-          type="monotone" 
+          type="linear" 
           dataKey="portfolio" 
           name="Portfolio"
           stroke="#00C853" 
@@ -2448,7 +2448,7 @@ function NetValueChart({ equity, baseline, baseline_vw, momentum, strategies }) 
         {/* Baseline line - Orange (Equal Weight) */}
         {baseline && baseline.length > 0 && (
           <Line 
-            type="monotone" 
+            type="linear" 
             dataKey="baseline" 
             name="Buy & Hold (EW)"
             stroke="#FF6B00" 
@@ -2463,7 +2463,7 @@ function NetValueChart({ equity, baseline, baseline_vw, momentum, strategies }) 
         {/* Baseline Value Weighted line - Purple */}
         {baseline_vw && baseline_vw.length > 0 && (
           <Line 
-            type="monotone" 
+            type="linear" 
             dataKey="baseline_vw" 
             name="Buy & Hold (VW)"
             stroke="#9C27B0" 
@@ -2478,7 +2478,7 @@ function NetValueChart({ equity, baseline, baseline_vw, momentum, strategies }) 
         {/* Momentum line - Blue */}
         {momentum && momentum.length > 0 && (
           <Line 
-            type="monotone" 
+            type="linear" 
             dataKey="momentum" 
             name="Momentum"
             stroke="#2196F3" 
@@ -2493,7 +2493,7 @@ function NetValueChart({ equity, baseline, baseline_vw, momentum, strategies }) 
         {/* Strategy line - Brown */}
         {strategies && strategies.length > 0 && (
           <Line 
-            type="monotone" 
+            type="linear" 
             dataKey="strategy" 
             name="Strategy"
             stroke="#795548" 
