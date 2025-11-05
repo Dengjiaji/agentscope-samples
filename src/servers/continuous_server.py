@@ -103,6 +103,28 @@ class ContinuousServer:
         )
         logger.info(f"✅ 记忆系统已初始化: {memory_instance.get_framework_name()}")
         
+        # ⭐ 提前注册所有分析师到memory系统（避免"Workspace不存在"警告）
+        from ..memory.framework_bridge import get_memory_bridge
+        memory_bridge = get_memory_bridge()
+        
+        # 注册四个核心分析师
+        analyst_definitions = {
+            'fundamentals_analyst': '基本面分析师',
+            'technical_analyst': '技术分析师',
+            'sentiment_analyst': '情绪分析师',
+            'valuation_analyst': '估值分析师',
+            'portfolio_manager': '投资组合经理',
+            'risk_manager': '风险管理师'
+        }
+        
+        for analyst_id, analyst_name in analyst_definitions.items():
+            try:
+                memory_bridge.register_analyst(analyst_id, analyst_name)
+            except Exception as e:
+                logger.warning(f"注册 {analyst_id} 失败: {e}")
+        
+        logger.info("✅ 所有分析师已注册到记忆系统")
+        
         # 初始化交易系统（但不传入streamer，稍后在运行时创建）
         self.thinking_fund = None
     

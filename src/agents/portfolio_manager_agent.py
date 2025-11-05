@@ -2,7 +2,7 @@
 Portfolio Manager Agent - 投资组合管理 Agent
 提供统一的投资组合管理接口
 """
-from typing import Dict, Any, Optional, Literal
+from typing import Dict, Any, Optional, Literal, List
 import json
 import pdb
 
@@ -13,6 +13,7 @@ from ..agents.agentscope_prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 from typing_extensions import Literal as LiteralType
 from ..utils.llm import call_llm
+from ..memory.framework_bridge import get_memory_bridge
 
 
 class PortfolioDecision(BaseModel):
@@ -176,6 +177,9 @@ class PortfolioManagerAgent(BaseAgent):
                                     signals_by_ticker: dict[str, dict],
                                     state: AgentState) -> PortfolioManagerOutput:
         """生成方向决策（不包含数量）"""
+        progress.update_status(self.agent_id, None, "检索历史决策经验")
+        relevant_memories = self._recall_relevant_memories(tickers, signals_by_ticker, state)
+        
         # 加载 prompt
         try:
             system_prompt = self.load_prompt("direction_decision_system", {})
@@ -191,15 +195,18 @@ class PortfolioManagerAgent(BaseAgent):
         # 获取分析师权重信息
         analyst_weights_info = self._format_analyst_weights(state)
         
+        formatted_memories = self._format_memories_for_prompt(relevant_memories)
+        
         # 生成prompt
         prompt_data = {
             "signals_by_ticker": json.dumps(signals_by_ticker, indent=2),
             "analyst_weights_info": analyst_weights_info,
             "analyst_weights_separator": "\n" if analyst_weights_info else "",
+            "relevant_past_experiences": formatted_memories,  # ⭐ 注入历史经验
         }
         
         prompt = template.invoke(prompt_data)
-        
+        pdb.set_trace()
         # 创建默认工厂
         def create_default_output():
             return PortfolioManagerOutput(
@@ -211,6 +218,8 @@ class PortfolioManagerAgent(BaseAgent):
                     ) for ticker in tickers
                 }
             )
+        
+        progress.update_status(self.agent_id, None, "基于信号和历史经验生成决策")
         
         return call_llm(
             prompt=prompt,
@@ -224,6 +233,9 @@ class PortfolioManagerAgent(BaseAgent):
                                     signals_by_ticker: dict[str, dict],
                                     state: AgentState) -> PortfolioManagerOutput:
         """生成Portfolio决策（包含数量）"""
+        progress.update_status(self.agent_id, None, "检索历史决策经验")
+        relevant_memories = self._recall_relevant_memories(tickers, signals_by_ticker, state)
+        
         portfolio = state["data"]["portfolio"]
         current_prices = state["data"]["current_prices"]
         
@@ -254,6 +266,8 @@ class PortfolioManagerAgent(BaseAgent):
         # 获取分析师权重
         analyst_weights_info = self._format_analyst_weights(state)
         
+        formatted_memories = self._format_memories_for_prompt(relevant_memories)
+        
         # 生成prompt
         prompt_data = {
             "signals_by_ticker": json.dumps(signals_by_ticker, indent=2, ensure_ascii=False),
@@ -265,6 +279,7 @@ class PortfolioManagerAgent(BaseAgent):
             "total_margin_used": f"{portfolio.get('margin_used', 0):.2f}",
             "analyst_weights_info": analyst_weights_info,
             "analyst_weights_separator": "\n" if analyst_weights_info else "",
+            "relevant_past_experiences": formatted_memories,  # ⭐ 注入历史经验
         }
         
         prompt = template.invoke(prompt_data)
@@ -281,6 +296,9 @@ class PortfolioManagerAgent(BaseAgent):
                     ) for ticker in tickers
                 }
             )
+        
+        progress.update_status(self.agent_id, None, "基于信号和历史经验生成决策")
+        
         # pdb.set_trace()
         return call_llm(
             prompt=prompt,
@@ -323,6 +341,162 @@ class PortfolioManagerAgent(BaseAgent):
         
         info += "\n💡 建议: 根据权重级别考虑不同分析师建议的重要性。"
         return info
+    
+    def _recall_relevant_memories(
+        self, 
+        tickers: List[str], 
+        signals_by_ticker: Dict[str, Dict],
+        state: AgentState,
+        top_k: int = 3
+    ) -> Dict[str, List[str]]:
+        """
+        步骤1：从memory系统检索相关的历史决策经验（代码层）
+        
+        为每个ticker检索相关的历史记忆，帮助PM做出更好的决策
+        
+        Args:
+            tickers: 股票代码列表
+            signals_by_ticker: 按ticker分组的分析师信号
+            state: 当前状态
+            top_k: 每个ticker返回的记忆数量
+            
+        Returns:
+            字典，key为ticker，value为相关记忆列表
+            例如: {
+                'AAPL': [
+                    "2024-01-15: 在相似信号组合下做了long决策，但结果亏损5%...",
+                    "2024-01-20: 当技术指标与基本面冲突时需要更谨慎..."
+                ]
+            }
+        """
+        memories_by_ticker = {}
+        
+        try:
+            # 获取memory bridge
+            memory_bridge = get_memory_bridge()
+            
+            # ⭐ 统一使用 "portfolio_manager" 作为memory的user_id
+            # 无论是direction还是portfolio模式，都使用同一个memory space
+            # 这样可以共享经验，避免记忆分散
+            # 注意：portfolio_manager 已在服务器初始化时注册，此处无需重复注册
+            memory_user_id = "portfolio_manager"
+            
+            # 为每个ticker生成搜索query并检索记忆
+            for ticker in tickers:
+                # 生成搜索query（基于当前信号组合）
+                ticker_signals = signals_by_ticker.get(ticker, {})
+                query = self._generate_memory_query(ticker, ticker_signals)
+                
+                # 从memory系统检索相关记忆
+                try:
+                    relevant_memories = memory_bridge.get_relevant_memories(
+                        analyst_id=memory_user_id,  # 统一使用 "portfolio_manager"
+                        query=query,
+                        limit=top_k
+                    )
+                    
+                    # 格式化记忆为可读字符串
+                    memory_strings = []
+                    for mem in relevant_memories:
+                        if isinstance(mem, dict):
+                            memory_content = mem.get('memory', str(mem))
+                            memory_strings.append(memory_content)
+                        else:
+                            memory_strings.append(str(mem))
+                    
+                    memories_by_ticker[ticker] = memory_strings
+                    
+                    if memory_strings:
+                        print(f"✅ {ticker}: 检索到 {len(memory_strings)} 条相关历史经验")
+                    
+                except Exception as e:
+                    print(f"⚠️ {ticker}: Memory检索失败 - {e}")
+                    memories_by_ticker[ticker] = []
+            
+        except Exception as e:
+            print(f"⚠️ Memory系统不可用 - {e}")
+            # 如果memory系统不可用，返回空字典
+            for ticker in tickers:
+                memories_by_ticker[ticker] = []
+        
+        return memories_by_ticker
+    
+    def _generate_memory_query(self, ticker: str, ticker_signals: Dict[str, Dict]) -> str:
+        """
+        生成memory搜索query
+        
+        根据当前信号组合生成针对性的搜索query，找到类似情况下的历史决策
+        
+        Args:
+            ticker: 股票代码
+            ticker_signals: 该ticker的分析师信号
+            
+        Returns:
+            搜索query字符串
+        """
+        # 提取信号方向和置信度
+        signal_directions = []
+        high_confidence_signals = []
+        
+        for agent_id, signal_data in ticker_signals.items():
+            if signal_data.get("type") == "investment_signal":
+                direction = signal_data.get("signal", "")
+                confidence = signal_data.get("confidence", 0)
+                
+                signal_directions.append(direction)
+                
+                if confidence > 70:
+                    high_confidence_signals.append(f"{agent_id}:{direction}")
+        
+        # 构建query
+        query_parts = [f"{ticker} 投资决策"]
+        
+        # 添加主要信号方向
+        if signal_directions:
+            bullish_count = signal_directions.count("bullish")
+            bearish_count = signal_directions.count("bearish")
+            
+            if bullish_count > bearish_count:
+                query_parts.append("看多信号")
+            elif bearish_count > bullish_count:
+                query_parts.append("看空信号")
+            else:
+                query_parts.append("信号分歧")
+        
+        # 添加高置信度信号信息
+        if high_confidence_signals:
+            query_parts.append(f"高置信度分析师: {', '.join(high_confidence_signals[:2])}")
+        
+        query = " ".join(query_parts)
+        return query
+    
+    def _format_memories_for_prompt(self, memories_by_ticker: Dict[str, List[str]]) -> str:
+        """
+        ⭐ 步骤2的辅助方法：格式化记忆为prompt可用的文本
+        
+        Args:
+            memories_by_ticker: 按ticker分组的记忆
+            
+        Returns:
+            格式化后的记忆文本
+        """
+        if not memories_by_ticker or not any(memories_by_ticker.values()):
+            return "暂无相关历史经验。"
+        
+        formatted_lines = []
+        
+        for ticker, memories in memories_by_ticker.items():
+            if not memories:
+                continue
+            
+            formatted_lines.append(f"\n**{ticker} 相关历史经验:**")
+            for i, memory in enumerate(memories, 1):
+                formatted_lines.append(f"  {i}. {memory}")
+        
+        if not formatted_lines:
+            return "暂无相关历史经验。"
+        
+        return "\n".join(formatted_lines)
     
     def _create_hardcoded_direction_template(self) -> ChatPromptTemplate:
         """创建硬编码的方向决策模板"""

@@ -800,11 +800,13 @@ class AdvancedInvestmentAnalysisEngine:
         
         try:
             # 根据模式选择相应的Portfolio Manager - 使用新架构
+            # ⭐ 统一使用 "portfolio_manager" 作为 agent_id（无论什么模式）
             if mode == "portfolio":
-                # 使用新架构的 PortfolioManagerAgent
-                pm_agent = PortfolioManagerAgent(agent_id="portfolio_manager_portfolio", mode="portfolio")
+                # 使用新架构的 PortfolioManagerAgent（Portfolio模式）
+                pm_agent = PortfolioManagerAgent(agent_id="portfolio_manager", mode="portfolio")
                 portfolio_result = pm_agent.execute(state)
             else:
+                # Direction模式
                 portfolio_result = portfolio_management_agent(state, agent_id="portfolio_manager")
             
             # 更新state
@@ -812,9 +814,8 @@ class AdvancedInvestmentAnalysisEngine:
                 state["messages"] = portfolio_result["messages"]
                 state["data"] = portfolio_result["data"]
 
-            # 获取初始投资决策（根据模式使用正确的agent名称）
-            agent_name = "portfolio_manager_portfolio" if mode == "portfolio" else "portfolio_manager"
-            initial_decisions = self._extract_portfolio_decisions(state, agent_name=agent_name)
+            # 获取初始投资决策（统一使用 "portfolio_manager"）
+            initial_decisions = self._extract_portfolio_decisions(state, agent_name="portfolio_manager")
             # pdb.set_trace()
             print('initial_decisions',initial_decisions)
             if not initial_decisions:
@@ -909,20 +910,21 @@ class AdvancedInvestmentAnalysisEngine:
                         # risk_analysis_results = self.run_risk_management_analysis(state)
                         
                         # 重新运行投资组合管理（根据模式选择正确的agent）- 使用新架构
+                        # ⭐ 统一使用 "portfolio_manager" 作为 agent_id
                         if mode == "portfolio":
-                            # 使用新架构的 PortfolioManagerAgent
-                            pm_agent = PortfolioManagerAgent(agent_id="portfolio_manager_portfolio", mode="portfolio")
+                            # 使用新架构的 PortfolioManagerAgent（Portfolio模式）
+                            pm_agent = PortfolioManagerAgent(agent_id="portfolio_manager", mode="portfolio")
                             final_portfolio_result = pm_agent.execute(state)
-                            agent_name_for_extract = "portfolio_manager_portfolio"
                         else:
+                            # Direction模式
                             final_portfolio_result = portfolio_management_agent(state, agent_id="portfolio_manager")
-                            agent_name_for_extract = "portfolio_manager"
                         
                         if final_portfolio_result and "messages" in final_portfolio_result:
                             state["messages"] = final_portfolio_result["messages"]
                             state["data"] = final_portfolio_result["data"]
                         
-                        new_final_decisions = self._extract_portfolio_decisions(state, agent_name=agent_name_for_extract)
+                        # 统一使用 "portfolio_manager" 提取决策
+                        new_final_decisions = self._extract_portfolio_decisions(state, agent_name="portfolio_manager")
                         if new_final_decisions:
                             final_decisions = new_final_decisions
                             print("基于通信结果的投资决策已更新")

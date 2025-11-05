@@ -5,9 +5,15 @@ Analyst signals for each stock:
 
 {analyst_weights_info}{analyst_weights_separator}
 
+Relevant Past Experiences
+{relevant_past_experiences}
+
+Important: Please carefully review the above historical experiences. Avoid repeating past mistakes and learn from successful decision patterns.
+
 Decision rules:
 - Comprehensively consider signals and confidence levels from all analysts
 - Opinions from analysts with higher weights should receive more consideration
+- Learn from historical experiences: avoid repeating mistakes in similar situations
 - When analysts have significant disagreements, choose hold/neutral
 - When majority of analysts agree with high confidence, follow mainstream opinion
 - Risk manager's risk assessment information should be used as important reference, high-risk stocks require more cautious decisions

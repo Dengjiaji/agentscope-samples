@@ -14,6 +14,10 @@
 当前保证金要求: {margin_requirement}
 已使用总保证金: {total_margin_used}
 
+相关历史经验:
+{relevant_past_experiences}
+
+重要提示: 请仔细参考上述历史经验，避免重复过去的错误决策（如过度激进、忽视风险警告等），学习成功的仓位管理模式。
 
 重要决策规则:
 - LONG (看多): 
