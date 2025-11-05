@@ -1,39 +1,39 @@
 # Position Limits Configuration
-# 仓位限制配置（Portfolio 模式）
+# 仓位限制配置（Portfolio 模式）- 激进模式
 
-# 基准仓位限制
-base_position_limit: 0.20  # 20% 基准
+# 基准仓位限制 - 激进配置
+base_position_limit: 0.35  # 35% 基准（激进模式，从 20% 提升）
 
-# 基于波动率的仓位调整
+# 基于波动率的仓位调整 - 激进配置
 volatility_adjustments:
   low_volatility:  # < 15%
     max_volatility: 0.15
-    multiplier: 1.25  # 允许 25% 配置
-    description: "对稳定股票允许更高配置"
+    multiplier: 1.50  # 允许 52.5% 配置（激进模式，从 1.25 提升）
+    description: "对稳定股票允许更高配置 - 激进模式"
   
   medium_volatility:  # 15% - 30%
     min_volatility: 0.15
     max_volatility: 0.30
-    multiplier_formula: "1.0 - (annualized_volatility - 0.15) * 0.5"
-    # 20% -> 12.5% 线性递减
-    description: "基于波动率微调的标准配置"
+    multiplier_formula: "1.3 - (annualized_volatility - 0.15) * 0.6"
+    # 35% -> 19% 线性递减（激进模式，更平缓的递减）
+    description: "基于波动率微调的激进配置"
   
   high_volatility:  # 30% - 50%
     min_volatility: 0.30
     max_volatility: 0.50
-    multiplier_formula: "0.75 - (annualized_volatility - 0.30) * 0.5"
-    # 15% -> 5% 线性递减
-    description: "显著降低配置"
+    multiplier_formula: "0.95 - (annualized_volatility - 0.30) * 0.6"
+    # 33% -> 12% 线性递减（激进模式，提高下限）
+    description: "高波动率股票的激进配置"
   
   very_high_volatility:  # > 50%
     min_volatility: 0.50
-    multiplier: 0.50  # 最多 10% 配置
-    description: "高风险股票的最小配置"
+    multiplier: 0.65  # 最多 23% 配置（激进模式，从 0.50 提升）
+    description: "超高风险股票的激进配置"
 
-# 仓位限制边界
+# 仓位限制边界 - 激进配置
 position_limit_bounds:
-  min_multiplier: 0.25  # 最少 5% (0.20 * 0.25)
-  max_multiplier: 1.25  # 最多 25% (0.20 * 1.25)
+  min_multiplier: 0.35  # 最少 12% (0.35 * 0.35)（激进模式，从 0.25 提升）
+  max_multiplier: 1.50  # 最多 52.5% (0.35 * 1.50)（激进模式，从 1.25 提升）
 
 # 保证金要求
 margin_requirements:
