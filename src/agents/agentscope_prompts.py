@@ -1,7 +1,7 @@
 """
 AgentScope Prompt 处理模块
 
-替代 LangChain 的 ChatPromptTemplate，提供兼容的接口
+提供灵活的 Prompt 模板处理功能
 """
 from typing import Dict, Any, List, Optional, Union
 import re
@@ -80,7 +80,7 @@ class ChatPromptTemplate:
     """
     聊天 Prompt 模板
     
-    兼容 LangChain 的 ChatPromptTemplate 接口
+    支持多轮对话的 Prompt 构建
     """
     
     def __init__(self, messages: List[tuple]):
@@ -181,7 +181,7 @@ class ChatPromptTemplate:
     
     def invoke(self, variables: Dict[str, Any]) -> List[Dict[str, str]]:
         """
-        兼容 LangChain 的 invoke 方法
+        执行 Prompt 模板，返回格式化后的消息列表
         
         Args:
             variables: 变量字典

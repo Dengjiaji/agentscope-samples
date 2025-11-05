@@ -10,7 +10,6 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional
 from pydantic import BaseModel, Field
 
-# 使用 AgentScope 的 Prompt 模板替代 LangChain
 from src.agents.agentscope_prompts import ChatPromptTemplate
 from src.llm.agentscope_models import get_model as get_agentscope_model
 from src.utils.api_key import get_api_key_from_state

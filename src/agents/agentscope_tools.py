@@ -87,33 +87,6 @@ class ServiceToolkit:
         service_func = ServiceFunction(name, func, description, parameters)
         self.functions[name] = service_func
     
-    def register_from_langchain_tool(self, tool: Any):
-        """
-        从 LangChain Tool 注册服务函数
-        
-        Args:
-            tool: LangChain Tool 对象
-        """
-        # 提取 LangChain Tool 的信息
-        name = tool.name
-        description = tool.description
-        
-        # 转换参数 schema
-        if hasattr(tool, 'args_schema') and tool.args_schema:
-            parameters = tool.args_schema.model_json_schema()
-        else:
-            parameters = {
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
-        
-        # 包装 invoke 方法
-        def wrapped_func(**kwargs):
-            return tool.invoke(kwargs)
-        
-        self.register(name, wrapped_func, description, parameters)
-    
     def call(self, name: str, **kwargs) -> Any:
         """
         调用服务函数

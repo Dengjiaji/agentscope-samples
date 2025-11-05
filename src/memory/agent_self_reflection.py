@@ -18,10 +18,10 @@ try:
     from src.llm.agentscope_models import get_model, ModelProvider
     from src.tools.memory_management_tools import get_memory_tools
     from src.agents.prompt_loader import get_prompt_loader
-    LANGCHAIN_AVAILABLE = True  # 保持变量名以向后兼容
+    AGENTSCOPE_AVAILABLE = True
 except ImportError as e:
-    LANGCHAIN_AVAILABLE = False
-    print(f"⚠️ LangChain模块未安装: {e}")
+    AGENTSCOPE_AVAILABLE = False
+    print(f"⚠️ AgentScope模块未安装: {e}")
 
 logger = logging.getLogger(__name__)
 
@@ -135,9 +135,9 @@ class AgentSelfReflectionSystem:
         # 初始化日志记录器
         self.logger_system = MemoryOperationLogger(base_dir)
         
-        # 检查LangChain是否可用
-        if not LANGCHAIN_AVAILABLE:
-            logger.warning(f"{agent_role} 自我复盘系统初始化失败：LangChain不可用")
+        # 检查AgentScope是否可用
+        if not AGENTSCOPE_AVAILABLE:
+            logger.warning(f"{agent_role} 自我复盘系统初始化失败：AgentScope不可用")
             self.llm_available = False
             return
         

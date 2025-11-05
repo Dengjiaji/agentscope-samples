@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 记忆管理工具集
-为Portfolio Manager提供LangChain tool形式的记忆操作功能
+为Portfolio Manager提供AgentScope ServiceToolkit形式的记忆操作功能
 """
 
 import json
@@ -470,7 +470,7 @@ def get_memory_tools():
 
 # 使用示例
 if __name__ == "__main__":
-    print("🛠️ 记忆管理工具集 - LangChain装饰器模式")
+    print("🛠️ 记忆管理工具集 - AgentScope Toolkit模式")
     print("=" * 50)
     
     # 显示可用工具

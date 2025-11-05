@@ -3,7 +3,6 @@
 包含基本面分析、技术分析、情绪分析和估值分析的所有工具
 """
 
-# 使用 AgentScope 的服务函数替代 LangChain 的 tool 装饰器
 from typing import Dict, Any, List, Optional, Tuple
 
 # 定义一个简单的装饰器来保持兼容性
@@ -80,9 +79,8 @@ def normalize_pandas(data):
 #     # Build LLM comprehensive analysis prompt
 #     synthesis_prompt = _build_synthesis_prompt(valid_results, analyst_persona, ticker)
     
-#     # 调用LLM进行综合分析
-#     from langchain_core.messages import HumanMessage
-#     response = llm.invoke([HumanMessage(content=synthesis_prompt)])
+#     # 调用LLM进行综合分析（已移除LangChain依赖）
+#     response = llm.invoke([{"role": "user", "content": synthesis_prompt}])
     
 #     # 解析LLM响应
 #     result = _parse_llm_synthesis_response(response.content, valid_results)

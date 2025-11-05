@@ -70,7 +70,7 @@ class PromptLoader:
         else:
             rendered = prompt_template
         
-        # 智能转义：只转义 JSON 代码块中的大括号，保留普通文本中的 LangChain 变量占位符
+        # 智能转义：转义 JSON 代码块中的大括号
         rendered = self._escape_json_braces(rendered)
         
         return rendered
@@ -101,8 +101,7 @@ class PromptLoader:
     
     def _escape_json_braces(self, text: str) -> str:
         """
-        转义 JSON 代码块中的大括号，以便 LangChain 将它们视为字面量
-        但保留普通文本中的 {variable} 格式（LangChain 变量占位符）
+        转义 JSON 代码块中的大括号，将它们视为字面量
         
         Args:
             text: 待处理的文本

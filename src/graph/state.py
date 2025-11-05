@@ -28,7 +28,7 @@ class AgentState(TypedDict):
     """
     Agent 状态定义
     
-    使用 AgentScope 消息格式，不再依赖 langchain_core.messages
+    使用 AgentScope 消息格式
     消息格式: {"name": str, "content": str, "role": str, "metadata": dict}
     """
     messages: Annotated[List[AgentScopeMessage], merge_messages]
@@ -55,29 +55,6 @@ def create_message(name: str, content: str, role: str = "assistant", metadata: D
         role=role,
         metadata=metadata or {}
     )
-
-
-def langchain_to_agentscope_message(lc_message) -> AgentScopeMessage:
-    """
-    将 LangChain 消息转换为 AgentScope 消息格式
-    
-    用于兼容性和迁移过程
-    """
-    # 从 LangChain 消息中提取信息
-    name = getattr(lc_message, 'name', 'unknown')
-    content = lc_message.content
-    
-    # 映射消息类型
-    role_mapping = {
-        'human': 'user',
-        'ai': 'assistant',
-        'system': 'system',
-    }
-    
-    lc_type = lc_message.type if hasattr(lc_message, 'type') else 'ai'
-    role = role_mapping.get(lc_type, 'assistant')
-    
-    return create_message(name=name, content=content, role=role)
 
 
 def show_agent_reasoning(output, agent_name):

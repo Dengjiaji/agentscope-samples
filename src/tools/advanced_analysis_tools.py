@@ -3,7 +3,6 @@
 基于现有数据源创造的新分析工具
 """
 
-from langchain_core.tools import tool
 from typing import Dict, Any, List, Optional
 import pandas as pd
 import numpy as np
@@ -20,6 +19,12 @@ from src.tools.api import (
     get_market_cap,
     search_line_items,
 )
+
+# 定义简单的 tool 装饰器（兼容性）
+def tool(func):
+    """兼容性装饰器 - 将函数标记为工具函数"""
+    func._is_tool = True
+    return func
 
 
 def safe_float(value, default=0.0):

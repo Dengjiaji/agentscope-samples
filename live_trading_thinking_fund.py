@@ -59,7 +59,7 @@ from src.config.path_config import get_directory_config
 
 
 class LLMMemoryDecisionSystem:
-    """基于LLM的记忆管理决策系统 - 使用LangChain tool_call"""
+    """基于LLM的记忆管理决策系统"""
 
     def __init__(self):
         self.memory_tools = []
@@ -95,7 +95,7 @@ class LLMMemoryDecisionSystem:
             print(f"已加载 {len(self.memory_tools)} 个记忆管理工具")
 
     def generate_memory_decision_prompt(self, performance_data: Dict[str, Any], date: str) -> str:
-        """生成LLM记忆决策的prompt - LangChain tool_call版本"""
+        """生成LLM记忆决策的prompt"""
 
         prompt = f"""你是一个专业的Portfolio Manager，负责管理分析师团队的记忆系统。基于{date}的交易复盘结果，请分析分析师的表现并决定是否需要使用记忆管理工具。
 
@@ -154,7 +154,7 @@ class LLMMemoryDecisionSystem:
         return prompt
 
     def make_llm_memory_decision_with_tools(self, performance_data: Dict[str, Any], date: str) -> Dict[str, Any]:
-        """使用LLM进行记忆管理决策 - LangChain tool_call版本"""
+        """使用LLM进行记忆管理决策"""
 
         if not getattr(self, "llm_available", False):
             print("⚠️ LLM不可用，跳过记忆管理")
