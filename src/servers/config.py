@@ -1,6 +1,6 @@
 ROLE_TO_AGENT = {
     "sentiment_analyst":   "Sentiment Analyst",
-    "technical_analyst":   "Fundamentals Analyst",
+    "technical_analyst":   "Technical Analyst",
     "fundamentals_analyst":"Fundamentals Analyst",
     "valuation_analyst":   "Technical Analyst",
     "portfolio_manager":   "Portfolio Manager",
