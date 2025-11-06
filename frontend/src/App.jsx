@@ -24,7 +24,6 @@ import { formatNumber, formatTickerPrice, calculateDuration } from './utils/form
  * Live Trading Intelligence Platform - Read-Only Dashboard
  * Geek Style - Terminal-inspired, minimal, monochrome
  * 
- * 连接到持续运行的后端服务器，实时显示交易系统状态
  */
 
 export default function LiveTradingApp() {
