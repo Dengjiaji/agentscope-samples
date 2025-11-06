@@ -159,7 +159,6 @@ export default function LiveTradingApp() {
             setIsConnected(false);
           }
           
-          // Add all system messages to feed
           const message = {
             id: `sys-${Date.now()}-${Math.random()}`,
             timestamp: e.timestamp || Date.now(),
@@ -167,7 +166,20 @@ export default function LiveTradingApp() {
             role: 'System',
             content: e.content
           };
-          setFeed(prev => [{ type: 'message', data: message, id: message.id }, ...prev].slice(0, 200));
+          
+          // Add to conference or feed depending on active conference
+          setConferences(prev => {
+            if (prev.active) {
+              const updated = { ...prev.active, messages: [...prev.active.messages, message] };
+              setFeed(f => f.map(item => 
+                item.type === 'conference' && item.id === prev.active.id ? { ...item, data: updated } : item
+              ));
+              return { ...prev, active: updated };
+            } else {
+              setFeed(prevFeed => [{ type: 'message', data: message, id: message.id }, ...prevFeed].slice(0, 200));
+              return prev;
+            }
+          });
         },
         
         // Pong response from server
@@ -209,6 +221,14 @@ export default function LiveTradingApp() {
             if (state.stats) setStats(state.stats);
             if (state.leaderboard) setLeaderboard(state.leaderboard);
             if (state.realtime_prices) updateTickersFromPrices(state.realtime_prices);
+            
+            // Load conferences state
+            if (state.conferences) {
+              setConferences({
+                active: state.conferences.active || null,
+                history: state.conferences.history || []
+              });
+            }
             
             // Load historical feed data
             if (state.feed_history && Array.isArray(state.feed_history)) {
@@ -293,7 +313,6 @@ export default function LiveTradingApp() {
           }
           setSystemStatus('running');
           
-          // Add to feed
           const message = {
             id: `day-start-${Date.now()}-${Math.random()}`,
             timestamp: e.timestamp || Date.now(),
@@ -301,7 +320,19 @@ export default function LiveTradingApp() {
             role: 'System',
             content: `Starting day: ${e.date}`
           };
-          setFeed(prev => [{ type: 'message', data: message, id: message.id }, ...prev].slice(0, 200));
+          
+          setConferences(prev => {
+            if (prev.active) {
+              const updated = { ...prev.active, messages: [...prev.active.messages, message] };
+              setFeed(f => f.map(item => 
+                item.type === 'conference' && item.id === prev.active.id ? { ...item, data: updated } : item
+              ));
+              return { ...prev, active: updated };
+            } else {
+              setFeed(prevFeed => [{ type: 'message', data: message, id: message.id }, ...prevFeed].slice(0, 200));
+              return prev;
+            }
+          });
         },
         
         day_complete: (e) => {
@@ -330,7 +361,6 @@ export default function LiveTradingApp() {
             }
           }
           
-          // Add to feed
           const message = {
             id: `day-complete-${Date.now()}-${Math.random()}`,
             timestamp: e.timestamp || Date.now(),
@@ -338,13 +368,24 @@ export default function LiveTradingApp() {
             role: 'System',
             content: `Day completed: ${e.date}`
           };
-          setFeed(prev => [{ type: 'message', data: message, id: message.id }, ...prev].slice(0, 200));
+          
+          setConferences(prev => {
+            if (prev.active) {
+              const updated = { ...prev.active, messages: [...prev.active.messages, message] };
+              setFeed(f => f.map(item => 
+                item.type === 'conference' && item.id === prev.active.id ? { ...item, data: updated } : item
+              ));
+              return { ...prev, active: updated };
+            } else {
+              setFeed(prevFeed => [{ type: 'message', data: message, id: message.id }, ...prevFeed].slice(0, 200));
+              return prev;
+            }
+          });
         },
         
         day_error: (e) => {
           console.error('Day error:', e.date, e.error);
           
-          // Add to feed
           const message = {
             id: `day-error-${Date.now()}-${Math.random()}`,
             timestamp: e.timestamp || Date.now(),
@@ -352,7 +393,19 @@ export default function LiveTradingApp() {
             role: 'System',
             content: `Day error: ${e.date} - ${e.error || 'Unknown error'}`
           };
-          setFeed(prev => [{ type: 'message', data: message, id: message.id }, ...prev].slice(0, 200));
+          
+          setConferences(prev => {
+            if (prev.active) {
+              const updated = { ...prev.active, messages: [...prev.active.messages, message] };
+              setFeed(f => f.map(item => 
+                item.type === 'conference' && item.id === prev.active.id ? { ...item, data: updated } : item
+              ));
+              return { ...prev, active: updated };
+            } else {
+              setFeed(prevFeed => [{ type: 'message', data: message, id: message.id }, ...prevFeed].slice(0, 200));
+              return prev;
+            }
+          });
         },
         
         conference_start: (e) => {
@@ -367,19 +420,6 @@ export default function LiveTradingApp() {
           };
           setConferences(prev => ({ ...prev, active: conference }));
           setFeed(prev => [{ type: 'conference', data: conference, id: conference.id }, ...prev]);
-        },
-        
-        conference_message: (e) => {
-          setConferences(prev => {
-            if (prev.active?.id === e.conferenceId) {
-              const updated = { ...prev.active, messages: [...prev.active.messages, e] };
-              setFeed(f => f.map(item => 
-                item.type === 'conference' && item.id === e.conferenceId ? { ...item, data: updated } : item
-              ));
-              return { ...prev, active: updated };
-            }
-            return prev;
-          });
         },
         
         conference_end: (e) => {
@@ -405,11 +445,11 @@ export default function LiveTradingApp() {
           const message = {
             id: `msg-${Date.now()}-${Math.random()}`,
             timestamp: e.timestamp || Date.now(),
+            agentId: e.agentId,
             agent: agent?.name || e.agentName || e.agentId || 'Agent',
             role: agent?.role || e.role || 'Agent',
             content: e.content
           };
-          setFeed(prev => [{ type: 'message', data: message, id: message.id }, ...prev].slice(0, 200));
           
           // Update bubbles for room view
           setBubbles(prev => ({
@@ -420,6 +460,45 @@ export default function LiveTradingApp() {
               agentName: agent?.name || e.agentName || e.agentId
             }
           }));
+          
+          setConferences(prev => {
+            if (prev.active) {
+              const updated = { ...prev.active, messages: [...prev.active.messages, message] };
+              setFeed(f => f.map(item => 
+                item.type === 'conference' && item.id === prev.active.id ? { ...item, data: updated } : item
+              ));
+              return { ...prev, active: updated };
+            } else {
+              setFeed(prevFeed => [{ type: 'message', data: message, id: message.id }, ...prevFeed].slice(0, 200));
+              return prev;
+            }
+          });
+        },
+        
+        memory: (e) => {
+          const memory = {
+            id: `memory-${Date.now()}-${Math.random()}`,
+            timestamp: e.timestamp || Date.now(),
+            content: e.content || e.text || ''
+          };
+          
+          setConferences(prev => {
+            if (prev.active) {
+              const message = {
+                ...memory,
+                agent: 'Memory',
+                role: 'Memory'
+              };
+              const updated = { ...prev.active, messages: [...prev.active.messages, message] };
+              setFeed(f => f.map(item => 
+                item.type === 'conference' && item.id === prev.active.id ? { ...item, data: updated } : item
+              ));
+              return { ...prev, active: updated };
+            } else {
+              setFeed(prevFeed => [{ type: 'memory', data: memory, id: memory.id }, ...prevFeed].slice(0, 200));
+              return prev;
+            }
+          });
         },
         
         team_summary: (e) => {
@@ -433,7 +512,6 @@ export default function LiveTradingApp() {
             momentum: e.momentum || prev.momentum
           }));
           
-          // Add to feed
           const message = {
             id: `team-summary-${Date.now()}-${Math.random()}`,
             timestamp: e.timestamp || Date.now(),
@@ -441,7 +519,19 @@ export default function LiveTradingApp() {
             role: 'System',
             content: `Portfolio update: $${formatNumber(e.balance || 0)} (${e.pnlPct >= 0 ? '+' : ''}${(e.pnlPct || 0).toFixed(2)}%)`
           };
-          setFeed(prev => [{ type: 'message', data: message, id: message.id }, ...prev].slice(0, 200));
+          
+          setConferences(prev => {
+            if (prev.active) {
+              const updated = { ...prev.active, messages: [...prev.active.messages, message] };
+              setFeed(f => f.map(item => 
+                item.type === 'conference' && item.id === prev.active.id ? { ...item, data: updated } : item
+              ));
+              return { ...prev, active: updated };
+            } else {
+              setFeed(prevFeed => [{ type: 'message', data: message, id: message.id }, ...prevFeed].slice(0, 200));
+              return prev;
+            }
+          });
         },
         
         team_portfolio: (e) => {

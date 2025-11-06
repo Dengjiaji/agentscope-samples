@@ -665,20 +665,46 @@ export default function GlobalStyles() {
         font-size: 12px;
         line-height: 1.5;
         color: #333333;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
       }
       
       .conf-agent-name {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         font-weight: 700;
         font-size: 11px;
-        margin-right: 8px;
         letter-spacing: 0.3px;
+        flex-shrink: 0;
       }
       
       .conf-message-content {
         font-family: 'Courier New', monospace;
         font-size: 12px;
         color: #333333;
+        flex: 1;
+        min-width: 0;
+      }
+      
+      .conf-expand-btn {
+        padding: 0;
+        border: none;
+        background: none;
+        font-family: 'Courier New', monospace;
+        font-size: 10px;
+        font-weight: 600;
+        color: #666666;
+        cursor: pointer;
+        transition: color 0.15s;
+        flex-shrink: 0;
+      }
+      
+      .conf-expand-btn:hover {
+        color: #000000;
+      }
+      
+      .conf-expand-btn:focus {
+        outline: none;
       }
       
       /* Expand Button */

@@ -37,8 +37,6 @@ export default function AgentFeed({ feed, conferences }) {
  * Conference Item Component
  */
 function ConferenceItem({ conference }) {
-  const [expanded, setExpanded] = useState(false);
-  const displayMessages = expanded ? conference.messages : conference.messages.slice(0, 3);
   const colors = MESSAGE_COLORS.conference;
   
   return (
@@ -56,22 +54,52 @@ function ConferenceItem({ conference }) {
       </div>
       
       <div className="conference-messages">
-        {displayMessages.map((msg, idx) => {
-          const agentColors = getAgentColors(msg.agentId, msg.agent);
-          return (
-            <div className="conf-message-item" key={idx}>
-              <span className="conf-agent-name" style={{ color: agentColors.text }}>
-                {msg.agent}
-              </span>
-              <span className="conf-message-content">{msg.content}</span>
-            </div>
-          );
-        })}
+        {conference.messages.map((msg, idx) => (
+          <ConferenceMessage key={idx} message={msg} />
+        ))}
       </div>
-      
-      {conference.messages.length > 3 && (
-        <button className="feed-expand-btn" onClick={() => setExpanded(!expanded)}>
-          {expanded ? '↑ Less' : `↓ ${conference.messages.length - 3} more`}
+    </div>
+  );
+}
+
+/**
+ * Conference Message Component - Individual message with truncation
+ */
+function ConferenceMessage({ message }) {
+  const [expanded, setExpanded] = useState(false);
+  
+  let agentColors;
+  if (message.agent === 'System') {
+    agentColors = MESSAGE_COLORS.system;
+  } else if (message.agent === 'Memory') {
+    agentColors = MESSAGE_COLORS.memory;
+  } else {
+    agentColors = getAgentColors(message.agentId, message.agent);
+  }
+  
+  const content = message.content || '';
+  const needsTruncation = content.length > 200;
+  const MAX_EXPANDED_LENGTH = 1000;
+  
+  let displayContent = content;
+  if (!expanded && needsTruncation) {
+    displayContent = content.substring(0, 200) + '...';
+  } else if (expanded && content.length > MAX_EXPANDED_LENGTH) {
+    displayContent = content.substring(0, MAX_EXPANDED_LENGTH) + '...';
+  }
+  
+  return (
+    <div className="conf-message-item">
+      <span className="conf-agent-name" style={{ color: agentColors.text }}>
+        {message.agent}
+      </span>
+      <span className="conf-message-content">{displayContent}</span>
+      {needsTruncation && (
+        <button 
+          className="conf-expand-btn"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? '↑' : '↓'}
         </button>
       )}
     </div>
@@ -132,6 +160,9 @@ function MessageItem({ message }) {
   if (message.agent === 'System') {
     colors = MESSAGE_COLORS.system;
     title = 'SYSTEM';
+  } else if (message.agent === 'Memory') {
+    colors = MESSAGE_COLORS.memory;
+    title = 'MEMORY';
   } else {
     colors = getAgentColors(message.agentId, message.agent);
     title = message.agent || 'AGENT';
