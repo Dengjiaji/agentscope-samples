@@ -966,7 +966,7 @@ class ContinuousServer:
             except Exception as e:
                 logger.error(f"❌ Dashboard 文件监控异常: {e}")
     
-    async def start(self, host: str = "0.0.0.0", port: int = 8765, mock: bool = False):
+    async def start(self, host: str = "0.0.0.0", port: int = 8001, mock: bool = False):
         """启动服务器
         
         Args:
@@ -994,8 +994,9 @@ class ContinuousServer:
             # 启动定期保存任务
             saver_task = asyncio.create_task(self._periodic_state_saver())
             
-            # ========== 方案B：启动 Dashboard 文件监控任务 ⭐⭐⭐ ==========
-            dashboard_monitor_task = asyncio.create_task(self._periodic_dashboard_monitor())
+            dashboard_monitor_task = None
+            if not mock:
+                dashboard_monitor_task = asyncio.create_task(self._periodic_dashboard_monitor())
             
             # 选择运行模式
             if mock:
@@ -1020,9 +1021,9 @@ class ContinuousServer:
                 # 取消定期保存任务
                 saver_task.cancel()
                 
-                # ========== 方案B：取消 Dashboard 监控任务 ⭐⭐⭐ ==========
-                dashboard_monitor_task.cancel()
-                logger.info("✅ Dashboard 监控任务已取消")
+                if dashboard_monitor_task:
+                    dashboard_monitor_task.cancel()
+                    logger.info("✅ Dashboard 监控任务已取消")
                 
                 if self.price_manager:
                     self.price_manager.stop()
@@ -1036,7 +1037,7 @@ async def main():
     parser = argparse.ArgumentParser(description='持续运行的交易系统服务器')
     parser.add_argument('--mock', action='store_true', help='使用Mock模式（测试前端）')
     parser.add_argument('--host', default='0.0.0.0', help='监听地址 (默认: 0.0.0.0)')
-    parser.add_argument('--port', type=int, default=8765, help='监听端口 (默认: 8001)')
+    parser.add_argument('--port', type=int, default=8001, help='监听端口 (默认: 8001)')
     args = parser.parse_args()
     
     # 加载配置

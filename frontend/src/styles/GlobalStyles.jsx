@@ -23,6 +23,9 @@ export default function GlobalStyles() {
         line-height: 1.5;
       }
       
+      /* Import Inter font for agent names */
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+      
       /* Layout */
       .app {
         display: flex;
@@ -555,7 +558,7 @@ export default function GlobalStyles() {
         outline: none;
       }
       
-      /* Agent Feed */
+      /* Agent Feed - Minimalist Design */
       .agent-feed {
         display: flex;
         flex-direction: column;
@@ -563,6 +566,7 @@ export default function GlobalStyles() {
         overflow: hidden;
         width: 100%;
         max-width: none;
+        background: transparent;
       }
       
       .feed-header {
@@ -585,171 +589,118 @@ export default function GlobalStyles() {
       .feed-content {
         flex: 1;
         overflow-y: auto;
-        padding: 16px;
+        padding: 0;
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        background: #fafafa;
+        gap: 0;
+        background: transparent;
         width: 100%;
         max-width: none;
       }
       
-      /* Feed Cards */
-      .feed-card {
-        border: none;
-        border-bottom: 1px solid #e0e0e0;
-        background: transparent;
+      /* Feed Item - Ultra Minimal with Subtle Background */
+      .feed-item {
+        border-bottom: 1px solid #f5f5f5;
+        padding: 16px 20px;
+        transition: all 0.15s ease;
+      }
+      
+      .feed-item:hover {
+        filter: brightness(0.98);
+      }
+      
+      .feed-item-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+      
+      .feed-item-title {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         font-size: 11px;
-        transition: all 0.2s;
-        padding: 12px 0;
-      }
-      
-      .feed-card:hover {
-        background: #fafafa;
-      }
-      
-      .card-header {
-        padding: 0 0 6px 0;
-        border-bottom: none;
-        background: transparent;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-      
-      .card-title {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 10px;
         font-weight: 700;
-        color: #666666;
-        letter-spacing: 1px;
+        letter-spacing: 0.8px;
         text-transform: uppercase;
       }
       
-      .card-icon {
+      .feed-item-time {
+        margin-left: auto;
         font-size: 10px;
-      }
-      
-      .card-time {
-        font-size: 9px;
         color: #999999;
+        font-family: 'Courier New', monospace;
       }
       
-      .message-content-wrapper {
-        padding: 4px 0;
-      }
-      
-      .message-text {
-        font-size: 12px;
-        line-height: 1.6;
-        color: #333333;
-        word-wrap: break-word;
-      }
-      
-      .message-expand-btn {
-        margin-top: 6px;
-        padding: 0;
-        border: none;
-        background: none;
-        font-family: inherit;
-        font-size: 10px;
-        font-weight: 700;
-        color: #666666;
-        cursor: pointer;
-        text-decoration: underline;
-        transition: color 0.2s;
-      }
-      
-      .message-expand-btn:hover {
-        color: #000000;
-      }
-      
-      .message-expand-btn:focus {
-        outline: none;
-      }
-      
-      .live-badge {
-        font-size: 10px;
+      .feed-live-badge {
+        font-size: 9px;
         font-weight: 700;
         color: #00C853;
-      }
-      
-      .conference-meta {
-        padding: 4px 0 8px 0;
-        background: transparent;
-        border-bottom: none;
-        font-size: 9px;
-        color: #999999;
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
-      }
-      
-      .conference-messages {
-        padding: 8px 0;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-      
-      .conf-message {
-        padding: 6px 0;
-        border-bottom: 1px dotted #e0e0e0;
-      }
-      
-      .conf-message:last-child {
-        border-bottom: none;
-      }
-      
-      .msg-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 4px;
-      }
-      
-      .msg-agent {
-        font-size: 10px;
-        font-weight: 700;
-        color: #666666;
-      }
-      
-      .msg-time {
-        font-size: 9px;
-        color: #999999;
-      }
-      
-      .msg-content {
-        font-size: 12px;
-        line-height: 1.6;
-        color: #333333;
-      }
-      
-      .expand-btn {
-        width: 100%;
-        padding: 8px 0;
-        border: none;
-        border-top: 1px solid #e0e0e0;
-        border-radius: 0;
-        background: transparent;
-        font-family: inherit;
-        font-size: 10px;
-        font-weight: 700;
-        color: #666666;
-        cursor: pointer;
-        text-align: center;
-        transition: color 0.2s;
         letter-spacing: 0.5px;
       }
       
-      .expand-btn:hover {
-        background: transparent;
+      .feed-item-subtitle {
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 10px;
+        line-height: 1.4;
+      }
+      
+      .feed-item-content {
+        font-size: 13px;
+        line-height: 1.6;
+        color: #333333;
+        word-wrap: break-word;
+        font-family: 'Courier New', monospace;
+      }
+      
+      /* Conference Messages */
+      .conference-messages {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 10px;
+      }
+      
+      .conf-message-item {
+        font-size: 12px;
+        line-height: 1.5;
+        color: #333333;
+      }
+      
+      .conf-agent-name {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-weight: 700;
+        font-size: 11px;
+        margin-right: 8px;
+        letter-spacing: 0.3px;
+      }
+      
+      .conf-message-content {
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+        color: #333333;
+      }
+      
+      /* Expand Button */
+      .feed-expand-btn {
+        margin-top: 8px;
+        padding: 0;
+        border: none;
+        background: none;
+        font-family: 'Courier New', monospace;
+        font-size: 10px;
+        font-weight: 600;
+        color: #666666;
+        cursor: pointer;
+        transition: color 0.15s;
+        text-align: left;
+      }
+      
+      .feed-expand-btn:hover {
         color: #000000;
       }
       
-      .expand-btn:focus {
+      .feed-expand-btn:focus {
         outline: none;
       }
       

@@ -1,9 +1,9 @@
 ROLE_TO_AGENT = {
-    "sentiment_analyst":   "delta",
-    "technical_analyst":   "zeta",
-    "fundamentals_analyst":"epsilon",
-    "valuation_analyst":   "gamma",
-    "portfolio_manager":   "alpha",
-    "risk_manager":        "beta",
-    "_default":            "alpha",
+    "sentiment_analyst":   "Sentiment Analyst",
+    "technical_analyst":   "Fundamentals Analyst",
+    "fundamentals_analyst":"Fundamentals Analyst",
+    "valuation_analyst":   "Technical Analyst",
+    "portfolio_manager":   "Portfolio Manager",
+    "risk_manager":        "Risk Manager",
+    "_default":            "Portfolio Manager",
 }
