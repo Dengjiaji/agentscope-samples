@@ -128,14 +128,42 @@ export default function GlobalStyles() {
       .ticker-bar {
         background: #000000;
         border-bottom: 1px solid #333333;
-        padding: 12px 20px;
+        padding: 12px 0;
         display: flex;
         align-items: center;
-        gap: 24px;
-        overflow-x: auto;
+        overflow: hidden;
         flex-shrink: 0;
         width: 100%;
         max-width: none;
+        position: relative;
+      }
+      
+      .ticker-track {
+        display: flex;
+        align-items: center;
+        animation: ticker-scroll 40s linear infinite;
+        will-change: transform;
+      }
+      
+      .ticker-track:hover {
+        animation-play-state: paused;
+      }
+      
+      @keyframes ticker-scroll {
+        from {
+          transform: translateX(0);
+        }
+        to {
+          transform: translateX(calc(-100% / 2));
+        }
+      }
+      
+      .ticker-group {
+        display: flex;
+        align-items: center;
+        gap: 32px;
+        padding: 0 16px;
+        flex-shrink: 0;
       }
       
       .ticker-item {
@@ -143,6 +171,7 @@ export default function GlobalStyles() {
         align-items: center;
         gap: 8px;
         white-space: nowrap;
+        flex-shrink: 0;
       }
       
       .ticker-symbol {
@@ -208,12 +237,27 @@ export default function GlobalStyles() {
       }
       
       .portfolio-value {
-        margin-left: auto;
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
         display: flex;
         align-items: center;
         gap: 12px;
-        padding-left: 24px;
-        border-left: 1px solid #333333;
+        padding: 0 20px;
+        background: #000000;
+        z-index: 10;
+      }
+      
+      .portfolio-value::before {
+        content: '';
+        position: absolute;
+        left: -40px;
+        top: 0;
+        bottom: 0;
+        width: 40px;
+        background: linear-gradient(to right, transparent, #000000);
+        pointer-events: none;
       }
       
       .portfolio-label {
@@ -665,9 +709,6 @@ export default function GlobalStyles() {
         font-size: 12px;
         line-height: 1.5;
         color: #333333;
-        display: flex;
-        align-items: flex-start;
-        gap: 8px;
       }
       
       .conf-agent-name {
@@ -675,7 +716,14 @@ export default function GlobalStyles() {
         font-weight: 700;
         font-size: 11px;
         letter-spacing: 0.3px;
-        flex-shrink: 0;
+        margin-bottom: 4px;
+      }
+      
+      .conf-message-content-wrapper {
+        padding-left: 4ch;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
       }
       
       .conf-message-content {

@@ -90,18 +90,20 @@ function ConferenceMessage({ message }) {
   
   return (
     <div className="conf-message-item">
-      <span className="conf-agent-name" style={{ color: agentColors.text }}>
+      <div className="conf-agent-name" style={{ color: agentColors.text }}>
         {message.agent}
-      </span>
-      <span className="conf-message-content">{displayContent}</span>
-      {needsTruncation && (
-        <button 
-          className="conf-expand-btn"
-          onClick={() => setExpanded(!expanded)}
-        >
-          {expanded ? '↑' : '↓'}
-        </button>
-      )}
+      </div>
+      <div className="conf-message-content-wrapper">
+        <span className="conf-message-content">{displayContent}</span>
+        {needsTruncation && (
+          <button 
+            className="conf-expand-btn"
+            onClick={() => setExpanded(!expanded)}
+          >
+            {expanded ? '↑' : '↓'}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

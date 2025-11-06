@@ -40,45 +40,45 @@ export const AGENTS = [
     id: "Portfolio Manager",
     name: "Portfolio Manager",
     role: "Portfolio Manager",
-    colors: { bg: '#F8FBFF', text: '#1976D2', accent: '#1976D2' }
+    colors: { bg: '#F9FDFF', text: '#1565C0', accent: '#1565C0' }
   },
   { 
     id: "Risk Manager",
     name: "Risk Manager",
     role: "Risk Manager",
-    colors: { bg: '#FFFAFA', text: '#D32F2F', accent: '#D32F2F' }
+    colors: { bg: '#FFF8F8', text: '#C62828', accent: '#C62828' }
   },
   { 
     id: "Valuation Analyst",
     name: "Valuation Analyst",
     role: "Valuation Analyst",
-    colors: { bg: '#F9FFF9', text: '#388E3C', accent: '#388E3C' }
+    colors: { bg: '#FAFFFA', text: '#2E7D32', accent: '#2E7D32' }
   },
   { 
     id: "Sentiment Analyst",
     name: "Sentiment Analyst",
     role: "Sentiment Analyst",
-    colors: { bg: '#FBF9FF', text: '#7B1FA2', accent: '#7B1FA2' }
+    colors: { bg: '#FCFAFF', text: '#6A1B9A', accent: '#6A1B9A' }
   },
   { 
     id: "Fundamentals Analyst",
     name: "Fundamentals Analyst",
     role: "Fundamentals Analyst",
-    colors: { bg: '#FFFBF5', text: '#EF6C00', accent: '#EF6C00' }
+    colors: { bg: '#FFFCF7', text: '#E65100', accent: '#E65100' }
   },
   { 
     id: "Technical Analyst",
     name: "Technical Analyst",
     role: "Technical Analyst",
-    colors: { bg: '#F7FEFF', text: '#0097A7', accent: '#0097A7' }
+    colors: { bg: '#F9FEFF', text: '#00838F', accent: '#00838F' }
   },
 ];
 
 // Message type colors (very subtle backgrounds)
 export const MESSAGE_COLORS = {
-  system: { bg: '#FAFAFA', text: '#616161', accent: '#616161' },
-  memory: { bg: '#FFFEF8', text: '#F9A825', accent: '#F9A825' },
-  conference: { bg: '#FBF9FF', text: '#673AB7', accent: '#673AB7' }
+  system: { bg: '#FAFAFA', text: '#424242', accent: '#424242' },
+  memory: { bg: '#FFFEFA', text: '#F57F17', accent: '#F57F17' },
+  conference: { bg: '#F1F4FF', text: '#3949AB', accent: '#3949AB' }
 };
 
 // Helper function to get agent colors by ID or name

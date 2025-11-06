@@ -120,6 +120,147 @@ export default function LiveTradingApp() {
       }
     };
     
+    // Process historical feed: convert raw events to feed items with conference grouping
+    const processHistoricalFeed = (events) => {
+      console.log('📋 Historical events:', events);
+      const feedItems = [];
+      let currentConference = null;
+      
+      // Reverse to process in chronological order (oldest first)
+      const chronologicalEvents = [...events].reverse();
+      
+      for (const evt of chronologicalEvents) {
+        if (!evt || !evt.type) continue;
+        
+        try {
+          if (evt.type === 'conference_start') {
+            // Start a new conference
+            currentConference = {
+              id: evt.conferenceId || `conf-${evt.timestamp}`,
+              title: evt.title || 'Team Conference',
+              startTime: evt.timestamp || Date.now(),
+              endTime: null,
+              isLive: false,
+              participants: evt.participants || [],
+              messages: []
+            };
+          } else if (evt.type === 'conference_end') {
+            // End current conference
+            if (currentConference) {
+              currentConference.endTime = evt.timestamp || Date.now();
+              currentConference.duration = calculateDuration(currentConference.startTime, currentConference.endTime);
+              feedItems.push({
+                type: 'conference',
+                id: currentConference.id,
+                data: currentConference
+              });
+              currentConference = null;
+            }
+          } else {
+            // Process other events
+            const message = convertEventToMessage(evt);
+            if (message) {
+              if (currentConference) {
+                // Add to current conference
+                currentConference.messages.push(message);
+              } else {
+                // Add as standalone feed item
+                const feedItem = convertEventToFeedItem(evt, message);
+                if (feedItem) {
+                  feedItems.push(feedItem);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error processing historical event:', evt.type, error);
+        }
+      }
+      
+      // If there's an unclosed conference, add it anyway
+      if (currentConference) {
+        feedItems.push({
+          type: 'conference',
+          id: currentConference.id,
+          data: currentConference
+        });
+      }
+      
+      // Reverse back to show newest first
+      setFeed(feedItems.reverse());
+      console.log(`✅ Processed ${feedItems.length} feed items from ${events.length} events`);
+    };
+    
+    // Convert event to message object
+    const convertEventToMessage = (evt) => {
+      const agent = AGENTS.find(a => a.id === evt.agentId);
+      
+      switch (evt.type) {
+        case 'system':
+        case 'day_start':
+        case 'day_complete':
+        case 'day_error':
+          return {
+            id: `${evt.type}-${evt.timestamp || Date.now()}-${Math.random()}`,
+            timestamp: evt.timestamp || Date.now(),
+            agent: 'System',
+            role: 'System',
+            content: evt.content || `${evt.type}: ${evt.date || ''}`
+          };
+        
+        case 'agent_message':
+          return {
+            id: `msg-${evt.timestamp || Date.now()}-${Math.random()}`,
+            timestamp: evt.timestamp || Date.now(),
+            agentId: evt.agentId,
+            agent: agent?.name || evt.agentName || evt.agentId || 'Agent',
+            role: agent?.role || evt.role || 'Agent',
+            content: evt.content
+          };
+        
+        case 'memory':
+          return {
+            id: `memory-${evt.timestamp || Date.now()}-${Math.random()}`,
+            timestamp: evt.timestamp || Date.now(),
+            agent: 'Memory',
+            role: 'Memory',
+            content: evt.content || evt.text || ''
+          };
+        
+        case 'team_summary':
+          return {
+            id: `team-summary-${evt.timestamp || Date.now()}-${Math.random()}`,
+            timestamp: evt.timestamp || Date.now(),
+            agent: 'System',
+            role: 'System',
+            content: `Portfolio update: $${formatNumber(evt.balance || 0)} (${evt.pnlPct >= 0 ? '+' : ''}${(evt.pnlPct || 0).toFixed(2)}%)`
+          };
+        
+        default:
+          return null;
+      }
+    };
+    
+    // Convert event to feed item
+    const convertEventToFeedItem = (evt, message) => {
+      if (evt.type === 'memory') {
+        return {
+          type: 'memory',
+          id: message.id,
+          data: {
+            timestamp: message.timestamp,
+            content: message.content
+          }
+        };
+      } else {
+        return {
+          type: 'message',
+          id: message.id,
+          data: message
+        };
+      }
+    };
+    
     const handleEventInternal = (evt) => {
       // Helper: Update tickers from realtime prices
       const updateTickersFromPrices = (realtimePrices) => {
@@ -222,18 +363,10 @@ export default function LiveTradingApp() {
             if (state.leaderboard) setLeaderboard(state.leaderboard);
             if (state.realtime_prices) updateTickersFromPrices(state.realtime_prices);
             
-            // Load conferences state
-            if (state.conferences) {
-              setConferences({
-                active: state.conferences.active || null,
-                history: state.conferences.history || []
-              });
-            }
-            
-            // Load historical feed data
+            // Load and process historical feed data
             if (state.feed_history && Array.isArray(state.feed_history)) {
-              console.log(`✅ Loading ${state.feed_history.length} historical feed items`);
-              setFeed(state.feed_history);
+              console.log(`✅ Loading ${state.feed_history.length} historical events`);
+              processHistoricalFeed(state.feed_history);
             }
             
             console.log('Initial state loaded');
@@ -667,28 +800,34 @@ export default function LiveTradingApp() {
         <>
           {/* Ticker Bar */}
           <div className="ticker-bar">
-            {tickers.map(ticker => (
-              <div key={ticker.symbol} className="ticker-item">
-                <StockLogo ticker={ticker.symbol} size={16} />
-                <span className="ticker-symbol">{ticker.symbol}</span>
-                <span className="ticker-price">
-                  <span className={`ticker-price-value ${rollingTickers[ticker.symbol] ? 'rolling' : ''}`}>
-                    {ticker.price !== null && ticker.price !== undefined 
-                      ? `$${formatTickerPrice(ticker.price)}` 
-                      : '-'}
-                  </span>
-                </span>
-                <span className={`ticker-change ${
-                  ticker.change === null || ticker.change === undefined 
-                    ? '' 
-                    : ticker.change >= 0 ? 'positive' : 'negative'
-                }`}>
-                  {ticker.change !== null && ticker.change !== undefined
-                    ? `${ticker.change >= 0 ? '+' : ''}${ticker.change.toFixed(2)}%`
-                    : '-'}
-                </span>
-              </div>
-            ))}
+            <div className="ticker-track">
+              {[0, 1].map((groupIdx) => (
+                <div key={groupIdx} className="ticker-group">
+                  {tickers.map(ticker => (
+                    <div key={`${ticker.symbol}-${groupIdx}`} className="ticker-item">
+                      <StockLogo ticker={ticker.symbol} size={16} />
+                      <span className="ticker-symbol">{ticker.symbol}</span>
+                      <span className="ticker-price">
+                        <span className={`ticker-price-value ${rollingTickers[ticker.symbol] ? 'rolling' : ''}`}>
+                          {ticker.price !== null && ticker.price !== undefined 
+                            ? `$${formatTickerPrice(ticker.price)}` 
+                            : '-'}
+                        </span>
+                      </span>
+                      <span className={`ticker-change ${
+                        ticker.change === null || ticker.change === undefined 
+                          ? '' 
+                          : ticker.change >= 0 ? 'positive' : 'negative'
+                      }`}>
+                        {ticker.change !== null && ticker.change !== undefined
+                          ? `${ticker.change >= 0 ? '+' : ''}${ticker.change.toFixed(2)}%`
+                          : '-'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
             <div className="portfolio-value">
               <span className="portfolio-label">PORTFOLIO</span>
               <span className="portfolio-amount">${formatNumber(portfolioData.netValue)}</span>

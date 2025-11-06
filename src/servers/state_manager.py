@@ -13,81 +13,31 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class FeedMessage:
-    """统一的Feed消息格式"""
-    type: str  # 'message', 'conference', etc.
+    """统一的Feed消息格式 - 保存原始event"""
+    type: str  # event type
     timestamp: float  # Unix timestamp in milliseconds
-    content: str
-    agent: str = 'System'
-    role: str = 'System'
     metadata: Dict[str, Any] = field(default_factory=dict)
     
     def to_dict(self) -> Dict[str, Any]:
-        """转换为字典格式（前端兼容）"""
-        return {
-            'id': f"{self.type}-{self.timestamp}",
-            'type': 'message',
-            'data': {
-                'id': f"{self.type}-{self.timestamp}",
-                'timestamp': self.timestamp,
-                'agent': self.agent,
-                'role': self.role,
-                'content': self.content,
-                **self.metadata
-            }
-        }
+        """返回原始event（由前端统一处理）"""
+        return self.metadata
     
     @classmethod
     def from_event(cls, event: Dict[str, Any]) -> Optional['FeedMessage']:
-        """从事件创建FeedMessage"""
         event_type = event.get('type', '')
         
-        # 只保存这些类型的消息
         save_types = {
             'system', 'agent_message', 'day_start', 'day_complete', 
-            'day_error', 'team_summary'
+            'day_error', 'team_summary', 'conference_start', 'conference_end', 'memory'
         }
         
         if event_type not in save_types:
             return None
         
-        # 解析时间戳
-        timestamp = event.get('timestamp')
-        if isinstance(timestamp, str):
-            try:
-                timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00')).timestamp() * 1000
-            except:
-                timestamp = datetime.now().timestamp() * 1000
-        elif not timestamp:
-            timestamp = datetime.now().timestamp() * 1000
-        
-        # 提取内容
-        content = event.get('content', '')
-        agent = event.get('agentName') or event.get('agent') or 'System'
-        role = event.get('role', 'System')
-        
-        # 根据类型优化内容显示
-        if event_type == 'day_start':
-            content = f"Starting day: {event.get('date', 'Unknown')}"
-        elif event_type == 'day_complete':
-            content = f"Day completed: {event.get('date', 'Unknown')}"
-        elif event_type == 'day_error':
-            content = f"Day error: {event.get('date', 'Unknown')} - {event.get('error', 'Unknown error')}"
-        elif event_type == 'team_summary':
-            balance = event.get('balance', 0)
-            pnl = event.get('pnlPct', 0)
-            content = f"Portfolio update: ${balance:,.0f} ({'+' if pnl >= 0 else ''}{pnl:.2f}%)"
-        
-        # 保存额外的元数据
-        metadata = {k: v for k, v in event.items() 
-                   if k not in ['type', 'timestamp', 'content', 'agent', 'agentName', 'role']}
-        
         return cls(
             type=event_type,
-            timestamp=timestamp,
-            content=content,
-            agent=agent,
-            role=role,
-            metadata=metadata
+            timestamp=event.get('timestamp', datetime.now().timestamp() * 1000),
+            metadata=event
         )
 
 

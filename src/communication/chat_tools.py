@@ -501,10 +501,13 @@ class CommunicationManager:
         print(f"开始会议: {meeting_id}")
         print(f"话题: {topic}")
         print(f"参与者: {', '.join([manager_id] + analyst_ids)}")
+
+
         
         # 输出会议ID到前端
-        # if streamer:
-        #     streamer.print("system", f"会议 ID: {meeting_id}")
+        if streamer:
+            streamer.print("conference_start", title=topic, conferenceId=meeting_id,
+                           participants=[manager_id] + analyst_ids)
         
         # 为每个分析师记录会议开始
         # 获取 trading_date 作为 analysis_date
@@ -702,6 +705,7 @@ class CommunicationManager:
             streamer.print("agent", f"[总结] {summary_display}", role_key=manager_id)
         
         print("会议结束")
+        streamer.print("conference_end",conference_id=meeting_id)
         memory_format = self._convert_transcript_to_memory_format(
             meeting_transcript, meeting_id, topic, max_rounds
         )
