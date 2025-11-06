@@ -40,13 +40,13 @@ python live_trading_thinking_fund.py \
 
 ```bash
 # 正常模式 - 启动时会询问是否清空历史记录
-./start_continuous_server.sh
+./start_server.sh
 
 # Mock模式 - 测试前端，不需要真实数据
-./start_continuous_server.sh --mock
+./start_server.sh --mock
 
 # 自动清空历史记录模式 - 跳过询问，直接清空
-./start_continuous_server.sh --clean
+./start_server.sh --clean
 ```
 
 **使用说明：**

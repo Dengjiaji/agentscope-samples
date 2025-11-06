@@ -2,9 +2,9 @@
 # 启动持续运行服务器的便捷脚本
 # 
 # 使用方法:
-#   ./start_continuous_server.sh              # 正常模式
-#   ./start_continuous_server.sh --mock       # Mock模式（测试前端）
-#   ./start_continuous_server.sh --clean      # 正常模式，自动清空历史记录
+#   ./start_server.sh              # 正常模式
+#   ./start_server.sh --mock       # Mock模式（测试前端）
+#   ./start_server.sh --clean      # 正常模式，自动清空历史记录
 
 set -e
 
@@ -28,29 +28,6 @@ else
 fi
 echo "=================================================="
 
-# 检查并激活Python环境（优先使用conda，其次使用venv）
-CONDA_ENV="investorbench"
-
-# 检查是否安装了conda并且环境存在
-if command -v conda &> /dev/null && conda info --envs | grep -q "^${CONDA_ENV} "; then
-    echo "🔧 检测到 Conda 环境: ${CONDA_ENV}"
-    eval "$(conda shell.bash hook)"
-    conda activate ${CONDA_ENV}
-    echo "✅ Conda 环境已激活"
-elif [ -d "venv" ]; then
-    echo "🔧 检测到 venv 虚拟环境"
-    source venv/bin/activate
-    echo "✅ venv 环境已激活"
-else
-    echo "❌ 未找到可用的Python环境"
-    echo ""
-    echo "请选择以下方式之一："
-    echo "  1. 创建 conda 环境: conda create -n ${CONDA_ENV} python=3.x"
-    echo "  2. 创建 venv 环境: python3 -m venv venv"
-    echo ""
-    echo "提示: 如果使用不同的conda环境名，请修改脚本中的 CONDA_ENV 变量"
-    exit 1
-fi
 
 # 正常模式需要检查.env文件，mock模式不需要
 if [ "$MODE" = "normal" ]; then
@@ -209,8 +186,8 @@ echo "   按 Ctrl+C 停止服务器"
 echo ""
 
 if [ "$MODE" = "mock" ]; then
-    python -u -m src.servers.continuous_server --mock
+    python -u -m src.servers.server --mock
 else
-    python -u -m src.servers.continuous_server
+    python -u -m src.servers.server
 fi
 
