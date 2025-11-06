@@ -753,16 +753,16 @@ class ContinuousServer:
                 if analysis:
                     content = f"{content}: {analysis}"
                 
-                asyncio.run_coroutine_threadsafe(
-                    self.broadcast({
-                        'type': 'agent_message',
-                        'agentId': agent_name,
-                        'agentName': agent_name.replace('_agent', '').replace('_', ' ').title(),
-                        'content': content,
-                        'timestamp': timestamp
-                    }),
-                    loop
-                )
+                # asyncio.run_coroutine_threadsafe(
+                #     self.broadcast({
+                #         'type': 'agent_message',
+                #         'agentId': agent_name,
+                #         'agentName': agent_name.replace('_agent', '').replace('_', ' ').title(),
+                #         'content': content,
+                #         'timestamp': timestamp
+                #     }),
+                #     loop
+                # )
         
         # 注册handler
         progress.register_handler(progress_handler)

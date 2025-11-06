@@ -79,9 +79,9 @@ class AgentProgress:
         # Sort agents with Risk Management and Portfolio Management at the bottom
         def sort_key(item):
             agent_name = item[0]
-            if "risk_management" in agent_name:
+            if "risk_manager" in agent_name:
                 return (2, agent_name)
-            elif "portfolio_management" in agent_name:
+            elif "portfolio_manager" in agent_name:
                 return (3, agent_name)
             else:
                 return (1, agent_name)

@@ -18,7 +18,7 @@ class RiskManagerAgent(BaseAgent):
     """风险管理 Agent"""
     
     def __init__(self, 
-                 agent_id: str = "risk_management_agent",
+                 agent_id: str = "risk_manager",
                  mode: Literal["basic", "portfolio"] = "basic",
                  config: Optional[Dict[str, Any]] = None):
         """

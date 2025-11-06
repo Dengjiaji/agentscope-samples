@@ -51,7 +51,7 @@ from src.agents.risk_manager_agent import RiskManagerAgent
 from src.agents.portfolio_manager_agent import PortfolioManagerAgent
 
 # 创建兼容的包装函数
-def risk_management_agent(state, agent_id="risk_management_agent"):
+def risk_management_agent(state, agent_id="risk_manager"):
     """风险管理 - 使用新架构"""
     agent = RiskManagerAgent(agent_id=agent_id, mode="basic")
     return agent.execute(state)
@@ -93,22 +93,22 @@ class AdvancedInvestmentAnalysisEngine:
         self._notification_lock = threading.Lock()
         self.core_analysts = {
             'fundamentals_analyst': {
-                'name': '基本面分析师 (LLM智能选择)',
+                'name': '基本面分析师',
                 'agent_func': intelligent_fundamentals_analyst_agent,
                 'description': '使用LLM智能选择分析工具，专注于财务数据和公司基本面分析'
             },
             'sentiment_analyst': {
-                'name': '情绪分析师 (LLM智能选择)', 
+                'name': '情绪分析师',
                 'agent_func': intelligent_sentiment_analyst_agent,
                 'description': '使用LLM智能选择分析工具，分析市场情绪和新闻舆论'
             },
             'technical_analyst': {
-                'name': '技术分析师 (LLM智能选择)',
+                'name': '技术分析师',
                 'agent_func': intelligent_technical_analyst_agent, 
                 'description': '使用LLM智能选择分析工具，专注于技术指标和图表分析'
             },
             'valuation_analyst': {
-                'name': '估值分析师 (LLM智能选择)',
+                'name': '估值分析师',
                 'agent_func': intelligent_valuation_analyst_agent,
                 'description': '使用LLM智能选择分析工具，专注于公司估值和价值评估'
             }
@@ -244,9 +244,7 @@ class AdvancedInvestmentAnalysisEngine:
                     # 处理通知决策（使用线程锁保护）
                     if notification_decision.get("should_notify", False):
                         print(f"{agent_name} 决定发送通知...")
-                        if self.streamer:
-                            self.streamer.print("agent", f"{agent_name} 决定发送通知", role_key=agent_id)
-                        
+
                         # 获取 trading_date 作为 backtest_date
                         backtest_date = state.get("metadata", {}).get("trading_date") or state.get("data", {}).get("end_date")
                         
@@ -264,7 +262,7 @@ class AdvancedInvestmentAnalysisEngine:
                         print(f"通知内容: {notification_decision['content']}")
                         if self.streamer:
                             self.streamer.print("agent", 
-                                f"📢 通知: {notification_decision['content']} [紧急度: {notification_decision.get('urgency', 'medium')}]",
+                                f"📢 {notification_decision['content']} [紧急度: {notification_decision.get('urgency', 'medium')}]",
                                 role_key=agent_id
                             )
                     else:
@@ -698,12 +696,12 @@ class AdvancedInvestmentAnalysisEngine:
         try:
             # 根据模式选择相应的Risk Manager - 使用新架构
             if mode == "portfolio":
-                agent_id = "risk_management_agent_portfolio"
+                agent_id = "risk_manager"
                 # 使用新架构的 RiskManagerAgent
                 risk_agent = RiskManagerAgent(agent_id=agent_id, mode="portfolio")
                 risk_result = risk_agent.execute(state)
             else:
-                agent_id = "risk_management_agent"
+                agent_id = "risk_manager"
                 risk_result = risk_management_agent(state, agent_id=agent_id)
             
             risk_analysis = state["data"]["analyst_signals"].get(agent_id, {})
@@ -733,7 +731,11 @@ class AdvancedInvestmentAnalysisEngine:
                         
                         if self.streamer:
                             self.streamer.print("agent", 
-                                f"{ticker}: 风险等级 {risk_level.upper()}, 风险评分 {risk_score}/100, 年化波动率 {annualized_vol:.1%}\n{risk_assessment}",
+                                f"{ticker}: \n"
+                                f"  风险等级 {risk_level.upper()}\n"
+                                f"  风险评分 {risk_score}/100\n"
+                                f"  年化波动率 {annualized_vol:.1%}\n"
+                                f"  {risk_assessment}",
                                 role_key="risk_manager"
                             )
                     else:
@@ -746,21 +748,25 @@ class AdvancedInvestmentAnalysisEngine:
                         reasoning = risk_data.get("reasoning", {})
                         position_limit_pct = reasoning.get("base_position_limit_pct", 0)
                         
-                        print(f"  {ticker}:")
-                        print(f"     当前价格: ${current_price:.2f}")
-                        print(f"     最大可买股数: {max_shares}")
-                        print(f"     年化波动率: {annualized_vol:.1%}")
-                        print(f"     仓位限制: {position_limit_pct:.1%}")
+                        print(f"  {ticker}:\n")
+                        print(f"     当前价格: ${current_price:.2f}\n")
+                        print(f"     最大可买股数: {max_shares}\n")
+                        print(f"     年化波动率: {annualized_vol:.1%}\n")
+                        print(f"     仓位限制: {position_limit_pct:.1%}\n")
                         print(f"     剩余可用额度: ${remaining_limit:,.2f}")
                         
                         if self.streamer:
                             self.streamer.print("agent", 
-                                f"{ticker}: 价格 ${current_price:.2f}, 最大可买 {max_shares} 股, 波动率 {annualized_vol:.1%}, 仓位限制 {position_limit_pct:.1%}",
+                                f"{ticker}: "
+                                f"  价格 ${current_price:.2f}"
+                                f"  最大可买 {max_shares} 股"
+                                f"  波动率 {annualized_vol:.1%}"
+                                f"  仓位限制 {position_limit_pct:.1%}",
                                 role_key="risk_manager"
                             )
                 
                 return {
-                    "agent_id": "risk_management_agent",
+                    "agent_id": "risk_manager",
                     "agent_name": "风险管理分析师",
                     "analysis_result": risk_analysis,
                     "status": "success"
@@ -1090,9 +1096,9 @@ class AdvancedInvestmentAnalysisEngine:
                        analyst_signals: Dict[str, Any], state: AgentState) -> Dict[str, Any]:
         """进行会议通信"""
         print("开始会议通信...")
-        if self.streamer:
-            self.streamer.print("system", f"===== 会议通信 =====\n话题: {communication_decision.discussion_topic}\n \t参与者: portfolio_manager, {', '.join(communication_decision.target_analysts)}")
-        
+        # if self.streamer:
+        #     self.streamer.print("system", f"===== 会议通信 =====\n话题: {communication_decision.discussion_topic}\n \t参与者: portfolio_manager, {', '.join(communication_decision.target_analysts)}")
+
         # 准备会议参与的分析师信号
         meeting_signals = {}
         for analyst_id in communication_decision.target_analysts:

@@ -37,7 +37,7 @@ def intelligent_valuation_analyst_agent(state, agent_id="valuation_analyst_agent
 ANALYST_CONFIG = {
     
     "technical_analyst": {
-        "display_name": "Technical Analyst (LLM智能选择)",
+        "display_name": "Technical Analyst",
         "description": "Chart Pattern Specialist with AI Tool Selection",
         "investing_style": "Uses LLM to intelligently select technical analysis tools, focusing on chart patterns and market trends to make investment decisions through AI-enhanced analysis.",
         "agent_func": intelligent_technical_analyst_agent,
@@ -45,7 +45,7 @@ ANALYST_CONFIG = {
         "order": 11,
     },
     "fundamentals_analyst": {
-        "display_name": "Fundamentals Analyst (LLM智能选择)",
+        "display_name": "Fundamentals Analyst",
         "description": "Financial Statement Specialist with AI Tool Selection",
         "investing_style": "Uses LLM to intelligently select fundamental analysis tools, delving into financial statements and economic indicators to assess intrinsic value through AI-enhanced analysis.",
         "agent_func": intelligent_fundamentals_analyst_agent,
@@ -53,7 +53,7 @@ ANALYST_CONFIG = {
         "order": 12,
     },
     "sentiment_analyst": {
-        "display_name": "Sentiment Analyst (LLM智能选择)",
+        "display_name": "Sentiment Analyst",
         "description": "Market Sentiment Specialist with AI Tool Selection",
         "investing_style": "Uses LLM to intelligently select sentiment analysis tools, gauging market sentiment and investor behavior to predict market movements through AI-enhanced behavioral analysis.",
         "agent_func": intelligent_sentiment_analyst_agent,
@@ -61,7 +61,7 @@ ANALYST_CONFIG = {
         "order": 13,
     },
     "valuation_analyst": {
-        "display_name": "Valuation Analyst (LLM智能选择)",
+        "display_name": "Valuation Analyst",
         "description": "Company Valuation Specialist with AI Tool Selection",
         "investing_style": "Uses LLM to intelligently select valuation analysis tools, specializing in determining fair value of companies using various AI-selected models and financial metrics.",
         "agent_func": intelligent_valuation_analyst_agent,

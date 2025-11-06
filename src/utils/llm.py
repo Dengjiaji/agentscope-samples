@@ -96,8 +96,8 @@ def call_llm(
             import traceback
             print(f"Full Traceback:\n{traceback.format_exc()}")
             
-            if agent_name:
-                progress.update_status(agent_name, None, f"Error - retry {attempt + 1}/{max_retries}: {type(e).__name__}")
+            # if agent_name:
+            #     progress.update_status(agent_name, None, f"Error - retry {attempt + 1}/{max_retries}: {type(e).__name__}")
 
             if attempt == max_retries - 1:
                 print(f"🚨 FINAL ERROR: LLM call failed after {max_retries} attempts")

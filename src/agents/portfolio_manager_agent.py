@@ -141,7 +141,7 @@ class PortfolioManagerAgent(BaseAgent):
         ticker_signals = {}
         
         for agent, signals in analyst_signals.items():
-            if agent.startswith("risk_management_agent"):
+            if agent.startswith("risk_manager"):
                 # 风险管理agent - 提取风险信息
                 if ticker in signals:
                     risk_info = signals[ticker]
@@ -311,11 +311,11 @@ class PortfolioManagerAgent(BaseAgent):
         """获取对应的风险管理器ID"""
         if self.agent_id.startswith("portfolio_manager_portfolio_"):
             suffix = self.agent_id.split('_')[-1]
-            return f"risk_management_agent_portfolio_{suffix}"
+            return f"risk_manager_{suffix}"
         elif self.mode == "portfolio":
-            return "risk_management_agent_portfolio"
+            return "risk_manager"
         else:
-            return "risk_management_agent"
+            return "risk_manager"
     
     def _format_analyst_weights(self, state: AgentState) -> str:
         """格式化分析师权重信息"""
