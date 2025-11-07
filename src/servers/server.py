@@ -173,9 +173,10 @@ class Server:
             logger.error(f"更新 Dashboard 文件失败 ({symbol}): {e}")
     
     def _update_dashboard_files_with_price(self, symbol: str, price: float):
-        """更新 holdings.json 和 stats.json 文件中的价格和相关计算"""
+        """更新 holdings.json、stats.json 和 summary.json 文件中的价格和相关计算"""
         holdings_file = self.dashboard_files.get('holdings')
         stats_file = self.dashboard_files.get('stats')
+        summary_file = self.dashboard_files.get('summary')
         
         if not holdings_file or not holdings_file.exists():
             logger.warning(f"holdings.json 文件不存在，跳过更新")
@@ -201,6 +202,15 @@ class Server:
             logger.error(f"读取 stats.json 失败: {e}")
             return
         
+        # 读取 summary.json（如果存在）
+        summary = None
+        if summary_file and summary_file.exists():
+            try:
+                with open(summary_file, 'r', encoding='utf-8') as f:
+                    summary = json.load(f)
+            except Exception as e:
+                logger.error(f"读取 summary.json 失败: {e}")
+        
         # 更新 holdings 中的价格
         updated = False
         total_value = 0.0
@@ -211,7 +221,7 @@ class Server:
             quantity = holding.get('quantity', 0)
             
             if ticker == 'CASH':
-                cash = holding.get('currentPrice', 0)
+                cash = holding.get('marketValue', 0)
                 total_value += cash
             elif ticker == symbol:
                 # 更新当前价格
@@ -264,6 +274,46 @@ class Server:
                 logger.debug(f"✅ 已更新 stats.json: 总资产=${total_value:.2f}, 收益率={total_return:.2f}%")
         except Exception as e:
             logger.error(f"保存 stats.json 失败: {e}")
+        
+        # 更新 summary.json（添加实时净值曲线点）
+        if summary and updated:
+            try:
+                from datetime import datetime
+                
+                # 获取当前时间戳（毫秒）
+                current_time = int(datetime.now().timestamp() * 1000)
+                
+                # 更新 balance 和 pnlPct
+                summary['balance'] = round(total_value, 2)
+                summary['totalAssetValue'] = round(total_value, 2)
+                summary['pnlPct'] = round(total_return, 2)
+                summary['totalReturn'] = round(total_return, 2)
+                summary['cashPosition'] = round(cash, 2)
+                summary['tickerWeights'] = ticker_weights
+                
+                # 更新 equity 曲线（添加新数据点）
+                equity_list = summary.get('equity', [])
+                
+                # 添加新数据点
+                equity_list.append({
+                    't': current_time,
+                    'v': round(total_value, 2)
+                })
+                
+                # 保留最近 1000 个点
+                if len(equity_list) > 1000:
+                    equity_list = equity_list[-1000:]
+                
+                summary['equity'] = equity_list
+                
+                # 保存更新后的 summary.json
+                with open(summary_file, 'w', encoding='utf-8') as f:
+                    json.dump(summary, f, indent=2, ensure_ascii=False)
+                
+                logger.debug(f"✅ 已更新 summary.json: 添加净值点 ${total_value:.2f} @ {datetime.fromtimestamp(current_time/1000).strftime('%H:%M:%S')}")
+                
+            except Exception as e:
+                logger.error(f"更新 summary.json 失败: {e}")
     
     async def broadcast(self, message: Dict[str, Any]):
         """广播消息给所有连接的客户端"""
