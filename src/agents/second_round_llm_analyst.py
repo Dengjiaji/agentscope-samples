@@ -77,12 +77,11 @@ Analysis Tools Selection and Reasoning:
         "notifications": notifications_str,
         "agent_id": agent_id
     }
-    print(f"\nvariable:\n{variables}")
+
     system_prompt = _prompt_loader.load_prompt("analyst", "second_round_system", variables)
     human_prompt = _prompt_loader.load_prompt("analyst", "second_round_human", variables)
 
     full_prompt = f"{system_prompt}\n\n{human_prompt}"
-    print(f"\nfull_prompt:\n{full_prompt}")
     
     # 调用LLM
     
