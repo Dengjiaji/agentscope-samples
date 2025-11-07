@@ -1,21 +1,21 @@
 基于团队的分析，为每个ticker做出你的交易决策。
 
 以下是按ticker分类的信号:
-{signals_by_ticker}
+{{signals_by_ticker}}
 
 当前价格:
-{current_prices}
+{{current_prices}}
 
 允许购买的最大股数:
-{max_shares}
+{{max_shares}}
 
-投资组合现金: {portfolio_cash}
-当前持仓: {portfolio_positions}
-当前保证金要求: {margin_requirement}
-已使用总保证金: {total_margin_used}
+投资组合现金: {{portfolio_cash}}
+当前持仓: {{portfolio_positions}}
+当前保证金要求: {{margin_requirement}}
+已使用总保证金: {{total_margin_used}}
 
 相关历史经验:
-{relevant_past_experiences}
+{{relevant_past_experiences}}
 
 重要提示: 请仔细参考上述历史经验，避免重复过去的错误决策（如过度激进、忽视风险警告等），学习成功的仓位管理模式。
 

@@ -1,16 +1,18 @@
 """
 Portfolio Manager Agent - 投资组合管理 Agent
-提供统一的投资组合管理接口
+提供统一的投资组合管理接口（基于AgentScope）
 """
 from typing import Dict, Any, Optional, Literal, List
 import json
 import pdb
 
-from .base_agent import BaseAgent
-from ..graph.state import AgentState, show_agent_reasoning, create_message
+from agentscope.agent import AgentBase
+from agentscope.message import Msg
+
+from ..graph.state import AgentState, show_agent_reasoning
 from ..utils.progress import progress
-from ..agents.agentscope_prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
+from .prompt_loader import PromptLoader
 from typing_extensions import Literal as LiteralType
 from ..utils.llm import call_llm
 from ..memory.framework_bridge import get_memory_bridge
@@ -29,8 +31,8 @@ class PortfolioManagerOutput(BaseModel):
     decisions: dict[str, PortfolioDecision] = Field(description="ticker到交易决策的映射")
 
 
-class PortfolioManagerAgent(BaseAgent):
-    """投资组合管理 Agent"""
+class PortfolioManagerAgent(AgentBase):
+    """投资组合管理 Agent（基于AgentScope）"""
     
     def __init__(self, 
                  agent_id: str = "portfolio_manager",
@@ -53,8 +55,19 @@ class PortfolioManagerAgent(BaseAgent):
             >>> # Portfolio 模式（包含数量）
             >>> agent = PortfolioManagerAgent(mode="portfolio")
         """
-        super().__init__(agent_id, "portfolio_manager", config)
+        # 初始化AgentBase（不接受参数）
+        super().__init__()
+        
+        # 设置name属性
+        self.name = agent_id
+        self.agent_id = agent_id  # 保留agent_id属性以兼容现有代码
+        self.agent_type = "portfolio_manager"
+        
         self.mode = mode
+        self.config = config or {}
+        
+        # Prompt loader
+        self.prompt_loader = PromptLoader()
     
     def execute(self, state: AgentState) -> Dict[str, Any]:
         """
@@ -98,9 +111,9 @@ class PortfolioManagerAgent(BaseAgent):
             result = self._generate_portfolio_decision(
                 tickers, signals_by_ticker, state
             )
-        # 创建消息（使用 AgentScope 格式）
-        message = create_message(
-            name=self.agent_id,
+        # 创建消息（使用 AgentScope Msg 格式）
+        message = Msg(
+            name=self.name,
             content=json.dumps({
                 ticker: decision.model_dump() 
                 for ticker, decision in result.decisions.items()
@@ -120,7 +133,7 @@ class PortfolioManagerAgent(BaseAgent):
         progress.update_status(self.agent_id, None, "Done")
         
         return {
-            "messages": state["messages"] + [message],
+            "messages": [message.to_dict()],  # 转换为dict
             "data": state["data"],
         }
     
@@ -180,18 +193,7 @@ class PortfolioManagerAgent(BaseAgent):
         progress.update_status(self.agent_id, None, "检索历史决策经验")
         relevant_memories = self._recall_relevant_memories(tickers, signals_by_ticker, state)
         
-        # 加载 prompt
-        try:
-            system_prompt = self.load_prompt("direction_decision_system", {})
-            human_prompt = self.load_prompt("direction_decision_human", {})
-            template = ChatPromptTemplate.from_messages([
-                ("system", system_prompt),
-                ("human", human_prompt)
-            ])
-        except FileNotFoundError:
-            # 使用硬编码模板
-            template = self._create_hardcoded_direction_template()
-        
+
         # 获取分析师权重信息
         analyst_weights_info = self._format_analyst_weights(state)
         
@@ -204,8 +206,18 @@ class PortfolioManagerAgent(BaseAgent):
             "analyst_weights_separator": "\n" if analyst_weights_info else "",
             "relevant_past_experiences": formatted_memories,  # ⭐ 注入历史经验
         }
-        
-        prompt = template.invoke(prompt_data)
+
+        # 加载 prompt
+        try:
+            system_prompt = self.prompt_loader.load_prompt("direction_decision_system", variables=prompt_data)
+            human_prompt = self.prompt_loader.load_prompt("direction_decision_human", variables=prompt_data)
+            prompt = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": human_prompt}
+            ]
+        except FileNotFoundError:
+            raise "Failed to load prompts. please check prompt file path for : direction_decision_human"
+
         # 创建默认工厂
         def create_default_output():
             return PortfolioManagerOutput(
@@ -252,18 +264,8 @@ class PortfolioManagerAgent(BaseAgent):
                 max_shares[ticker] = int(remaining_limit / price)
             else:
                 max_shares[ticker] = 0
-        
-        # 加载 prompt
-        system_prompt = self.load_prompt("portfolio_decision_system", {})
-        human_prompt = self.load_prompt("portfolio_decision_human", {})
-        template = ChatPromptTemplate.from_messages([
-            ("system", system_prompt),
-            ("human", human_prompt)
-        ])
-    
-        
+
         # 获取分析师权重
-        
         formatted_memories = self._format_memories_for_prompt(relevant_memories)
         
         # 生成prompt
@@ -279,8 +281,15 @@ class PortfolioManagerAgent(BaseAgent):
             # "analyst_weights_separator": "\n" if analyst_weights_info else "",
             "relevant_past_experiences": formatted_memories,  # 注入历史经验
         }
-        
-        prompt = template.invoke(prompt_data)
+
+
+        # 加载 prompt
+        system_prompt = self.prompt_loader.load_prompt(agent_type=self.agent_type, prompt_name="portfolio_decision_system", variables=prompt_data)
+        human_prompt = self.prompt_loader.load_prompt(agent_type=self.agent_type, prompt_name="portfolio_decision_human", variables=prompt_data)
+        prompt = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": human_prompt}
+        ]
         # pdb.set_trace()
 
         # 创建默认工厂
@@ -496,20 +505,4 @@ class PortfolioManagerAgent(BaseAgent):
             return "暂无相关历史经验。"
         
         return "\n".join(formatted_lines)
-    
-    def _create_hardcoded_direction_template(self) -> ChatPromptTemplate:
-        """创建硬编码的方向决策模板"""
-        # 简化版，实际应该从 portfolio_manager.py 复制
-        return ChatPromptTemplate.from_messages([
-            ("system", "You are a portfolio manager making direction decisions."),
-            ("human", "Signals: {signals_by_ticker}\n{analyst_weights_info}")
-        ])
-    
-    def _create_hardcoded_portfolio_template(self) -> ChatPromptTemplate:
-        """创建硬编码的portfolio决策模板"""
-        # 简化版，实际应该从 portfolio_manager_portfolio.py 复制
-        return ChatPromptTemplate.from_messages([
-            ("system", "You are a portfolio manager making quantity decisions."),
-            ("human", "Signals: {signals_by_ticker}\nPrices: {current_prices}")
-        ])
 

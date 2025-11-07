@@ -1,12 +1,12 @@
 Based on team analysis, make investment direction decisions for each stock.
 
 Analyst signals for each stock:
-{signals_by_ticker}
+{{signals_by_ticker}}
 
-{analyst_weights_info}{analyst_weights_separator}
+{{analyst_weights_info}}{{analyst_weights_separator}}
 
 Relevant Past Experiences
-{relevant_past_experiences}
+{{relevant_past_experiences}}
 
 Important: Please carefully review the above historical experiences. Avoid repeating past mistakes and learn from successful decision patterns.
 

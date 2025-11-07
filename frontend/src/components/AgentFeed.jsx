@@ -78,8 +78,8 @@ function ConferenceMessage({ message }) {
   }
   
   const content = message.content || '';
-  const needsTruncation = content.length > 200;
-  const MAX_EXPANDED_LENGTH = 1000;
+  const needsTruncation = content.length > 800;
+  const MAX_EXPANDED_LENGTH = 10000;
   
   let displayContent = content;
   if (!expanded && needsTruncation) {

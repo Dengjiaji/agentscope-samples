@@ -12,16 +12,11 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime
 from pathlib import Path
 import pdb
-# 尝试导入 AgentScope 相关模块
-try:
-    from src.graph.state import create_message
-    from src.llm.agentscope_models import get_model, ModelProvider
-    from src.tools.memory_management_tools import get_memory_tools
-    from src.agents.prompt_loader import get_prompt_loader
-    AGENTSCOPE_AVAILABLE = True
-except ImportError as e:
-    AGENTSCOPE_AVAILABLE = False
-    print(f"⚠️ AgentScope模块未安装: {e}")
+
+from src.graph.state import create_message
+from src.llm.agentscope_models import get_model, ModelProvider
+from src.tools.memory_management_tools import get_memory_tools
+from src.agents.prompt_loader import PromptLoader
 
 logger = logging.getLogger(__name__)
 
@@ -135,12 +130,6 @@ class AgentSelfReflectionSystem:
         # 初始化日志记录器
         self.logger_system = MemoryOperationLogger(base_dir)
         
-        # 检查AgentScope是否可用
-        if not AGENTSCOPE_AVAILABLE:
-            logger.warning(f"{agent_role} 自我复盘系统初始化失败：AgentScope不可用")
-            self.llm_available = False
-            return
-        
         # 初始化LLM（使用与记忆管理相同的配置）
         try:
             model_name = os.getenv('MEMORY_LLM_MODEL', 'gpt-4o-mini')
@@ -171,7 +160,7 @@ class AgentSelfReflectionSystem:
             self.available_memory_tools = self._build_tool_descriptions()
             
             # 初始化 prompt loader
-            self.prompt_loader = get_prompt_loader()
+            self.prompt_loader = PromptLoader()
             
             self.llm_available = True
             print(f"✅ {agent_role} 自我复盘系统已初始化（LLM 智能工具选择模式）")

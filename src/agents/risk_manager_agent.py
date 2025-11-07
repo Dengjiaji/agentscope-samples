@@ -1,21 +1,24 @@
 """
 Risk Manager Agent - 风险管理 Agent
-提供统一的风险评估和仓位管理接口
+提供统一的风险评估和仓位管理接口（基于AgentScope）
 """
 from typing import Dict, Any, Optional, Literal
 import json
 import numpy as np
 import pandas as pd
 
-from .base_agent import BaseAgent
-from ..graph.state import AgentState, show_agent_reasoning, create_message
+from agentscope.agent import AgentBase
+from agentscope.message import Msg
+from .prompt_loader import PromptLoader
+
+from ..graph.state import AgentState, show_agent_reasoning
 from ..utils.progress import progress
 from ..utils.api_key import get_api_key_from_state
 from ..tools.api import get_prices, prices_to_df, get_last_tradeday
 import pdb
 
-class RiskManagerAgent(BaseAgent):
-    """风险管理 Agent"""
+class RiskManagerAgent(AgentBase):
+    """风险管理 Agent（基于AgentScope）"""
     
     def __init__(self, 
                  agent_id: str = "risk_manager",
@@ -38,8 +41,19 @@ class RiskManagerAgent(BaseAgent):
             >>> # Portfolio 仓位管理
             >>> agent = RiskManagerAgent(mode="portfolio")
         """
-        super().__init__(agent_id, "risk_manager", config)
+        # 初始化AgentBase（不接受参数）
+        super().__init__()
+        
+        # 设置name属性
+        self.name = agent_id
+        self.agent_id = agent_id  # 保留agent_id属性以兼容现有代码
+        self.agent_type = "risk_manager"
+        
         self.mode = mode
+        self.config = config or {}
+        
+        # Prompt loader
+        self.prompt_loader = PromptLoader()
         
         # 加载配置
         if mode == "basic":
@@ -50,7 +64,7 @@ class RiskManagerAgent(BaseAgent):
     def _load_or_default_risk_config(self) -> Dict[str, Any]:
         """加载风险等级配置"""
         try:
-            return self.load_config("risk_levels")
+            return self.prompt_loader.load_yaml_config(self.agent_type, "risk_levels")
         except FileNotFoundError:
             # 返回默认配置
             return self._get_default_risk_config()
@@ -58,7 +72,7 @@ class RiskManagerAgent(BaseAgent):
     def _load_or_default_position_config(self) -> Dict[str, Any]:
         """加载仓位限制配置"""
         try:
-            return self.load_config("position_limits")
+            return self.prompt_loader.load_yaml_config(self.agent_type, "position_limits")
         except FileNotFoundError:
             return self._get_default_position_config()
     
@@ -165,9 +179,9 @@ class RiskManagerAgent(BaseAgent):
                 tickers, volatility_data, current_prices, state
             )
         
-        # 创建消息（使用 AgentScope 格式）
-        message = create_message(
-            name=self.agent_id,
+        # 创建消息（使用 AgentScope Msg 格式）
+        message = Msg(
+            name=self.name,
             content=json.dumps(risk_analysis),
             role="assistant",
             metadata={}
@@ -184,7 +198,7 @@ class RiskManagerAgent(BaseAgent):
         progress.update_status(self.agent_id, None, "完成")
         
         return {
-            "messages": state["messages"] + [message],
+            "messages": [message.to_dict()],  # 转换为dict
             "data": data,
         }
     
@@ -370,22 +384,6 @@ class RiskManagerAgent(BaseAgent):
             base_score = min(base_score + 10, 100)
         
         return risk_level, max(0, min(100, base_score)), assessment
-    
-    # def _calculate_volatility_adjusted_limit(self, annualized_volatility: float) -> float:
-    #     """计算波动率调整后的仓位限制百分比"""
-    #     base_limit = 0.20  # 20%基准
-        
-    #     if annualized_volatility < 0.15:
-    #         vol_multiplier = 1.25  # 最多25%
-    #     elif annualized_volatility < 0.30:
-    #         vol_multiplier = 1.0 - (annualized_volatility - 0.15) * 0.5
-    #     elif annualized_volatility < 0.50:
-    #         vol_multiplier = 0.75 - (annualized_volatility - 0.30) * 0.5
-    #     else:
-    #         vol_multiplier = 0.50  # 最多10%
-        
-    #     vol_multiplier = max(0.25, min(1.25, vol_multiplier))
-    #     return base_limit * vol_multiplier
 
     def _calculate_volatility_adjusted_limit(self, annualized_volatility: float) -> float:
         """计算波动率调整后的仓位限制百分比"""

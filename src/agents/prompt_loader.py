@@ -71,8 +71,7 @@ class PromptLoader:
             rendered = prompt_template
         
         # 智能转义：转义 JSON 代码块中的大括号
-        rendered = self._escape_json_braces(rendered)
-        
+        # rendered = self._escape_json_braces(rendered)
         return rendered
     
     def _render_template(self, template: str, variables: Dict[str, Any]) -> str:
@@ -163,45 +162,3 @@ class PromptLoader:
         cache_key = f"{agent_type}/{config_name}"
         if cache_key in self._yaml_cache:
             del self._yaml_cache[cache_key]
-
-
-# 全局单例
-_default_loader: Optional[PromptLoader] = None
-
-
-def get_prompt_loader() -> PromptLoader:
-    """获取默认的 Prompt 加载器实例"""
-    global _default_loader
-    if _default_loader is None:
-        _default_loader = PromptLoader()
-    return _default_loader
-
-
-def load_prompt(agent_type: str, prompt_name: str, 
-               variables: Optional[Dict[str, Any]] = None) -> str:
-    """
-    便捷函数：加载 Prompt
-    
-    Args:
-        agent_type: Agent 类型
-        prompt_name: Prompt 文件名（不含扩展名）
-        variables: 用于渲染的变量字典
-    
-    Returns:
-        渲染后的 prompt 字符串
-    """
-    return get_prompt_loader().load_prompt(agent_type, prompt_name, variables)
-
-
-def load_yaml_config(agent_type: str, config_name: str) -> Dict[str, Any]:
-    """
-    便捷函数：加载 YAML 配置
-    
-    Args:
-        agent_type: Agent 类型
-        config_name: 配置文件名（不含扩展名）
-    
-    Returns:
-        配置字典
-    """
-    return get_prompt_loader().load_yaml_config(agent_type, config_name)

@@ -10,13 +10,13 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional
 from pydantic import BaseModel, Field
 
-from src.agents.agentscope_prompts import ChatPromptTemplate
 from src.llm.agentscope_models import get_model as get_agentscope_model
 from src.utils.api_key import get_api_key_from_state
 from src.utils.json_utils import quiet_json_dumps
 from src.memory import unified_memory_manager as memory_manager
 from src.memory import unified_memory_manager
-import pdb
+from src.agents.prompt_loader import PromptLoader
+
 class PrivateChatMessage(BaseModel):
     """私聊消息模型"""
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -101,6 +101,7 @@ class CommunicationManager:
     
     def __init__(self):
         self.private_chat_system = PrivateChatSystem()
+        self.prompt_loader = PromptLoader()
         
     def _get_max_chars(self, state) -> int:
         """获取沟通文本最大字数，默认400，可通过state.metadata.communication_max_chars覆盖"""
@@ -176,43 +177,6 @@ class CommunicationManager:
                                     state) -> CommunicationDecision:
         """决定交流策略"""
         
-        # 构建决策提示
-        # TODO: 所有使用到ChatPromptTemplate的地方都改成agentscope中的formatter逻辑
-        #         prompt = await self.formatter.format(
-        #             msgs=[
-        #                 Msg("system", self.sys_prompt, "system"),
-        #                 *await self.memory.get_memory(),
-        #             ],
-        #         )
-        prompt_template = ChatPromptTemplate.from_messages([
-            ("system", """You are a portfolio manager responsible for coordinating the analyst team.
-        Based on current analysis results, you need to decide whether further communication with analysts is needed.
-
-        There are two communication methods:
-        1. private_chat: One-on-one private chat with individual analyst, suitable for in-depth discussion of specific issues
-        2. meeting: Organize multiple analysts for group discussion, suitable for collective decision-making or major disagreements
-
-        Must return decision in JSON format, do not include any other text. Please keep any text content within {max_chars} characters."""),
-            
-            ("human", """Analyst Signal Summary:
-        {analyst_signals}
-
-        Please decide whether communication is needed and explain the reason. If communication is needed, please specify:
-        - Communication type (private_chat or meeting)
-        - Target analyst list (for private_chat: only one analyst, for meeting: multiple analysts)
-        - Discussion topic
-        - Selection reason
-
-        Return JSON format:
-        {{
-        "should_communicate": true/false,
-        "communication_type": "private_chat" or "meeting",
-        "target_analysts": ["analyst1"] (for private_chat) or ["analyst1", "analyst2"] (for meeting),
-        "discussion_topic": "discussion topic",
-        "reasoning": "selection reason"
-        }}""")
-        ])
-        
         # 格式化分析师信号
         signals_summary = {}
         for analyst_id, signal_data in analyst_signals.items():
@@ -221,11 +185,19 @@ class CommunicationManager:
             else:
                 signals_summary[analyst_id] = signal_data
         
-        # 调用LLM
-        messages = prompt_template.format_messages(
-            analyst_signals=quiet_json_dumps(signals_summary, ensure_ascii=False, indent=2),
-            max_chars=self._get_max_chars(state)
-        )
+        # 加载 prompt
+        prompt_data = {
+            "analyst_signals": quiet_json_dumps(signals_summary, ensure_ascii=False, indent=2),
+            "max_chars": self._get_max_chars(state)
+        }
+        
+        system_prompt = self.prompt_loader.load_prompt("communication", "decide_strategy_system", variables=prompt_data)
+        human_prompt = self.prompt_loader.load_prompt("communication", "decide_strategy_human", variables=prompt_data)
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": human_prompt}
+        ]
         
         # 获取LLM模型（启用JSON模式）
         llm = self._get_llm_model(state, use_json_mode=True)
@@ -811,63 +783,22 @@ class CommunicationManager:
                         )
         
         # ========== 第二阶段：基于检索到的记忆生成回应 ⭐⭐⭐ ==========
-        prompt_template = ChatPromptTemplate.from_messages([
-    ("system", """You are {analyst_id} analyst. You are having a one-on-one discussion with the portfolio manager.
-
-Your relevant memories and past experiences (retrieved based on this conversation topic):
-{relevant_memories}
-
-Based on your relevant memories, conversation history and current analysis signal, please:
-1. Respond to the manager's questions or viewpoints
-2. Explain your analysis logic (you can reference your previous analysis process)
-3. If necessary, adjust your signal, confidence level or reasoning based on new information
-
-Current signal for the topic:
-{current_signal}
-
-If you need to adjust the signal, please clearly state the adjustment content and reason in your response.
-
-Please must return your response in JSON format, strictly following the JSON structure below, do not include any other text:
-
-Important: ticker_signals must be an object array, not a string array!
-
-{{
-  "response": "your response content",
-  "signal_adjustment": true/false,
-  "adjusted_signal": {{
-    "analyst_id": "{analyst_id}",
-    "analyst_name": "your analyst name",
-    "ticker_signals": [
-      {{"ticker": "AAPL", "signal": "bearish", "confidence": 85, "reasoning": "adjustment reason"}},
-      {{"ticker": "MSFT", "signal": "neutral", "confidence": 70, "reasoning": "adjustment reason"}}
-    ]
-  }}
-}}
-
-Prohibited incorrect format:
-{{"ticker_signals": ["ticker_signals: [...]"]}}
-
-Must use correct format:
-{{"ticker_signals": [{{"ticker": "AAPL", "signal": "bearish", "confidence": 85}}]}}
-
-Note: Please keep the "response" field text content within {max_chars} characters."""),
-    
-    ("human", """Conversation topic: {topic}
-
-Current conversation history:
-{conversation_history}
-
-Please respond to the latest conversation content based on your complete memory and analysis history.""")
-])
+        prompt_data = {
+            "analyst_id": analyst_id,
+            "relevant_memories": relevant_memories if relevant_memories else "No relevant past memories found for this topic.",
+            "current_signal": quiet_json_dumps(current_signal, ensure_ascii=False),
+            "topic": topic,
+            "conversation_history": self._format_conversation_history(conversation_history),
+            "max_chars": self._get_max_chars(state)
+        }
         
-        messages = prompt_template.format_messages(
-            analyst_id=analyst_id,
-            relevant_memories=relevant_memories if relevant_memories else "No relevant past memories found for this topic.",
-            current_signal=quiet_json_dumps(current_signal, ensure_ascii=False),
-            topic=topic,
-            conversation_history=self._format_conversation_history(conversation_history),
-            max_chars=self._get_max_chars(state)
-        )
+        system_prompt = self.prompt_loader.load_prompt("communication", "analyst_chat_system", variables=prompt_data)
+        human_prompt = self.prompt_loader.load_prompt("communication", "analyst_chat_human", variables=prompt_data)
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": human_prompt}
+        ]
         
         # 获取LLM模型（启用JSON模式）
         llm = self._get_llm_model(state, use_json_mode=True)
@@ -1011,25 +942,19 @@ Please respond to the latest conversation content based on your complete memory 
                                  state) -> str:
         """获取管理者在私聊中的回应"""
         
-        prompt_template = ChatPromptTemplate.from_messages([
-    ("system", """You are a portfolio manager having a one-on-one discussion with an analyst.
-Based on the analyst's response, continue the conversation, ask questions or give suggestions.
-Maintain a professional and constructive conversation style. Please keep your response within {max_chars} characters."""),
-    
-    ("human", """Conversation history:
-{conversation_history}
-
-Analyst's current signal:
-{current_signal}
-
-Please respond to the analyst's latest statement.""")
-])
+        prompt_data = {
+            "conversation_history": self._format_conversation_history(conversation_history),
+            "current_signal": quiet_json_dumps(current_signal, ensure_ascii=False),
+            "max_chars": self._get_max_chars(state)
+        }
         
-        messages = prompt_template.format_messages(
-            conversation_history=self._format_conversation_history(conversation_history),
-            current_signal=quiet_json_dumps(current_signal, ensure_ascii=False),
-            max_chars=self._get_max_chars(state)
-        )
+        system_prompt = self.prompt_loader.load_prompt("communication", "manager_chat_system", variables=prompt_data)
+        human_prompt = self.prompt_loader.load_prompt("communication", "manager_chat_human", variables=prompt_data)
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": human_prompt}
+        ]
         
         # 获取LLM模型
         llm = self._get_llm_model(state)
@@ -1112,72 +1037,24 @@ Please respond to the analyst's latest statement.""")
                         )
         
         # ========== 第二阶段：基于检索到的记忆生成发言 ⭐⭐⭐ ==========
-        prompt_template = ChatPromptTemplate.from_messages([
-    ("system", """You are {analyst_id} analyst participating in an investment meeting.
-
-Your relevant memories and past experiences (retrieved based on this meeting topic):
-{relevant_memories}
-
-Your current analysis signal:
-{current_signal}
-
-Please must return your response in JSON format, strictly following the JSON structure below, do not include any other text:
-
-Important: ticker_signals must be an object array, not a string array!
-
-{{
-  "response": "your speech content",
-  "signal_adjustment": true/false,
-  "adjusted_signal": {{
-    "analyst_id": "{analyst_id}",
-    "analyst_name": "your analyst name",
-    "ticker_signals": [
-      {{"ticker": "AAPL", "signal": "bearish", "confidence": 85, "reasoning": "adjustment reason"}},
-      {{"ticker": "MSFT", "signal": "neutral", "confidence": 70, "reasoning": "adjustment reason"}}
-    ]
-  }}
-}}
-
-Prohibited incorrect format:
-{{"ticker_signals": ["ticker_signals: [...]"]}}
-
-Must use correct format:
-{{"ticker_signals": [{{"ticker": "AAPL", "signal": "bearish", "confidence": 85}}]}}
-
-Note: Please keep the "response" field text content within {max_chars} characters."""),
-    
-    ("human", """Meeting topic: {topic}
-
-This is round {round_num} of speeches.
-
-Meeting transcript (Important! Please read carefully and respond):
-{meeting_transcript}
-
-Other analysts' signals:
-{other_signals}
-
-Speech requirements:
-1. If this is round 1: Share your viewpoints and analysis basis
-2. If this is round 2 or more:
-   - Must explicitly respond to specific viewpoints from other analysts in previous rounds
-   - State whether you agree or disagree with their analysis, and give reasons
-   - Consider whether to adjust your signal based on discussion content
-   - Avoid repeating round 1 speech content
-
-Please speak based on meeting transcript and discussion content, showing genuine interaction and critical thinking process.""")
-])
+        prompt_data = {
+            "analyst_id": analyst_id,
+            "relevant_memories": relevant_memories if relevant_memories else "No relevant past memories found for this topic.",
+            "round_num": round_num,
+            "current_signal": quiet_json_dumps(current_signal, ensure_ascii=False),
+            "topic": topic,
+            "meeting_transcript": self._format_meeting_transcript(meeting_transcript),
+            "other_signals": quiet_json_dumps({k: v for k, v in all_signals.items() if k != analyst_id}, ensure_ascii=False, indent=2),
+            "max_chars": self._get_max_chars(state)
+        }
         
-        messages = prompt_template.format_messages(
-            analyst_id=analyst_id,
-            relevant_memories=relevant_memories if relevant_memories else "No relevant past memories found for this topic.",
-            round_num=round_num,
-            current_signal=quiet_json_dumps(current_signal, ensure_ascii=False),
-            topic=topic,
-            meeting_transcript=self._format_meeting_transcript(meeting_transcript),
-            other_signals=quiet_json_dumps({k: v for k, v in all_signals.items() if k != analyst_id}, ensure_ascii=False, indent=2),
-            max_chars=self._get_max_chars(state)
-        )
-        # pdb.set_trace()
+        system_prompt = self.prompt_loader.load_prompt("communication", "analyst_meeting_system", variables=prompt_data)
+        human_prompt = self.prompt_loader.load_prompt("communication", "analyst_meeting_human", variables=prompt_data)
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": human_prompt}
+        ]
         # 获取LLM模型（启用JSON模式）
         llm = self._get_llm_model(state, use_json_mode=True)
         
@@ -1215,24 +1092,19 @@ Please speak based on meeting transcript and discussion content, showing genuine
                                    state) -> str:
         """获取管理者的会议总结"""
         
-        prompt_template = ChatPromptTemplate.from_messages([
-            ("system", """You are a portfolio manager summarizing meeting content.
-        Please concisely summarize discussion points and final consensus reached. Please keep the summary within {max_chars} characters."""),
-            
-            ("human", """Meeting transcript:
-        {meeting_transcript}
-
-        Final signals:
-        {final_signals}
-
-        Please summarize this meeting.""")
-        ])
+        prompt_data = {
+            "meeting_transcript": self._format_meeting_transcript(meeting_transcript),
+            "final_signals": quiet_json_dumps(final_signals, ensure_ascii=False, indent=2),
+            "max_chars": self._get_max_chars(state)
+        }
         
-        messages = prompt_template.format_messages(
-            meeting_transcript=self._format_meeting_transcript(meeting_transcript),
-            final_signals=quiet_json_dumps(final_signals, ensure_ascii=False, indent=2),
-            max_chars=self._get_max_chars(state)
-        )
+        system_prompt = self.prompt_loader.load_prompt("communication", "manager_summary_system", variables=prompt_data)
+        human_prompt = self.prompt_loader.load_prompt("communication", "manager_summary_human", variables=prompt_data)
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": human_prompt}
+        ]
         
         # 获取LLM模型
         llm = self._get_llm_model(state)
@@ -1272,36 +1144,20 @@ Please speak based on meeting transcript and discussion content, showing genuine
         Returns:
             记忆查询query字符串
         """
-        prompt_template = ChatPromptTemplate.from_messages([
-            ("system", """You are {analyst_id} analyst. You are about to respond in a private chat with the portfolio manager.
-
-Before responding, you need to search your past analysis experiences and memories to inform your response.
-
-Please generate a concise search query (in Chinese or English, 1-2 sentences) to retrieve relevant memories from your past experiences.
-
-The query should focus on:
-1. The specific stocks being discussed: {tickers}
-2. The conversation topic: {topic}
-3. Key themes from recent conversation
-4. Similar analysis scenarios or lessons learned
-
-Return ONLY the search query text, no explanations or extra formatting."""),
-            
-            ("human", """Conversation topic: {topic}
-Stocks: {tickers}
-
-Recent conversation:
-{conversation_history}
-
-Generate a focused search query to retrieve relevant past memories and experiences.""")
-        ])
+        prompt_data = {
+            "analyst_id": analyst_id,
+            "topic": topic,
+            "tickers": ", ".join(tickers),
+            "conversation_history": self._format_conversation_history(conversation_history[-3:]) if conversation_history else "No previous conversation"
+        }
         
-        messages = prompt_template.format_messages(
-            analyst_id=analyst_id,
-            topic=topic,
-            tickers=", ".join(tickers),
-            conversation_history=self._format_conversation_history(conversation_history[-3:]) if conversation_history else "No previous conversation"
-        )
+        system_prompt = self.prompt_loader.load_prompt("communication", "memory_query_chat_system", variables=prompt_data)
+        human_prompt = self.prompt_loader.load_prompt("communication", "memory_query_chat_human", variables=prompt_data)
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": human_prompt}
+        ]
         
         try:
             llm = self._get_llm_model(state)
@@ -1330,36 +1186,20 @@ Generate a focused search query to retrieve relevant past memories and experienc
         Returns:
             记忆查询query字符串
         """
-        prompt_template = ChatPromptTemplate.from_messages([
-            ("system", """You are {analyst_id} analyst. You are about to speak in an investment meeting.
-
-Before speaking, you need to search your past analysis experiences and memories to inform your contribution.
-
-Please generate a concise search query (in Chinese or English, 1-2 sentences) to retrieve relevant memories from your past experiences.
-
-The query should focus on:
-1. The specific stocks being discussed: {tickers}
-2. The meeting topic: {topic}
-3. Key themes from meeting discussion so far
-4. Similar analysis scenarios or lessons learned
-
-Return ONLY the search query text, no explanations or extra formatting."""),
-            
-            ("human", """Meeting topic: {topic}
-Stocks: {tickers}
-
-Recent meeting discussion:
-{meeting_transcript}
-
-Generate a focused search query to retrieve relevant past memories and experiences.""")
-        ])
+        prompt_data = {
+            "analyst_id": analyst_id,
+            "topic": topic,
+            "tickers": ", ".join(tickers),
+            "meeting_transcript": self._format_meeting_transcript(meeting_transcript[-5:]) if meeting_transcript else "Meeting just started"
+        }
         
-        messages = prompt_template.format_messages(
-            analyst_id=analyst_id,
-            topic=topic,
-            tickers=", ".join(tickers),
-            meeting_transcript=self._format_meeting_transcript(meeting_transcript[-5:]) if meeting_transcript else "Meeting just started"
-        )
+        system_prompt = self.prompt_loader.load_prompt("communication", "memory_query_meeting_system", variables=prompt_data)
+        human_prompt = self.prompt_loader.load_prompt("communication", "memory_query_meeting_human", variables=prompt_data)
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": human_prompt}
+        ]
         
         try:
             llm = self._get_llm_model(state)

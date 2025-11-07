@@ -359,39 +359,66 @@ export default function GlobalStyles() {
         gap: 16px;
         padding: 12px 20px;
         border-bottom: 1px solid #e0e0e0;
-        background: #fafafa;
+        background: #ffffff;
         flex-wrap: wrap;
       }
       
       .agent-indicator {
         display: flex;
+        flex-direction: column;
         align-items: center;
         gap: 6px;
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.5px;
-        color: #666666;
         transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
       }
       
       .agent-indicator.speaking {
-        color: #000000;
         transform: scale(1.05);
       }
       
+      .agent-avatar-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .agent-avatar {
+        height: 48px;
+        width: auto;
+        object-fit: contain;
+        display: block;
+      }
+      
       .agent-indicator-dot {
-        width: 8px;
-        height: 8px;
+        position: absolute;
+        bottom: -2px;
+        right: -2px;
+        width: 10px;
+        height: 10px;
         border-radius: 50%;
         background: #e0e0e0;
+        border: 2px solid #ffffff;
         transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
       }
       
       .agent-indicator.speaking .agent-indicator-dot {
         background: #00C853;
         box-shadow: 0 0 12px rgba(0, 200, 83, 0.8);
-        transform: scale(1.3);
+        transform: scale(1.2);
         animation: pulse 1.5s ease-in-out infinite;
+      }
+      
+      .agent-name {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        color: #666666;
+        text-align: center;
+        transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      
+      .agent-indicator.speaking .agent-name {
+        color: #000000;
       }
       
       @keyframes pulse {
@@ -695,6 +722,7 @@ export default function GlobalStyles() {
         color: #333333;
         word-wrap: break-word;
         font-family: 'Courier New', monospace;
+        white-space: pre-wrap;
       }
       
       /* Conference Messages */
@@ -732,6 +760,7 @@ export default function GlobalStyles() {
         color: #333333;
         flex: 1;
         min-width: 0;
+        white-space: pre-wrap;
       }
       
       .conf-expand-btn {

@@ -40,36 +40,42 @@ export const AGENTS = [
     id: "Portfolio Manager",
     name: "Portfolio Manager",
     role: "Portfolio Manager",
+    avatar: `${ASSET_BASE_URL}/agent_1.png`,
     colors: { bg: '#F9FDFF', text: '#1565C0', accent: '#1565C0' }
   },
   { 
     id: "Risk Manager",
     name: "Risk Manager",
     role: "Risk Manager",
+    avatar: `${ASSET_BASE_URL}/agent_2.png`,
     colors: { bg: '#FFF8F8', text: '#C62828', accent: '#C62828' }
   },
   { 
     id: "Valuation Analyst",
     name: "Valuation Analyst",
     role: "Valuation Analyst",
+    avatar: `${ASSET_BASE_URL}/agent_3.png`,
     colors: { bg: '#FAFFFA', text: '#2E7D32', accent: '#2E7D32' }
   },
   { 
     id: "Sentiment Analyst",
     name: "Sentiment Analyst",
     role: "Sentiment Analyst",
+    avatar: `${ASSET_BASE_URL}/agent_4.png`,
     colors: { bg: '#FCFAFF', text: '#6A1B9A', accent: '#6A1B9A' }
   },
   { 
     id: "Fundamentals Analyst",
     name: "Fundamentals Analyst",
     role: "Fundamentals Analyst",
+    avatar: `${ASSET_BASE_URL}/agent_5.png`,
     colors: { bg: '#FFFCF7', text: '#E65100', accent: '#E65100' }
   },
   { 
     id: "Technical Analyst",
     name: "Technical Analyst",
     role: "Technical Analyst",
+    avatar: `${ASSET_BASE_URL}/agent_6.png`,
     colors: { bg: '#F9FEFF', text: '#00838F', accent: '#00838F' }
   },
 ];
