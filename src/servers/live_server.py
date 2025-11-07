@@ -510,6 +510,38 @@ class LiveTradingServer:
         
         loop = asyncio.get_event_loop()
         
+        # ========== 立即启动价格管理器 ==========
+        logger.info("===== [实时价格] 启动价格监控 =====")
+        
+        # 订阅实时价格（如果使用Mock模式，可能需要传入基准价格）
+        if self.mock_mode:
+            # Mock模式：使用当前portfolio的持仓价格作为基准
+            base_prices = {}
+            holdings = self.state_manager.get('holdings', [])
+            for holding in holdings:
+                ticker = holding.get('ticker')
+                avg_price = holding.get('avg', 100.0)  # 默认100
+                base_prices[ticker] = avg_price
+            
+            # 如果没有历史持仓，使用默认基准价格
+            if not base_prices:
+                for ticker in self.config.tickers:
+                    base_prices[ticker] = 100.0
+            
+            self.price_manager.subscribe(self.config.tickers, base_prices=base_prices)
+            logger.info(f"🎭 Mock模式: 已订阅 {len(self.config.tickers)} 个股票，使用虚拟价格")
+        else:
+            self.price_manager.subscribe(self.config.tickers)
+            logger.info(f"📊 实时模式: 已订阅 {len(self.config.tickers)} 个股票，使用Finnhub API")
+        
+        self.price_manager.start()
+        logger.info(f"✅ 价格管理器已启动，实时更新频率: {'每5秒 (Mock)' if self.mock_mode else '每10秒 (Finnhub)'}")
+        
+        await self.broadcast({
+            'type': 'system',
+            'content': f'✅ 股票价格板已启动，开始实时更新 ({len(self.config.tickers)} 个股票)'
+        })
+        
         # 创建广播streamer
         broadcast_streamer = BroadcastStreamer(
             broadcast_callback=self.broadcast,
@@ -674,6 +706,12 @@ class LiveTradingServer:
                 enable_notifications=not self.config.disable_notifications
             )
             
+            # 检查返回值类型
+            if not isinstance(result, dict):
+                logger.error(f"❌ 分析返回类型错误: 期望dict，实际{type(result).__name__}")
+                logger.error(f"   返回值: {result}")
+                result = None
+            
             if result and result.get('pre_market'):
                 signals = result['pre_market'].get('signals', {})
                 self.state_manager.update('latest_signals', signals)
@@ -682,35 +720,33 @@ class LiveTradingServer:
                     'type': 'system',
                     'content': f'今日交易决策完成，生成 {len(signals)} 个股票信号'
                 })
+                logger.info(f"✅ 今日分析完成，生成 {len(signals)} 个信号")
+            else:
+                logger.warning("⚠️ 今日分析未返回有效信号（可能是分析失败或返回格式问题）")
+                await self.broadcast({
+                    'type': 'system',
+                    'content': '⚠️ 今日分析未能生成有效信号，将继续价格监控'
+                })
+                
         except Exception as e:
-            logger.error(f"❌ 今日分析失败: {e}")
+            logger.error(f"❌ 今日分析失败: {e}", exc_info=True)
+            import traceback
+            logger.error(f"详细堆栈:\n{traceback.format_exc()}")
+            
+            await self.broadcast({
+                'type': 'system',
+                'content': f'❌ 今日分析失败: {str(e)}，但价格监控将继续运行'
+            })
         
-        # ========== 阶段3: 实时价格监控 ==========
-        logger.info("===== [实时监控] 启动价格更新 =====")
+        # ========== 阶段3: 进入持续监控状态 ==========
+        logger.info("===== [持续监控] 分析完成，继续价格监控 =====")
         self.current_phase = "live_monitoring"
         self.state_manager.update('status', 'live_monitoring')
         
         await self.broadcast({
             'type': 'system',
-            'content': '开始实时价格监控，高频更新净值曲线和持仓盈亏'
+            'content': '分析完成，价格监控持续运行中...'
         })
-        
-        # 订阅实时价格（如果使用Mock模式，可能需要传入基准价格）
-        if self.mock_mode:
-            # Mock模式：使用当前portfolio的持仓价格作为基准
-            base_prices = {}
-            holdings = self.state_manager.get('holdings', [])
-            for holding in holdings:
-                ticker = holding.get('ticker')
-                avg_price = holding.get('avg', 100.0)  # 默认100
-                base_prices[ticker] = avg_price
-            
-            self.price_manager.subscribe(self.config.tickers, base_prices=base_prices)
-        else:
-            self.price_manager.subscribe(self.config.tickers)
-        
-        self.price_manager.start()
-        logger.info(f"✅ 已订阅实时价格: {self.config.tickers}")
         
         # 检查是否需要等待收盘
         if not self.mock_mode:
