@@ -9,7 +9,6 @@ import pdb
 from .base_agent import BaseAgent
 from ..graph.state import AgentState, show_agent_reasoning, create_message
 from ..utils.progress import progress
-from ..agents.agentscope_prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 from typing_extensions import Literal as LiteralType
 from ..utils.llm import call_llm
@@ -196,17 +195,15 @@ class PortfolioManagerAgent(BaseAgent):
 
         # 加载 prompt
         try:
-            system_prompt = self.load_prompt("direction_decision_system", {})
-            human_prompt = self.load_prompt("direction_decision_human", {})
-            template = ChatPromptTemplate.from_messages([
-                ("system", system_prompt),
-                ("human", human_prompt)
-            ])
+            system_prompt = self.load_prompt("direction_decision_system", variables=prompt_data)
+            human_prompt = self.load_prompt("direction_decision_human", variables=prompt_data)
+            prompt = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": human_prompt}
+            ]
         except FileNotFoundError:
             raise "Failed to load prompts. please check prompt file path for : direction_decision_human"
 
-        
-        prompt = template.invoke(prompt_data)
         # 创建默认工厂
         def create_default_output():
             return PortfolioManagerOutput(
@@ -254,13 +251,7 @@ class PortfolioManagerAgent(BaseAgent):
             else:
                 max_shares[ticker] = 0
         
-        # 加载 prompt
-        system_prompt = self.load_prompt("portfolio_decision_system", {})
-        human_prompt = self.load_prompt("portfolio_decision_human", {})
-        template = ChatPromptTemplate.from_messages([
-            ("system", system_prompt),
-            ("human", human_prompt)
-        ])
+
     
         
         # 获取分析师权重
@@ -280,8 +271,15 @@ class PortfolioManagerAgent(BaseAgent):
             # "analyst_weights_separator": "\n" if analyst_weights_info else "",
             "relevant_past_experiences": formatted_memories,  # 注入历史经验
         }
-        
-        prompt = template.invoke(prompt_data)
+
+
+        # 加载 prompt
+        system_prompt = self.load_prompt("portfolio_decision_system", variables=prompt_data)
+        human_prompt = self.load_prompt("portfolio_decision_human", variables=prompt_data)
+        prompt = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": human_prompt}
+        ]
         # pdb.set_trace()
 
         # 创建默认工厂
