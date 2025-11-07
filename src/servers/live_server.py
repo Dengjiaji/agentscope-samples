@@ -52,10 +52,11 @@ logger = logging.getLogger(__name__)
 class LiveTradingServer:
     """在线交易服务器"""
     
-    def __init__(self, config: LiveThinkingFundConfig, mock_mode: bool = False, lookback_days: int = 7):
+    def __init__(self, config: LiveThinkingFundConfig, mock_mode: bool = False, lookback_days: int = 0, pause_before_trade: bool = False):
         self.config = config
         self.mock_mode = mock_mode
         self.lookback_days = lookback_days
+        self.pause_before_trade = pause_before_trade
         self.connected_clients: Set[WebSocketServerProtocol] = set()
         self.lock = asyncio.Lock()
         self.loop = None
@@ -332,12 +333,44 @@ class LiveTradingServer:
                 })
                 logger.info(f"✅ 广播 team_leaderboard: {len(data)} 个 Agent (从文件)")
     
+    def _is_trading_day(self, date_str: str = None) -> bool:
+        """
+        检查指定日期是否为交易日
+        
+        Args:
+            date_str: 日期字符串 (YYYY-MM-DD)，默认为今天
+        
+        Returns:
+            是否为交易日
+        """
+        if not CALENDAR_AVAILABLE or not _NYSE_CALENDAR:
+            # 如果没有日历，简单判断（周一到周五）
+            target_date = datetime.strptime(date_str, "%Y-%m-%d") if date_str else datetime.now()
+            return target_date.weekday() < 5  # 0-4 是周一到周五
+        
+        try:
+            target_date = date_str if date_str else datetime.now().strftime("%Y-%m-%d")
+            schedule = _NYSE_CALENDAR.schedule(start_date=target_date, end_date=target_date)
+            return not schedule.empty
+        except Exception as e:
+            logger.warning(f"检查交易日失败: {e}")
+            # 默认认为是交易日
+            return True
+    
     def _is_trading_hours(self) -> bool:
-        """检查当前是否为交易时段（美东时间9:30-16:00）"""
+        """
+        检查当前是否为交易时段（美东时间9:30-16:00）
+        
+        Returns:
+            是否在交易时段
+        """
         if not CALENDAR_AVAILABLE or not _NYSE_CALENDAR:
             # 如果没有日历，简单判断
             now = datetime.now()
-            # 这里应该转换为美东时间，简化处理
+            # 注意：这里假设本地时间接近美东时间，实际应该转换时区
+            # 简化处理：周一到周五的9:30-16:00
+            if now.weekday() >= 5:  # 周末
+                return False
             return datetime_time(9, 30) <= now.time() <= datetime_time(16, 0)
         
         try:
@@ -355,6 +388,33 @@ class LiveTradingServer:
         except Exception as e:
             logger.warning(f"检查交易时段失败: {e}")
             return False
+    
+    def _get_market_close_time(self) -> Optional[datetime]:
+        """
+        获取今天的收盘时间
+        
+        Returns:
+            收盘时间（datetime对象），如果不是交易日返回None
+        """
+        if not CALENDAR_AVAILABLE or not _NYSE_CALENDAR:
+            # 简化处理：假设收盘时间为16:00
+            now = datetime.now()
+            if now.weekday() >= 5:
+                return None
+            return datetime.combine(now.date(), datetime_time(16, 0))
+        
+        try:
+            today = datetime.now().strftime("%Y-%m-%d")
+            schedule = _NYSE_CALENDAR.schedule(start_date=today, end_date=today)
+            
+            if schedule.empty:
+                return None
+            
+            market_close = schedule.iloc[0]['market_close'].to_pydatetime()
+            return market_close
+        except Exception as e:
+            logger.warning(f"获取收盘时间失败: {e}")
+            return None
     
     async def handle_client(self, websocket: WebSocketServerProtocol):
         """处理客户端连接"""
@@ -463,108 +523,124 @@ class LiveTradingServer:
             streamer=broadcast_streamer,
             mode=self.config.mode,
             initial_cash=self.config.initial_cash,
-            margin_requirement=self.config.margin_requirement
+            margin_requirement=self.config.margin_requirement,
+            pause_before_trade=self.pause_before_trade
         )
         
-        # ========== 阶段1: 回测历史n天 ==========
         today = datetime.now().strftime("%Y-%m-%d")
-        start_date = (datetime.now() - timedelta(days=self.lookback_days)).strftime("%Y-%m-%d")
         
-        trading_days = self.thinking_fund.generate_trading_dates(start_date, today)
-        
-        # 区分历史日期和今天
-        historical_days = [d for d in trading_days if d < today]
-        
-        logger.info(f"📅 阶段1: 回测历史 {len(historical_days)} 个交易日: {start_date} -> {historical_days[-1] if historical_days else 'N/A'}")
-        logger.info(f"📅 阶段2: 今天在线模式: {today}")
-        
-        self.state_manager.update('status', 'backtest')
-        self.state_manager.update('trading_days_total', len(trading_days))
-        self.state_manager.update('trading_days_completed', 0)
-        self.current_phase = "backtest"
-        
-        await self.broadcast({
-            'type': 'system',
-            'content': f'系统启动 - 回测 {len(historical_days)} 天，然后进入今天在线模式'
-        })
-        
-        # 运行历史回测
-        for idx, date in enumerate(historical_days, 1):
-            logger.info(f"===== [回测 {idx}/{len(historical_days)}] {date} =====")
-            self.state_manager.update('current_date', date)
-            self.state_manager.update('trading_days_completed', idx)
+        # ========== 判断是否需要回测历史 ==========
+        if self.lookback_days > 0:
+            # ========== 阶段1: 回测历史n天 ==========
+            start_date = (datetime.now() - timedelta(days=self.lookback_days)).strftime("%Y-%m-%d")
+            
+            trading_days = self.thinking_fund.generate_trading_dates(start_date, today)
+            
+            # 区分历史日期和今天
+            historical_days = [d for d in trading_days if d < today]
+            
+            logger.info(f"📅 阶段1: 回测历史 {len(historical_days)} 个交易日: {start_date} -> {historical_days[-1] if historical_days else 'N/A'}")
+            logger.info(f"📅 阶段2: 今天在线模式: {today}")
+            
+            self.state_manager.update('status', 'backtest')
+            self.state_manager.update('trading_days_total', len(trading_days))
+            self.state_manager.update('trading_days_completed', 0)
+            self.current_phase = "backtest"
             
             await self.broadcast({
-                'type': 'day_start',
-                'date': date,
-                'phase': 'backtest',
-                'progress': idx / len(trading_days)
+                'type': 'system',
+                'content': f'系统启动 - 回测 {len(historical_days)} 天，然后进入今天在线模式'
             })
             
-            try:
-                result = await asyncio.to_thread(
-                    self.thinking_fund.run_full_day_simulation,
-                    date=date,
-                    tickers=self.config.tickers,
-                    max_comm_cycles=self.config.max_comm_cycles,
-                    force_run=False,
-                    enable_communications=not self.config.disable_communications,
-                    enable_notifications=not self.config.disable_notifications
-                )
-                
-                # 更新状态
-                if result and result.get('pre_market'):
-                    signals = result['pre_market'].get('signals', {})
-                    self.state_manager.update('latest_signals', signals)
-                    
-                    if self.config.mode == "portfolio":
-                        live_env = result['pre_market'].get('live_env', {})
-                        portfolio_summary = live_env.get('portfolio_summary', {})
-                        updated_portfolio = live_env.get('updated_portfolio', {})
-                        
-                        if portfolio_summary and updated_portfolio:
-                            # 更新Portfolio计算器
-                            if self.portfolio_calculator:
-                                holdings = {}
-                                positions = updated_portfolio.get('positions', {})
-                                for symbol, position_data in positions.items():
-                                    if isinstance(position_data, dict):
-                                        long_qty = position_data.get('long', 0)
-                                        short_qty = position_data.get('short', 0)
-                                        net_qty = long_qty - short_qty
-                                        if net_qty != 0:
-                                            long_cost = position_data.get('long_cost_basis', 0)
-                                            short_cost = position_data.get('short_cost_basis', 0)
-                                            avg_cost = long_cost if net_qty > 0 else short_cost
-                                            holdings[symbol] = {
-                                                'quantity': net_qty,
-                                                'avg_cost': avg_cost
-                                            }
-                                
-                                self.portfolio_calculator.update_holdings(
-                                    holdings,
-                                    updated_portfolio.get('cash', 0)
-                                )
+            # 运行历史回测
+            for idx, date in enumerate(historical_days, 1):
+                logger.info(f"===== [回测 {idx}/{len(historical_days)}] {date} =====")
+                self.state_manager.update('current_date', date)
+                self.state_manager.update('trading_days_completed', idx)
                 
                 await self.broadcast({
-                    'type': 'day_complete',
+                    'type': 'day_start',
                     'date': date,
                     'phase': 'backtest',
-                    'timestamp': datetime.now().isoformat()
+                    'progress': idx / len(trading_days)
                 })
                 
-                self.state_manager.save()
+                try:
+                    result = await asyncio.to_thread(
+                        self.thinking_fund.run_full_day_simulation,
+                        date=date,
+                        tickers=self.config.tickers,
+                        max_comm_cycles=self.config.max_comm_cycles,
+                        force_run=False,
+                        enable_communications=not self.config.disable_communications,
+                        enable_notifications=not self.config.disable_notifications
+                    )
+                    
+                    # 更新状态
+                    if result and result.get('pre_market'):
+                        signals = result['pre_market'].get('signals', {})
+                        self.state_manager.update('latest_signals', signals)
+                        
+                        if self.config.mode == "portfolio":
+                            live_env = result['pre_market'].get('live_env', {})
+                            portfolio_summary = live_env.get('portfolio_summary', {})
+                            updated_portfolio = live_env.get('updated_portfolio', {})
+                            
+                            if portfolio_summary and updated_portfolio:
+                                # 更新Portfolio计算器
+                                if self.portfolio_calculator:
+                                    holdings = {}
+                                    positions = updated_portfolio.get('positions', {})
+                                    for symbol, position_data in positions.items():
+                                        if isinstance(position_data, dict):
+                                            long_qty = position_data.get('long', 0)
+                                            short_qty = position_data.get('short', 0)
+                                            net_qty = long_qty - short_qty
+                                            if net_qty != 0:
+                                                long_cost = position_data.get('long_cost_basis', 0)
+                                                short_cost = position_data.get('short_cost_basis', 0)
+                                                avg_cost = long_cost if net_qty > 0 else short_cost
+                                                holdings[symbol] = {
+                                                    'quantity': net_qty,
+                                                    'avg_cost': avg_cost
+                                                }
+                                    
+                                    self.portfolio_calculator.update_holdings(
+                                        holdings,
+                                        updated_portfolio.get('cash', 0)
+                                    )
+                    
+                    await self.broadcast({
+                        'type': 'day_complete',
+                        'date': date,
+                        'phase': 'backtest',
+                        'timestamp': datetime.now().isoformat()
+                    })
+                    
+                    self.state_manager.save()
+                    
+                except Exception as e:
+                    logger.error(f"❌ {date} 运行失败: {e}")
+                    await self.broadcast({
+                        'type': 'day_error',
+                        'date': date,
+                        'error': str(e),
+                        'timestamp': datetime.now().isoformat()
+                    })
                 
-            except Exception as e:
-                logger.error(f"❌ {date} 运行失败: {e}")
-                await self.broadcast({
-                    'type': 'day_error',
-                    'date': date,
-                    'error': str(e),
-                    'timestamp': datetime.now().isoformat()
-                })
+                await asyncio.sleep(0.5)
+        else:
+            # ========== 无需回测，直接进入今天 ==========
+            logger.info(f"📅 直接进入今天在线模式: {today}（跳过历史回测）")
             
-            await asyncio.sleep(0.5)
+            self.state_manager.update('status', 'live_analysis')
+            self.state_manager.update('trading_days_total', 1)
+            self.state_manager.update('trading_days_completed', 0)
+            
+            await self.broadcast({
+                'type': 'system',
+                'content': f'系统启动 - 直接进入今天在线模式 ({today})，无历史回测'
+            })
         
         # ========== 阶段2: 今天的在线模式 ==========
         logger.info(f"===== [在线模式] {today} =====")
@@ -574,10 +650,17 @@ class LiveTradingServer:
         self.state_manager.update('status', 'live_analysis')
         self.state_manager.update('current_date', today)
         
-        await self.broadcast({
-            'type': 'system',
-            'content': f'进入今天在线模式 - {today}，正在进行交易决策分析...'
-        })
+        # 根据暂停模式发送不同的消息
+        if self.pause_before_trade:
+            await self.broadcast({
+                'type': 'system',
+                'content': f'⏸️ 进入今天在线模式 - {today}，正在进行交易决策分析（暂停模式：不执行交易）...'
+            })
+        else:
+            await self.broadcast({
+                'type': 'system',
+                'content': f'进入今天在线模式 - {today}，正在进行交易决策分析...'
+            })
         
         # 运行今天的分析（不执行交易）
         try:
@@ -632,21 +715,49 @@ class LiveTradingServer:
         # 检查是否需要等待收盘
         if not self.mock_mode:
             self.market_is_open = self._is_trading_hours()
-            if self.market_is_open:
+            is_trading_day = self._is_trading_day()
+            
+            if not is_trading_day:
                 await self.broadcast({
                     'type': 'system',
-                    'content': '市场开盘中，等待收盘后执行交易...'
+                    'content': '今天不是交易日，只进行价格监控'
                 })
-                logger.info("⏳ 市场开盘中，将等待收盘...")
+                logger.info("📅 今天不是交易日，只进行价格监控")
+            elif self.market_is_open:
+                close_time = self._get_market_close_time()
+                if close_time:
+                    close_time_str = close_time.strftime("%H:%M")
+                    await self.broadcast({
+                        'type': 'system',
+                        'content': f'市场开盘中，预计收盘时间: {close_time_str}，等待收盘后执行交易...'
+                    })
+                    logger.info(f"⏳ 市场开盘中（收盘时间: {close_time_str}），将等待收盘后执行交易")
+                else:
+                    await self.broadcast({
+                        'type': 'system',
+                        'content': '市场开盘中，等待收盘后执行交易...'
+                    })
+                    logger.info("⏳ 市场开盘中，将等待收盘...")
+                
+                # TODO: 添加一个后台任务，在收盘时自动执行交易
+                # 这里可以添加定时检查，当市场收盘时触发交易执行
             else:
                 await self.broadcast({
                     'type': 'system',
-                    'content': '市场已收盘，可执行交易'
+                    'content': '市场已收盘，可执行交易（当前版本仅等待，暂不自动执行）'
                 })
-                logger.info("✅ 市场已收盘")
+                logger.info("✅ 市场已收盘，可执行交易")
+        else:
+            await self.broadcast({
+                'type': 'system',
+                'content': 'Mock模式运行中，使用虚拟价格进行测试'
+            })
+            logger.info("🎭 Mock模式运行中")
         
         # 保持运行（持续监控价格）
         logger.info("✅ 在线模式启动完成，持续监控中...")
+        logger.info(f"💡 实时数据更新频率: {'每5秒 (Mock)' if self.mock_mode else '每10秒 (Finnhub Quote API)'}")
+        
         await asyncio.Future()  # 永久运行
     
     async def _periodic_state_saver(self):
@@ -711,15 +822,30 @@ async def main():
     
     parser = argparse.ArgumentParser(description='在线交易系统服务器')
     parser.add_argument('--mock', action='store_true', help='使用Mock模式（虚拟价格测试）')
-    parser.add_argument('--lookback-days', type=int, default=7, help='回溯天数（默认: 7）')
+    parser.add_argument('--lookback-days', type=int, default=0, help='回溯天数（默认: 0，即不回测，直接运行今天）')
     parser.add_argument('--config-name', default='live_mode', help='配置名称（默认: live_mode）')
     parser.add_argument('--host', default='0.0.0.0', help='监听地址（默认: 0.0.0.0）')
     parser.add_argument('--port', type=int, default=8001, help='监听端口（默认: 8001）')
+    parser.add_argument('--pause-before-trade', action='store_true', dest='pause_before_trade_cli', help='暂停模式：完成分析但不执行交易，仅更新价格')
     args = parser.parse_args()
     
     # 加载配置
     config = LiveThinkingFundConfig()
     config.config_name = args.config_name
+    
+    # 确定暂停模式：命令行参数优先，否则使用环境变量配置
+    # 优先级：命令行 > 环境变量 > 默认值(False)
+    if args.pause_before_trade_cli:
+        # 命令行明确指定了 --pause-before-trade
+        pause_before_trade = True
+        pause_source = "命令行参数"
+    else:
+        # 使用配置对象中的值（来自环境变量或默认值）
+        pause_before_trade = getattr(config, 'pause_before_trade', False)
+        if pause_before_trade:
+            pause_source = "环境变量"
+        else:
+            pause_source = "默认值"
     
     # 打印配置
     logger.info("📊 在线交易服务器配置:")
@@ -730,9 +856,13 @@ async def main():
     if config.mode == "portfolio":
         logger.info(f"   初始现金: ${config.initial_cash:,.2f}")
         logger.info(f"   保证金要求: {config.margin_requirement * 100:.1f}%")
+    if pause_before_trade:
+        logger.info(f"   交易执行: ⏸️ 暂停模式（仅分析，不执行交易）[来源: {pause_source}]")
+    else:
+        logger.info(f"   交易执行: ▶️ 正常模式（分析后执行交易）")
     
     # 创建并启动服务器
-    server = LiveTradingServer(config, mock_mode=args.mock, lookback_days=args.lookback_days)
+    server = LiveTradingServer(config, mock_mode=args.mock, lookback_days=args.lookback_days, pause_before_trade=pause_before_trade)
     await server.start(host=args.host, port=args.port)
 
 

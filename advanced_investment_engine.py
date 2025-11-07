@@ -85,9 +85,12 @@ setup_logging(
 class AdvancedInvestmentAnalysisEngine:
     """高级投资分析引擎 - 包含完整的agent交流机制"""
     
-    def __init__(self, streamer=None):
+    def __init__(self, streamer=None, pause_before_trade=False):
         # 保存streamer引用
         self.streamer = streamer
+        
+        # 是否在交易执行前暂停（仅生成决策，不执行交易）
+        self.pause_before_trade = pause_before_trade
         
         # 添加线程锁用于并行执行时的同步
         self._notification_lock = threading.Lock()
@@ -1168,6 +1171,20 @@ class AdvancedInvestmentAnalysisEngine:
             decisions: PM的决策
             mode: 运行模式 ("signal" 或 "portfolio")
         """
+        # 如果设置了暂停标志，则跳过交易执行
+        if self.pause_before_trade:
+            print("⏸️ 暂停模式：已生成交易决策，但不执行实际交易")
+            if self.streamer:
+                self.streamer.print("system", "⏸️ 暂停模式：已生成交易决策，但不执行实际交易。价格更新将继续。")
+            
+            return {
+                "status": "paused",
+                "reason": "pause_before_trade=True，决策已生成但未执行",
+                "decisions": decisions,
+                "executed_trades": [],
+                "failed_trades": []
+            }
+        
         try:
             # 获取当前价格数据
             current_prices = state["data"].get("current_prices", {})

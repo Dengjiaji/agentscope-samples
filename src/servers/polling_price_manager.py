@@ -1,7 +1,8 @@
 # src/servers/polling_price_manager.py
 """
 基于轮询的价格管理器 - 使用 Finnhub REST API
-每分钟获取一次最新价格
+支持高频获取实时价格（默认10秒一次，在线模式推荐）
+使用 Finnhub Quote API: https://finnhub.io/docs/api/quote
 """
 import time
 import logging
@@ -13,13 +14,15 @@ logger = logging.getLogger(__name__)
 
 
 class PollingPriceManager:
-    """轮询式价格管理器 - 定期从 Finnhub REST API 获取价格"""
+    """轮询式价格管理器 - 定期从 Finnhub Quote API 获取实时价格"""
     
-    def __init__(self, api_key: str, poll_interval: int = 60):
+    def __init__(self, api_key: str, poll_interval: int = 10):
         """
         Args:
-            api_key: Finnhub API Key
-            poll_interval: 轮询间隔（秒），默认60秒
+            api_key: Finnhub API Key (免费注册: https://finnhub.io/register)
+            poll_interval: 轮询间隔（秒），默认10秒（在线模式推荐）
+                          - 免费账户: 建议10-60秒
+                          - 付费账户: 可设置更短间隔
         """
         self.api_key = api_key
         self.poll_interval = poll_interval
@@ -27,10 +30,13 @@ class PollingPriceManager:
         
         self.subscribed_symbols: List[str] = []
         self.latest_prices: Dict[str, float] = {}
+        self.open_prices: Dict[str, float] = {}  # 存储开盘价（用于计算return）
         self.price_callbacks: List[Callable] = []
         
         self.running = False
         self.thread = None
+        
+        logger.info(f"✅ PollingPriceManager 初始化完成 (轮询间隔: {poll_interval}秒)")
     
     def subscribe(self, symbols: List[str]):
         """订阅股票代码"""
@@ -51,26 +57,46 @@ class PollingPriceManager:
         self.price_callbacks.append(callback)
     
     def _fetch_prices(self):
-        """获取所有订阅股票的最新价格"""
+        """
+        获取所有订阅股票的最新价格
+        使用 Finnhub Quote API: https://finnhub.io/docs/api/quote
+        """
         for symbol in self.subscribed_symbols:
             try:
                 # 调用 Finnhub quote API
+                # API文档: https://finnhub.io/docs/api/quote
                 quote_data = self.finnhub_client.quote(symbol)
                 
                 # quote_data 结构:
                 # {
-                #   'c': current_price,      # 当前价格
-                #   'h': high_price,         # 今日最高
-                #   'l': low_price,          # 今日最低
-                #   'o': open_price,         # 开盘价
-                #   'pc': previous_close,    # 昨日收盘
-                #   't': timestamp           # 时间戳
+                #   'c': current_price,      # 当前价格 (实时)
+                #   'h': high_price,         # 今日最高价
+                #   'l': low_price,          # 今日最低价
+                #   'o': open_price,         # 今日开盘价
+                #   'pc': previous_close,    # 昨日收盘价
+                #   't': timestamp,          # Unix时间戳
+                #   'd': change,             # 价格变化 (dollar)
+                #   'dp': change_percent     # 价格变化百分比
                 # }
                 
                 current_price = quote_data.get('c')
+                open_price = quote_data.get('o')
                 timestamp = quote_data.get('t', int(time.time()))
                 
                 if current_price and current_price > 0:
+                    # 保存开盘价（首次获取时）
+                    if symbol not in self.open_prices and open_price and open_price > 0:
+                        self.open_prices[symbol] = open_price
+                        logger.info(f"📊 {symbol} 开盘价: ${open_price:.2f}")
+                    
+                    # 使用已保存的开盘价（如果有）
+                    stored_open = self.open_prices.get(symbol, open_price)
+                    
+                    # 计算相对开盘价的return
+                    ret = 0.0
+                    if stored_open and stored_open > 0:
+                        ret = ((current_price - stored_open) / stored_open) * 100
+                    
                     # 更新缓存
                     old_price = self.latest_prices.get(symbol)
                     self.latest_prices[symbol] = current_price
@@ -80,11 +106,14 @@ class PollingPriceManager:
                         'symbol': symbol,
                         'price': current_price,
                         'timestamp': timestamp * 1000,  # 转换为毫秒
-                        'volume': None,  # REST API 不提供实时成交量
-                        'open': quote_data.get('o'),
+                        'volume': None,  # Quote API 不提供实时成交量
+                        'open': stored_open,
                         'high': quote_data.get('h'),
                         'low': quote_data.get('l'),
-                        'previous_close': quote_data.get('pc')
+                        'previous_close': quote_data.get('pc'),
+                        'ret': ret,  # 相对开盘价的return (%)
+                        'change': quote_data.get('d'),  # 相对昨日收盘的变化 ($)
+                        'change_percent': quote_data.get('dp')  # 相对昨日收盘的变化 (%)
                     }
                     
                     for callback in self.price_callbacks:
@@ -93,12 +122,12 @@ class PollingPriceManager:
                         except Exception as e:
                             logger.error(f"价格回调错误 ({symbol}): {e}")
                     
-                    # 记录价格变化
+                    # 记录价格变化（更详细的日志）
                     if old_price:
                         change = ((current_price - old_price) / old_price) * 100
-                        logger.info(f"💹 {symbol}: ${current_price:.2f} ({change:+.2f}%)")
+                        logger.info(f"💹 {symbol}: ${current_price:.2f} ({change:+.2f}% from last) [开盘ret: {ret:+.2f}%]")
                     else:
-                        logger.info(f"💹 {symbol}: ${current_price:.2f} (初始)")
+                        logger.info(f"💹 {symbol}: ${current_price:.2f} (初始) [开盘ret: {ret:+.2f}%]")
                 else:
                     logger.warning(f"⚠️ {symbol}: 无效价格数据 (c={current_price})")
                     
@@ -159,4 +188,17 @@ class PollingPriceManager:
     def get_all_latest_prices(self) -> Dict[str, float]:
         """获取所有最新价格"""
         return self.latest_prices.copy()
+    
+    def get_open_price(self, symbol: str) -> Optional[float]:
+        """获取开盘价"""
+        return self.open_prices.get(symbol)
+    
+    def get_all_open_prices(self) -> Dict[str, float]:
+        """获取所有开盘价"""
+        return self.open_prices.copy()
+    
+    def reset_open_prices(self):
+        """重置开盘价（用于新的交易日）"""
+        self.open_prices.clear()
+        logger.info("📊 开盘价已重置（新交易日）")
 

@@ -269,15 +269,16 @@ export default function LiveTradingApp() {
             return prevTickers.map(ticker => {
               const realtimeData = realtimePrices[ticker.symbol];
               if (realtimeData && realtimeData.price !== null && realtimeData.price !== undefined) {
-                // Initialize change to 0 if this is the first price update
-                const newChange = (ticker.price === null || ticker.price === undefined) 
-                  ? 0 
-                  : ticker.change;
+                // Use 'ret' from realtime data (relative to open price) if available
+                const newChange = (realtimeData.ret !== null && realtimeData.ret !== undefined)
+                  ? realtimeData.ret
+                  : (ticker.change !== null && ticker.change !== undefined ? ticker.change : 0);
                 
                 return {
                   ...ticker,
                   price: realtimeData.price,
-                  change: newChange
+                  change: newChange,
+                  open: realtimeData.open || ticker.open
                 };
               }
               return ticker;
@@ -378,28 +379,34 @@ export default function LiveTradingApp() {
         // Real-time price updates
         price_update: (e) => {
           try {
-            const { symbol, price, portfolio } = e;
+            const { symbol, price, ret, open, portfolio, realtime_prices } = e;
             
             if (!symbol || !price) {
               console.warn('[Price Update] Missing symbol or price:', e);
               return;
             }
             
+            console.log(`[Price Update] ${symbol}: $${price} (ret: ${ret !== undefined ? ret.toFixed(2) : 'N/A'}%)`);
+            
             // Update ticker price with animation
             setTickers(prevTickers => {
               return prevTickers.map(ticker => {
                 if (ticker.symbol === symbol) {
                   const oldPrice = ticker.price;
-                  let newChange = ticker.change;
                   
-                  // Calculate change if we have a previous price
-                  if (oldPrice !== null && oldPrice !== undefined && isFinite(oldPrice)) {
+                  // Use 'ret' from server (relative to open price) if available
+                  // Otherwise fallback to calculating change from previous price
+                  let newChange = ticker.change;
+                  if (ret !== null && ret !== undefined) {
+                    // Use server-provided ret (relative to open price)
+                    newChange = ret;
+                  } else if (oldPrice !== null && oldPrice !== undefined && isFinite(oldPrice)) {
+                    // Fallback: calculate change from previous price
                     const priceChange = ((price - oldPrice) / oldPrice) * 100;
-                    // Initialize change if it was null, otherwise accumulate
                     newChange = (newChange !== null && newChange !== undefined) 
                       ? newChange + priceChange 
                       : priceChange;
-                  } else if (newChange === null || newChange === undefined) {
+                  } else {
                     // First price received, set change to 0
                     newChange = 0;
                   }
@@ -415,19 +422,26 @@ export default function LiveTradingApp() {
                   return {
                     ...ticker,
                     price: price,
-                    change: newChange
+                    change: newChange,
+                    open: open || ticker.open  // Store open price
                   };
                 }
                 return ticker;
               });
             });
             
+            // Update all tickers from realtime_prices if provided
+            if (realtime_prices) {
+              updateTickersFromPrices(realtime_prices);
+            }
+            
             // Update portfolio value if provided
             if (portfolio && portfolio.total_value) {
               setPortfolioData(prev => ({
                 ...prev,
                 netValue: portfolio.total_value,
-                pnl: portfolio.pnl_percent || 0
+                pnl: portfolio.pnl_percent || 0,
+                equity: portfolio.equity || prev.equity  // Update equity curve
               }));
             }
           } catch (error) {

@@ -54,7 +54,7 @@ from src.config.path_config import get_directory_config
 class LiveTradingThinkingFund:
     """Live交易思考基金 - 时间Sandbox系统"""
 
-    def __init__(self, base_dir: str, streamer=None, mode: str = "portfolio", initial_cash: float = 100000.0, margin_requirement: float = 0.0):
+    def __init__(self, base_dir: str, streamer=None, mode: str = "portfolio", initial_cash: float = 100000.0, margin_requirement: float = 0.0, pause_before_trade: bool = False):
         """初始化思考基金系统"""
         from live_trading_system import LiveTradingSystem
 
@@ -69,8 +69,8 @@ class LiveTradingThinkingFund:
         else:
             self.streamer = ConsoleStreamer()
 
-        # 初始化Live交易系统（传递streamer）
-        self.live_system = LiveTradingSystem(base_dir=base_dir, streamer=self.streamer)
+        # 初始化Live交易系统（传递streamer和pause_before_trade）
+        self.live_system = LiveTradingSystem(base_dir=base_dir, streamer=self.streamer, pause_before_trade=pause_before_trade)
 
         # 初始化记忆管理系统
         if MEMORY_TOOLS_AVAILABLE:
@@ -299,23 +299,42 @@ class LiveTradingThinkingFund:
                 portfolio_summary = raw_results['results']['portfolio_management_results']['final_execution_report']['portfolio_summary']
                 updated_portfolio = raw_results['results']['portfolio_management_results']['final_execution_report']['updated_portfolio']
             except:
-                portfolio_summary = raw_results['results']['portfolio_management_results']['execution_report']['portfolio_summary']
-                updated_portfolio = raw_results['results']['portfolio_management_results']['execution_report']['updated_portfolio']
+                try:
+                    portfolio_summary = raw_results['results']['portfolio_management_results']['execution_report']['portfolio_summary']
+                    updated_portfolio = raw_results['results']['portfolio_management_results']['execution_report']['updated_portfolio']
+                except:
+                    # 暂停模式：execution_report返回的是 paused 状态，没有 portfolio_summary 和 updated_portfolio
+                    execution_report = raw_results.get('results', {}).get('portfolio_management_results', {}).get('final_execution_report', {})
+                    if execution_report.get('status') == 'paused':
+                        print(f"\n⏸️ 暂停模式：Portfolio状态未更新（交易未执行）")
+                        print(f"   当前现金: ${self.current_portfolio_state['cash']:,.2f}")
+                        positions_count = len([p for p in self.current_portfolio_state.get('positions', {}).values() 
+                                              if p.get('long', 0) > 0 or p.get('short', 0) > 0])
+                        print(f"   当前持仓数: {positions_count}")
+                        
+                        # 使用当前状态作为 Portfolio 信息
+                        portfolio_summary = {'status': 'paused', 'reason': 'pause_before_trade'}
+                        updated_portfolio = self.current_portfolio_state  # 保持不变
+                    else:
+                        # 其他异常，重新抛出
+                        raise
             
             # ⭐⭐⭐ 更新内部Portfolio状态（传递到下一天）⭐⭐⭐
-            self.current_portfolio_state = updated_portfolio
-            
-            # 保存到磁盘（类似MultiDayManager.save_daily_state）
-            self._save_portfolio_state(target_date, updated_portfolio)
-            
-            # 打印Portfolio变化
-            print(f"\n📊 Portfolio更新:")
-            print(f"   现金: ${updated_portfolio['cash']:,.2f}")
-            positions_count = len([p for p in updated_portfolio.get('positions', {}).values() 
-                                  if p.get('long', 0) > 0 or p.get('short', 0) > 0])
-            print(f"   持仓数: {positions_count}")
-            if updated_portfolio.get('margin_used', 0) > 0:
-                print(f"   保证金使用: ${updated_portfolio['margin_used']:,.2f}")
+            # 只在非暂停模式下更新
+            if portfolio_summary.get('status') != 'paused':
+                self.current_portfolio_state = updated_portfolio
+                
+                # 保存到磁盘（类似MultiDayManager.save_daily_state）
+                self._save_portfolio_state(target_date, updated_portfolio)
+                
+                # 打印Portfolio变化
+                print(f"\n📊 Portfolio更新:")
+                print(f"   现金: ${updated_portfolio['cash']:,.2f}")
+                positions_count = len([p for p in updated_portfolio.get('positions', {}).values() 
+                                      if p.get('long', 0) > 0 or p.get('short', 0) > 0])
+                print(f"   持仓数: {positions_count}")
+                if updated_portfolio.get('margin_used', 0) > 0:
+                    print(f"   保证金使用: ${updated_portfolio['margin_used']:,.2f}")
             
             # 将Portfolio信息添加到live_env
             live_env['portfolio_summary'] = portfolio_summary

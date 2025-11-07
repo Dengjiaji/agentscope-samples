@@ -294,6 +294,7 @@ class LiveThinkingFundConfig:
         # 日期配置
         # 功能开关
         self.force_run = get_env_value('FORCE_RUN', default=False, value_type=bool, env_vars=self.env_vars)
+        self.pause_before_trade = get_env_value('PAUSE_BEFORE_TRADE', default=False, value_type=bool, env_vars=self.env_vars)
         
         # 数值配置
         self.max_comm_cycles = get_env_value('LIVE_MAX_COMM_CYCLES', default=2, value_type=int, env_vars=self.env_vars)
@@ -333,6 +334,10 @@ class LiveThinkingFundConfig:
         
         if hasattr(args, 'margin_requirement') and args.margin_requirement is not None:
             self.margin_requirement = args.margin_requirement
+        
+        if hasattr(args, 'pause_before_trade') and args.pause_before_trade:
+            self.pause_before_trade = args.pause_before_trade
+
 if __name__ == "__main__":
    
     
