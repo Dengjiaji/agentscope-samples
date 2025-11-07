@@ -10,6 +10,15 @@ import requests
 import pandas as pd
 import numpy as np
 
+# 导入 get_last_tradeday 函数
+import sys
+from pathlib import Path
+# 添加项目根目录到路径以便导入
+project_root = Path(__file__).resolve().parents[2]
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+from src.tools.api import get_last_tradeday
+
 
 # ===================== 基础与工具函数 =====================
 
@@ -678,34 +687,38 @@ def residual_income_valuation(metrics: dict, net_income_item: Optional[dict], ma
 # ===================== 统一函数 =====================
 
 def analyze_all(ticker: str, analysis_date: str, api_key: Optional[str] = None) -> Dict[str, Any]:
+    # ⭐ 将 analysis_date 调整为上一个交易日
+    # 这样分析时不包含当日未收盘的数据，避免数据不完整的问题
+    adjusted_analysis_date = get_last_tradeday(analysis_date)
+    
     # 1) 拉取基础数据
     # 为技术分析扩展窗口
-    end_dt = datetime.datetime.strptime(analysis_date, "%Y-%m-%d")
+    end_dt = datetime.datetime.strptime(adjusted_analysis_date, "%Y-%m-%d")
     extended_trend_start = (end_dt - datetime.timedelta(days=90)).strftime("%Y-%m-%d")
     extended_mean_start = (end_dt - datetime.timedelta(days=60)).strftime("%Y-%m-%d")
     extended_mom_start = (end_dt - datetime.timedelta(days=45)).strftime("%Y-%m-%d")
 
-    prices_trend = get_prices(ticker, extended_trend_start, analysis_date, api_key)
-    prices_mean = prices_trend if extended_trend_start <= extended_mean_start else get_prices(ticker, extended_mean_start, analysis_date, api_key)
-    prices_mom = prices_trend if extended_trend_start <= extended_mom_start else get_prices(ticker, extended_mom_start, analysis_date, api_key)
+    prices_trend = get_prices(ticker, extended_trend_start, adjusted_analysis_date, api_key)
+    prices_mean = prices_trend if extended_trend_start <= extended_mean_start else get_prices(ticker, extended_mean_start, adjusted_analysis_date, api_key)
+    prices_mom = prices_trend if extended_trend_start <= extended_mom_start else get_prices(ticker, extended_mom_start, adjusted_analysis_date, api_key)
 
     df_trend = prices_to_df(prices_trend)
     df_mean = prices_to_df(prices_mean)
     df_mom = prices_to_df(prices_mom)
 
-    financial_metrics_list = get_financial_metrics(ticker, analysis_date, period="ttm", limit=10, api_key=api_key)
+    financial_metrics_list = get_financial_metrics(ticker, adjusted_analysis_date, period="ttm", limit=10, api_key=api_key)
     most_recent_metrics = financial_metrics_list[0] if financial_metrics_list else {}
 
     # 内部交易和新闻获取近60天数据
     insider_start_date = (end_dt - datetime.timedelta(days=60)).strftime("%Y-%m-%d")
-    insider = get_insider_trades(ticker, end_date=analysis_date, start_date=insider_start_date, limit=1000, api_key=api_key)
-    news = get_company_news(ticker, end_date=analysis_date, start_date=insider_start_date, limit=100, api_key=api_key)
-    mkt_cap = get_market_cap(ticker, analysis_date, api_key=api_key)
+    insider = get_insider_trades(ticker, end_date=adjusted_analysis_date, start_date=insider_start_date, limit=1000, api_key=api_key)
+    news = get_company_news(ticker, end_date=adjusted_analysis_date, start_date=insider_start_date, limit=100, api_key=api_key)
+    mkt_cap = get_market_cap(ticker, adjusted_analysis_date, api_key=api_key)
 
     # DCF/Owner earnings/Residual income所需line items
-    line_items_fcf = search_line_items(ticker, ["free_cash_flow"], analysis_date, period="ttm", limit=2, api_key=api_key)
-    line_items_owner = search_line_items(ticker, ["net_income", "depreciation_and_amortization", "capital_expenditure", "working_capital"], analysis_date, period="ttm", limit=2, api_key=api_key)
-    line_items_net_income = search_line_items(ticker, ["net_income"], analysis_date, period="ttm", limit=1, api_key=api_key)
+    line_items_fcf = search_line_items(ticker, ["free_cash_flow"], adjusted_analysis_date, period="ttm", limit=2, api_key=api_key)
+    line_items_owner = search_line_items(ticker, ["net_income", "depreciation_and_amortization", "capital_expenditure", "working_capital"], adjusted_analysis_date, period="ttm", limit=2, api_key=api_key)
+    line_items_net_income = search_line_items(ticker, ["net_income"], adjusted_analysis_date, period="ttm", limit=1, api_key=api_key)
 
     # 2) 分析
     profitability = analyze_profitability(most_recent_metrics) if most_recent_metrics else {"error": "No financial metrics"}

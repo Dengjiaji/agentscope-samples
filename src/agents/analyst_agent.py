@@ -12,6 +12,7 @@ from ..utils.api_key import get_api_key_from_state
 from ..utils.progress import progress
 from ..llm.agentscope_models import get_model  # 使用 AgentScope 模型
 from .llm_tool_selector import LLMToolSelector
+from ..tools.api import get_last_tradeday
 
 
 class AnalystAgent(BaseAgent):
@@ -185,6 +186,11 @@ class AnalystAgent(BaseAgent):
             "开始智能工具选择"
         )
         
+        # ⭐ 将 end_date 调整为上一个交易日
+        # 这样分析时不包含当日未收盘的数据，避免数据不完整的问题
+        adjusted_end_date = get_last_tradeday(end_date)
+        # print(f"📅 分析师 {self.agent_id} - 原始日期: {end_date}, 分析截止日期（上一个交易日）: {adjusted_end_date}")
+        
         # 1. 生成市场条件
         market_conditions = {
             "analysis_date": end_date,
@@ -212,7 +218,7 @@ class AnalystAgent(BaseAgent):
             ticker=ticker,
             state=state,  # 传递state,让工具自己获取需要的API key
             start_date=start_date,
-            end_date=end_date
+            end_date=adjusted_end_date  # 使用调整后的日期
         )
         
         # 4. 使用LLM综合判断工具结果

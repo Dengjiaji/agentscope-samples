@@ -20,8 +20,73 @@ from src.data.models import (
     CompanyFactsResponse,
 )
 
+# 尝试导入交易日历包
+try:
+    import pandas_market_calendars as mcal
+    _NYSE_CALENDAR = mcal.get_calendar('NYSE')
+    US_TRADING_CALENDAR_AVAILABLE = True
+except ImportError:
+    try:
+        import exchange_calendars as xcals
+        _NYSE_CALENDAR = xcals.get_calendar('XNYS')
+        US_TRADING_CALENDAR_AVAILABLE = True
+    except ImportError:
+        _NYSE_CALENDAR = None
+        US_TRADING_CALENDAR_AVAILABLE = False
+
 # Global cache instance
 _cache = get_cache()
+
+
+def get_last_tradeday(date: str) -> str:
+    """
+    获取指定日期的上一个交易日
+    
+    Args:
+        date: 日期字符串 (YYYY-MM-DD)
+        
+    Returns:
+        上一个交易日的日期字符串 (YYYY-MM-DD)
+    """
+    current_date = datetime.datetime.strptime(date, "%Y-%m-%d")
+    
+    if US_TRADING_CALENDAR_AVAILABLE and _NYSE_CALENDAR is not None:
+        # 获取当前日期之前的交易日
+        # 从当前日期往前推90天，获取所有交易日
+        start_search = current_date - datetime.timedelta(days=90)
+        
+        if hasattr(_NYSE_CALENDAR, 'valid_days'):
+            # pandas_market_calendars
+            trading_dates = _NYSE_CALENDAR.valid_days(
+                start_date=start_search.strftime("%Y-%m-%d"),
+                end_date=current_date.strftime("%Y-%m-%d")
+            )
+        else:
+            # exchange_calendars
+            trading_dates = _NYSE_CALENDAR.sessions_in_range(
+                start_search.strftime("%Y-%m-%d"),
+                current_date.strftime("%Y-%m-%d")
+            )
+        
+        # 转换为日期列表
+        trading_dates_list = [pd.Timestamp(d).strftime("%Y-%m-%d") for d in trading_dates]
+        
+        # 查找当前日期在列表中的位置
+        if date in trading_dates_list:
+            # 如果当前日期是交易日，返回前一个交易日
+            idx = trading_dates_list.index(date)
+            if idx > 0:
+                return trading_dates_list[idx - 1]
+            else:
+                # 如果是第一个交易日，再往前推
+                prev_date = current_date - datetime.timedelta(days=1)
+                return get_last_tradeday(prev_date.strftime("%Y-%m-%d"))
+        else:
+            # 如果当前日期不是交易日，返回最近的交易日
+            if trading_dates_list:
+                return trading_dates_list[-1]
+    
+    return prev_date.strftime("%Y-%m-%d")
 
 
 def _make_api_request(url: str, headers: dict, method: str = "GET", json_data: dict = None, max_retries: int = 3) -> requests.Response:

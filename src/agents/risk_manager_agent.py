@@ -11,7 +11,7 @@ from .base_agent import BaseAgent
 from ..graph.state import AgentState, show_agent_reasoning, create_message
 from ..utils.progress import progress
 from ..utils.api_key import get_api_key_from_state
-from ..tools.api import get_prices, prices_to_df
+from ..tools.api import get_prices, prices_to_df, get_last_tradeday
 import pdb
 
 class RiskManagerAgent(BaseAgent):
@@ -83,35 +83,77 @@ class RiskManagerAgent(BaseAgent):
         for ticker in tickers:
             progress.update_status(self.agent_id, ticker, "获取价格数据并计算波动率")
             
-            prices = get_prices(
+            # ⭐ 策略：
+            # 1. 波动率计算：使用历史数据（截止到 T-1 日），避免使用不完整数据
+            # 2. 当前价格：使用 T 日开盘价，反映当日开盘时的实际价格水平
+            
+            # 获取截止到 T-1 日的历史数据用于波动率计算
+            adjusted_end_date = get_last_tradeday(data["end_date"])
+            historical_prices = get_prices(
                 ticker=ticker,
                 start_date=data["start_date"],
-                end_date=data["end_date"],
+                end_date=adjusted_end_date,
                 api_key=api_key,
             )
             
-            if not prices:
-                progress.update_status(self.agent_id, ticker, "警告: 未找到价格数据")
+            if not historical_prices:
+                progress.update_status(self.agent_id, ticker, "警告: 未找到历史价格数据")
                 volatility_data[ticker] = self._get_default_volatility()
                 current_prices[ticker] = 0.0
                 continue
             
-            prices_df = prices_to_df(prices)
+            prices_df = prices_to_df(historical_prices)
             
-            if not prices_df.empty and len(prices_df) >= 1:
-                current_price = prices_df["close"].iloc[-1]
-                current_prices[ticker] = float(current_price)
+            if prices_df.empty or len(prices_df) < 1:
+                volatility_data[ticker] = self._get_default_volatility()
+                current_prices[ticker] = 0.0
+                continue
+            
+            # 计算波动率（基于 T-1 日及之前的历史数据）
+            vol_metrics = self._calculate_volatility_metrics(prices_df)
+            volatility_data[ticker] = vol_metrics
+            
+            # ⭐ 获取 T 日的开盘价作为当前价格
+            try:
+                today_prices = get_prices(
+                    ticker=ticker,
+                    start_date=data["end_date"],
+                    end_date=data["end_date"],
+                    api_key=api_key,
+                )
                 
-                vol_metrics = self._calculate_volatility_metrics(prices_df)
-                volatility_data[ticker] = vol_metrics
+                if today_prices and len(today_prices) > 0:
+                    # 使用 T 日的开盘价
+                    today_df = prices_to_df(today_prices)
+                    if not today_df.empty and "open" in today_df.columns:
+                        current_price = float(today_df["open"].iloc[0])
+                        current_prices[ticker] = current_price
+                        price_type = "开盘"
+                    else:
+                        # 如果没有开盘价，使用 T-1 日收盘价作为备选
+                        current_price = float(prices_df["close"].iloc[-1])
+                        current_prices[ticker] = current_price
+                        price_type = "T-1收盘"
+                else:
+                    # 如果获取不到 T 日数据，使用 T-1 日收盘价
+                    current_price = float(prices_df["close"].iloc[-1])
+                    current_prices[ticker] = current_price
+                    price_type = "T-1收盘(备用)"
+                    
                 progress.update_status(
                     self.agent_id, 
                     ticker, 
-                    f"价格: {current_price:.2f}, 年化波动率: {vol_metrics['annualized_volatility']:.1%}"
+                    f"价格: ${current_price:.2f}({price_type}), 年化波动率: {vol_metrics['annualized_volatility']:.1%}"
                 )
-            else:
-                volatility_data[ticker] = self._get_default_volatility()
-                current_prices[ticker] = 0.0
+            except Exception as e:
+                # 异常情况使用 T-1 日收盘价
+                current_price = float(prices_df["close"].iloc[-1])
+                current_prices[ticker] = current_price
+                progress.update_status(
+                    self.agent_id, 
+                    ticker, 
+                    f"价格: ${current_price:.2f}(T-1收盘/异常), 年化波动率: {vol_metrics['annualized_volatility']:.1%}"
+                )
         
         # 根据模式生成风险分析
         if self.mode == "basic":
