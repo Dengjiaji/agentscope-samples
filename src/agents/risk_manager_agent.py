@@ -1,21 +1,24 @@
 """
 Risk Manager Agent - 风险管理 Agent
-提供统一的风险评估和仓位管理接口
+提供统一的风险评估和仓位管理接口（基于AgentScope）
 """
 from typing import Dict, Any, Optional, Literal
 import json
 import numpy as np
 import pandas as pd
 
-from .base_agent import BaseAgent
-from ..graph.state import AgentState, show_agent_reasoning, create_message
+from agentscope.agent import AgentBase
+from agentscope.message import Msg
+from .prompt_loader import PromptLoader
+
+from ..graph.state import AgentState, show_agent_reasoning
 from ..utils.progress import progress
 from ..utils.api_key import get_api_key_from_state
 from ..tools.api import get_prices, prices_to_df
 import pdb
 
-class RiskManagerAgent(BaseAgent):
-    """风险管理 Agent"""
+class RiskManagerAgent(AgentBase):
+    """风险管理 Agent（基于AgentScope）"""
     
     def __init__(self, 
                  agent_id: str = "risk_manager",
@@ -38,8 +41,19 @@ class RiskManagerAgent(BaseAgent):
             >>> # Portfolio 仓位管理
             >>> agent = RiskManagerAgent(mode="portfolio")
         """
-        super().__init__(agent_id, "risk_manager", config)
+        # 初始化AgentBase（不接受参数）
+        super().__init__()
+        
+        # 设置name属性
+        self.name = agent_id
+        self.agent_id = agent_id  # 保留agent_id属性以兼容现有代码
+        self.agent_type = "risk_manager"
+        
         self.mode = mode
+        self.config = config or {}
+        
+        # Prompt loader
+        self.prompt_loader = PromptLoader()
         
         # 加载配置
         if mode == "basic":
@@ -123,9 +137,9 @@ class RiskManagerAgent(BaseAgent):
                 tickers, volatility_data, current_prices, state
             )
         
-        # 创建消息（使用 AgentScope 格式）
-        message = create_message(
-            name=self.agent_id,
+        # 创建消息（使用 AgentScope Msg 格式）
+        message = Msg(
+            name=self.name,
             content=json.dumps(risk_analysis),
             role="assistant",
             metadata={}
@@ -142,7 +156,7 @@ class RiskManagerAgent(BaseAgent):
         progress.update_status(self.agent_id, None, "完成")
         
         return {
-            "messages": state["messages"] + [message],
+            "messages": [message.to_dict()],  # 转换为dict
             "data": data,
         }
     

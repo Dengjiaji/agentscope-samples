@@ -8,19 +8,8 @@ def merge_dicts(a: dict[str, any], b: dict[str, any]) -> dict[str, any]:
 
 
 def merge_messages(a: List[Dict[str, Any]], b: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """合并消息列表"""
+    """合并消息列表（兼容AgentScope Msg的dict格式）"""
     return a + b
-
-
-# AgentScope Message 格式
-# 参考: https://github.com/agentscope-ai/agentscope
-# 消息格式: {"name": str, "content": str, "role": str, "metadata": dict}
-class AgentScopeMessage(TypedDict):
-    """AgentScope 消息格式"""
-    name: str  # Agent 名称
-    content: str  # 消息内容
-    role: str  # 角色: "user", "assistant", "system"
-    metadata: Dict[str, Any]  # 元数据
 
 
 # Define agent state
@@ -28,17 +17,17 @@ class AgentState(TypedDict):
     """
     Agent 状态定义
     
-    使用 AgentScope 消息格式
-    消息格式: {"name": str, "content": str, "role": str, "metadata": dict}
+    使用 AgentScope 消息格式（Msg.to_dict()的返回格式）
+    消息格式: {"id": str, "name": str, "content": str, "role": str, "metadata": dict, "timestamp": str}
     """
-    messages: Annotated[List[AgentScopeMessage], merge_messages]
+    messages: Annotated[List[Dict[str, Any]], merge_messages]  # Msg.to_dict()的列表
     data: Annotated[dict[str, any], merge_dicts]
     metadata: Annotated[dict[str, any], merge_dicts]
 
 
-def create_message(name: str, content: str, role: str = "assistant", metadata: Dict[str, Any] = None) -> AgentScopeMessage:
+def create_message(name: str, content: str, role: str = "assistant", metadata: Dict[str, Any] = None) -> Msg:
     """
-    创建 AgentScope 消息
+    创建 AgentScope 消息（使用原生Msg类）
     
     Args:
         name: Agent 名称
@@ -47,9 +36,9 @@ def create_message(name: str, content: str, role: str = "assistant", metadata: D
         metadata: 元数据字典
     
     Returns:
-        AgentScopeMessage 对象
+        Msg 对象
     """
-    return AgentScopeMessage(
+    return Msg(
         name=name,
         content=content,
         role=role,

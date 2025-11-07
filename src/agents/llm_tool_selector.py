@@ -1,12 +1,16 @@
 """
 基于LLM的智能工具选择器
 让分析师通过LLM智能选择和使用分析工具
+使用AgentScope的Toolkit管理工具
 """
 
 from typing import Dict, Any, List, Optional, Callable
 import json
 import pdb
 import numpy as np
+from agentscope.tool import Toolkit, ToolResponse
+from agentscope.message import TextBlock
+
 from .prompt_loader import PromptLoader
 from src.utils.api_key import get_api_key_from_state
 
@@ -48,8 +52,91 @@ class NumpyEncoder(json.JSONEncoder):
         elif isinstance(obj, np.ndarray):
             return obj.tolist()
         return super().default(obj)
+
+
+def _wrap_tool_for_agentscope(original_func: Callable, tool_category: str) -> Callable:
+    """
+    将返回Dict的工具函数包装为返回ToolResponse的函数（用于AgentScope Toolkit）
+    
+    Args:
+        original_func: 原始工具函数（返回Dict）
+        tool_category: 工具类别（用于确定需要的参数）
+    
+    Returns:
+        包装后的函数（返回ToolResponse）
+    """
+    def wrapped_tool(ticker: str, state: dict = None, start_date: str = None, 
+                     end_date: str = None, api_key: str = None) -> ToolResponse:
+        """
+        包装后的工具函数，返回ToolResponse
+        
+        Args:
+            ticker: 股票代码
+            state: State对象（用于获取API key）
+            start_date: 开始日期（可选，技术/情绪工具需要）
+            end_date: 结束日期
+            api_key: API密钥（可选，优先使用此参数）
+        
+        Returns:
+            ToolResponse对象
+        """
+        try:
+            # 如果没有提供api_key，从state获取
+            if api_key is None and state is not None:
+                if tool_category in ["fundamental", "valuation"]:
+                    api_key_name = "FINANCIAL_DATASETS_API_KEY"
+                elif tool_category in ["technical", "sentiment"]:
+                    api_key_name = "FINNHUB_API_KEY"
+                else:
+                    api_key_name = "FINNHUB_API_KEY"
+                
+                api_key = get_api_key_from_state(state, api_key_name)
+            
+            # 准备参数
+            kwargs = {"ticker": ticker, "api_key": api_key}
+            
+            # 根据工具类型添加特定参数
+            if tool_category == "technical":
+                kwargs["start_date"] = start_date
+                kwargs["end_date"] = end_date
+            elif tool_category in ["fundamental", "sentiment", "valuation"]:
+                kwargs["end_date"] = end_date
+                if tool_category == "sentiment":
+                    kwargs["start_date"] = start_date
+            
+            # 调用原始函数
+            result_dict = original_func(**kwargs)
+            
+            # 将Dict结果转换为JSON字符串
+            result_json = json.dumps(result_dict, ensure_ascii=False, indent=2, cls=NumpyEncoder)
+            
+            # 创建ToolResponse
+            return ToolResponse(
+                content=[TextBlock(type="text", text=result_json)],
+                metadata=result_dict  # 保存原始Dict在metadata中，方便后续处理
+            )
+            
+        except Exception as e:
+            # 错误处理
+            error_dict = {
+                "error": str(e),
+                "tool_name": original_func.__name__,
+                "signal": "neutral",
+                "confidence": 0
+            }
+            error_json = json.dumps(error_dict, ensure_ascii=False, indent=2)
+            return ToolResponse(
+                content=[TextBlock(type="text", text=error_json)],
+                metadata=error_dict
+            )
+    
+    # 保留原始函数的名称和文档字符串
+    wrapped_tool.__name__ = original_func.__name__
+    wrapped_tool.__doc__ = original_func.__doc__
+    
+    return wrapped_tool
 class LLMToolSelector:
-    """基于LLM的智能工具选择器"""
+    """基于LLM的智能工具选择器（使用AgentScope Toolkit）"""
     
     def __init__(self, use_prompt_files: bool = True):
         """
@@ -61,8 +148,10 @@ class LLMToolSelector:
         self.use_prompt_files = use_prompt_files
         self.prompt_loader = PromptLoader() if use_prompt_files else None
         
-        # 所有可用的分析工具
+        # 创建AgentScope Toolkit
+        self.toolkit = Toolkit()
         
+        # 所有可用的分析工具（元数据，用于LLM选择）
         self.all_available_tools = {
             # 基本面分析工具
             "analyze_profitability": {
@@ -176,6 +265,29 @@ class LLMToolSelector:
                 "data_requirements": "Net income, book value, cost of equity data"
             }
         }
+        
+        # 将所有工具注册到Toolkit（包装为返回ToolResponse的函数）
+        self._register_all_tools()
+    
+    def _register_all_tools(self):
+        """将所有分析工具注册到AgentScope Toolkit"""
+        for tool_name, tool_info in self.all_available_tools.items():
+            # 包装工具函数
+            wrapped_tool = _wrap_tool_for_agentscope(
+                original_func=tool_info["tool"],
+                tool_category=tool_info["category"]
+            )
+            
+            # 注册到toolkit
+            self.toolkit.register_tool_function(
+                tool_func=wrapped_tool,
+                func_description=tool_info["description"]
+            )
+    
+    def get_toolkit(self) -> Toolkit:
+        """获取Toolkit实例（供外部使用）"""
+        return self.toolkit
+    
     def get_tool_selection_prompt(self, analyst_persona: str, ticker: str, 
                                  market_conditions: Dict[str, Any], 
                                  analysis_objective: str) -> str:
@@ -447,10 +559,10 @@ You will flexibly select various tools based on specific situations, pursuing co
         print(f"   请在 .env 文件中设置 {api_key_name} 或通过 state 传递")
         return None
     
-    def execute_selected_tools(self, selected_tools: List[Dict[str, Any]], 
+    async def execute_selected_tools(self, selected_tools: List[Dict[str, Any]], 
                              ticker: str, state: dict = None, **kwargs) -> List[Dict[str, Any]]:
         """
-        Execute selected tools
+        Execute selected tools using AgentScope Toolkit
         
         Args:
             selected_tools: 选中的工具列表
@@ -461,6 +573,7 @@ You will flexibly select various tools based on specific situations, pursuing co
         Returns:
             工具执行结果列表
         """
+        from agentscope.message import ToolUseBlock
         
         tool_results = []
         
@@ -469,32 +582,49 @@ You will flexibly select various tools based on specific situations, pursuing co
             
             if tool_name not in self.all_available_tools:
                 continue
-                
-            tool = self.all_available_tools[tool_name]["tool"]
             
             try:
-                # 准备工具参数 - 根据工具类型获取对应的API key
-                tool_category = self.all_available_tools[tool_name]["category"]
-                api_key = self._get_api_key_for_tool(tool_category, state)
+                # 准备工具调用参数
+                tool_input = {
+                    "ticker": ticker,
+                    "state": state,
+                    "start_date": kwargs.get("start_date"),
+                    "end_date": kwargs.get("end_date")
+                }
                 
-                tool_params = {"ticker": ticker, "api_key": api_key}
+                # 创建ToolUseBlock（AgentScope格式）
+                tool_call = ToolUseBlock(
+                    type="tool_use",
+                    id=f"{tool_name}_{ticker}",
+                    name=tool_name,
+                    input=tool_input
+                )
                 
-                # 根据工具类型添加特定参数
-                tool_category = self.all_available_tools[tool_name]["category"]
-                if tool_category == "technical":
-                    tool_params["start_date"] = kwargs.get("start_date")
-                    tool_params["end_date"] = kwargs.get("end_date")
-                elif tool_category in ["fundamental", "sentiment", "valuation"]:
-                    tool_params["end_date"] = kwargs.get("end_date")
-                    if tool_category == "sentiment":
-                        tool_params["start_date"] = kwargs.get("start_date")
+                # 使用Toolkit执行工具
+                # call_tool_function返回AsyncGenerator[ToolResponse]
+                tool_response_gen = await self.toolkit.call_tool_function(tool_call)
                 
-                # 执行工具（现在是普通函数，直接调用）
-                result = tool(**tool_params)
-                result["tool_name"] = tool_name
-                result["selection_reason"] = tool_selection.get("reason", "")
+                # 获取最后的ToolResponse
+                final_response = None
+                async for response_chunk in tool_response_gen:
+                    final_response = response_chunk
                 
-                tool_results.append(result)
+                if final_response and final_response.metadata:
+                    # 从metadata获取原始Dict结果
+                    result = final_response.metadata
+                    result["tool_name"] = tool_name
+                    result["selection_reason"] = tool_selection.get("reason", "")
+                    tool_results.append(result)
+                else:
+                    # 如果没有metadata，解析content
+                    error_result = {
+                        "tool_name": tool_name,
+                        "error": "No metadata in tool response",
+                        "signal": "neutral",
+                        "confidence": 0,
+                        "selection_reason": tool_selection.get("reason", "")
+                    }
+                    tool_results.append(error_result)
                 
             except Exception as e:
                 print(f"Tool {tool_name} execution failed: {str(e)}")

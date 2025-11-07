@@ -1,21 +1,24 @@
 """
 Analyst Agent - 统一的分析师 Agent 实现
-基于 BaseAgent 提供统一的分析师接口
+基于 AgentScope AgentBase 实现，使用Toolkit和Msg
 """
 import asyncio
 from typing import Dict, Any, Optional, List
 import json
 
-from .base_agent import BaseAgent
-from ..graph.state import AgentState, show_agent_reasoning, create_message
+from agentscope.agent import AgentBase
+from agentscope.message import Msg
+from agentscope.tool import Toolkit
+
+from ..graph.state import AgentState, show_agent_reasoning
 from ..utils.api_key import get_api_key_from_state
 from ..utils.progress import progress
 from ..llm.agentscope_models import get_model  # 使用 AgentScope 模型
 from .llm_tool_selector import LLMToolSelector
 
 
-class AnalystAgent(BaseAgent):
-    """分析师 Agent - 使用 LLM 进行智能工具选择和分析"""
+class AnalystAgent(AgentBase):
+    """分析师 Agent - 使用 LLM 进行智能工具选择和分析（基于AgentScope）"""
     
     # 预定义的分析师类型
     ANALYST_TYPES = {
@@ -57,17 +60,43 @@ class AnalystAgent(BaseAgent):
         if agent_id is None:
             agent_id = f"{analyst_type}_analyst_agent"
         
-        super().__init__(agent_id, "analyst", config)
+        # 初始化AgentBase（不接受参数）
+        super().__init__()
+        
+        # 设置name属性
+        self.name = agent_id
         
         self.description = description or f"{self.analyst_persona} - 使用LLM智能选择分析工具"
+        self.config = config or {}
+        
+        # 使用LLM工具选择器（内部使用Toolkit）
         self.tool_selector = LLMToolSelector(use_prompt_files=True)
-        # from agentscope.tool import Toolkit
-        # self.tool_selector = Toolkit()
-        # self.tool_selector.call_tool_function()
+        self.toolkit = self.tool_selector.get_toolkit()  # 获取Toolkit实例
     
     def execute(self, state: AgentState) -> Dict[str, Any]:
         """
-        执行分析师逻辑
+        执行分析师逻辑（同步入口，内部调用异步）
+        
+        Args:
+            state: AgentState
+        
+        Returns:
+            更新后的状态字典
+        """
+        # 在当前线程中创建新的事件循环进行异步分析
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            result = loop.run_until_complete(self._execute_async(state))
+            return result
+        finally:
+            loop.close()
+            asyncio.set_event_loop(None)
+    
+    async def _execute_async(self, state: AgentState) -> Dict[str, Any]:
+        """
+        异步执行分析师逻辑
         
         Args:
             state: AgentState
@@ -79,10 +108,6 @@ class AnalystAgent(BaseAgent):
         tickers = data["tickers"]
         start_date = data.get("start_date")
         end_date = data["end_date"]
-        
-        # 不再在这里获取单一的API key
-        # 而是将整个state传递给工具选择器,让每个工具自己决定使用哪个API key
-        # api_key = None  # 不再使用单一的api_key变量
         
         # 获取 LLM
         llm = None
@@ -100,7 +125,7 @@ class AnalystAgent(BaseAgent):
         
         for ticker in tickers:
             progress.update_status(
-                self.agent_id, 
+                self.name,  # 使用 self.name 而不是 self.agent_id
                 ticker, 
                 f"开始 {self.analyst_persona} 智能分析"
             )
@@ -111,31 +136,22 @@ class AnalystAgent(BaseAgent):
                 f"进行全面深入的投资分析"
             )
             
-            # 在当前线程中创建新的事件循环进行异步分析
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-            try:
-                result = loop.run_until_complete(
-                    self._analyze_ticker(
-                        ticker, end_date, state, start_date, llm, analysis_objective
-                    )
-                )
-                analysis_results[ticker] = result
-            finally:
-                loop.close()
-                asyncio.set_event_loop(None)
+            # 异步分析ticker
+            result = await self._analyze_ticker(
+                ticker, end_date, state, start_date, llm, analysis_objective
+            )
+            analysis_results[ticker] = result
             
             progress.update_status(
-                self.agent_id, 
+                self.name, 
                 ticker, 
                 "完成",
                 analysis=json.dumps(result, indent=2, default=str)
             )
         
-        # 创建消息（使用 AgentScope 格式）
-        message = create_message(
-            name=self.agent_id,
+        # 创建消息（使用 AgentScope Msg 格式）
+        message = Msg(
+            name=self.name,
             content=json.dumps(analysis_results, default=str),
             role="assistant",
             metadata={"analyst_type": self.analyst_type_key}
@@ -149,16 +165,16 @@ class AnalystAgent(BaseAgent):
             )
         
         # 更新状态
-        state["data"]["analyst_signals"][self.agent_id] = analysis_results
+        state["data"]["analyst_signals"][self.name] = analysis_results
         
         progress.update_status(
-            self.agent_id, 
+            self.name, 
             None, 
             f"所有 {self.analyst_persona} 分析完成"
         )
         
         return {
-            "messages": [message],
+            "messages": [message.to_dict()],  # 转换为dict
             "data": data,
         }
     
@@ -180,7 +196,7 @@ class AnalystAgent(BaseAgent):
             分析结果字典
         """
         progress.update_status(
-            self.agent_id, 
+            self.name, 
             ticker, 
             "开始智能工具选择"
         )
@@ -199,15 +215,13 @@ class AnalystAgent(BaseAgent):
         )
         
         progress.update_status(
-            self.agent_id, 
+            self.name, 
             ticker, 
             f"已选择 {selection_result['tool_count']} 个工具"
         )
         
-        # 3. 执行选定的工具 - 传递state而不是api_key
-        # TODO: 改为 agentscope逻辑执行
-        #  tool_res = await self.toolkit.call_tool_function(tool_call)
-        tool_results = self.tool_selector.execute_selected_tools(
+        # 3. 执行选定的工具 - 使用AgentScope Toolkit
+        tool_results = await self.tool_selector.execute_selected_tools(
             selection_result["selected_tools"],
             ticker=ticker,
             state=state,  # 传递state,让工具自己获取需要的API key
@@ -217,7 +231,7 @@ class AnalystAgent(BaseAgent):
         
         # 4. 使用LLM综合判断工具结果
         progress.update_status(
-            self.agent_id, 
+            self.name, 
             ticker, 
             "LLM综合分析信号"
         )
@@ -256,7 +270,7 @@ class AnalystAgent(BaseAgent):
             }
         }
         
-        progress.update_status(self.agent_id, ticker, "分析完成")
+        progress.update_status(self.name, ticker, "分析完成")
         
         return analysis_result
 
