@@ -26,7 +26,6 @@ from websockets.exceptions import ConnectionClosedError
 from src.memory.memory_factory import initialize_memory_system
 from src.servers.streamer import WebSocketStreamer, ConsoleStreamer, MultiStreamer, BroadcastStreamer
 from src.servers.polling_price_manager import PollingPriceManager
-from src.servers.realtime_price_manager import RealtimePortfolioCalculator
 from src.servers.state_manager import StateManager
 from src.servers.mock import MockSimulator
 from live_trading_thinking_fund import LiveTradingThinkingFund
@@ -87,16 +86,17 @@ class Server:
             logger.info("   请在 .env 文件中设置 FINNHUB_API_KEY")
             logger.info("   获取免费 API Key: https://finnhub.io/register")
             self.price_manager = None
-            self.portfolio_calculator = None
         else:
             # 使用轮询式价格管理器（每60秒更新一次）
             self.price_manager = PollingPriceManager(api_key, poll_interval=60)
-            self.portfolio_calculator = RealtimePortfolioCalculator(self.price_manager)
             
             # 添加价格更新回调
             self.price_manager.add_price_callback(self._on_price_update)
             
             logger.info("✅ 价格轮询管理器已初始化 (间隔: 60秒)")
+        
+        # 记录初始资金（用于计算收益率）
+        self.initial_cash = config.initial_cash
         
         # 初始化记忆系统
         console_streamer = ConsoleStreamer()
@@ -132,38 +132,138 @@ class Server:
         self.thinking_fund = None
     
     def _on_price_update(self, price_data: Dict[str, Any]):
-        """价格更新回调 - 异步广播给所有客户端（线程安全）"""
+        """价格更新回调 - 直接更新 holdings.json 和 stats.json 文件"""
         symbol = price_data['symbol']
         price = price_data['price']
+        open_price = price_data.get('open', price)
         
-        # 更新当前状态
+        # 计算相对开盘价的return
+        ret = ((price - open_price) / open_price) * 100 if open_price > 0 else 0
+        
+        # 更新当前状态（用于价格板显示）
         realtime_prices = self.state_manager.get('realtime_prices', {})
         realtime_prices[symbol] = {
             'price': price,
+            'open': open_price,
+            'ret': ret,
             'timestamp': price_data.get('timestamp'),
             'volume': price_data.get('volume')
         }
         self.state_manager.update('realtime_prices', realtime_prices)
         
-        # 如果有Portfolio计算器，更新净值
-        if self.portfolio_calculator:
-            pnl_data = self.portfolio_calculator.calculate_pnl()
-            portfolio = self.state_manager.get('portfolio', {})
-            portfolio.update(pnl_data)
-            self.state_manager.update('portfolio', portfolio)
-        
-        # 广播价格更新（线程安全）
+        # 广播价格更新（用于价格板实时显示）
         if self.loop and self.loop.is_running():
             asyncio.run_coroutine_threadsafe(
                 self.broadcast({
                     'type': 'price_update',
                     'symbol': symbol,
                     'price': price,
+                    'open': open_price,
+                    'ret': ret,
                     'timestamp': price_data.get('timestamp'),
-                    'portfolio': self.state_manager.get('portfolio', {})
+                    'realtime_prices': realtime_prices
                 }),
                 self.loop
             )
+        
+        # 更新 holdings.json 和 stats.json 文件
+        try:
+            self._update_dashboard_files_with_price(symbol, price)
+        except Exception as e:
+            logger.error(f"更新 Dashboard 文件失败 ({symbol}): {e}")
+    
+    def _update_dashboard_files_with_price(self, symbol: str, price: float):
+        """更新 holdings.json 和 stats.json 文件中的价格和相关计算"""
+        holdings_file = self.dashboard_files.get('holdings')
+        stats_file = self.dashboard_files.get('stats')
+        
+        if not holdings_file or not holdings_file.exists():
+            logger.warning(f"holdings.json 文件不存在，跳过更新")
+            return
+        
+        if not stats_file or not stats_file.exists():
+            logger.warning(f"stats.json 文件不存在，跳过更新")
+            return
+        
+        # 读取 holdings.json
+        try:
+            with open(holdings_file, 'r', encoding='utf-8') as f:
+                holdings = json.load(f)
+        except Exception as e:
+            logger.error(f"读取 holdings.json 失败: {e}")
+            return
+        
+        # 读取 stats.json
+        try:
+            with open(stats_file, 'r', encoding='utf-8') as f:
+                stats = json.load(f)
+        except Exception as e:
+            logger.error(f"读取 stats.json 失败: {e}")
+            return
+        
+        # 更新 holdings 中的价格
+        updated = False
+        total_value = 0.0
+        cash = 0.0
+        
+        for holding in holdings:
+            ticker = holding.get('ticker')
+            quantity = holding.get('quantity', 0)
+            
+            if ticker == 'CASH':
+                cash = holding.get('currentPrice', 0)
+                total_value += cash
+            elif ticker == symbol:
+                # 更新当前价格
+                holding['currentPrice'] = round(price, 2)
+                market_value = quantity * price
+                holding['marketValue'] = round(market_value, 2)
+                total_value += market_value
+                updated = True
+            else:
+                # 累加其他持仓的市值
+                total_value += holding.get('marketValue', 0)
+        
+        # 重新计算权重
+        if total_value > 0:
+            for holding in holdings:
+                market_value = holding.get('marketValue', 0)
+                weight = market_value / total_value
+                holding['weight'] = round(weight, 4)
+        
+        # 如果有更新，保存 holdings.json
+        if updated:
+            try:
+                with open(holdings_file, 'w', encoding='utf-8') as f:
+                    json.dump(holdings, f, indent=2, ensure_ascii=False)
+                logger.debug(f"✅ 已更新 holdings.json: {symbol} = ${price:.2f}")
+            except Exception as e:
+                logger.error(f"保存 holdings.json 失败: {e}")
+                return
+        
+        # 更新 stats.json
+        total_return = ((total_value - self.initial_cash) / self.initial_cash * 100) if self.initial_cash > 0 else 0.0
+        
+        # 更新 tickerWeights
+        ticker_weights = {}
+        for holding in holdings:
+            ticker = holding.get('ticker')
+            if ticker != 'CASH':
+                ticker_weights[ticker] = holding.get('weight', 0)
+        
+        stats['totalAssetValue'] = round(total_value, 2)
+        stats['totalReturn'] = round(total_return, 2)
+        stats['cashPosition'] = round(cash, 2)
+        stats['tickerWeights'] = ticker_weights
+        
+        # 保存 stats.json
+        try:
+            with open(stats_file, 'w', encoding='utf-8') as f:
+                json.dump(stats, f, indent=2, ensure_ascii=False)
+            if updated:
+                logger.debug(f"✅ 已更新 stats.json: 总资产=${total_value:.2f}, 收益率={total_return:.2f}%")
+        except Exception as e:
+            logger.error(f"保存 stats.json 失败: {e}")
     
     async def broadcast(self, message: Dict[str, Any]):
         """广播消息给所有连接的客户端"""

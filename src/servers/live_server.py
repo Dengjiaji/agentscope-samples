@@ -29,7 +29,6 @@ from src.memory.memory_factory import initialize_memory_system
 from src.servers.streamer import BroadcastStreamer
 from src.servers.polling_price_manager import PollingPriceManager
 from src.servers.mock_price_manager import MockPriceManager
-from src.servers.realtime_price_manager import RealtimePortfolioCalculator
 from src.servers.state_manager import StateManager
 from live_trading_thinking_fund import LiveTradingThinkingFund
 from src.config.env_config import LiveThinkingFundConfig
@@ -96,7 +95,6 @@ class LiveTradingServer:
         if mock_mode:
             logger.info("🎭 使用Mock价格管理器（测试模式）")
             self.price_manager = MockPriceManager(poll_interval=5, volatility=0.5)
-            self.portfolio_calculator = RealtimePortfolioCalculator(self.price_manager)
         else:
             api_key = os.getenv('FINNHUB_API_KEY', '')
             if not api_key:
@@ -108,10 +106,12 @@ class LiveTradingServer:
             # 使用高频轮询（10秒一次）
             logger.info("📊 使用Finnhub实时价格（高频轮询: 10秒）")
             self.price_manager = PollingPriceManager(api_key, poll_interval=10)
-            self.portfolio_calculator = RealtimePortfolioCalculator(self.price_manager)
         
         # 添加价格更新回调
         self.price_manager.add_price_callback(self._on_price_update)
+        
+        # 记录初始资金（用于计算收益率）
+        self.initial_cash = config.initial_cash
         
         # 初始化记忆系统
         from src.servers.streamer import ConsoleStreamer
@@ -152,7 +152,7 @@ class LiveTradingServer:
         self.market_is_open = False
     
     def _on_price_update(self, price_data: Dict[str, Any]):
-        """价格更新回调 - 异步广播给所有客户端"""
+        """价格更新回调 - 直接更新 holdings.json 和 stats.json 文件"""
         symbol = price_data['symbol']
         price = price_data['price']
         open_price = price_data.get('open', price)
@@ -160,7 +160,7 @@ class LiveTradingServer:
         # 计算相对开盘价的return
         ret = ((price - open_price) / open_price) * 100 if open_price > 0 else 0
         
-        # 更新当前状态
+        # 更新当前状态（用于价格板显示）
         realtime_prices = self.state_manager.get('realtime_prices', {})
         realtime_prices[symbol] = {
             'price': price,
@@ -171,26 +171,7 @@ class LiveTradingServer:
         }
         self.state_manager.update('realtime_prices', realtime_prices)
         
-        # 如果有Portfolio计算器，更新净值
-        if self.portfolio_calculator:
-            pnl_data = self.portfolio_calculator.calculate_pnl()
-            portfolio = self.state_manager.get('portfolio', {})
-            portfolio.update(pnl_data)
-            
-            # 添加新的equity数据点
-            equity_list = portfolio.get('equity', [])
-            equity_list.append({
-                't': price_data.get('timestamp'),
-                'v': pnl_data['total_value']
-            })
-            # 保留最近1000个点
-            if len(equity_list) > 1000:
-                equity_list = equity_list[-1000:]
-            portfolio['equity'] = equity_list
-            
-            self.state_manager.update('portfolio', portfolio)
-        
-        # 广播价格更新
+        # 广播价格更新（用于价格板实时显示）
         if self.loop and self.loop.is_running():
             asyncio.run_coroutine_threadsafe(
                 self.broadcast({
@@ -200,11 +181,109 @@ class LiveTradingServer:
                     'open': open_price,
                     'ret': ret,
                     'timestamp': price_data.get('timestamp'),
-                    'portfolio': self.state_manager.get('portfolio', {}),
                     'realtime_prices': realtime_prices
                 }),
                 self.loop
             )
+        
+        # 更新 holdings.json 和 stats.json 文件
+        try:
+            self._update_dashboard_files_with_price(symbol, price)
+        except Exception as e:
+            logger.error(f"更新 Dashboard 文件失败 ({symbol}): {e}")
+    
+    def _update_dashboard_files_with_price(self, symbol: str, price: float):
+        """更新 holdings.json 和 stats.json 文件中的价格和相关计算"""
+        holdings_file = self.dashboard_files.get('holdings')
+        stats_file = self.dashboard_files.get('stats')
+        
+        if not holdings_file or not holdings_file.exists():
+            logger.warning(f"holdings.json 文件不存在，跳过更新")
+            return
+        
+        if not stats_file or not stats_file.exists():
+            logger.warning(f"stats.json 文件不存在，跳过更新")
+            return
+        
+        # 读取 holdings.json
+        try:
+            with open(holdings_file, 'r', encoding='utf-8') as f:
+                holdings = json.load(f)
+        except Exception as e:
+            logger.error(f"读取 holdings.json 失败: {e}")
+            return
+        
+        # 读取 stats.json
+        try:
+            with open(stats_file, 'r', encoding='utf-8') as f:
+                stats = json.load(f)
+        except Exception as e:
+            logger.error(f"读取 stats.json 失败: {e}")
+            return
+        
+        # 更新 holdings 中的价格
+        updated = False
+        total_value = 0.0
+        cash = 0.0
+        
+        for holding in holdings:
+            ticker = holding.get('ticker')
+            quantity = holding.get('quantity', 0)
+            
+            if ticker == 'CASH':
+                cash = holding.get('marketValue', 0)
+                total_value += cash
+            elif ticker == symbol:
+                # 更新当前价格
+                holding['currentPrice'] = round(price, 2)
+                market_value = quantity * price
+                holding['marketValue'] = round(market_value, 2)
+                total_value += market_value
+                updated = True
+            else:
+                # 累加其他持仓的市值
+                total_value += holding.get('marketValue', 0)
+        
+        # 重新计算权重
+        if total_value > 0:
+            for holding in holdings:
+                market_value = holding.get('marketValue', 0)
+                weight = market_value / total_value
+                holding['weight'] = round(weight, 4)
+        
+        # 如果有更新，保存 holdings.json
+        if updated:
+            try:
+                with open(holdings_file, 'w', encoding='utf-8') as f:
+                    json.dump(holdings, f, indent=2, ensure_ascii=False)
+                logger.debug(f"✅ 已更新 holdings.json: {symbol} = ${price:.2f}")
+            except Exception as e:
+                logger.error(f"保存 holdings.json 失败: {e}")
+                return
+        
+        # 更新 stats.json
+        total_return = ((total_value - self.initial_cash) / self.initial_cash * 100) if self.initial_cash > 0 else 0.0
+        
+        # 更新 tickerWeights
+        ticker_weights = {}
+        for holding in holdings:
+            ticker = holding.get('ticker')
+            if ticker != 'CASH':
+                ticker_weights[ticker] = holding.get('weight', 0)
+        
+        stats['totalAssetValue'] = round(total_value, 2)
+        stats['totalReturn'] = round(total_return, 2)
+        stats['cashPosition'] = round(cash, 2)
+        stats['tickerWeights'] = ticker_weights
+        
+        # 保存 stats.json
+        try:
+            with open(stats_file, 'w', encoding='utf-8') as f:
+                json.dump(stats, f, indent=2, ensure_ascii=False)
+            if updated:
+                logger.debug(f"✅ 已更新 stats.json: 总资产=${total_value:.2f}, 收益率={total_return:.2f}%")
+        except Exception as e:
+            logger.error(f"保存 stats.json 失败: {e}")
     
     async def broadcast(self, message: Dict[str, Any]):
         """广播消息给所有连接的客户端"""
@@ -618,29 +697,8 @@ class LiveTradingServer:
                             portfolio_summary = live_env.get('portfolio_summary', {})
                             updated_portfolio = live_env.get('updated_portfolio', {})
                             
-                            if portfolio_summary and updated_portfolio:
-                                # 更新Portfolio计算器
-                                if self.portfolio_calculator:
-                                    holdings = {}
-                                    positions = updated_portfolio.get('positions', {})
-                                    for symbol, position_data in positions.items():
-                                        if isinstance(position_data, dict):
-                                            long_qty = position_data.get('long', 0)
-                                            short_qty = position_data.get('short', 0)
-                                            net_qty = long_qty - short_qty
-                                            if net_qty != 0:
-                                                long_cost = position_data.get('long_cost_basis', 0)
-                                                short_cost = position_data.get('short_cost_basis', 0)
-                                                avg_cost = long_cost if net_qty > 0 else short_cost
-                                                holdings[symbol] = {
-                                                    'quantity': net_qty,
-                                                    'avg_cost': avg_cost
-                                                }
-                                    
-                                    self.portfolio_calculator.update_holdings(
-                                        holdings,
-                                        updated_portfolio.get('cash', 0)
-                                    )
+                            # Portfolio数据会通过 Dashboard 文件更新机制自动处理
+                            pass
                     
                     await self.broadcast({
                         'type': 'day_complete',
