@@ -328,22 +328,6 @@ class RiskManagerAgent(BaseAgent):
             base_score = min(base_score + 10, 100)
         
         return risk_level, max(0, min(100, base_score)), assessment
-    
-    # def _calculate_volatility_adjusted_limit(self, annualized_volatility: float) -> float:
-    #     """计算波动率调整后的仓位限制百分比"""
-    #     base_limit = 0.20  # 20%基准
-        
-    #     if annualized_volatility < 0.15:
-    #         vol_multiplier = 1.25  # 最多25%
-    #     elif annualized_volatility < 0.30:
-    #         vol_multiplier = 1.0 - (annualized_volatility - 0.15) * 0.5
-    #     elif annualized_volatility < 0.50:
-    #         vol_multiplier = 0.75 - (annualized_volatility - 0.30) * 0.5
-    #     else:
-    #         vol_multiplier = 0.50  # 最多10%
-        
-    #     vol_multiplier = max(0.25, min(1.25, vol_multiplier))
-    #     return base_limit * vol_multiplier
 
     def _calculate_volatility_adjusted_limit(self, annualized_volatility: float) -> float:
         """计算波动率调整后的仓位限制百分比"""

@@ -28,6 +28,7 @@ from src.servers.streamer import WebSocketStreamer, ConsoleStreamer, MultiStream
 from src.servers.polling_price_manager import PollingPriceManager
 from src.servers.realtime_price_manager import RealtimePortfolioCalculator
 from src.servers.state_manager import StateManager
+from src.servers.mock import MockSimulator
 from live_trading_thinking_fund import LiveTradingThinkingFund
 from src.config.env_config import LiveThinkingFundConfig
 from src.tools.api import get_prices
@@ -38,7 +39,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger(__name__)
 
 
-class ContinuousServer:
+class Server:
     """持续运行的交易系统服务器"""
     
     def __init__(self, config: LiveThinkingFundConfig):
@@ -442,300 +443,6 @@ class ContinuousServer:
                 self.connected_clients.discard(websocket)
             logger.info(f"客户端断开 (剩余连接: {len(self.connected_clients)})")
     
-    async def run_mock_simulation(self):
-        """运行模拟数据推送（用于测试前端）"""
-        logger.info("🎭 开始Mock模式 - 模拟数据推送")
-        
-        import random
-        from datetime import datetime, timedelta
-        
-        # Mock tickers
-        tickers = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META']
-        
-        # 初始价格
-        prices = {
-            'AAPL': 237.50,
-            'MSFT': 425.30,
-            'GOOGL': 161.50,
-            'AMZN': 218.45,
-            'NVDA': 950.00,
-            'META': 573.22
-        }
-        
-        # 初始化equity数据（使用累积百分比变化，与实时更新保持一致）
-        base_value = self.config.initial_cash
-        equity_data = []
-        start_time = datetime.now() - timedelta(days=30)
-        
-        current_value = base_value
-        for i in range(30):
-            t = start_time + timedelta(days=i)
-            daily_change_pct = random.uniform(-1.5, 2.0)  # 每日波动 -1.5% 到 +2%
-            current_value *= (1 + daily_change_pct / 100)
-            equity_data.append({
-                't': int(t.timestamp() * 1000),
-                'v': current_value
-            })
-        
-        # 更新初始状态
-        self.state_manager.update('status', 'running')
-        portfolio = self.state_manager.get('portfolio', {})
-        portfolio['equity'] = equity_data
-        portfolio['total_value'] = equity_data[-1]['v']
-        self.state_manager.update('portfolio', portfolio)
-        
-        # Mock leaderboard
-        agents = [
-            {'id': 'alpha', 'name': 'Bob', 'role': 'Portfolio Manager'},
-            {'id': 'beta', 'name': 'Carl', 'role': 'Risk Manager'},
-            {'id': 'gamma', 'name': 'Alice', 'role': 'Valuation Analyst'},
-            {'id': 'delta', 'name': 'David', 'role': 'Sentiment Analyst'},
-            {'id': 'epsilon', 'name': 'Eve', 'role': 'Fundamentals Analyst'},
-            {'id': 'zeta', 'name': 'Frank', 'role': 'Technical Analyst'}
-        ]
-        
-        leaderboard = []
-        for idx, agent in enumerate(agents, 1):
-            leaderboard.append({
-                'agentId': agent['id'],
-                'name': agent['name'],
-                'role': agent['role'],
-                'rank': idx,
-                'accountValue': base_value * random.uniform(0.5, 1.5),
-                'returnPct': random.uniform(-50, 80),
-                'totalPL': random.uniform(-5000, 8000),
-                'fees': random.uniform(200, 1500),
-                'winRate': random.uniform(0.2, 0.7),
-                'biggestWin': random.uniform(1000, 8000),
-                'biggestLoss': random.uniform(-2000, -500),
-                'sharpe': random.uniform(-0.7, 0.5),
-                'trades': random.randint(20, 200)
-            })
-        
-        # 按return排序
-        leaderboard.sort(key=lambda x: x['returnPct'], reverse=True)
-        for idx, agent in enumerate(leaderboard, 1):
-            agent['rank'] = idx
-        
-        self.state_manager.update('leaderboard', leaderboard)
-        
-        # Mock holdings (current positions)
-        holdings = [
-            {
-                'ticker': 'AAPL',
-                'qty': 120,
-                'avg': 192.30,
-                'currentPrice': prices['AAPL'],
-                'pl': (prices['AAPL'] - 192.30) * 120,
-                'weight': 0.21
-            },
-            {
-                'ticker': 'NVDA',
-                'qty': 40,
-                'avg': 980.10,
-                'currentPrice': prices['NVDA'],
-                'pl': (prices['NVDA'] - 980.10) * 40,
-                'weight': 0.18
-            },
-            {
-                'ticker': 'MSFT',
-                'qty': 20,
-                'avg': 420.20,
-                'currentPrice': prices['MSFT'],
-                'pl': (prices['MSFT'] - 420.20) * 20,
-                'weight': 0.15
-            },
-            {
-                'ticker': 'GOOGL',
-                'qty': 80,
-                'avg': 142.50,
-                'currentPrice': prices['GOOGL'],
-                'pl': (prices['GOOGL'] - 142.50) * 80,
-                'weight': 0.12
-            }
-        ]
-        self.state_manager.update('holdings', holdings)
-        
-        # Mock trades (历史交易记录)
-        base_time = datetime.now()
-        trades = [
-            {
-                'id': f't{i}',
-                'timestamp': (base_time - timedelta(hours=i)).isoformat(),
-                'side': 'BUY' if i % 2 == 0 else 'SELL',
-                'ticker': random.choice(tickers),
-                'qty': random.randint(5, 50),
-                'price': random.uniform(100, 1000),
-                'pnl': random.uniform(-500, 1000)
-            }
-            for i in range(20)
-        ]
-        self.state_manager.update('trades', trades)
-        
-        # Mock stats
-        self.state_manager.update('stats', {
-            'winRate': 0.62,
-            'hitRate': 0.58,
-            'totalTrades': 44,
-            'bullBear': {
-                'bull': {'n': 26, 'win': 17},
-                'bear': {'n': 18, 'win': 10}
-            }
-        })
-        
-        # 初始化一些历史消息（模拟已运行一段时间）
-        base_time = datetime.now()
-        for i in range(10):
-            msg_time = base_time - timedelta(minutes=10-i)
-            agent = random.choice(agents)
-            
-            historical_msg = {
-                'type': 'agent_message',
-                'agentId': agent['id'],
-                'agentName': agent['name'],
-                'role': agent['role'],
-                'content': f"Historical analysis: Market analysis from {i+1} updates ago",
-                'timestamp': msg_time.isoformat()
-            }
-            self.state_manager.add_feed_message(historical_msg)
-        
-        # 添加系统启动消息
-        await self.broadcast({
-            'type': 'system',
-            'content': '🎭 Mock模式启动 - 开始模拟数据推送'
-        })
-        
-        # 持续推送更新
-        iteration = 0
-        while True:
-            iteration += 1
-            
-            # 1. 每秒更新一个随机价格
-            symbol = random.choice(tickers)
-            old_price = prices[symbol]
-            change_pct = random.uniform(-0.5, 0.5)
-            new_price = old_price * (1 + change_pct / 100)
-            prices[symbol] = new_price
-            
-            # 更新holdings中的当前价格和P&L
-            holdings = self.state_manager.get('holdings', [])
-            for holding in holdings:
-                if holding['ticker'] in prices:
-                    holding['currentPrice'] = prices[holding['ticker']]
-                    holding['pl'] = (prices[holding['ticker']] - holding['avg']) * holding['qty']
-            self.state_manager.update('holdings', holdings)
-            
-            # 更新portfolio value（简单模拟）
-            portfolio = self.state_manager.get('portfolio', {})
-            current_value = portfolio.get('total_value', base_value)
-            new_value = current_value * (1 + change_pct / 100)
-            portfolio['total_value'] = new_value
-            portfolio['pnl_percent'] = ((new_value - base_value) / base_value) * 100
-            self.state_manager.update('portfolio', portfolio)
-            
-            await self.broadcast({
-                'type': 'price_update',
-                'symbol': symbol,
-                'price': new_price,
-                'timestamp': datetime.now().isoformat(),
-                'portfolio': {
-                    'total_value': new_value,
-                    'pnl_percent': portfolio['pnl_percent']
-                }
-            })
-            
-            # 2. 每10秒更新一次equity数据点
-            if iteration % 10 == 0:
-                new_equity_point = {
-                    't': int(datetime.now().timestamp() * 1000),
-                    'v': new_value
-                }
-                portfolio = self.state_manager.get('portfolio', {})
-                equity = portfolio.get('equity', [])
-                equity.append(new_equity_point)
-                
-                # 保持最近50个点
-                if len(equity) > 50:
-                    equity = equity[-50:]
-                portfolio['equity'] = equity
-                self.state_manager.update('portfolio', portfolio)
-                
-                await self.broadcast({
-                    'type': 'team_summary',
-                    'balance': new_value,
-                    'pnlPct': portfolio['pnl_percent'],
-                    'equity': equity,
-                    'timestamp': datetime.now().isoformat()
-                })
-            
-            # 3. 每20秒更新一次leaderboard
-            if iteration % 10 == 0:
-                # 随机调整leaderboard
-                for agent in leaderboard:
-                    agent['returnPct'] += random.uniform(-2, 3)
-                    agent['accountValue'] = base_value * (1 + agent['returnPct'] / 100)
-                
-                leaderboard.sort(key=lambda x: x['returnPct'], reverse=True)
-                for idx, agent in enumerate(leaderboard, 1):
-                    agent['rank'] = idx
-                
-                self.state_manager.update('leaderboard', leaderboard)
-                
-                await self.broadcast({
-                    'type': 'team_leaderboard',
-                    'leaderboard': leaderboard,
-                    'timestamp': datetime.now().isoformat()
-                })
-            
-            # 4. 每30秒发送一条agent消息
-            if iteration % 30 == 0:
-                agent = random.choice(agents)
-                messages = [
-                    f"Analyzing {random.choice(tickers)} - showing strong momentum",
-                    f"Risk alert: volatility increasing in {random.choice(tickers)}",
-                    f"Portfolio rebalancing recommended",
-                    f"Technical indicators suggest buying opportunity in {random.choice(tickers)}",
-                    f"Market sentiment turning positive"
-                ]
-                
-                await self.broadcast({
-                    'type': 'agent_message',
-                    'agentId': agent['id'],
-                    'agentName': agent['name'],
-                    'role': agent['role'],
-                    'content': random.choice(messages),
-                    'timestamp': datetime.now().isoformat()
-                })
-            
-            # 5. 每45秒模拟一笔新交易
-            if iteration % 4 == 0:
-                trade_ticker = random.choice(tickers)
-                trade = {
-                    'id': f't-{datetime.now().timestamp()}',
-                    'timestamp': datetime.now().isoformat(),
-                    'side': random.choice(['BUY', 'SELL']),
-                    'ticker': trade_ticker,
-                    'qty': random.randint(5, 50),
-                    'price': prices[trade_ticker],
-                    'pnl': random.uniform(-500, 1000)
-                }
-                # 添加到trades列表开头
-                trades = self.state_manager.get('trades', [])
-                trades.insert(0, trade)
-                # 保持最近50笔交易
-                if len(trades) > 50:
-                    trades = trades[:50]
-                self.state_manager.update('trades', trades)
-                
-                # 广播新交易
-                await self.broadcast({
-                    'type': 'team_trades',
-                    'trade': trade,
-                    'timestamp': datetime.now().isoformat()
-                })
-            
-            await asyncio.sleep(1)
-    
     async def run_continuous_simulation(self):
         """持续运行交易模拟"""
         logger.info("🚀 开始持续运行模式")
@@ -1001,7 +708,12 @@ class ContinuousServer:
             # 选择运行模式
             if mock:
                 logger.info("🎭 使用Mock模式")
-                simulation_task = asyncio.create_task(self.run_mock_simulation())
+                mock_simulator = MockSimulator(
+                    state_manager=self.state_manager,
+                    broadcast_callback=self.broadcast,
+                    initial_cash=self.config.initial_cash
+                )
+                simulation_task = asyncio.create_task(mock_simulator.run())
             else:
                 logger.info("🚀 使用真实交易模式")
                 simulation_task = asyncio.create_task(self.run_continuous_simulation())
@@ -1054,7 +766,7 @@ async def main():
         logger.info(f"   保证金要求: {config.margin_requirement * 100:.1f}%")
     
     # 创建并启动服务器
-    server = ContinuousServer(config)
+    server = Server(config)
     await server.start(host=args.host, port=args.port, mock=args.mock)
 
 
