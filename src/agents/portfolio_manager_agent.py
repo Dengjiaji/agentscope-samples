@@ -284,8 +284,8 @@ class PortfolioManagerAgent(AgentBase):
 
 
         # 加载 prompt
-        system_prompt = self.prompt_loader.load_prompt("portfolio_decision_system", variables=prompt_data)
-        human_prompt = self.prompt_loader.load_prompt("portfolio_decision_human", variables=prompt_data)
+        system_prompt = self.prompt_loader.load_prompt(agent_type=self.agent_type, prompt_name="portfolio_decision_system", variables=prompt_data)
+        human_prompt = self.prompt_loader.load_prompt(agent_type=self.agent_type, prompt_name="portfolio_decision_human", variables=prompt_data)
         prompt = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": human_prompt}
