@@ -103,8 +103,15 @@ export default function RoomView({ bubbles, bubbleFor }) {
             key={agent.id} 
             className={`agent-indicator ${speakingAgents[agent.id] ? 'speaking' : ''}`}
           >
-            <span className="agent-indicator-dot"></span>
-            <span>{agent.name}</span>
+            <div className="agent-avatar-wrapper">
+              <img 
+                src={agent.avatar} 
+                alt={agent.name}
+                className="agent-avatar"
+              />
+              <span className="agent-indicator-dot"></span>
+            </div>
+            <span className="agent-name">{agent.name}</span>
           </div>
         ))}
       </div>
