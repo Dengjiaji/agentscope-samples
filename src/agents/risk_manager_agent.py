@@ -64,7 +64,7 @@ class RiskManagerAgent(AgentBase):
     def _load_or_default_risk_config(self) -> Dict[str, Any]:
         """加载风险等级配置"""
         try:
-            return self.load_config("risk_levels")
+            return self.prompt_loader.load_config("risk_levels")
         except FileNotFoundError:
             # 返回默认配置
             return self._get_default_risk_config()
@@ -72,7 +72,7 @@ class RiskManagerAgent(AgentBase):
     def _load_or_default_position_config(self) -> Dict[str, Any]:
         """加载仓位限制配置"""
         try:
-            return self.load_config("position_limits")
+            return self.prompt_loader.load_config("position_limits")
         except FileNotFoundError:
             return self._get_default_position_config()
     
