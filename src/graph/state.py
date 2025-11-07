@@ -1,7 +1,7 @@
 from typing_extensions import Annotated, Sequence, TypedDict, Dict, Any, List
 import operator
 import json
-
+from agentscope.message import Msg
 
 def merge_dicts(a: dict[str, any], b: dict[str, any]) -> dict[str, any]:
     return {**a, **b}

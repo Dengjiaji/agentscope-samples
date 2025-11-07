@@ -748,20 +748,13 @@ class AdvancedInvestmentAnalysisEngine:
                         reasoning = risk_data.get("reasoning", {})
                         position_limit_pct = reasoning.get("base_position_limit_pct", 0)
                         
-                        print(f"  {ticker}:\n")
-                        print(f"     当前价格: ${current_price:.2f}\n")
-                        print(f"     最大可买股数: {max_shares}\n")
-                        print(f"     年化波动率: {annualized_vol:.1%}\n")
-                        print(f"     仓位限制: {position_limit_pct:.1%}\n")
-                        print(f"     剩余可用额度: ${remaining_limit:,.2f}")
-                        
                         if self.streamer:
                             self.streamer.print("agent", 
-                                f"{ticker}: "
-                                f"  价格 ${current_price:.2f}"
-                                f"  最大可买 {max_shares} 股"
-                                f"  波动率 {annualized_vol:.1%}"
-                                f"  仓位限制 {position_limit_pct:.1%}",
+                                f"{ticker}: \n"
+                                f"  价格 ${current_price:.2f}\n"
+                                f"  最大可买 {max_shares} 股\n"
+                                f"  波动率 {annualized_vol:.1%}\n"
+                                f"  仓位限制 {position_limit_pct:.1%}\n",
                                 role_key="risk_manager"
                             )
                 

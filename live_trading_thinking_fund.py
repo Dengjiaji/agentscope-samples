@@ -482,10 +482,10 @@ class LiveTradingThinkingFund:
                     role_key='portfolio_manager'
                 )
             # 分析师逐票事件
-            for agent in ['sentiment_analyst', 'technical_analyst', 'fundamentals_analyst', 'valuation_analyst']:
-                sig = live_env['ana_signals'][agent].get(ticker, '')['signal']
-                if sig:
-                    self.streamer.print("agent", f"{ticker}: {sig}",  role_key=agent)
+            # for agent in ['sentiment_analyst', 'technical_analyst', 'fundamentals_analyst', 'valuation_analyst']:
+            #     sig = live_env['ana_signals'][agent].get(ticker, '')['signal']
+            #     if sig:
+            #         self.streamer.print("agent", f"{ticker}: {sig}",  role_key=agent)
 
         # ========== Portfolio模式：提取并更新状态（学习MultiDayManager）⭐⭐⭐ ==========
         if self.mode == "portfolio":

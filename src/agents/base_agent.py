@@ -64,7 +64,7 @@ class BaseAgent(ABC):
         # 工具/服务函数注册表
         self.tools: Dict[str, Any] = {}
         
-        # 延迟加载 prompt_loader 以避免循环导入
+        # Prompt loader
         self._prompt_loader = None
     
     def _init_model(self, model_config: Dict[str, Any]):
@@ -131,16 +131,13 @@ class BaseAgent(ABC):
             metadata=metadata
         )
         self.messages.append(message)
-        
-        # 延迟加载 prompt_loader 以避免循环导入
-        self._prompt_loader = None
     
     @property
     def prompt_loader(self):
-        """延迟加载 PromptLoader"""
+        """获取 PromptLoader"""
         if self._prompt_loader is None:
-            from .prompt_loader import get_prompt_loader
-            self._prompt_loader = get_prompt_loader()
+            from .prompt_loader import PromptLoader
+            self._prompt_loader = PromptLoader()
         return self._prompt_loader
     
     def load_prompt(self, prompt_name: str, variables: Optional[Dict[str, Any]] = None) -> str:

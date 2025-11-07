@@ -7,7 +7,7 @@ from typing import Dict, Any, List, Optional, Callable
 import json
 import pdb
 import numpy as np
-from .prompt_loader import get_prompt_loader
+from .prompt_loader import PromptLoader
 from src.utils.api_key import get_api_key_from_state
 
 # 导入所有可用的分析工具
@@ -59,7 +59,7 @@ class LLMToolSelector:
             use_prompt_files: 是否使用外部 prompt 文件（默认 True，向后兼容）
         """
         self.use_prompt_files = use_prompt_files
-        self.prompt_loader = get_prompt_loader() if use_prompt_files else None
+        self.prompt_loader = PromptLoader() if use_prompt_files else None
         
         # 所有可用的分析工具
         

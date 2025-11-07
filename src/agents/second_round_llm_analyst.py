@@ -11,98 +11,9 @@ from ..utils.llm import call_llm
 from ..utils.json_utils import quiet_json_dumps
 from ..data.second_round_signals import SecondRoundAnalysis, AnalystPersona, TickerSignal
 from src.communication.cfg import ANALYST_PERSONAS
-from .prompt_loader import get_prompt_loader
-import pdb
+from .prompt_loader import PromptLoader
 
-
-
-def create_second_round_prompt_template(use_prompt_files: bool = True) -> Dict[str, str]:
-    """
-    Create second-round analysis prompt template
-    
-    Args:
-        use_prompt_files: 是否使用外部 prompt 文件（默认 True）
-        
-    Returns:
-        包含 'system' 和 'human' 键的字典
-    """
-    # 尝试从文件加载
-    if use_prompt_files:
-        try:
-            # 直接读取文件内容
-            import pathlib
-            prompts_dir = pathlib.Path(__file__).parent / "prompts" / "analyst"
-            
-            with open(prompts_dir / "second_round_system.md", 'r', encoding='utf-8') as f:
-                system_template = f.read()
-            
-            with open(prompts_dir / "second_round_human.md", 'r', encoding='utf-8') as f:
-                human_template = f.read()
-            
-            return {
-                "system": system_template,
-                "human": human_template
-            }
-        except FileNotFoundError:
-            print(f"⚠️ Prompt files not found for second_round, using hardcoded templates")
-    
-    # 硬编码模板（向后兼容）
-    return {
-    "system": """You are a professional {analyst_name} with the following characteristics:
-
-Professional Field: {specialty}
-Analysis Focus: {analysis_focus}
-Decision Style: {decision_style}  
-Risk Preference: {risk_preference}
-
-Now you need to re-evaluate your investment perspective based on first-round analysis results, notifications from other analysts, and your first-round analysis Pipeline information.
-
-Please consider the following information from your professional perspective:
-1. Your own first-round analysis results
-2. Notifications and viewpoints sent by other analysts
-3. Overall analysis summary
-4. Your first-round analysis Pipeline information
-
-You need to provide for each stock:
-- signal: "bullish" (bullish), "bearish" (bearish), "neutral" (neutral)
-- confidence: integer from 0-100 (confidence level)
-- reasoning: detailed judgment rationale
-
-Please return structured analysis results in JSON format.""",
-    "human": """=== Second Round Analysis Input ===
-
-{ticker_reports}
-
-## Notifications from Other Analysts
-{notifications}
-
-=== Analysis Requirements ===
-Please re-evaluate your investment perspective based on the above information.
-
-From your professional perspective as {analyst_name}, please return analysis results in JSON format.
-
-Required JSON format example:
-{{
-  "analyst_id": "{agent_id}",
-  "analyst_name": "{analyst_name}",
-  "ticker_signals": [
-    {{
-      "ticker": "AAPL",
-      "signal": "bullish",
-      "confidence": 75,
-      "reasoning": "detailed judgment rationale..."
-    }},
-    {{
-      "ticker": "MSFT", 
-      "signal": "neutral",
-      "confidence": 60,
-      "reasoning": "detailed judgment rationale..."
-    }}
-  ]
-}}
-
-Please strictly return analysis results according to this JSON format."""
-    }
+_prompt_loader = PromptLoader()
 
 
 def run_second_round_llm_analysis(
@@ -121,35 +32,26 @@ def run_second_round_llm_analysis(
     
     persona = ANALYST_PERSONAS[agent_id]
     
-    # Create prompt template
-    prompt_template = create_second_round_prompt_template()
-    # 格式化分析重点为字符串
+    # 准备prompt变量
     analysis_focus_str = "\n".join([f"- {focus}" for focus in persona.analysis_focus])
     
-    # 格式化通知信息
-    notifications_str = ""
-    if notifications:
-        notifications_str = "\n".join([
-            f"- {notif.get('sender', 'Unknown')}: {notif.get('content', '')}"
-            for notif in notifications
-        ])
-    else:
-        notifications_str = "No notifications from other analysts yet"
+    notifications_str = (
+        "\n".join([f"- {notif.get('sender', 'Unknown')}: {notif.get('content', '')}" 
+                   for notif in notifications])
+        if notifications else "No notifications from other analysts yet"
+    )
     
-    # 生成分ticker的报告格式
+    # 生成分ticker的报告
     ticker_reports = []
     for i, ticker in enumerate(tickers, 1):
-        # 提取该ticker的第一轮分析结果
         ticker_first_round = {}
         if isinstance(first_round_analysis, dict):
-            # 如果first_round_analysis包含ticker_signals列表
             if 'ticker_signals' in first_round_analysis:
                 for signal in first_round_analysis['ticker_signals']:
                     if signal.get('ticker') == ticker:
                         ticker_first_round = signal
                         break
             else:
-                # 如果是直接的ticker->analysis映射
                 ticker_first_round = first_round_analysis.get(ticker, {})
         
         ticker_report = f"""## Stock {i}: {ticker}
@@ -164,26 +66,23 @@ Analysis Tools Selection and Reasoning:
 """
         ticker_reports.append(ticker_report)
     
-    ticker_reports_str = "\n".join(ticker_reports)
-    
-    # 格式化 prompt（替换模板变量）
-    system_prompt = prompt_template["system"].format(
-        analyst_name=persona.name,
-        specialty=persona.specialty,
-        analysis_focus=analysis_focus_str,
-        decision_style=persona.decision_style,
-        risk_preference=persona.risk_preference
-    )
-    
-    human_prompt = prompt_template["human"].format(
-        ticker_reports=ticker_reports_str,
-        notifications=notifications_str,
-        analyst_name=persona.name,
-        agent_id=agent_id
-    )
-    
-    # 组合成完整的 prompt
+    # 使用 PromptLoader 加载和渲染 prompts
+    variables = {
+        "analyst_name": persona.name,
+        "specialty": persona.specialty,
+        "analysis_focus": analysis_focus_str,
+        "decision_style": persona.decision_style,
+        "risk_preference": persona.risk_preference,
+        "ticker_reports": "\n".join(ticker_reports),
+        "notifications": notifications_str,
+        "agent_id": agent_id
+    }
+    print(f"\nvariable:\n{variables}")
+    system_prompt = _prompt_loader.load_prompt("analyst", "second_round_system", variables)
+    human_prompt = _prompt_loader.load_prompt("analyst", "second_round_human", variables)
+
     full_prompt = f"{system_prompt}\n\n{human_prompt}"
+    print(f"\nfull_prompt:\n{full_prompt}")
     
     # 调用LLM
     
