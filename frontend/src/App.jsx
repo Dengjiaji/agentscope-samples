@@ -685,13 +685,33 @@ export default function LiveTradingApp() {
           if (e.holdings) setHoldings(e.holdings);
         },
         
+        // ✅ 监听 holdings 更新（服务器广播的事件名）
+        team_holdings: (e) => {
+          if (e.data && Array.isArray(e.data)) {
+            setHoldings(e.data);
+            console.log(`✅ Holdings updated: ${e.data.length} positions`);
+          }
+        },
+        
         team_trades: (e) => {
-          if (Array.isArray(e.trades)) setTrades(e.trades);
-          else if (e.trade) setTrades(prev => [e.trade, ...prev].slice(0, 100));
+          // 支持两种格式：完整列表或单笔交易
+          if (e.mode === 'full' && e.data && Array.isArray(e.data)) {
+            setTrades(e.data);
+            console.log(`✅ Trades updated (full): ${e.data.length} trades`);
+          } else if (Array.isArray(e.trades)) {
+            setTrades(e.trades);
+          } else if (e.trade) {
+            setTrades(prev => [e.trade, ...prev].slice(0, 100));
+          }
         },
         
         team_stats: (e) => {
-          if (e.stats) setStats(e.stats);
+          if (e.data) {
+            setStats(e.data);
+            console.log('✅ Stats updated');
+          } else if (e.stats) {
+            setStats(e.stats);
+          }
         },
         
         team_leaderboard: (e) => {

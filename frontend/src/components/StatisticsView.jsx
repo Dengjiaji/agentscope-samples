@@ -5,9 +5,12 @@ import { formatNumber, formatDateTime } from '../utils/formatters';
 /**
  * Statistics View Component
  * Displays portfolio overview, holdings, and trade history
+ * ✅ Now with real-time updates via WebSocket
  */
 export default function StatisticsView({ trades, holdings, stats }) {
   const [currentPage, setCurrentPage] = useState(1);
+  const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [isUpdating, setIsUpdating] = useState(false);
   const itemsPerPage = 10;
   
   // Calculate pagination
@@ -21,8 +24,46 @@ export default function StatisticsView({ trades, holdings, stats }) {
     setCurrentPage(1);
   }, [trades.length]);
   
+  // Track updates with visual feedback
+  useEffect(() => {
+    setLastUpdate(new Date());
+    setIsUpdating(true);
+    const timer = setTimeout(() => setIsUpdating(false), 500);
+    return () => clearTimeout(timer);
+  }, [holdings, stats, trades]);
+  
   return (
     <div>
+      {/* Real-time Update Indicator */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16,
+        padding: '8px 12px',
+        background: isUpdating ? '#E8F5E9' : '#fafafa',
+        border: '1px solid #e0e0e0',
+        fontSize: 11,
+        fontFamily: '"Courier New", monospace',
+        transition: 'background 0.3s ease'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            background: isUpdating ? '#4CAF50' : '#9E9E9E',
+            animation: isUpdating ? 'pulse 1s infinite' : 'none'
+          }} />
+          <span style={{ color: '#666666' }}>
+            {isUpdating ? '⟳ Updating...' : '✓ Live Data'}
+          </span>
+        </div>
+        <span style={{ color: '#999999' }}>
+          Last update: {lastUpdate.toLocaleTimeString()}
+        </span>
+      </div>
+      
       {/* Overview Section */}
       {stats && (
         <div className="section">
