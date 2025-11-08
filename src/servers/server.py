@@ -275,45 +275,14 @@ class Server:
         except Exception as e:
             logger.error(f"保存 stats.json 失败: {e}")
         
-        # 更新 summary.json（添加实时净值曲线点）
-        if summary and updated:
-            try:
-                from datetime import datetime
-                
-                # 获取当前时间戳（毫秒）
-                current_time = int(datetime.now().timestamp() * 1000)
-                
-                # 更新 balance 和 pnlPct
-                summary['balance'] = round(total_value, 2)
-                summary['totalAssetValue'] = round(total_value, 2)
-                summary['pnlPct'] = round(total_return, 2)
-                summary['totalReturn'] = round(total_return, 2)
-                summary['cashPosition'] = round(cash, 2)
-                summary['tickerWeights'] = ticker_weights
-                
-                # 更新 equity 曲线（添加新数据点）
-                equity_list = summary.get('equity', [])
-                
-                # 添加新数据点
-                equity_list.append({
-                    't': current_time,
-                    'v': round(total_value, 2)
-                })
-                
-                # 保留最近 1000 个点
-                if len(equity_list) > 1000:
-                    equity_list = equity_list[-1000:]
-                
-                summary['equity'] = equity_list
-                
-                # 保存更新后的 summary.json
-                with open(summary_file, 'w', encoding='utf-8') as f:
-                    json.dump(summary, f, indent=2, ensure_ascii=False)
-                
-                logger.debug(f"✅ 已更新 summary.json: 添加净值点 ${total_value:.2f} @ {datetime.fromtimestamp(current_time/1000).strftime('%H:%M:%S')}")
-                
-            except Exception as e:
-                logger.error(f"更新 summary.json 失败: {e}")
+        # 注意：不更新 summary.json 中的 equity 曲线
+        # 原因：
+        # 1. 对于回测模式（正常模式），净值曲线应该由回测系统（TeamDashboardGenerator）在每天结束时更新
+        # 2. 实时价格更新只用于显示当前价格，不应该修改历史净值曲线
+        # 3. equity 曲线的更新应该在回测过程中通过 _update_equity_curve 方法完成，而不是通过价格更新回调
+        # 
+        # 如果需要更新 summary.json 中的其他字段（如 balance、pnlPct）用于实时显示，
+        # 可以在这里添加，但不要修改 equity 曲线
     
     async def broadcast(self, message: Dict[str, Any]):
         """广播消息给所有连接的客户端"""
@@ -704,33 +673,11 @@ class Server:
                         updated_portfolio = live_env.get('updated_portfolio', {})
                         
                         if portfolio_summary and updated_portfolio:
-                            # 更新Portfolio计算器的持仓信息
-                            if self.portfolio_calculator:
-                                holdings = {}
-                                # ⭐ 修复：updated_portfolio结构是 {cash, positions, ...}
-                                positions = updated_portfolio.get('positions', {})
-                                for symbol, position_data in positions.items():
-                                    if isinstance(position_data, dict):
-                                        long_qty = position_data.get('long', 0)
-                                        short_qty = position_data.get('short', 0)
-                                        long_cost = position_data.get('long_cost_basis', 0)
-                                        short_cost = position_data.get('short_cost_basis', 0)
-                                        
-                                        # 计算净持仓
-                                        net_qty = long_qty - short_qty
-                                        if net_qty != 0:
-                                            avg_cost = long_cost if net_qty > 0 else short_cost
-                                            holdings[symbol] = {
-                                                'quantity': net_qty,
-                                                'avg_cost': avg_cost
-                                            }
-                                
-                                self.portfolio_calculator.update_holdings(
-                                    holdings,
-                                    updated_portfolio.get('cash', 0)
-                                )
+                            # 注意：正常模式（回测模式）不需要portfolio_calculator
+                            # portfolio数据由回测系统（TeamDashboardGenerator）更新，并写入Dashboard文件
+                            # 这里只更新内存中的状态用于前端显示，不进行实时计算
                             
-                            # 更新portfolio状态
+                            # 更新portfolio状态（从回测结果中读取）
                             portfolio = self.state_manager.get('portfolio', {})
                             portfolio.update({
                                 'total_value': portfolio_summary.get('total_value'),
