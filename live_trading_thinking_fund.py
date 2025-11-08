@@ -218,8 +218,8 @@ class LiveTradingThinkingFund:
             for ticker in tickers:
                 agent_results = analysis_result.get('raw_results', {}).get('results', {}).get('final_analyst_results', {})
                 
-                if agent not in agent_results:
-                    continue
+                # if agent not in agent_results:
+                #     continue
                 
                 analyst_result = agent_results[agent].get('analysis_result', {})
                 

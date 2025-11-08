@@ -39,14 +39,22 @@ python live_trading_thinking_fund.py \
 使用便捷启动脚本：
 
 ```bash
-# 正常模式 - 启动时会询问是否清空历史记录
+# 正常模式 - 启动时会询问是否清空历史记录 (日频回测)
 ./start_server.sh
 
-# Mock模式 - 测试前端，不需要真实数据
+# Mock模式 - 测试前端，不需要真实数据 (日频回测)
 ./start_server.sh --mock
 
-# 自动清空历史记录模式 - 跳过询问，直接清空
+# 自动清空历史记录模式 - 跳过询问，直接清空 (日频回测)
 ./start_server.sh --clean
+```
+```bash
+# 正常模式 - 启动时会询问是否清空历史记录 (当前日期高频实时更新)
+./start_live_server.sh
+
+# Mock模式 - 测试前端，不需要真实数据 (当前日期高频实时更新；调试程序可使用此模式，否则需要等到22:00美股开盘才能有实时更新price数据传回)
+./start_live_server.sh --mock
+
 ```
 
 **使用说明：**
@@ -61,6 +69,10 @@ python live_trading_thinking_fund.py \
 
 ```bash
 python src/servers/server.py
+```
+
+```bash
+python src/servers/live_server.py
 ```
 
 打开新的terminal, 再启动前端脚本(frontend目录下)：

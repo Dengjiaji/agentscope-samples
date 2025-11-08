@@ -78,11 +78,68 @@ def call_llm(
             # 解析 JSON 响应
             parsed_result = extract_json_from_response(content)
             if parsed_result:
-                return pydantic_model(**parsed_result)
+                result = pydantic_model(**parsed_result)
+                
+                # ✅ 检查关键字段是否为空（针对SecondRoundAnalysis）
+                if hasattr(result, 'ticker_signals') and (not result.ticker_signals or len(result.ticker_signals) == 0):
+                    # 🔍 只在检测到空响应时打印调试日志
+                    print(f"\n⚠️ [{agent_name}] LLM返回空的ticker_signals (尝试 {attempt + 1}/{max_retries})")
+                    print(f"   响应长度: {len(content)} 字符")
+                    print(f"   响应预览: {content[:500]}...")
+                    
+                    if attempt < max_retries - 1:
+                        print(f"   🔄 准备重试...")
+                        continue  # 重试
+                    else:
+                        # ❌ 达到最大重试次数，暂停程序
+                        print(f"\n❌❌❌ [{agent_name}] 达到最大重试次数 ({max_retries})，LLM持续返回空信号")
+                        print(f"   这是一个严重问题，需要检查：")
+                        print(f"   1. LLM模型是否正常工作")
+                        print(f"   2. Prompt是否过长或格式有误")
+                        print(f"   3. 第一轮数据是否正确传递")
+                        print(f"\n🛑 程序暂停，请检查问题后重新运行")
+                        
+                        import pdb
+                        pdb.set_trace()
+                        
+                        # 如果用户选择继续，抛出异常
+                        raise ValueError(f"LLM持续返回空的ticker_signals after {max_retries} attempts")
+                
+                return result
             
             # 如果解析失败，尝试直接解析
             try:
-                return pydantic_model(**json.loads(content))
+                result = pydantic_model(**json.loads(content))
+                
+                # ✅ 同样检查直接解析的结果
+                if hasattr(result, 'ticker_signals') and (not result.ticker_signals or len(result.ticker_signals) == 0):
+                    # 🔍 只在检测到空响应时打印调试日志
+                    print(f"\n⚠️ [{agent_name}] LLM返回空的ticker_signals (尝试 {attempt + 1}/{max_retries})")
+                    print(f"   响应长度: {len(content)} 字符")
+                    print(f"   响应预览: {content[:500]}...")
+                    
+                    if attempt < max_retries - 1:
+                        print(f"   🔄 准备重试...")
+                        continue  # 重试
+                    else:
+                        # ❌ 达到最大重试次数，暂停程序
+                        print(f"\n❌❌❌ [{agent_name}] 达到最大重试次数 ({max_retries})，LLM持续返回空信号")
+                        print(f"   这是一个严重问题，需要检查：")
+                        print(f"   1. LLM模型是否正常工作")
+                        print(f"   2. Prompt是否过长或格式有误")
+                        print(f"   3. 第一轮数据是否正确传递")
+                        print(f"\n🛑 程序暂停，请检查问题后重新运行")
+                        
+                        import pdb
+                        pdb.set_trace()
+                        
+                        # 如果用户选择继续，抛出异常
+                        raise ValueError(f"LLM持续返回空的ticker_signals after {max_retries} attempts")
+                
+                return result
+            except ValueError as ve:
+                # 重新抛出我们自己的ValueError
+                raise ve
             except:
                 pass
 

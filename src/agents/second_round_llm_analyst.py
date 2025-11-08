@@ -67,6 +67,9 @@ Analysis Tools Selection and Reasoning:
         ticker_reports.append(ticker_report)
     
     # 使用 PromptLoader 加载和渲染 prompts
+    # 构建ticker列表字符串，用于在prompt中明确说明需要分析的tickers
+    tickers_list_str = ", ".join(tickers)
+    
     variables = {
         "analyst_name": persona.name,
         "specialty": persona.specialty,
@@ -75,13 +78,17 @@ Analysis Tools Selection and Reasoning:
         "risk_preference": persona.risk_preference,
         "ticker_reports": "\n".join(ticker_reports),
         "notifications": notifications_str,
-        "agent_id": agent_id
+        "agent_id": agent_id,
+        "tickers_list": tickers_list_str  # 添加tickers列表
     }
 
     system_prompt = _prompt_loader.load_prompt("analyst", "second_round_system", variables)
     human_prompt = _prompt_loader.load_prompt("analyst", "second_round_human", variables)
+    
+    # 在prompt末尾添加明确的ticker列表要求
+    tickers_requirement = f"\n\n**REQUIRED TICKERS TO ANALYZE: {tickers_list_str}**\nYou MUST provide exactly {len(tickers)} signal(s), one for each ticker: {tickers_list_str}"
 
-    full_prompt = f"{system_prompt}\n\n{human_prompt}"
+    full_prompt = f"{system_prompt}\n\n{human_prompt}{tickers_requirement}"
     
     # 调用LLM
     
