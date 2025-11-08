@@ -588,13 +588,16 @@ class AdvancedInvestmentAnalysisEngine:
             # 获取分析师记忆并开始第二轮分析会话
             analyst_memory = memory_manager.get_analyst_memory(agent_id)
             session_id = None
-            # if analyst_memory:
-            #     tickers = state["data"]["tickers"]
-            #     session_id = analyst_memory.start_analysis_session(
-            #         session_type="second_round",
-            #         tickers=tickers,
-            #         context={"first_round_report": first_round_report}
-            #     )
+            if analyst_memory:
+                tickers = state["data"]["tickers"]
+                # 获取 trading_date 作为 analysis_date
+                analysis_date = state.get("metadata", {}).get("trading_date") or state.get("data", {}).get("end_date")
+                session_id = analyst_memory.start_analysis_session(
+                    session_type="second_round",
+                    tickers=tickers,
+                    context={"first_round_report": first_round_report},
+                    analysis_date=analysis_date
+                )
             
             # 提取需要的数据
             tickers = state["data"]["tickers"]
@@ -636,7 +639,9 @@ class AdvancedInvestmentAnalysisEngine:
                     session_id, "assistant", analysis_summary,
                     {"llm_analysis": llm_analysis.model_dump()}
                 )
-                analyst_memory.complete_analysis_session(session_id, analysis_result)
+                # 获取 trading_date 作为 analysis_date
+                analysis_date = state.get("metadata", {}).get("trading_date") or state.get("data", {}).get("end_date")
+                analyst_memory.complete_analysis_session(session_id, analysis_result, analysis_date)
             
             # 显示每个ticker的信号
             for ticker_signal in llm_analysis.ticker_signals:
