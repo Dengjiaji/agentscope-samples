@@ -14,7 +14,7 @@ import os
 import sys
 from pathlib import Path
 from datetime import datetime, timedelta, time as datetime_time
-from typing import Set, Dict, Any, Optional
+from typing import Set, Dict, Any, Optional, Tuple, List
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -71,6 +71,10 @@ class LiveTradingServer:
         }
         self.dashboard_file_mtimes = {}
         logger.info(f"✅ Dashboard 文件目录: {self.dashboard_dir}")
+        
+        self.internal_state_file = self.dashboard_dir / '_internal_state.json'
+        self.internal_state = self._load_internal_state()
+        self.latest_prices: Dict[str, float] = {}
         
         # 使用StateManager管理状态
         self.state_manager = StateManager(
@@ -170,6 +174,8 @@ class LiveTradingServer:
             'volume': price_data.get('volume')
         }
         self.state_manager.update('realtime_prices', realtime_prices)
+        self.latest_prices[symbol] = price
+        self._cache_internal_price(symbol, price)
         
         # 广播价格更新（用于价格板实时显示）
         if self.loop and self.loop.is_running():
@@ -295,43 +301,175 @@ class LiveTradingServer:
         except Exception as e:
             logger.error(f"保存 stats.json 失败: {e}")
         
-        # 更新 summary.json（添加实时净值曲线点）
-        if summary and updated:
+        summary_changed = False
+        current_time = None
+        
+        if summary:
             try:
-                # 获取当前时间戳（毫秒）
                 current_time = int(datetime.now().timestamp() * 1000)
                 
-                # 更新 balance 和 pnlPct
-                summary['balance'] = round(total_value, 2)
-                summary['totalAssetValue'] = round(total_value, 2)
-                summary['pnlPct'] = round(total_return, 2)
-                summary['totalReturn'] = round(total_return, 2)
-                summary['cashPosition'] = round(cash, 2)
-                summary['tickerWeights'] = ticker_weights
+                if updated:
+                    summary['balance'] = round(total_value, 2)
+                    summary['totalAssetValue'] = round(total_value, 2)
+                    summary['pnlPct'] = round(total_return, 2)
+                    summary['totalReturn'] = round(total_return, 2)
+                    summary['cashPosition'] = round(cash, 2)
+                    summary['tickerWeights'] = ticker_weights
+                    
+                    equity_list = summary.get('equity', [])
+                    equity_list.append({
+                        't': current_time,
+                        'v': round(total_value, 2)
+                    })
+                    if len(equity_list) > 1000:
+                        equity_list = equity_list[-1000:]
+                    summary['equity'] = equity_list
+                    summary_changed = True
                 
-                # 更新 equity 曲线（添加新数据点）
-                equity_list = summary.get('equity', [])
+                if self._update_benchmark_curves(summary, current_time or int(datetime.now().timestamp() * 1000)):
+                    summary_changed = True
                 
-                # 添加新数据点
-                equity_list.append({
-                    't': current_time,
-                    'v': round(total_value, 2)
-                })
-                
-                # 保留最近 1000 个点
-                if len(equity_list) > 1000:
-                    equity_list = equity_list[-1000:]
-                
-                summary['equity'] = equity_list
-                
-                # 保存更新后的 summary.json
-                with open(summary_file, 'w', encoding='utf-8') as f:
-                    json.dump(summary, f, indent=2, ensure_ascii=False)
-                
-                logger.debug(f"✅ 已更新 summary.json: 添加净值点 ${total_value:.2f} @ {datetime.fromtimestamp(current_time/1000).strftime('%H:%M:%S')}")
-                
+                if summary_changed:
+                    with open(summary_file, 'w', encoding='utf-8') as f:
+                        json.dump(summary, f, indent=2, ensure_ascii=False)
+                    self._save_internal_state()
             except Exception as e:
                 logger.error(f"更新 summary.json 失败: {e}")
+    
+    def _load_internal_state(self) -> Dict[str, Any]:
+        """
+        读取并标准化团队仪表盘内部状态，确保关键字段存在
+        """
+        default_state = {
+            'baseline_state': {'initialized': False, 'initial_allocation': {}},
+            'baseline_vw_state': {'initialized': False, 'initial_allocation': {}},
+            'momentum_state': {'positions': {}, 'cash': 0.0, 'initialized': False},
+            'baseline_history': [],
+            'baseline_vw_history': [],
+            'momentum_history': [],
+            'price_history': {},
+        }
+        
+        if not self.dashboard_dir.exists():
+            self.dashboard_dir.mkdir(parents=True, exist_ok=True)
+        
+        if not self.internal_state_file.exists():
+            return default_state
+        
+        try:
+            with open(self.internal_state_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        except Exception as e:
+            logger.warning(f"⚠️ 无法读取内部状态文件，使用默认值: {e}")
+            return default_state
+        
+        for key, value in default_state.items():
+            data.setdefault(key, value)
+        return data
+    
+    def _save_internal_state(self):
+        """
+        将更新后的内部状态写回磁盘
+        """
+        if not self.internal_state:
+            return
+        try:
+            with open(self.internal_state_file, 'w', encoding='utf-8') as f:
+                json.dump(self.internal_state, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"保存内部状态失败: {e}")
+    
+    def _cache_internal_price(self, symbol: str, price: float):
+        """
+        将最新价格写入内部状态的 price_history，便于基准估值
+        """
+        if not self.internal_state:
+            return
+        price_history = self.internal_state.setdefault('price_history', {})
+        ticker_history = price_history.setdefault(symbol, {})
+        today = datetime.now().strftime("%Y-%m-%d")
+        ticker_history[today] = price
+    
+    def _get_price_for_benchmark(self, ticker: str, fallback: Optional[float] = None) -> Optional[float]:
+        """
+        获取用于基准估值的最新价格
+        """
+        if ticker in self.latest_prices:
+            return self.latest_prices[ticker]
+        
+        price_history = self.internal_state.get('price_history', {})
+        ticker_history = price_history.get(ticker, {})
+        if ticker_history:
+            # 取最近日期的数据
+            latest_date = sorted(ticker_history.keys())[-1]
+            return ticker_history[latest_date]
+        
+        return fallback
+    
+    def _append_curve_point(self, history: List[Dict[str, Any]], timestamp_ms: int, value: float) -> List[Dict[str, Any]]:
+        """
+        追加曲线节点并保持长度限制
+        """
+        history.append({'t': timestamp_ms, 'v': round(value, 2)})
+        if len(history) > 1000:
+            del history[:len(history) - 1000]
+        return history
+    
+    def _update_benchmark_curves(self, summary: Dict[str, Any], timestamp_ms: int) -> bool:
+        """
+        根据最新价格更新基准/策略曲线
+        """
+        if not self.internal_state:
+            return False
+        
+        changed = False
+        
+        baseline_state = self.internal_state.get('baseline_state', {})
+        if baseline_state.get('initialized') and baseline_state.get('initial_allocation'):
+            total_value = 0.0
+            missing_price = False
+            for ticker, alloc in baseline_state['initial_allocation'].items():
+                price = self._get_price_for_benchmark(ticker, alloc.get('buy_price'))
+                if price is None:
+                    missing_price = True
+                    break
+                total_value += alloc.get('qty', 0) * price
+            if not missing_price:
+                history = self._append_curve_point(self.internal_state.setdefault('baseline_history', []), timestamp_ms, total_value)
+                summary['baseline'] = history
+                changed = True
+        
+        baseline_vw_state = self.internal_state.get('baseline_vw_state', {})
+        if baseline_vw_state.get('initialized') and baseline_vw_state.get('initial_allocation'):
+            total_value = 0.0
+            missing_price = False
+            for ticker, alloc in baseline_vw_state['initial_allocation'].items():
+                price = self._get_price_for_benchmark(ticker, alloc.get('buy_price'))
+                if price is None:
+                    missing_price = True
+                    break
+                total_value += alloc.get('qty', 0) * price
+            if not missing_price:
+                history = self._append_curve_point(self.internal_state.setdefault('baseline_vw_history', []), timestamp_ms, total_value)
+                summary['baseline_vw'] = history
+                changed = True
+        
+        momentum_state = self.internal_state.get('momentum_state', {})
+        if momentum_state.get('initialized'):
+            total_value = momentum_state.get('cash', 0.0)
+            missing_price = False
+            for ticker, pos in momentum_state.get('positions', {}).items():
+                price = self._get_price_for_benchmark(ticker, pos.get('buy_price'))
+                if price is None:
+                    missing_price = True
+                    break
+                total_value += pos.get('qty', 0) * price
+            if not missing_price:
+                history = self._append_curve_point(self.internal_state.setdefault('momentum_history', []), timestamp_ms, total_value)
+                summary['momentum'] = history
+                changed = True
+        
+        return changed
     
     async def broadcast(self, message: Dict[str, Any]):
         """广播消息给所有连接的客户端"""
