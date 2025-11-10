@@ -10,8 +10,7 @@ from agentscope.agent import AgentBase
 from agentscope.message import Msg
 from agentscope.tool import Toolkit
 
-from ..graph.state import AgentState, show_agent_reasoning
-from ..utils.api_key import get_api_key_from_state
+from ..graph.state import AgentState
 from ..utils.progress import progress
 from ..llm.models import get_model  # 使用 AgentScope 模型
 from .llm_tool_selector import LLMToolSelector
@@ -157,13 +156,6 @@ class AnalystAgent(AgentBase):
             role="assistant",
             metadata={"analyst_type": self.analyst_type_key}
         )
-        
-        # 显示推理过程
-        if state["metadata"]["show_reasoning"]:
-            show_agent_reasoning(
-                analysis_results, 
-                f"{self.analyst_persona} (LLM 智能选择)"
-            )
         
         # 更新状态
         state["data"]["analyst_signals"][self.name] = analysis_results

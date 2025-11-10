@@ -10,7 +10,7 @@ from src.utils.progress import progress
 from src.graph.state import AgentState
 
 
-def call_llm(
+def tool_call(
     messages: Union[str, list],
     pydantic_model: type[BaseModel],
     agent_name: Optional[str] = None,

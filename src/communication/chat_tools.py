@@ -187,7 +187,7 @@ class CommunicationManager:
         
         # 加载 prompt
         prompt_data = {
-            "analyst_signals": quiet_json_dumps(signals_summary, ensure_ascii=False, indent=2),
+            "analyst_signals": json.dumps(signals_summary, ensure_ascii=False, indent=2),
             "max_chars": self._get_max_chars(state)
         }
         
@@ -259,7 +259,7 @@ class CommunicationManager:
             )
         
         # 开始私聊
-        initial_message = f"Regarding {topic}, I would like to discuss your analysis results with you. Your current signal is: {quiet_json_dumps(analyst_signal, ensure_ascii=False)}"
+        initial_message = f"Regarding {topic}, I would like to discuss your analysis results with you. Your current signal is: {json.dumps(analyst_signal, ensure_ascii=False)}"
         
         chat_id = self.private_chat_system.start_private_chat(
             manager_id, analyst_id, initial_message
@@ -786,7 +786,7 @@ class CommunicationManager:
         prompt_data = {
             "analyst_id": analyst_id,
             "relevant_memories": relevant_memories if relevant_memories else "No relevant past memories found for this topic.",
-            "current_signal": quiet_json_dumps(current_signal, ensure_ascii=False),
+            "current_signal": json.dumps(current_signal, ensure_ascii=False),
             "topic": topic,
             "conversation_history": self._format_conversation_history(conversation_history),
             "max_chars": self._get_max_chars(state)
@@ -944,7 +944,7 @@ class CommunicationManager:
         
         prompt_data = {
             "conversation_history": self._format_conversation_history(conversation_history),
-            "current_signal": quiet_json_dumps(current_signal, ensure_ascii=False),
+            "current_signal": json.dumps(current_signal, ensure_ascii=False),
             "max_chars": self._get_max_chars(state)
         }
         
@@ -1041,10 +1041,10 @@ class CommunicationManager:
             "analyst_id": analyst_id,
             "relevant_memories": relevant_memories if relevant_memories else "No relevant past memories found for this topic.",
             "round_num": round_num,
-            "current_signal": quiet_json_dumps(current_signal, ensure_ascii=False),
+            "current_signal": json.dumps(current_signal, ensure_ascii=False),
             "topic": topic,
             "meeting_transcript": self._format_meeting_transcript(meeting_transcript),
-            "other_signals": quiet_json_dumps({k: v for k, v in all_signals.items() if k != analyst_id}, ensure_ascii=False, indent=2),
+            "other_signals": json.dumps({k: v for k, v in all_signals.items() if k != analyst_id}, ensure_ascii=False, indent=2),
             "max_chars": self._get_max_chars(state)
         }
         
@@ -1094,7 +1094,7 @@ class CommunicationManager:
         
         prompt_data = {
             "meeting_transcript": self._format_meeting_transcript(meeting_transcript),
-            "final_signals": quiet_json_dumps(final_signals, ensure_ascii=False, indent=2),
+            "final_signals": json.dumps(final_signals, ensure_ascii=False, indent=2),
             "max_chars": self._get_max_chars(state)
         }
         

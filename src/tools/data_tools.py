@@ -6,7 +6,7 @@ import time
 import finnhub
 import pdb
 from src.data.cache import get_cache
-from src.data.models import (
+from src.data.schema import (
     CompanyNews,
     CompanyNewsResponse,
     FinancialMetrics,

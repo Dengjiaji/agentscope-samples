@@ -19,7 +19,7 @@ try:
 except Exception:
     _pd = None
 import logging
-from src.graph.state import AgentState, create_message
+from src.graph.state import AgentState
 from src.llm.models import get_model
 
 # 导入新的记忆系统（延迟导入，避免在模块加载时初始化）

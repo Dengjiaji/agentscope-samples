@@ -3,11 +3,11 @@
 第二轮LLM-based分析师
 基于第一轮结果、通知和Pipeline信息生成修正后的投资信号
 """
-
+import json
 from typing import Dict, Any, List
 
-from ..graph.state import AgentState, create_message
-from ..utils.llm import call_llm
+from ..graph.state import AgentState
+from ..utils.tool_call import tool_call
 from ..utils.json_utils import quiet_json_dumps
 from ..data.second_round_signals import SecondRoundAnalysis, TickerSignal
 from .prompt_loader import PromptLoader
@@ -61,9 +61,9 @@ def run_second_round_llm_analysis(
 ### Your First Round Analysis for {ticker}
 
 Analysis Result and Thought Process:
-{quiet_json_dumps(ticker_first_round['tool_analysis']['synthesis_details'], ensure_ascii=False, indent=2)}
+{json.dumps(ticker_first_round['tool_analysis']['synthesis_details'], ensure_ascii=False, indent=2)}
 Analysis Tools Selection and Reasoning:
-{quiet_json_dumps(ticker_first_round['tool_selection'], ensure_ascii=False, indent=2)}
+{json.dumps(ticker_first_round['tool_selection'], ensure_ascii=False, indent=2)}
 
 """
         ticker_reports.append(ticker_report)
@@ -98,7 +98,7 @@ Analysis Tools Selection and Reasoning:
             ]
         )
     
-    result = call_llm(
+    result = tool_call(
         messages=messages,
         pydantic_model=SecondRoundAnalysis,
         agent_name=f"{agent_id}_second_round",

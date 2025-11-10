@@ -23,7 +23,7 @@ sys.path.append(current_dir)
 from src.utils.mem0_env_loader import ensure_mem0_env_loaded
 ensure_mem0_env_loaded()
 
-from src.graph.state import AgentState, create_message
+from src.graph.state import AgentState
 
 # 导入所有四个核心分析师 - 使用新架构
 from src.utils.analysts import (
@@ -48,6 +48,7 @@ from src.agents.second_round_llm_analyst import (
 # 导入风险管理和投资组合管理 - 使用新架构
 from src.agents.risk_manager_agent import RiskManagerAgent
 from src.agents.portfolio_manager_agent import PortfolioManagerAgent
+from agentscope.message import Msg
 
 # 创建兼容的包装函数
 def risk_management_agent(state, agent_id="risk_manager"):
@@ -135,7 +136,7 @@ class AdvancedInvestmentAnalysisEngine:
         
         
         state = AgentState(
-            messages=[create_message(
+            messages=[Msg(
                 name="system",
                 content="Advanced investment analysis session with communications",
                 role="system"

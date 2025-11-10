@@ -14,7 +14,7 @@ class LLMMemoryDecisionSystem:
     """基于LLM的记忆管理决策系统"""
 
     def __init__(self):
-        self.memory_tools = []
+        self.toolkit = None
 
         if LLM_AVAILABLE and MEMORY_TOOLS_AVAILABLE:
             model_name = os.getenv('MEMORY_LLM_MODEL', 'gpt-4o-mini')
@@ -34,17 +34,15 @@ class LLMMemoryDecisionSystem:
             elif model_provider == ModelProvider.ANTHROPIC:
                 api_keys['ANTHROPIC_API_KEY'] = os.getenv('ANTHROPIC_API_KEY')
 
-            # 获取记忆管理工具
-            from src.tools.memory_tools import get_memory_tools
-            self.memory_tools = get_memory_tools()
+            # 创建记忆管理工具包（AgentScope Toolkit）
+            from src.tools.memory_tools import create_memory_toolkit
+            self.toolkit = create_memory_toolkit()
             # 使用 AgentScope 模型
             self.llm = get_model(model_name, model_provider, api_keys)
-            # 注意：AgentScope 不使用 bind_tools，而是通过 function calling 或直接调用
-            # 这里保持引用以便后续迁移
             self.llm_with_tools = self.llm
             self.llm_available = True
             print(f"LLM记忆决策系统已启用（{model_provider_str}: {model_name}）")
-            print(f"已加载 {len(self.memory_tools)} 个记忆管理工具")
+            print(f"已加载 {len(self.toolkit.tools)} 个记忆管理工具")
 
     def generate_memory_decision_prompt(self, performance_data: Dict[str, Any], date: str) -> str:
         """生成LLM记忆决策的prompt"""
@@ -127,7 +125,7 @@ class LLMMemoryDecisionSystem:
             class ResponseWrapper:
                 def __init__(self, content):
                     self.content = content
-                    self.tool_calls = None  # AgentScope 目前不支持自动 tool calling
+                    self.tool_calls = None
 
             response = ResponseWrapper(response.get("content", ""))
 
@@ -148,14 +146,10 @@ class LLMMemoryDecisionSystem:
                     print(f"  📞 调用工具: {tool_name}")
                     print(f"     参数: {tool_args}")
 
-                    # 直接调用对应的工具函数
-                    tool_function = next(
-                        (tool for tool in self.memory_tools if tool.name == tool_name),
-                        None
-                    )
-
-                    if tool_function:
-                        result = tool_function.invoke(tool_args)
+                    # 从 toolkit 中获取并调用工具函数
+                    if tool_name in self.toolkit.tools:
+                        tool_func = self.toolkit.tools[tool_name].original_func
+                        result = tool_func(**tool_args)
                         execution_results.append({
                             'tool_name': tool_name,
                             'args': tool_args,

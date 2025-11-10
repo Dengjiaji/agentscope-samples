@@ -42,7 +42,7 @@ from src.tools.analysis_tools import (
     # # 工具组合函数
     # combine_tool_signals
 )
-from ..utils.llm import call_llm
+from ..utils.tool_call import tool_call
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -126,6 +126,7 @@ def _wrap_tool_for_agentscope(original_func: Callable, tool_category: str) -> Ca
                 "signal": "neutral",
                 "confidence": 0
             }
+            print("❌tool call 出错！！！！")
             error_json = json.dumps(error_dict, ensure_ascii=False, indent=2)
             return ToolResponse(
                 content=[TextBlock(type="text", text=error_json)],
@@ -327,42 +328,7 @@ class LLMToolSelector:
                 return prompt
             except FileNotFoundError:
                 # 如果文件不存在，使用硬编码的 prompt（向后兼容）
-                print(f"⚠️ Prompt file not found, using hardcoded prompt for tool_selection")
-        
-        # 硬编码的 prompt（向后兼容）
-        prompt = f"""
-You are a professional {analyst_persona}, and you need to select appropriate analysis tools for stock {ticker} to conduct investment analysis.
-
-**Analysis Objective**: {analysis_objective}
-
-**Available Analysis Tools**:
-{tools_text}
-
-**Your Professional Identity and Preferences**:
-{persona_description}
-
-**Task Requirements**:
-1. Based on your professional background and current market environment, select 3-6 most suitable tools from the above tools
-2. Briefly explain the reasons for selecting these tools
-3. Explain how you will synthesize the results from these tools to form your final judgment
-
-**Output Format** (must strictly follow JSON format):
-```json
-{{
-    "selected_tools": [
-        {{
-            "tool_name": "tool name",
-            "reason": "selection reason"
-        }}
-    ],
-    "analysis_strategy": "overall analysis strategy description",
-    "synthesis_approach": "method for synthesizing tool results",
-}}
-```
-
-Please intelligently select the most suitable analysis tool combination for the current situation based on your professional judgment.
-"""
-        return prompt
+                raise (f"⚠️ Prompt file not found, using hardcoded prompt for tool_selection")
     
     def _get_analyst_persona_description(self, analyst_persona: str) -> str:
         """Get analyst persona description"""

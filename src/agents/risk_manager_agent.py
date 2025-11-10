@@ -11,7 +11,7 @@ from agentscope.agent import AgentBase
 from agentscope.message import Msg
 from .prompt_loader import PromptLoader
 
-from ..graph.state import AgentState, show_agent_reasoning
+from ..graph.state import AgentState
 from ..utils.progress import progress
 from ..utils.api_key import get_api_key_from_state
 from ..tools.data_tools import get_prices, prices_to_df, get_last_tradeday
@@ -186,12 +186,7 @@ class RiskManagerAgent(AgentBase):
             role="assistant",
             metadata={}
         )
-        
-        # 显示推理
-        if state["metadata"]["show_reasoning"]:
-            mode_name = "风险管理评估" if self.mode == "basic" else "Portfolio模式-波动率调整风险管理"
-            show_agent_reasoning(risk_analysis, mode_name)
-        
+
         # 更新状态
         state["data"]["analyst_signals"][self.agent_id] = risk_analysis
         

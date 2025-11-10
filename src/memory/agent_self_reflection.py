@@ -13,9 +13,7 @@ from datetime import datetime
 from pathlib import Path
 import pdb
 
-from src.graph.state import create_message
 from src.llm.models import get_model, ModelProvider
-from src.tools.memory_tools import get_memory_tools
 from src.agents.prompt_loader import PromptLoader
 
 logger = logging.getLogger(__name__)
@@ -164,7 +162,7 @@ class AgentSelfReflectionSystem:
             
             self.llm_available = True
             print(f"✅ {agent_role} 自我复盘系统已初始化（LLM 智能工具选择模式）")
-            print(f"   可用记忆工具: {', '.join(self.toolkit.list_functions())}")
+            print(f"   可用记忆工具: {', '.join(self.toolkit.tools.keys())}")
             
         except Exception as e:
             logger.error(f"{agent_role} 自我复盘系统初始化失败: {e}")
@@ -666,8 +664,12 @@ PM决策: {pm_action} (数量: {pm_quantity}, 置信度: {pm_confidence}%)
                     print(f"   选择理由: {tool_reason}")
                     
                     try:
-                        # 执行工具（类似 analyst 的 execute_selected_tools）
-                        result = self.toolkit.call(tool_name, **tool_params)
+                        # 执行工具（从 toolkit 获取函数并调用）
+                        if tool_name in self.toolkit.tools:
+                            tool_func = self.toolkit.tools[tool_name].original_func
+                            result = tool_func(**tool_params)
+                        else:
+                            result = {'status': 'failed', 'error': f'Tool not found: {tool_name}'}
                         
                         memory_operations.append({
                             'tool_name': tool_name,

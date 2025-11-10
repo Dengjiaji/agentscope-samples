@@ -9,12 +9,12 @@ import pdb
 from agentscope.agent import AgentBase
 from agentscope.message import Msg
 
-from ..graph.state import AgentState, show_agent_reasoning
+from ..graph.state import AgentState
 from ..utils.progress import progress
 from pydantic import BaseModel, Field
 from .prompt_loader import PromptLoader
 from typing_extensions import Literal as LiteralType
-from ..utils.llm import call_llm
+from ..utils.tool_call import tool_call
 from ..memory.framework_bridge import get_memory_bridge
 
 
@@ -121,14 +121,7 @@ class PortfolioManagerAgent(AgentBase):
             role="assistant",
             metadata={"mode": self.mode}
         )
-        
-        # 显示推理过程
-        if state["metadata"]["show_reasoning"]:
-            mode_name = "Portfolio Manager (Direction)" if self.mode == "direction" else "Portfolio Manager (Portfolio)"
-            show_agent_reasoning({
-                ticker: decision.model_dump() 
-                for ticker, decision in result.decisions.items()
-            }, mode_name)
+
         
         progress.update_status(self.agent_id, None, "Done")
         
@@ -232,7 +225,7 @@ class PortfolioManagerAgent(AgentBase):
         
         progress.update_status(self.agent_id, None, "基于信号和历史经验生成决策")
         
-        return call_llm(
+        return tool_call(
             messages=messages,
             pydantic_model=PortfolioManagerOutput,
             agent_name=self.agent_id,
@@ -308,7 +301,7 @@ class PortfolioManagerAgent(AgentBase):
         progress.update_status(self.agent_id, None, "基于信号和历史经验生成决策")
         
         # pdb.set_trace()
-        return call_llm(
+        return tool_call(
             messages=messages,
             pydantic_model=PortfolioManagerOutput,
             agent_name=self.agent_id,

@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 """
 记忆管理工具集
-为Portfolio Manager提供AgentScope ServiceToolkit形式的记忆操作功能
+为Portfolio Manager提供AgentScope Toolkit形式的记忆操作功能
 """
 
 import json
 import os
 from typing import Dict, List, Any, Optional, Annotated
 from pydantic import Field
-
-# AgentScope 不需要 @tool 装饰器，工具函数可以直接定义
+from agentscope.tool import Toolkit
 
 # 导入记忆模块
 try:
@@ -377,94 +376,20 @@ def add_reflection_memory(analyst_id: str, content: str, reason: str, date: str)
 
 # ===================== AgentScope Toolkit 集成 =====================
 
-def create_memory_toolkit():
+def create_memory_toolkit() -> Toolkit:
     """
-    创建记忆管理工具包（AgentScope 格式）
+    创建记忆管理工具包（AgentScope 原生 Toolkit）
     
     Returns:
-        ServiceToolkit 实例
+        Toolkit 实例
     """
-    from src.agents.agentscope_tools import ServiceToolkit
+    toolkit = Toolkit()
     
-    toolkit = ServiceToolkit()
-    
-    # 注册 search_and_update_analyst_memory
-    toolkit.register(
-        name="search_and_update_analyst_memory",
-        func=search_and_update_analyst_memory,
-        description="搜索并更新分析师的记忆内容",
-        parameters={
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "搜索查询内容，用于找到需要更新的记忆"
-                },
-                "memory_id": {
-                    "type": "string",
-                    "description": "要更新的记忆ID，如果不知道填'auto'让系统自动搜索"
-                },
-                "analyst_id": {
-                    "type": "string",
-                    "description": "分析师ID：sentiment_analyst, technical_analyst, fundamentals_analyst, valuation_analyst"
-                },
-                "new_content": {
-                    "type": "string",
-                    "description": "新的记忆内容，用来替换错误的记忆"
-                },
-                "reason": {
-                    "type": "string",
-                    "description": "更新原因"
-                }
-            },
-            "required": ["query", "memory_id", "analyst_id", "new_content", "reason"]
-        }
-    )
-    
-    # 注册 search_and_delete_analyst_memory
-    toolkit.register(
-        name="search_and_delete_analyst_memory",
-        func=search_and_delete_analyst_memory,
-        description="搜索并删除分析师的错误记忆",
-        parameters={
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "搜索查询内容，用于找到需要删除的记忆"
-                },
-                "memory_id": {
-                    "type": "string",
-                    "description": "要删除的记忆ID，如果不知道填'auto'让系统自动搜索"
-                },
-                "analyst_id": {
-                    "type": "string",
-                    "description": "分析师ID"
-                },
-                "reason": {
-                    "type": "string",
-                    "description": "删除原因"
-                }
-            },
-            "required": ["query", "memory_id", "analyst_id", "reason"]
-        }
-    )
+    # 注册工具函数 - AgentScope 会自动从函数签名和 docstring 提取参数信息
+    toolkit.register_tool_function(search_and_update_analyst_memory)
+    toolkit.register_tool_function(search_and_delete_analyst_memory)
     
     return toolkit
-
-
-# 向后兼容的函数
-def get_memory_tools():
-    """
-    获取所有记忆管理工具的列表（向后兼容）
-    
-    Returns:
-        记忆管理工具的列表
-    """
-    return [
-        search_and_update_analyst_memory,
-        search_and_delete_analyst_memory,
-    ]
 
 
 # 使用示例
@@ -472,10 +397,15 @@ if __name__ == "__main__":
     print("🛠️ 记忆管理工具集 - AgentScope Toolkit模式")
     print("=" * 50)
     
-    # 显示可用工具
-    tools = get_memory_tools()
-    print(f"\n📋 可用工具 ({len(tools)}个):")
-    for i, tool in enumerate(tools, 1):
-        print(f"{i}. {tool.name}: {tool.description.split('Args:')[0].strip()}")
+    # 创建并显示工具包
+    toolkit = create_memory_toolkit()
+    tool_names = list(toolkit.tools.keys())
+    
+    # print(f"\n📋 可用工具 ({len(tool_names)}个):")
+    # for i, tool_name in enumerate(tool_names, 1):
+    #     tool_info = toolkit.tools[tool_name]
+        # 提取函数的 docstring 第一行作为描述
+    desc = toolkit.get_json_schemas()
+    print(f"{desc}")
     
     print("\n✅ 记忆管理工具集初始化完成")
