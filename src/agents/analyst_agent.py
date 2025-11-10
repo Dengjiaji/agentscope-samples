@@ -15,19 +15,10 @@ from ..utils.progress import progress
 from ..llm.models import get_model  # 使用 AgentScope 模型
 from .llm_tool_selector import LLMToolSelector
 from ..tools.data_tools import get_last_tradeday
-
+from ..config.constants import ANALYST_TYPES
 
 class AnalystAgent(AgentBase):
     """分析师 Agent - 使用 LLM 进行智能工具选择和分析（基于AgentScope）"""
-    
-    # 预定义的分析师类型
-    ANALYST_TYPES = {
-        "fundamental": "Fundamentals Analyst",
-        "technical": "Technical Analyst",
-        "sentiment": "Sentiment Analyst",
-        "valuation": "Valuation Analyst",
-        "comprehensive": "Comprehensive Analyst"
-    }
     
     def __init__(self, 
                  analyst_type: str,
@@ -42,19 +33,15 @@ class AnalystAgent(AgentBase):
             agent_id: Agent ID（默认为 "{analyst_type}_analyst_agent"）
             description: 分析师描述
             config: 配置字典
-        
-        Examples:
-            >>> agent = AnalystAgent("technical")
-            >>> agent = AnalystAgent("fundamental", agent_id="my_fundamental_analyst")
         """
-        if analyst_type not in self.ANALYST_TYPES:
+        if analyst_type not in ANALYST_TYPES:
             raise ValueError(
                 f"Unknown analyst type: {analyst_type}. "
-                f"Must be one of: {list(self.ANALYST_TYPES.keys())}"
+                f"Must be one of: {list(ANALYST_TYPES.keys())}"
             )
         
         self.analyst_type_key = analyst_type
-        self.analyst_persona = self.ANALYST_TYPES[analyst_type]
+        self.analyst_persona = ANALYST_TYPES[analyst_type]["display_name"]
         
         # 设置默认 agent_id
         if agent_id is None:
@@ -271,30 +258,4 @@ class AnalystAgent(AgentBase):
         progress.update_status(self.name, ticker, "分析完成")
         
         return analysis_result
-
-
-# 便捷工厂函数
-def create_fundamental_analyst(agent_id: Optional[str] = None) -> AnalystAgent:
-    """创建基本面分析师"""
-    return AnalystAgent("fundamental", agent_id=agent_id)
-
-
-def create_technical_analyst(agent_id: Optional[str] = None) -> AnalystAgent:
-    """创建技术分析师"""
-    return AnalystAgent("technical", agent_id=agent_id)
-
-
-def create_sentiment_analyst(agent_id: Optional[str] = None) -> AnalystAgent:
-    """创建情绪分析师"""
-    return AnalystAgent("sentiment", agent_id=agent_id)
-
-
-def create_valuation_analyst(agent_id: Optional[str] = None) -> AnalystAgent:
-    """创建估值分析师"""
-    return AnalystAgent("valuation", agent_id=agent_id)
-
-
-def create_comprehensive_analyst(agent_id: Optional[str] = None) -> AnalystAgent:
-    """创建综合分析师"""
-    return AnalystAgent("comprehensive", agent_id=agent_id)
 

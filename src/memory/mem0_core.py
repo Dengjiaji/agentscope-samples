@@ -4,17 +4,14 @@ Mem0 核心集成模块
 包含 Mem0 配置、集成层和基础记忆类
 """
 
-from email import message
 import os
-import json
 import uuid
 import logging
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 from pydantic import BaseModel, Field
 from mem0 import Memory
-from dotenv import load_dotenv
-from src.config.path_config import get_directory_config
+
 
 # ================================
 # Mem0 集成配置层
@@ -105,7 +102,7 @@ class Mem0Integration:
     def _load_mem0_env(self):
         """加载Mem0专用环境变量"""
         # 使用统一的mem0_env_loader来避免重复加载
-        from src.utils.mem0_env_loader import ensure_mem0_env_loaded
+        from src.memory.mem0_env_loader import ensure_mem0_env_loaded
         ensure_mem0_env_loaded()
     
     def _setup_logging(self):

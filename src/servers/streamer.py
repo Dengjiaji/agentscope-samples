@@ -1,6 +1,6 @@
 import asyncio, json, time, logging
 import contextlib
-from src.servers.config import ROLE_TO_AGENT
+from src.config.constants import ROLE_TO_AGENT
 
 
 class BaseStreamer:

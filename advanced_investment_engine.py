@@ -9,29 +9,24 @@ import os
 import json
 import traceback
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Any
-from dotenv import load_dotenv
-import asyncio
 import concurrent.futures
 from copy import deepcopy
 import threading
-import pdb
+
 # 添加项目路径
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
-from src.utils.mem0_env_loader import ensure_mem0_env_loaded
+from src.memory.mem0_env_loader import ensure_mem0_env_loaded
 ensure_mem0_env_loaded()
 
 from src.graph.state import AgentState
 
-# 导入所有四个核心分析师 - 使用新架构
-from src.utils.analysts import (
-    intelligent_fundamentals_analyst_agent,
-    intelligent_technical_analyst_agent,
-    intelligent_sentiment_analyst_agent,
-    intelligent_valuation_analyst_agent
-)
+# 导入核心配置和Agent类
+from src.config.constants import ANALYST_TYPES
+from src.agents.analyst_agent import AnalystAgent
+from agentscope.message import Msg
 
 # 导入通知系统
 # 使用基于 Mem0 的通知系统与工具
@@ -48,7 +43,6 @@ from src.agents.second_round_llm_analyst import (
 # 导入风险管理和投资组合管理 - 使用新架构
 from src.agents.risk_manager_agent import RiskManagerAgent
 from src.agents.portfolio_manager_agent import PortfolioManagerAgent
-from agentscope.message import Msg
 
 # 创建兼容的包装函数
 def risk_management_agent(state, agent_id="risk_manager"):
@@ -81,7 +75,6 @@ setup_logging(
     quiet_mode=True
 )
 
-
 class AdvancedInvestmentAnalysisEngine:
     """高级投资分析引擎 - 包含完整的agent交流机制"""
     
@@ -94,28 +87,23 @@ class AdvancedInvestmentAnalysisEngine:
         
         # 添加线程锁用于并行执行时的同步
         self._notification_lock = threading.Lock()
-        self.core_analysts = {
-            'fundamentals_analyst': {
-                'name': '基本面分析师',
-                'agent_func': intelligent_fundamentals_analyst_agent,
-                'description': '使用LLM智能选择分析工具，专注于财务数据和公司基本面分析'
-            },
-            'sentiment_analyst': {
-                'name': '情绪分析师',
-                'agent_func': intelligent_sentiment_analyst_agent,
-                'description': '使用LLM智能选择分析工具，分析市场情绪和新闻舆论'
-            },
-            'technical_analyst': {
-                'name': '技术分析师',
-                'agent_func': intelligent_technical_analyst_agent, 
-                'description': '使用LLM智能选择分析工具，专注于技术指标和图表分析'
-            },
-            'valuation_analyst': {
-                'name': '估值分析师',
-                'agent_func': intelligent_valuation_analyst_agent,
-                'description': '使用LLM智能选择分析工具，专注于公司估值和价值评估'
+        
+        # 直接创建分析师实例
+        self.core_analysts = {}
+        for analyst_type, config in ANALYST_TYPES.items():
+            if analyst_type == "comprehensive":
+                continue  # Skip comprehensive analyst in core_analysts
+            
+            agent_id = config['agent_id']
+            self.core_analysts[agent_id] = {
+                'name': config['display_name'],
+                'agent': AnalystAgent(
+                    analyst_type=analyst_type,
+                    agent_id=agent_id,
+                    description=config['description']
+                ),
+                'description': config['description']
             }
-        }
         
         # 统一通过记忆系统注册分析师与通知（记忆管理器内部会注册通知系统）
         for agent_id, agent_info in self.core_analysts.items():
@@ -170,7 +158,7 @@ class AdvancedInvestmentAnalysisEngine:
                                      state: AgentState) -> Dict[str, Any]:
         """运行单个分析师并处理通知逻辑"""
         agent_name = agent_info['name']
-        agent_func = agent_info['agent_func']
+        agent = agent_info['agent']
         
         print(f"\n开始执行 {agent_name} 分析...")
         
@@ -192,35 +180,8 @@ class AdvancedInvestmentAnalysisEngine:
             # 获取agent的通知记忆
             agent_memory = notification_system.get_agent_memory(agent_id)
             
-            # # 将之前收到的通知添加到状态中，作为上下文（Mem0版本按agent_id生成）
-            # # 若为回测流程，可从state中传入 backtest_date 到通知上下文
-            # backtest_date = state.get("data", {}).get("backtest_date") if isinstance(state.get("data", {}), dict) else None
-            # notifications_context = format_notifications_for_context(agent_id, backtest_date=backtest_date)
-            
-            # # 可以将通知上下文添加到消息中
-            # context_message = create_message(
-            #     name=agent_id,
-            #     content=f"Context information: {notifications_context}\n\nPlease analyze based on this information and latest data.",
-            #     role="user"
-            # )
-            # state["messages"].append(context_message)
-            
-            # # 记录上下文消息到分析师记忆
-            # if analyst_memory and session_id:
-            #     notifications_included = 0
-            #     try:
-            #         if agent_memory:
-            #             recent_list = agent_memory.get_recent_notifications(24)
-            #             notifications_included = len(recent_list) if isinstance(recent_list, list) else 0
-            #     except Exception:
-            #         notifications_included = 0
-            #     analyst_memory.add_analysis_message(
-            #         session_id, "human", context_message.content,
-            #         {"type": "context", "notifications_included": notifications_included}
-            #     )
-            
-            # 执行分析师函数
-            result = agent_func(state, agent_id=agent_id)
+            # 执行分析师
+            result = agent.execute(state)
             
             # 获取分析结果
             analysis_result = state['data']['analyst_signals'].get(agent_id, {})

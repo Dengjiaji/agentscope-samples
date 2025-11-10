@@ -759,14 +759,8 @@ def create_reflection_system(
     Returns:
         自我复盘系统实例
     """
-    role_mapping = {
-        'technical_analyst': 'Technical Analyst',
-        'fundamentals_analyst': 'Fundamentals Analyst',
-        'sentiment_analyst': 'Sentiment Analyst',
-        'valuation_analyst': 'Valuation Analyst',
-        'portfolio_manager': 'Portfolio Manager'
-    }
+    from ..config.constants import ROLE_TO_AGENT
     
-    agent_role = role_mapping.get(agent_id, agent_id)
+    agent_role = ROLE_TO_AGENT.get(agent_id, agent_id)
     return AgentSelfReflectionSystem(agent_id, agent_role, base_dir, streamer=streamer)
 

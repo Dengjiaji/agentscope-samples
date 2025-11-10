@@ -7,8 +7,8 @@ Mem0兼容性适配器
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 
-from src.utils.mem0_env_loader import ensure_mem0_env_loaded
-from src.memory import unified_memory_manager, Mem0AnalystMemory
+from src.memory.mem0_env_loader import ensure_mem0_env_loaded
+from src.memory import unified_memory_manager
 
 
 class AnalystMemoryMem0Adapter:
