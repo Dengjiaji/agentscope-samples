@@ -8,7 +8,6 @@ from typing import Dict, Any, List
 
 from ..graph.state import AgentState
 from ..utils.tool_call import tool_call
-from ..utils.json_utils import quiet_json_dumps
 from ..data.second_round_signals import SecondRoundAnalysis, TickerSignal
 from .prompt_loader import PromptLoader
 

@@ -66,7 +66,7 @@ from src.communication.chat_tools import (
 from src.memory import unified_memory_manager as memory_manager
 
 # 导入日志配置
-from src.utils.logging_config import setup_logging
+from src.utils.logging import setup_logging
 
 # 设置安静模式日志（禁用HTTP请求等详细输出）
 setup_logging(
