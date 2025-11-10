@@ -34,12 +34,23 @@ export default function PerformanceView({ leaderboard }) {
                 {leaderboard.map(agent => {
                   const bullTotal = agent.bull?.n || 0;
                   const bullWins = agent.bull?.win || 0;
+                  const bullUnknown = agent.bull?.unknown || 0;
                   const bearTotal = agent.bear?.n || 0;
                   const bearWins = agent.bear?.win || 0;
+                  const bearUnknown = agent.bear?.unknown || 0;
                   const totalSignals = bullTotal + bearTotal;
-                  const bullWinRate = bullTotal > 0 ? (bullWins / bullTotal) : 0;
-                  const bearWinRate = bearTotal > 0 ? (bearWins / bearTotal) : 0;
-                  
+                  const evaluatedBull = Math.max(bullTotal - bullUnknown, 0);
+                  const evaluatedBear = Math.max(bearTotal - bearUnknown, 0);
+                  const evaluatedTotal = evaluatedBull + evaluatedBear;
+                  const bullWinRate = evaluatedBull > 0 ? (bullWins / evaluatedBull) : null;
+                  const bearWinRate = evaluatedBear > 0 ? (bearWins / evaluatedBear) : null;
+                  const overallWinRate = agent.winRate != null
+                    ? agent.winRate
+                    : (evaluatedTotal > 0 ? ((bullWins + bearWins) / evaluatedTotal) : null);
+                  const overallColor = overallWinRate != null
+                    ? (overallWinRate >= 0.5 ? '#00C853' : '#FF1744')
+                    : '#999999';
+
                   return (
                     <tr key={agent.agentId}>
                       <td>
@@ -51,22 +62,28 @@ export default function PerformanceView({ leaderboard }) {
                         <div style={{ fontWeight: 700, color: '#000000' }}>{agent.name}</div>
                         <div style={{ fontSize: 10, color: '#666666' }}>{agent.role}</div>
                       </td>
-                      <td style={{ fontWeight: 700, color: agent.winRate >= 0.5 ? '#00C853' : '#FF1744' }}>
-                        {(agent.winRate * 100).toFixed(1)}%
+                      <td style={{ fontWeight: 700, color: overallColor }}>
+                        {overallWinRate != null ? `${(overallWinRate * 100).toFixed(1)}%` : 'N/A'}
                       </td>
                       <td>
                         <div style={{ fontSize: 12 }}>{bullTotal} signals</div>
                         <div style={{ fontSize: 10, color: '#666666' }}>{bullWins} wins</div>
+                        {bullUnknown > 0 && (
+                          <div style={{ fontSize: 10, color: '#999999' }}>{bullUnknown} unknown</div>
+                        )}
                       </td>
-                      <td style={{ color: bullWinRate >= 0.5 ? '#00C853' : '#999999' }}>
-                        {bullTotal > 0 ? `${(bullWinRate * 100).toFixed(1)}%` : 'N/A'}
+                      <td style={{ color: bullWinRate != null ? (bullWinRate >= 0.5 ? '#00C853' : '#999999') : '#999999' }}>
+                        {bullWinRate != null ? `${(bullWinRate * 100).toFixed(1)}%` : 'N/A'}
                       </td>
                       <td>
                         <div style={{ fontSize: 12 }}>{bearTotal} signals</div>
                         <div style={{ fontSize: 10, color: '#666666' }}>{bearWins} wins</div>
+                        {bearUnknown > 0 && (
+                          <div style={{ fontSize: 10, color: '#999999' }}>{bearUnknown} unknown</div>
+                        )}
                       </td>
-                      <td style={{ color: bearWinRate >= 0.5 ? '#00C853' : '#999999' }}>
-                        {bearTotal > 0 ? `${(bearWinRate * 100).toFixed(1)}%` : 'N/A'}
+                      <td style={{ color: bearWinRate != null ? (bearWinRate >= 0.5 ? '#00C853' : '#999999') : '#999999' }}>
+                        {bearWinRate != null ? `${(bearWinRate * 100).toFixed(1)}%` : 'N/A'}
                       </td>
                       <td style={{ fontWeight: 700 }}>{totalSignals}</td>
                     </tr>
@@ -123,8 +140,20 @@ export default function PerformanceView({ leaderboard }) {
                       const isBull = signalType.includes('bull') || signalType === 'long';
                       const isBear = signalType.includes('bear') || signalType === 'short';
                       const isNeutral = signalType.includes('neutral') || signalType === 'hold';
-                      const isCorrect = signal.is_correct;
-                      
+                      const resultStatus = signal.is_correct;
+                      const isCorrect = resultStatus === true;
+                      const isResultUnknown = resultStatus === 'unknown' || resultStatus === null || typeof resultStatus === 'undefined';
+                      const realReturnValue = signal.real_return;
+                      const hasRealReturn = typeof realReturnValue === 'number' && Number.isFinite(realReturnValue);
+                      const realReturnDisplay = hasRealReturn
+                        ? `${realReturnValue >= 0 ? '+' : ''}${(realReturnValue * 100).toFixed(2)}%`
+                        : 'Unknown';
+                      const realReturnColor = hasRealReturn
+                        ? (realReturnValue >= 0 ? '#00C853' : '#FF1744')
+                        : '#999999';
+                      const statusColor = isResultUnknown ? '#999999' : (isCorrect ? '#00C853' : '#FF1744');
+                      const statusSymbol = isResultUnknown ? '?' : (isCorrect ? '✓' : '✗');
+
                       return (
                         <div key={idx} style={{ 
                           fontSize: 11, 
@@ -163,9 +192,9 @@ export default function PerformanceView({ leaderboard }) {
                               <span style={{ 
                                 marginLeft: 8,
                                 fontSize: 10,
-                                color: signal.real_return >= 0 ? '#00C853' : '#FF1744'
+                                color: realReturnColor
                               }}>
-                                {signal.real_return >= 0 ? '+' : ''}{(signal.real_return * 100).toFixed(2)}%
+                                {realReturnDisplay}
                               </span>
                             )}
                           </div>
@@ -173,9 +202,9 @@ export default function PerformanceView({ leaderboard }) {
                             <span style={{ 
                               fontSize: 14,
                               marginLeft: 10,
-                              color: isCorrect ? '#00C853' : '#FF1744'
+                              color: statusColor
                             }}>
-                              {isCorrect ? '✓' : '✗'}
+                              {statusSymbol}
                             </span>
                           )}
                         </div>

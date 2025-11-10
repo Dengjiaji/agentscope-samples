@@ -5,8 +5,9 @@
 """
 
 import json
+import math
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timedelta
 from collections import defaultdict
 import os
@@ -453,6 +454,32 @@ class TeamDashboardGenerator:
         actual_price = self._get_price_from_csv(ticker, date, 'close')
         return actual_price
         
+    def _normalize_real_return(self, value: Any) -> Tuple[Optional[float], Any]:
+        """
+        标准化真实收益率：
+        - 返回 (可用于计算的浮点值或None, 供前端展示的值/unknown)
+        """
+        if value is None:
+            return None, 'unknown'
+        
+        # 处理字符串（可能已经是"unknown"或数字字符串）
+        if isinstance(value, str):
+            if value.lower() == 'unknown':
+                return None, 'unknown'
+            try:
+                value = float(value)
+            except ValueError:
+                return None, 'unknown'
+        
+        if isinstance(value, (int, float)):
+            # bool也是int的子类，直接转换
+            value = float(value)
+            if math.isnan(value):
+                return None, 'unknown'
+            return value, value
+        
+        return None, 'unknown'
+        
        
     def _update_portfolio_mode(self, date: str, timestamp_ms: int, pm_signals: Dict, 
                                 real_returns: Dict, live_env: Dict, state: Dict, 
@@ -496,16 +523,17 @@ class TeamDashboardGenerator:
             if action != 'hold' and quantity > 0:
                 # 获取成交价格
                 price = self._get_ticker_price(ticker, date, signal_info, portfolio_state, real_returns)
-                real_return = real_returns.get(ticker, 0)
+                numeric_real_return, _ = self._normalize_real_return(real_returns.get(ticker))
                 
-                # 计算该笔交易的P&L（基于当日收益）
-                pnl = 0.0
-                if action == 'long':
-                    # 多头持仓，P&L基于当日收益
-                    pnl = quantity * price * real_return
+                # 计算该笔交易的P&L（基于当日收益, 未知时记为0）
+                if numeric_real_return is None:
+                    pnl = 0.0
+                elif action == 'long':
+                    pnl = quantity * price * numeric_real_return
                 elif action == 'short':
-                    # 空头持仓，P&L为负的收益
-                        pnl = -quantity * price * real_return
+                    pnl = -quantity * price * numeric_real_return
+                else:
+                    pnl = 0.0
                 
                 # 映射action到side（用于显示）
                 side_map = {
@@ -549,6 +577,7 @@ class TeamDashboardGenerator:
             
             # 获取当前价格
             price = self._get_ticker_price(ticker, date, signal_info, portfolio_state, real_returns)
+            numeric_real_return, _ = self._normalize_real_return(real_returns.get(ticker))
             quantity = DEFAULT_QUANTITY
             
             # 映射signal到side
@@ -579,8 +608,8 @@ class TeamDashboardGenerator:
                     if pos['qty'] == 0:
                         del portfolio_state['positions'][ticker]
             
-            # 计算P&L
-            pnl = quantity * price * real_returns.get(ticker, 0)
+            # 计算P&L（未知收益时按0处理）
+            pnl = quantity * price * (numeric_real_return if numeric_real_return is not None else 0.0)
             
             # 生成交易ID
             trade_count = len([t for t in state['all_trades'] if t['ticker'] == ticker and t['ts'] == timestamp_ms])
@@ -611,13 +640,17 @@ class TeamDashboardGenerator:
                     'signals': [],
                     'bull_count': 0,
                     'bull_win': 0,
+                    'bull_unknown': 0,
                     'bear_count': 0,
                     'bear_win': 0,
+                    'bear_unknown': 0,
                     'neutral_count': 0,
                     'logs': []
                 }
             
             agent_perf = state['agent_performance'][agent_id]
+            agent_perf.setdefault('bull_unknown', 0)
+            agent_perf.setdefault('bear_unknown', 0)
             
             for ticker, signal_data in signals.items():
                 if not signal_data or signal_data == 'N/A':
@@ -632,7 +665,7 @@ class TeamDashboardGenerator:
                 if not signal or signal == 'N/A':
                     continue
                 
-                real_return = real_returns.get(ticker, 0)
+                numeric_real_return, display_real_return = self._normalize_real_return(real_returns.get(ticker))
                 
                 # 判断信号类型和正确性（标准化格式，不区分大小写）
                 signal_lower = signal.lower() if isinstance(signal, str) else str(signal).lower()
@@ -640,36 +673,45 @@ class TeamDashboardGenerator:
                 is_bear = signal_lower in ['sell', 'bearish', 'short'] or 'bear' in signal_lower
                 is_neutral = signal_lower in ['hold', 'neutral'] or 'neutral' in signal_lower
                 
-                # 判断是否正确（简化：涨跌与信号一致）
                 is_correct = False
-                if is_bull and real_return > 0:
-                    is_correct = True
+                result_unknown = numeric_real_return is None
+                
+                if is_bull:
                     agent_perf['bull_count'] += 1
-                    agent_perf['bull_win'] += 1
-                elif is_bull and real_return <= 0:
-                    agent_perf['bull_count'] += 1
-                elif is_bear and real_return < 0:
-                    is_correct = True
+                    if result_unknown:
+                        agent_perf['bull_unknown'] += 1
+                    elif numeric_real_return > 0:
+                        is_correct = True
+                        agent_perf['bull_win'] += 1
+                elif is_bear:
                     agent_perf['bear_count'] += 1
-                    agent_perf['bear_win'] += 1
-                elif is_bear and real_return >= 0:
-                    agent_perf['bear_count'] += 1
+                    if result_unknown:
+                        agent_perf['bear_unknown'] += 1
+                    elif numeric_real_return < 0:
+                        is_correct = True
+                        agent_perf['bear_win'] += 1
                 elif is_neutral:
                     agent_perf['neutral_count'] += 1
-                    # neutral不计入胜率
+                    # neutral信号不纳入胜率统计
                 
                 # 记录信号
                 signal_record = {
                     'date': date,
                     'ticker': ticker,
                     'signal': signal,
-                    'real_return': real_return,
-                    'is_correct': is_correct
+                    'real_return': display_real_return,
+                    'is_correct': 'unknown' if result_unknown else is_correct
                 }
                 agent_perf['signals'].append(signal_record)
                 
                 # 更新日志（保留最近50条）
-                log_entry = f"{'Bull' if is_bull else 'Bear' if is_bear else 'Neutral'} on {ticker} {'✓' if is_correct else '✗' if not is_neutral else ''}"
+                if result_unknown and not is_neutral:
+                    marker = '?'
+                elif is_neutral:
+                    marker = ''
+                else:
+                    marker = '✓' if is_correct else '✗'
+                log_entry = f"{'Bull' if is_bull else 'Bear' if is_bear else 'Neutral'} on {ticker} {marker}"
                 agent_perf['logs'].insert(0, log_entry)
                 agent_perf['logs'] = agent_perf['logs'][:50]
             
@@ -688,17 +730,21 @@ class TeamDashboardGenerator:
                 'signals': [],
                 'bull_count': 0,
                 'bull_win': 0,
+                'bull_unknown': 0,
                 'bear_count': 0,
                 'bear_win': 0,
+                'bear_unknown': 0,
                 'neutral_count': 0,
                 'logs': []
             }
         
         pm_perf = state['agent_performance'][agent_id]
+        pm_perf.setdefault('bull_unknown', 0)
+        pm_perf.setdefault('bear_unknown', 0)
         
         for ticker, signal_info in pm_signals.items():
             signal = signal_info.get('signal', 'neutral')
-            real_return = real_returns.get(ticker, 0)
+            numeric_real_return, display_real_return = self._normalize_real_return(real_returns.get(ticker))
             
             signal_lower = signal.lower()
             is_bull = 'bull' in signal_lower or signal_lower == 'long'
@@ -706,18 +752,21 @@ class TeamDashboardGenerator:
             is_neutral = 'neutral' in signal_lower or signal_lower == 'hold'
             
             is_correct = False
-            if is_bull and real_return > 0:
-                is_correct = True
+            result_unknown = numeric_real_return is None
+            if is_bull:
                 pm_perf['bull_count'] += 1
-                pm_perf['bull_win'] += 1
-            elif is_bull and real_return <= 0:
-                pm_perf['bull_count'] += 1
-            elif is_bear and real_return < 0:
-                is_correct = True
+                if result_unknown:
+                    pm_perf['bull_unknown'] += 1
+                elif numeric_real_return > 0:
+                    is_correct = True
+                    pm_perf['bull_win'] += 1
+            elif is_bear:
                 pm_perf['bear_count'] += 1
-                pm_perf['bear_win'] += 1
-            elif is_bear and real_return >= 0:
-                pm_perf['bear_count'] += 1
+                if result_unknown:
+                    pm_perf['bear_unknown'] += 1
+                elif numeric_real_return < 0:
+                    is_correct = True
+                    pm_perf['bear_win'] += 1
             elif is_neutral:
                 pm_perf['neutral_count'] += 1
             
@@ -725,12 +774,18 @@ class TeamDashboardGenerator:
                 'date': date,
                 'ticker': ticker,
                 'signal': signal,
-                'real_return': real_return,
-                'is_correct': is_correct
+                'real_return': display_real_return,
+                'is_correct': 'unknown' if result_unknown else is_correct
             }
             pm_perf['signals'].append(signal_record)
             
-            log_entry = f"{'Bull' if is_bull else 'Bear' if is_bear else 'Neutral'} on {ticker} {'✓' if is_correct else '✗' if not is_neutral else ''}"
+            if result_unknown and not is_neutral:
+                marker = '?'
+            elif is_neutral:
+                marker = ''
+            else:
+                marker = '✓' if is_correct else '✗'
+            log_entry = f"{'Bull' if is_bull else 'Bear' if is_bear else 'Neutral'} on {ticker} {marker}"
             pm_perf['logs'].insert(0, log_entry)
             pm_perf['logs'] = pm_perf['logs'][:50]
     
@@ -1462,12 +1517,17 @@ class TeamDashboardGenerator:
             # 计算胜率
             bull_count = perf.get('bull_count', 0)
             bull_win = perf.get('bull_win', 0)
+            bull_unknown = perf.get('bull_unknown', 0)
             bear_count = perf.get('bear_count', 0)
             bear_win = perf.get('bear_win', 0)
+            bear_unknown = perf.get('bear_unknown', 0)
             
+            evaluated_bull = max(bull_count - bull_unknown, 0)
+            evaluated_bear = max(bear_count - bear_unknown, 0)
             total_count = bull_count + bear_count
             total_win = bull_win + bear_win
-            win_rate = total_win / total_count if total_count > 0 else 0
+            evaluated_total = evaluated_bull + evaluated_bear
+            win_rate = (total_win / evaluated_total) if evaluated_total > 0 else None
             
             # 获取agent配置
             agent_config = self.AGENT_CONFIG.get(agent_id, {
@@ -1482,14 +1542,16 @@ class TeamDashboardGenerator:
                 'role': agent_config['role'],
                 'avatar': agent_config['avatar'],
                 'rank': 0,  # 稍后填充
-                'winRate': round(win_rate, 2),
+                'winRate': round(win_rate, 4) if win_rate is not None else None,
                 'bull': {
                     'n': bull_count,
-                    'win': bull_win
+                    'win': bull_win,
+                    'unknown': bull_unknown
                 },
                 'bear': {
                     'n': bear_count,
-                    'win': bear_win
+                    'win': bear_win,
+                    'unknown': bear_unknown
                 },
                 'logs': perf.get('logs', []),  # 前10条日志
                 'signals': perf.get('signals', [])  # 完整的信号历史记录（包含日期）
@@ -1497,7 +1559,8 @@ class TeamDashboardGenerator:
         
         # 按胜率排序，胜率相同时 Portfolio Manager 排在前面
         leaderboard.sort(key=lambda x: (
-            -x['winRate'],  # 胜率降序
+            0 if x['winRate'] is not None else 1,  # 有效胜率优先
+            -(x['winRate'] if x['winRate'] is not None else 0),  # 胜率降序
             0 if x['agentId'] == 'portfolio_manager' else 1  # PM优先
         ))
         
