@@ -27,7 +27,7 @@ from typing import List, Dict, Any, Optional
 from collections import defaultdict
 from dotenv import load_dotenv
 
-# 额外引入：支持价格合成/节流
+from src.config.constants import ANALYST_TYPES
 from src.memory.memory_system import LLMMemoryDecisionSystem
 from src.servers.streamer import ConsoleStreamer
 from src.dashboard.team_dashboard import TeamDashboardGenerator
@@ -214,7 +214,7 @@ class LiveTradingThinkingFund:
         # 3. 提取分析师信号（现在不需要预先初始化）
         self.streamer.print("system", "===== 分析师信号详情 =====")
         
-        for agent in ['sentiment_analyst', 'technical_analyst', 'fundamentals_analyst', 'valuation_analyst']:
+        for agent in ANALYST_TYPES.keys():
             for ticker in tickers:
                 agent_results = analysis_result.get('raw_results', {}).get('results', {}).get('final_analyst_results', {})
                 
@@ -670,8 +670,7 @@ class LiveTradingThinkingFund:
             # ========== 1. 各分析师自我复盘 ==========
             self.streamer.print("system", "\n--- 分析师自我复盘 ---")
             
-            analysts = ['technical_analyst', 'fundamentals_analyst', 
-                       'sentiment_analyst', 'valuation_analyst']
+            analysts = ANALYST_TYPES.keys()
             
             for analyst_id in analysts:
                 try:
@@ -947,12 +946,13 @@ class LiveTradingThinkingFund:
         }
 
     def _print_multi_day_summary(self, summary: Dict[str, Any]) -> None:
-        self.streamer.print("system", "===== 多日模拟汇总 =====")
-        self.streamer.print("system", f"区间: {summary['start_date']} ~ {summary['end_date']}")
-        self.streamer.print("system", f"交易日数量: {summary['total_days']}")
-        self.streamer.print("system", f"成功天数: {summary['success_days']}")
-        self.streamer.print("system", f"失败天数: {summary['failed_days']}")
-        self.streamer.print("system", f"成功率: {summary['success_rate_pct']:.2f}%")
+        self.streamer.print("system", "===== 多日模拟汇总 ====="
+        f"\n区间: {summary['start_date']} ~ {summary['end_date']}"
+        f"\n交易日数量: {summary['total_days']}"
+        f"\n成功天数: {summary['success_days']}"
+        f"\n失败天数: {summary['failed_days']}"
+        f"\n成功率: {summary['success_rate_pct']:.2f}%")
+
         if summary['failed_day_list']:
             self.streamer.print("system", f"失败日期: {', '.join(summary['failed_day_list'])}")
         self.streamer.print("system", "=" * 40)

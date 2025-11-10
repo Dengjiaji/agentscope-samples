@@ -473,7 +473,6 @@ class CommunicationManager:
         print(f"参与者: {', '.join([manager_id] + analyst_ids)}")
 
 
-        
         # 输出会议ID到前端
         if streamer:
             streamer.print("conference_start", title=topic, conferenceId=meeting_id,
@@ -987,7 +986,7 @@ class CommunicationManager:
                     if streamer:
                         streamer.print(
                             "memory",
-                            f"搜索记忆: {memory_query[:60]}...",
+                            f"搜索记忆: {memory_query}...",
                             agent_id=analyst_id,
                             operation_type="search"
                         )

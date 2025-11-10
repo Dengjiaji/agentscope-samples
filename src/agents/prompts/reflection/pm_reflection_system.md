@@ -64,21 +64,21 @@
 请以 JSON 格式返回：
 
 ```json
-{JSON_OPEN}
+{
   "reflection_summary": "你的复盘总结",
   "need_tool": true/false,
-  "selected_tool": {JSON_OPEN}
+  "selected_tool": {
     "tool_name": "工具名称",
     "reason": "选择原因",
-    "parameters": {JSON_OPEN}
+    "parameters": {
       "query": "搜索查询",
       "memory_id": "auto",
       "analyst_id": "portfolio_manager",
       "new_content": "新内容（仅update需要）",
       "reason": "操作原因"
-    {JSON_CLOSE}
-  {JSON_CLOSE}
-{JSON_CLOSE}
+    }
+  }
+}
 ```
 
 **注意：**
