@@ -57,7 +57,7 @@ class AnalystAgent(AgentBase):
         self.config = config or {}
         
         # 使用LLM工具选择器（内部使用Toolkit）
-        self.tool_selector = LLMToolSelector(use_prompt_files=True)
+        self.tool_selector = LLMToolSelector()
         self.toolkit = self.tool_selector.get_toolkit()  # 获取Toolkit实例
     
     def execute(self, state: AgentState) -> Dict[str, Any]:
@@ -204,6 +204,9 @@ class AnalystAgent(AgentBase):
             ticker, 
             f"已选择 {selection_result['tool_count']} 个工具"
         )
+
+
+        # print(f"{self.name} \n\n-  LLM 工具选择结果:\n\n {selection_result}")
         
         # 3. 执行选定的工具 - 使用AgentScope Toolkit
         tool_results = await self.tool_selector.execute_selected_tools(
@@ -220,7 +223,8 @@ class AnalystAgent(AgentBase):
             ticker, 
             "LLM综合分析信号"
         )
-        
+
+
         combined_result = self.tool_selector.synthesize_results_with_llm(
             tool_results, 
             selection_result,
@@ -228,11 +232,14 @@ class AnalystAgent(AgentBase):
             ticker,
             self.analyst_persona
         )
+
+        print(f"{self.name} \n\n-  LLM 调用输出结果:\n\n {combined_result}")
         
         # 5. 构建最终结果
         analysis_result = {
             "signal": combined_result["signal"],
             "confidence": combined_result["confidence"],
+            "reason": combined_result["reasoning"],
             "tool_selection": {
                 "analysis_strategy": selection_result["analysis_strategy"],
                 "selected_tools": selection_result["selected_tools"],
@@ -251,7 +258,7 @@ class AnalystAgent(AgentBase):
                 "analysis_date": end_date,
                 "llm_enhanced": llm is not None,
                 "selection_method": "LLM intelligent selection" if llm else "Default selection",
-                "synthesis_method": combined_result.get("synthesis_method", "unknown")
+                "synthesis_method": combined_result.get("synthesis_method", "unknown"),
             }
         }
         

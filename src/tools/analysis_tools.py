@@ -5,11 +5,6 @@
 
 from typing import Dict, Any, List, Optional, Tuple
 
-# 定义一个简单的装饰器来保持兼容性
-def tool(func):
-    """兼容性装饰器 - 将函数标记为工具函数"""
-    func._is_tool = True
-    return func
 import pandas as pd
 import numpy as np
 import json
@@ -27,6 +22,11 @@ from src.tools.data_tools import (
     search_line_items,
 )
 
+# 定义一个简单的装饰器来保持兼容性
+def tool(func):
+    """兼容性装饰器 - 将函数标记为工具函数"""
+    func._is_tool = True
+    return func
 
 # ===================== 工具辅助函数 =====================
 
@@ -1016,8 +1016,8 @@ def analyze_insider_trading(ticker: str, end_date: str, api_key: str, start_date
             }
         
         # 买入(正数)和卖出(负数)统计
-        buy_trades = (transaction_shares > 0).sum()
-        sell_trades = (transaction_shares < 0).sum()
+        buy_trades = int((transaction_shares > 0).sum())
+        sell_trades = int((transaction_shares < 0).sum())
         total_trades = len(transaction_shares)
         
         # 按交易量加权

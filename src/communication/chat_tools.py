@@ -318,6 +318,7 @@ class CommunicationManager:
                 current_analyst_signal = analyst_response["adjusted_signal"]
                 print(f"信号已调整: {analyst_response['signal_adjustment']}")
                 adjustments_made_counter += 1
+                print(analyst_response)
                 
                 # 输出信号调整到前端
                 if streamer:
