@@ -233,13 +233,13 @@ class AnalystAgent(AgentBase):
             self.analyst_persona
         )
 
-        print(f"{self.name} \n\n-  LLM 调用输出结果:\n\n {combined_result}")
+        print(f"-  {self.name} 调用输出结果:\n\n {combined_result}")
         
         # 5. 构建最终结果
         analysis_result = {
             "signal": combined_result["signal"],
             "confidence": combined_result["confidence"],
-            "reason": combined_result["reasoning"],
+            # "reason": combined_result["reasoning"],
             "tool_selection": {
                 "analysis_strategy": selection_result["analysis_strategy"],
                 "selected_tools": selection_result["selected_tools"],

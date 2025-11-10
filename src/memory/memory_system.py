@@ -118,8 +118,10 @@ class LLMMemoryDecisionSystem:
             print(f"📝 Prompt长度: {len(prompt)} 字符")
 
             # 调用 LLM（使用 AgentScope 格式）
+            # print(f"   📝 Prompt:{prompt}")
             messages = [{"role": "user", "content": prompt}]
             response = self.llm(messages)
+            # print(f"   📥 LLM响应:{response}")
 
             # 将响应转换为兼容格式
             class ResponseWrapper:

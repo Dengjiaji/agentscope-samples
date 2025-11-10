@@ -232,7 +232,6 @@ class LiveTradingThinkingFund:
                     if matched:                        
                         # pdb.set_trace()
                         live_env['ana_signals'][agent][ticker] = matched # ['signal']
-                        reasoning = analyst_result[ticker].get('reasoning', '')
                         # 输出第二轮信号
                         self.streamer.print("agent", 
                             f"{ticker} - 第二轮: {matched['signal']} (置信度: {matched.get('confidence', 'N/A')}%)",
@@ -245,11 +244,8 @@ class LiveTradingThinkingFund:
                         live_env['ana_signals'][agent][ticker] = analyst_result[ticker] #['signal']
                         # 输出第一轮信号
                         confidence = analyst_result[ticker].get('confidence', 'N/A')
-                        reasoning = analyst_result[ticker].get('reasoning','')
                         self.streamer.print("agent", 
-                            f"{ticker} - 第一轮: {analyst_result[ticker]['signal']} (置信度: {confidence}%)\n"
-                            f"Analysis:{reasoning}\n"
-                            f"Tools: {analyst_result[ticker]['tool_analysis']}\n",
+                            f"{ticker} - 第一轮: {analyst_result[ticker]['signal']} (置信度: {confidence}%)",
                             role_key=agent
                         )
 
@@ -257,7 +253,7 @@ class LiveTradingThinkingFund:
 
                 
         self.live_system.save_daily_signals(target_date, pm_signals)
-        # self.streamer.print("system", f"已保存 {len(pm_signals)} 个股票的交易信号")
+        print("system", f"已保存 {len(pm_signals)} 个股票的交易信号")
 
         # 4. 计算当日收益
         target_date = str(target_date)

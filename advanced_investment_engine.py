@@ -520,7 +520,7 @@ class AdvancedInvestmentAnalysisEngine:
         
         end_time = datetime.now()
         execution_time = (end_time - start_time).total_seconds()
-        print(f"\n第二轮并行分析完成，总耗时: {execution_time:.2f} 秒")
+        print(f"\n第二轮分析完成，总耗时: {execution_time:.2f} 秒")
         print("=" * 40)
         return second_round_results
     
@@ -786,6 +786,8 @@ class AdvancedInvestmentAnalysisEngine:
             initial_decisions = self._extract_portfolio_decisions(state, agent_name="portfolio_manager")
             # pdb.set_trace()
             print('initial_decisions',initial_decisions)
+
+
             if not initial_decisions:
                 print("警告: 未能获取初始投资决策")
                 return {
@@ -847,10 +849,12 @@ class AdvancedInvestmentAnalysisEngine:
                         print("决定不进行额外通信")
                         print(f"原因: {communication_decision.reasoning}")
                         break
-                    print(f"选择通信类型: {communication_decision.communication_type}")
-                    print(f"讨论话题: {communication_decision.discussion_topic}")
-                    print(f"目标分析师: {', '.join(communication_decision.target_analysts)}")
-                    self.streamer.print("agent",f"选择通信类型: {communication_decision.communication_type}\n讨论话题: {communication_decision.discussion_topic}\n需参与分析师: {', '.join(communication_decision.target_analysts)}",role_key="portfolio_manager")
+
+                    self.streamer.print("agent",
+                                        f"选择通信类型: {communication_decision.communication_type}\n"
+                                        f"讨论话题: {communication_decision.discussion_topic}\n"
+                                        f"需参与分析师: {', '.join(communication_decision.target_analysts)}",
+                                        role_key="portfolio_manager")
                     if communication_decision.communication_type == "private_chat":
                         # 进行私聊
                         communication_results = self.conduct_private_chats(
