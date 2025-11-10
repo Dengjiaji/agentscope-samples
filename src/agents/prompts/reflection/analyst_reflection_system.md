@@ -60,21 +60,21 @@
 请以 JSON 格式返回，包含以下字段：
 
 ```json
-{JSON_OPEN}
+{
   "reflection_summary": "你的复盘总结（1-2段话）",
   "need_tool": true/false,
-  "selected_tool": {JSON_OPEN}
-    "tool_name": "search_and_update_analyst_memory" 或 "search_and_delete_analyst_memory",
+  "selected_tool": {
+    "tool_name": "search_and_update_analyst_memory"/"search_and_delete_analyst_memory",
     "reason": "为什么选择这个工具",
-    "parameters": {JSON_OPEN}
+    "parameters": {
       "query": "搜索查询",
       "memory_id": "auto",
       "analyst_id": "{{ agent_id }}",
       "new_content": "新内容（仅update需要）",
       "reason": "操作原因"
-    {JSON_CLOSE}
-  {JSON_CLOSE}
-{JSON_CLOSE}
+    }
+  }
+}
 ```
 
 **注意：**

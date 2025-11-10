@@ -280,51 +280,6 @@ Please regenerate the correct JSON format reply."""
                 return fallback_decision
 
 
-# def format_notifications_for_context(agent_id: str, backtest_date: Optional[str] = None) -> str:
-#     """
-#     格式化通知为上下文字符串，用于后续分析（基于Mem0）
-#     """
-#     notification_memory = mem0_notification_system.get_agent_memory(agent_id)
-    
-#     if not notification_memory:
-#         return "No notifications received today."
-    
-#     recent_notifications = notification_memory.get_recent_notifications(24, backtest_date=backtest_date)
-    
-#     if not recent_notifications:
-#         return "No notifications received today."
-    
-#     formatted = "Notifications received today:\n"
-#     for notification in recent_notifications:
-#         if not isinstance(notification, dict):
-#             # 搜索返回了非结构化条目，跳过
-#             continue
-#         metadata = notification.get('metadata', {}) or {}
-#         sender = metadata.get('sender', 'unknown')
-#         timestamp = metadata.get('timestamp', '')
-#         urgency = metadata.get('urgency', 'unknown')
-#         category = metadata.get('category', 'unknown')
-#         content = (notification.get('memory', '') or '')[:200]
-        
-#         # 尝试解析时间戳
-#         try:
-#             if timestamp:
-#                 dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-#                 time_str = dt.strftime('%H:%M')
-#             else:
-#                 time_str = '??:??'
-#         except:
-#             time_str = '??:??'
-        
-#         formatted += f"""
-# - From {sender} ({time_str}):
-#   {content}
-#   Urgency: {urgency} | Category: {category}
-# """
-    
-#     return formatted
-
-
 # 创建全局Mem0通知系统实例（延迟初始化）
 _mem0_notification_system = None
 
