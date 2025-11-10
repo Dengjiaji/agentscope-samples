@@ -15,7 +15,7 @@ from .prompt_loader import PromptLoader
 from src.utils.api_key import get_api_key_from_state
 
 # 导入所有可用的分析工具
-from src.tools.analysis_tools_unified import (
+from src.tools.analysis_tools import (
     # 基本面工具
     analyze_profitability,
     analyze_growth,
@@ -42,6 +42,8 @@ from src.tools.analysis_tools_unified import (
     # # 工具组合函数
     # combine_tool_signals
 )
+from ..utils.llm import call_llm
+
 
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -135,6 +137,7 @@ def _wrap_tool_for_agentscope(original_func: Callable, tool_category: str) -> Ca
     wrapped_tool.__doc__ = original_func.__doc__
     
     return wrapped_tool
+
 class LLMToolSelector:
     """基于LLM的智能工具选择器（使用AgentScope Toolkit）"""
     
@@ -721,7 +724,7 @@ You will flexibly select various tools based on specific situations, pursuing co
         # 调用LLM（使用 AgentScope 方式）
         messages = [{"role": "user", "content": prompt}]
         response = llm(messages=messages, temperature=0.7)
-        
+
         # 解析响应
         response_text = response["content"].strip()
         # 尝试提取JSON

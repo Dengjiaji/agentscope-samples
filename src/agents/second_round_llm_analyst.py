@@ -9,11 +9,11 @@ from typing import Dict, Any, List
 from ..graph.state import AgentState, create_message
 from ..utils.llm import call_llm
 from ..utils.json_utils import quiet_json_dumps
-from ..data.second_round_signals import SecondRoundAnalysis, AnalystPersona, TickerSignal
-from src.communication.cfg import ANALYST_PERSONAS
+from ..data.second_round_signals import SecondRoundAnalysis, TickerSignal
 from .prompt_loader import PromptLoader
 
 _prompt_loader = PromptLoader()
+_personas_config = _prompt_loader.load_yaml_config("analyst", "personas")
 
 
 def run_second_round_llm_analysis(
@@ -26,20 +26,22 @@ def run_second_round_llm_analysis(
 ) -> SecondRoundAnalysis:
     """运行第二轮LLM分析"""
     
-    # 获取分析师人格设定
-    if agent_id not in ANALYST_PERSONAS:
+    if agent_id not in _personas_config:
         raise ValueError(f"Unknown analyst ID: {agent_id}")
     
-    persona = ANALYST_PERSONAS[agent_id]
+    persona = _personas_config[agent_id]
     
-    # 准备prompt变量
-    analysis_focus_str = "\n".join([f"- {focus}" for focus in persona.analysis_focus])
+    analysis_focus_str = "\n".join([f"- {focus}" for focus in persona['analysis_focus']])
     
-    notifications_str = (
-        "\n".join([f"- {notif.get('sender', 'Unknown')}: {notif.get('content', '')}" 
-                   for notif in notifications])
-        if notifications else "No notifications from other analysts yet"
-    )
+    # 格式化通知信息
+    notifications_str = ""
+    if notifications:
+        notifications_str = "\n".join([
+            f"- {notif.get('sender', 'Unknown')}: {notif.get('content', '')}"
+            for notif in notifications
+        ])
+    else:
+        notifications_str = "No notifications from other analysts yet"
     
     # 生成分ticker的报告
     ticker_reports = []
@@ -66,38 +68,26 @@ Analysis Tools Selection and Reasoning:
 """
         ticker_reports.append(ticker_report)
     
-    # 使用 PromptLoader 加载和渲染 prompts
-    # 构建ticker列表字符串，用于在prompt中明确说明需要分析的tickers
-    tickers_list_str = ", ".join(tickers)
-    
     variables = {
-        "analyst_name": persona.name,
-        "specialty": persona.specialty,
+        "analyst_name": persona['name'],
+        "specialty": persona['specialty'],
         "analysis_focus": analysis_focus_str,
-        "decision_style": persona.decision_style,
-        "risk_preference": persona.risk_preference,
+        "decision_style": persona['decision_style'],
+        "risk_preference": persona['risk_preference'],
         "ticker_reports": "\n".join(ticker_reports),
         "notifications": notifications_str,
-        "agent_id": agent_id,
-        "tickers_list": tickers_list_str  # 添加tickers列表
+        "agent_id": agent_id
     }
-
+    
     system_prompt = _prompt_loader.load_prompt("analyst", "second_round_system", variables)
     human_prompt = _prompt_loader.load_prompt("analyst", "second_round_human", variables)
+    messages = [{"role":"system", "content":system_prompt},
+        {"role":"user", "content":human_prompt}]
     
-    # 在prompt末尾添加明确的ticker列表要求
-    tickers_requirement = f"\n\n**REQUIRED TICKERS TO ANALYZE: {tickers_list_str}**\nYou MUST provide exactly {len(tickers)} signal(s), one for each ticker: {tickers_list_str}"
-
-    full_prompt = f"{system_prompt}\n\n{human_prompt}{tickers_requirement}"
-    
-    # 调用LLM
-    
-
     def create_default_analysis():
-        """创建默认分析结果"""
         return SecondRoundAnalysis(
             analyst_id=agent_id,
-            analyst_name=persona.name,
+            analyst_name=persona['name'],
             ticker_signals=[
                 TickerSignal(
                     ticker=ticker,
@@ -107,25 +97,19 @@ Analysis Tools Selection and Reasoning:
                 ) for ticker in tickers
             ]
         )
-    try:
-        result = call_llm(
-            prompt=full_prompt,
-            pydantic_model=SecondRoundAnalysis,
-            agent_name=f"{agent_id}_second_round",
-            state=state,
-            default_factory=create_default_analysis
-        )
-        
-        # 确保analyst_id和analyst_name正确设置
-        result.analyst_id = agent_id
-        result.analyst_name = persona.name
-        # pdb.set_trace()
-
-        return result
-        
-    except Exception as e:
-        print(f"❌ {persona.name} LLM analysis failed: {str(e)}")
-        return create_default_analysis()
+    
+    result = call_llm(
+        messages=messages,
+        pydantic_model=SecondRoundAnalysis,
+        agent_name=f"{agent_id}_second_round",
+        state=state,
+        default_factory=create_default_analysis
+    )
+    
+    result.analyst_id = agent_id
+    result.analyst_name = persona['name']
+    
+    return result
 
 
 def format_second_round_result_for_state(analysis: SecondRoundAnalysis) -> Dict[str, Any]:

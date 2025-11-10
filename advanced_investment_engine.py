@@ -43,7 +43,6 @@ from src.communication.notification_system_mem0 import (
 from src.agents.second_round_llm_analyst import (
     run_second_round_llm_analysis,
     format_second_round_result_for_state,
-    ANALYST_PERSONAS
 )
 
 # 导入风险管理和投资组合管理 - 使用新架构

@@ -1,7 +1,7 @@
 # Analyst Personas Configuration
 # 分析师人格配置文件
 
-fundamental_analyst:
+fundamentals_analyst:
   name: "Fundamental Analyst"
   chinese_name: "基本面分析师"
   specialty: "公司财务分析和基本面研究"

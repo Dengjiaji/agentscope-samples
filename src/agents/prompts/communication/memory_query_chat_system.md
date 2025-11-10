@@ -12,3 +12,4 @@ The query should focus on:
 
 Return ONLY the search query text, no explanations or extra formatting.
 
+

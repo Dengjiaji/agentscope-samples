@@ -5,13 +5,13 @@ from pydantic import BaseModel
 from typing import Optional, Dict, Any, Union
 
 # 导入 AgentScope 模型
-from src.llm.agentscope_models import get_model as get_agentscope_model, ModelProvider
+from src.llm.models import get_model, ModelProvider
 from src.utils.progress import progress
 from src.graph.state import AgentState
 
 
 def call_llm(
-    prompt: Union[str, list],
+    messages: Union[str, list],
     pydantic_model: type[BaseModel],
     agent_name: Optional[str] = None,
     state: Optional[AgentState] = None,
@@ -22,7 +22,7 @@ def call_llm(
     使用 AgentScope 模型包装器调用 LLM，支持结构化输出
     
     Args:
-        prompt: 提示内容（字符串或消息列表）
+        messages: 提示内容（字符串或消息列表）
         pydantic_model: Pydantic 模型类用于结构化输出
         agent_name: Agent 名称（可选，用于进度更新和模型配置提取）
         state: AgentState 对象（可选，用于提取 agent 特定的模型配置）
@@ -41,33 +41,12 @@ def call_llm(
         model_name = "gpt-4o-mini"
         model_provider = "OPENAI"
 
-    # 提取 API keys
-    api_keys = None
-    if state:
-        request = state.get("metadata", {}).get("request")
-        if request and hasattr(request, 'api_keys'):
-            api_keys = request.api_keys
-
-    # 获取模型实例（使用 AgentScope）
-    llm = get_agentscope_model(model_name, model_provider, api_keys)
-
-    # 准备 prompt（添加 JSON 格式要求）
-    if isinstance(prompt, str):
-        json_schema = pydantic_model.model_json_schema()
-        enhanced_prompt = f"""{prompt}
-
-请以 JSON 格式返回结果，严格遵循以下 schema：
-{json.dumps(json_schema, indent=2, ensure_ascii=False)}
-
-只返回 JSON，不要添加任何其他文字。"""
-        messages = [{"role": "user", "content": enhanced_prompt}]
-    else:
-        messages = prompt
+    llm = get_model(model_name, model_provider, api_keys=None)
 
     # 调用 LLM（带重试逻辑）
     for attempt in range(max_retries):
         try:
-            # 使用 AgentScope 模型
+
             response = llm(
                 messages,
                 temperature=0.7,
@@ -93,11 +72,6 @@ def call_llm(
                     else:
                         # ❌ 达到最大重试次数，暂停程序
                         print(f"\n❌❌❌ [{agent_name}] 达到最大重试次数 ({max_retries})，LLM持续返回空信号")
-                        print(f"   这是一个严重问题，需要检查：")
-                        print(f"   1. LLM模型是否正常工作")
-                        print(f"   2. Prompt是否过长或格式有误")
-                        print(f"   3. 第一轮数据是否正确传递")
-                        print(f"\n🛑 程序暂停，请检查问题后重新运行")
                         
                         import pdb
                         pdb.set_trace()
@@ -124,11 +98,6 @@ def call_llm(
                     else:
                         # ❌ 达到最大重试次数，暂停程序
                         print(f"\n❌❌❌ [{agent_name}] 达到最大重试次数 ({max_retries})，LLM持续返回空信号")
-                        print(f"   这是一个严重问题，需要检查：")
-                        print(f"   1. LLM模型是否正常工作")
-                        print(f"   2. Prompt是否过长或格式有误")
-                        print(f"   3. 第一轮数据是否正确传递")
-                        print(f"\n🛑 程序暂停，请检查问题后重新运行")
                         
                         import pdb
                         pdb.set_trace()

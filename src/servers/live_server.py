@@ -32,7 +32,7 @@ from src.servers.mock_price_manager import MockPriceManager
 from src.servers.state_manager import StateManager
 from live_trading_thinking_fund import LiveTradingThinkingFund
 from src.config.env_config import LiveThinkingFundConfig
-from src.tools.api import get_prices
+from src.tools.data_tools import get_prices
 
 # 尝试导入交易日历
 try:

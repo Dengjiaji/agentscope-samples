@@ -211,7 +211,7 @@ class PortfolioManagerAgent(AgentBase):
         try:
             system_prompt = self.prompt_loader.load_prompt("direction_decision_system", variables=prompt_data)
             human_prompt = self.prompt_loader.load_prompt("direction_decision_human", variables=prompt_data)
-            prompt = [
+            messages = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": human_prompt}
             ]
@@ -233,7 +233,7 @@ class PortfolioManagerAgent(AgentBase):
         progress.update_status(self.agent_id, None, "基于信号和历史经验生成决策")
         
         return call_llm(
-            prompt=prompt,
+            messages=messages,
             pydantic_model=PortfolioManagerOutput,
             agent_name=self.agent_id,
             state=state,
@@ -286,7 +286,7 @@ class PortfolioManagerAgent(AgentBase):
         # 加载 prompt
         system_prompt = self.prompt_loader.load_prompt(agent_type=self.agent_type, prompt_name="portfolio_decision_system", variables=prompt_data)
         human_prompt = self.prompt_loader.load_prompt(agent_type=self.agent_type, prompt_name="portfolio_decision_human", variables=prompt_data)
-        prompt = [
+        messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": human_prompt}
         ]
@@ -309,7 +309,7 @@ class PortfolioManagerAgent(AgentBase):
         
         # pdb.set_trace()
         return call_llm(
-            prompt=prompt,
+            messages=messages,
             pydantic_model=PortfolioManagerOutput,
             agent_name=self.agent_id,
             state=state,

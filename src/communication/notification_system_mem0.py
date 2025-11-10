@@ -20,7 +20,7 @@ except Exception:
     _pd = None
 import logging
 from src.graph.state import AgentState, create_message
-from src.llm.agentscope_models import get_model
+from src.llm.models import get_model
 
 # 导入新的记忆系统（延迟导入，避免在模块加载时初始化）
 # from src.memory import unified_memory_manager

@@ -17,7 +17,7 @@ from collections import defaultdict
 
 from src.scheduler.multi_day_manager import MultiDayManager
 from src.dashboard.team_dashboard_generator import TeamDashboardGenerator
-from src.tools.api import get_prices
+from src.tools.data_tools import get_prices
 
 # 尝试导入记忆系统
 try:

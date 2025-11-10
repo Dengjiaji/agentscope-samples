@@ -911,7 +911,7 @@ class TeamDashboardGenerator:
             available_tickers: 可交易的股票列表
             state: 内部状态
         """
-        from src.tools.api import get_market_cap
+        from src.tools.data_tools import get_market_cap
         
         baseline_vw_state = state['baseline_vw_state']
         

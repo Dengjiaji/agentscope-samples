@@ -18,3 +18,4 @@ Speech requirements:
 
 Please speak based on meeting transcript and discussion content, showing genuine interaction and critical thinking process.
 
+

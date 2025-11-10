@@ -22,7 +22,7 @@ except ImportError:
     except ImportError:
         US_TRADING_CALENDAR_AVAILABLE = False
 
-from src.tools.api import (
+from src.tools.data_tools import (
     get_price_data,
     get_prices,
     get_financial_metrics,

@@ -2,7 +2,7 @@ import os
 from typing import Dict, Any
 
 # from live_trading_thinking_fund import LLM_AVAILABLE, MEMORY_TOOLS_AVAILABLE
-from src.llm.agentscope_models import get_model
+from src.llm.models import get_model
 
 
 MEMORY_AVAILABLE = True
@@ -19,7 +19,7 @@ class LLMMemoryDecisionSystem:
         if LLM_AVAILABLE and MEMORY_TOOLS_AVAILABLE:
             model_name = os.getenv('MEMORY_LLM_MODEL', 'gpt-4o-mini')
             model_provider_str = os.getenv('MEMORY_LLM_PROVIDER', 'OPENAI')
-            from src.llm.agentscope_models import ModelProvider
+            from src.llm.models import ModelProvider
 
             # 转换为ModelProvider枚举
             if hasattr(ModelProvider, model_provider_str):
@@ -35,7 +35,7 @@ class LLMMemoryDecisionSystem:
                 api_keys['ANTHROPIC_API_KEY'] = os.getenv('ANTHROPIC_API_KEY')
 
             # 获取记忆管理工具
-            from src.tools.memory_management_tools import get_memory_tools
+            from src.tools.memory_tools import get_memory_tools
             self.memory_tools = get_memory_tools()
             # 使用 AgentScope 模型
             self.llm = get_model(model_name, model_provider, api_keys)

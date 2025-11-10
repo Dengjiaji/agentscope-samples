@@ -7,14 +7,8 @@ import os
 from typing import Dict, Any, List, Optional, Union
 from enum import Enum
 import json
-
-try:
-    import agentscope
-    from agentscope.models import ModelWrapperBase
-    AGENTSCOPE_AVAILABLE = True
-except ImportError:
-    AGENTSCOPE_AVAILABLE = False
-    ModelWrapperBase = object
+from agentscope.model import OpenAIChatModel
+import agentscope
 
 
 class ModelProvider(str, Enum):
@@ -32,7 +26,7 @@ class ModelProvider(str, Enum):
     GIGACHAT = "GigaChat"
 
 
-class AgentScopeModelWrapper:
+class ModelWrapper:
     """
     AgentScope 模型包装器
     
@@ -355,7 +349,7 @@ def get_model(
     model_provider: Union[str, ModelProvider],
     api_keys: Optional[Dict[str, str]] = None,
     **kwargs
-) -> AgentScopeModelWrapper:
+) -> ModelWrapper:
     """
     获取模型实例
     
@@ -368,7 +362,7 @@ def get_model(
     Returns:
         AgentScopeModelWrapper 实例
     """
-    return AgentScopeModelWrapper(
+    return ModelWrapper(
         model_name=model_name,
         model_provider=model_provider,
         api_keys=api_keys,

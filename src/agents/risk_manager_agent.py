@@ -14,7 +14,7 @@ from .prompt_loader import PromptLoader
 from ..graph.state import AgentState, show_agent_reasoning
 from ..utils.progress import progress
 from ..utils.api_key import get_api_key_from_state
-from ..tools.api import get_prices, prices_to_df, get_last_tradeday
+from ..tools.data_tools import get_prices, prices_to_df, get_last_tradeday
 import pdb
 
 class RiskManagerAgent(AgentBase):

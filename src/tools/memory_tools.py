@@ -50,7 +50,6 @@ def _broadcast_memory_operation(operation_type: str, content: str, agent_id: str
 
 
 # ===================== 记忆管理工具 - AgentScope 工具函数 =====================
-# 注意：AgentScope 不使用 @tool 装饰器，而是直接定义工具函数
 
 def search_and_update_analyst_memory(
     query: Annotated[str, Field(description="搜索查询内容，用于找到需要更新的记忆。例如：'苹果股票分析'、'技术指标预测'等")],

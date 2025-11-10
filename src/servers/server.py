@@ -30,7 +30,7 @@ from src.servers.state_manager import StateManager
 from src.servers.mock import MockSimulator
 from live_trading_thinking_fund import LiveTradingThinkingFund
 from src.config.env_config import LiveThinkingFundConfig
-from src.tools.api import get_prices
+from src.tools.data_tools import get_prices
 from src.utils.progress import progress
 
 load_dotenv()

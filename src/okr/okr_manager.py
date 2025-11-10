@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple
 from pathlib import Path
 
-from src.tools.api import get_price_data
+from src.tools.data_tools import get_price_data
 from src.communication.analyst_memory_mem0 import memory_manager_mem0_adapter as memory_manager
 
 class OKRManager:

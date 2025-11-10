@@ -14,8 +14,8 @@ from pathlib import Path
 import pdb
 
 from src.graph.state import create_message
-from src.llm.agentscope_models import get_model, ModelProvider
-from src.tools.memory_management_tools import get_memory_tools
+from src.llm.models import get_model, ModelProvider
+from src.tools.memory_tools import get_memory_tools
 from src.agents.prompt_loader import PromptLoader
 
 logger = logging.getLogger(__name__)
@@ -145,12 +145,12 @@ class AgentSelfReflectionSystem:
                 api_keys['ANTHROPIC_API_KEY'] = os.getenv('ANTHROPIC_API_KEY')
             
             # 创建记忆管理工具包（AgentScope Toolkit）
-            from src.tools.memory_management_tools import create_memory_toolkit
+            from src.tools.memory_tools import create_memory_toolkit
             self.toolkit = create_memory_toolkit()
             
             # 设置memory工具的streamer
             if self.streamer:
-                from src.tools.memory_management_tools import set_memory_tools_streamer
+                from src.tools.memory_tools import set_memory_tools_streamer
                 set_memory_tools_streamer(self.streamer)
             
             # 使用 AgentScope 模型

@@ -13,9 +13,9 @@ from agentscope.tool import Toolkit
 from ..graph.state import AgentState, show_agent_reasoning
 from ..utils.api_key import get_api_key_from_state
 from ..utils.progress import progress
-from ..llm.agentscope_models import get_model  # 使用 AgentScope 模型
+from ..llm.models import get_model  # 使用 AgentScope 模型
 from .llm_tool_selector import LLMToolSelector
-from ..tools.api import get_last_tradeday
+from ..tools.data_tools import get_last_tradeday
 
 
 class AnalystAgent(AgentBase):
@@ -23,7 +23,7 @@ class AnalystAgent(AgentBase):
     
     # 预定义的分析师类型
     ANALYST_TYPES = {
-        "fundamental": "Fundamental Analyst",
+        "fundamental": "Fundamentals Analyst",
         "technical": "Technical Analyst",
         "sentiment": "Sentiment Analyst",
         "valuation": "Valuation Analyst",
