@@ -3,7 +3,7 @@
 提供前端数据生成和管理功能
 """
 
-from .team_dashboard_generator import TeamDashboardGenerator
+from .team_dashboard import TeamDashboardGenerator
 
 __all__ = ['TeamDashboardGenerator']
 

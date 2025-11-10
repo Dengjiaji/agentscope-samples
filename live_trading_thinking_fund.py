@@ -30,7 +30,7 @@ from dotenv import load_dotenv
 # 额外引入：支持价格合成/节流
 from src.memory.memory_system import LLMMemoryDecisionSystem
 from src.servers.streamer import ConsoleStreamer
-from src.dashboard.team_dashboard_generator import TeamDashboardGenerator
+from src.dashboard.team_dashboard import TeamDashboardGenerator
 
 load_dotenv()
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))

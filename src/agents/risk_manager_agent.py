@@ -2,6 +2,7 @@
 Risk Manager Agent - 风险管理 Agent
 提供统一的风险评估和仓位管理接口（基于AgentScope）
 """
+import os
 from typing import Dict, Any, Optional, Literal
 import json
 import numpy as np
@@ -13,7 +14,6 @@ from .prompt_loader import PromptLoader
 
 from ..graph.state import AgentState
 from ..utils.progress import progress
-from ..utils.api_key import get_api_key_from_state
 from ..tools.data_tools import get_prices, prices_to_df, get_last_tradeday
 import pdb
 
@@ -88,7 +88,7 @@ class RiskManagerAgent(AgentBase):
         """
         data = state["data"]
         tickers = data["tickers"]
-        api_key = get_api_key_from_state(state, "FINNHUB_API_KEY")
+        api_key = os.getenv("FINNHUB_API_KEY")
         
         # 计算波动率
         volatility_data = {}

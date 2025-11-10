@@ -3,7 +3,7 @@
 让分析师通过LLM智能选择和使用分析工具
 使用AgentScope的Toolkit管理工具
 """
-
+import os
 from typing import Dict, Any, List, Optional, Callable
 import json
 import pdb
@@ -12,7 +12,6 @@ from agentscope.tool import Toolkit, ToolResponse
 from agentscope.message import TextBlock
 
 from .prompt_loader import PromptLoader
-from src.utils.api_key import get_api_key_from_state
 
 # 导入所有可用的分析工具
 from src.tools.analysis_tools import (
@@ -91,8 +90,8 @@ def _wrap_tool_for_agentscope(original_func: Callable, tool_category: str) -> Ca
                     api_key_name = "FINNHUB_API_KEY"
                 else:
                     api_key_name = "FINNHUB_API_KEY"
-                
-                api_key = get_api_key_from_state(state, api_key_name)
+
+                api_key = os.getenv(api_key_name)
             
             # 准备参数
             kwargs = {"ticker": ticker, "api_key": api_key}
@@ -511,12 +510,6 @@ You will flexibly select various tools based on specific situations, pursuing co
         else:
             # 默认使用 FINNHUB_API_KEY
             api_key_name = "FINNHUB_API_KEY"
-        
-        # 首先尝试从state获取
-        if state:
-            api_key = get_api_key_from_state(state, api_key_name)
-            if api_key:
-                return api_key
         
         # 然后尝试从环境变量获取
         api_key = os.getenv(api_key_name)
