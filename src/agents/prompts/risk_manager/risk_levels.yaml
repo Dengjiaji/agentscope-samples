@@ -1,49 +1,49 @@
 # Risk Level Configuration
-# 风险等级配置
+# Risk level configuration
 
-# 基于年化波动率的风险等级划分
+# Risk level classification based on annualized volatility
 volatility_thresholds:
   low:
     max_volatility: 0.15  # < 15%
     base_score: 25
-    description: "低风险股票，价格相对稳定"
+    description: "Low-risk stocks with relatively stable prices"
   
   medium:
     min_volatility: 0.15  # >= 15%
     max_volatility: 0.30  # < 30%
     base_score: 50
-    description: "中等风险股票，价格波动处于正常水平"
+    description: "Medium-risk stocks with normal price volatility levels"
   
   high:
     min_volatility: 0.30  # >= 30%
     max_volatility: 0.50  # < 50%
     base_score: 75
-    description: "高风险股票，价格波动较大"
+    description: "High-risk stocks with significant price volatility"
   
   very_high:
     min_volatility: 0.50  # >= 50%
     base_score: 90
-    description: "极高风险股票，价格波动极大"
+    description: "Extremely high-risk stocks with extreme price volatility"
 
-# 波动率百分位调整
+# Volatility percentile adjustments
 percentile_adjustments:
-  high_volatility_regime:  # 波动率上升趋势
+  high_volatility_regime:  # Volatility rising trend
     threshold: 70  # > 70th percentile
     score_adjustment: 15
-    description: "当前波动率上升，风险增加"
+    description: "Current volatility rising, risk increasing"
   
-  low_volatility_regime:  # 波动率下降趋势
+  low_volatility_regime:  # Volatility declining trend
     threshold: 30  # < 30th percentile
     score_adjustment: -10
-    description: "当前波动率下降，风险相对降低"
+    description: "Current volatility declining, risk relatively reduced"
 
-# 数据质量调整
+# Data quality adjustments
 data_quality:
-  insufficient_data_threshold: 10  # 数据点少于此值视为不足
-  insufficient_data_penalty: 10  # 风险评分增加
-  description: "数据不足时提高风险评分"
+  insufficient_data_threshold: 10  # Data points below this value are considered insufficient
+  insufficient_data_penalty: 10  # Risk score increase
+  description: "Increase risk score when data is insufficient"
 
-# 风险评分范围
+# Risk score range
 risk_score_range:
   min: 0
   max: 100
