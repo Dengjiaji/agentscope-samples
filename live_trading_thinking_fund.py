@@ -643,8 +643,8 @@ class LiveTradingThinkingFund:
     
     def _run_individual_review_mode(self, date: str, tickers: List[str], pm_signals: Dict, ana_signals: Dict, real_returns: Dict, live_env: Dict[str, Any]) -> Dict[str, Any]:
         """Individual Review模式：每个Agent自主复盘（新模式）"""
-        self.streamer.print("system", "\n===== Individual Review 模式 =====")
-        self.streamer.print("system", "各Agent独立进行自我复盘")
+        print("===== Individual Review 模式 =====")
+        print("各Agent独立进行自我复盘")
         
         reflection_results = {}
         portfolio_summary = live_env.get('portfolio_summary', {})
@@ -717,7 +717,7 @@ class LiveTradingThinkingFund:
                 portfolio_summary=portfolio_summary
             )
             
-            self.streamer.print("system", f"\n📊 Individual Review 总结:")
+            print("system", f"\n📊 Individual Review 总结:")
             self.streamer.print("system", summary)
             
             return {
@@ -940,7 +940,7 @@ class LiveTradingThinkingFund:
         }
 
         if results['is_trading_day']:
-            self.streamer.print("system", f"{date}是交易日，将执行交易前分析 + 交易后复盘")
+            print("[system]",f"{date}是交易日，将执行交易前分析 + 交易后复盘")
             
             # ========== 显示当前Portfolio状态 ⭐ ==========
             if self.mode == "portfolio" and self.current_portfolio_state:
@@ -955,14 +955,14 @@ class LiveTradingThinkingFund:
                 date, tickers, max_comm_cycles, force_run, enable_communications, enable_notifications
             )
 
-            self.streamer.print("system", "等待交易后时间点...\n(模拟实际使用中等待真实的市场收盘)")
+            print("[system]","等待交易后时间点...\n(模拟实际使用中等待真实的市场收盘)")
 
             # 2. 交易后复盘
             live_env = results['pre_market'].get('live_env') if results['pre_market'] else None
             results['post_market'] = self.run_post_market_review(date, tickers, live_env)
 
         else:
-            self.streamer.print("system", f"{date}非交易日，仅执行交易后复盘")
+            print("[system]", f"{date}非交易日，仅执行交易后复盘")
 
             # 非交易日只执行交易后
             results['post_market'] = self.run_post_market_review(date, tickers, 'Not trading day')

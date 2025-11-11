@@ -196,7 +196,7 @@ class AdvancedInvestmentAnalysisEngine:
                         print(f"通知内容: {notification_decision['content']}")
                         if self.streamer:
                             self.streamer.print("agent", 
-                                f"📢 {notification_decision['content']} [紧急度: {notification_decision.get('urgency', 'medium')}]",
+                                f"📢 {notification_decision['content']} [Level of urgency: {notification_decision.get('urgency', 'medium')}]",
                                 role_key=agent_id
                             )
                     else:
@@ -604,8 +604,6 @@ class AdvancedInvestmentAnalysisEngine:
             mode: 运行模式 ("signal" 或 "portfolio")
         """
         print("执行风险管理分析...")
-        if self.streamer:
-            self.streamer.print("system", "===== 风险管理分析 =====")
         
         try:
             # 根据模式选择相应的Risk Manager - 使用新架构
@@ -746,8 +744,7 @@ class AdvancedInvestmentAnalysisEngine:
             
             # 如果启用通信机制
             if enable_communications:
-                print("\n启动高级通信机制...")
-                max_cycles = 3
+
                 try:
                     max_cycles = int(state["metadata"].get("max_communication_cycles", 3))
                 except Exception:
@@ -760,9 +757,9 @@ class AdvancedInvestmentAnalysisEngine:
                 for cycle in range(1, max_cycles + 1):
                     print(f"\n沟通循环 第{cycle}/{max_cycles} 轮")
                     if cycle == 1:
-                        self.streamer.print("system",f"启动高级通信机制...\n===== 沟通循环 第{cycle}/{max_cycles} 轮 =====\n")
+                        print(f"启动高级通信机制...\n===== 沟通循环 第{cycle}/{max_cycles} 轮 =====\n")
                     else:
-                        self.streamer.print("system",f"===== 沟通循环 第{cycle}/{max_cycles} 轮 =====\n")
+                        print(f"===== 沟通循环 第{cycle}/{max_cycles} 轮 =====\n")
                     # 获取分析师信号（每轮刷新）
                     analyst_signals = {}
                     if cycle ==1:
