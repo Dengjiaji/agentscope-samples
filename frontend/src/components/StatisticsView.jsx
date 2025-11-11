@@ -4,272 +4,520 @@ import { formatNumber, formatDateTime } from '../utils/formatters';
 
 /**
  * Statistics View Component
- * Displays portfolio overview, holdings, and trade history
- * ✅ Now with real-time updates via WebSocket
+ * Displays portfolio overview, holdings, and trade history in a side-by-side layout
+ * Left: Performance Overview (35%) | Right: Holdings + Trades (65%)
+ * No scrolling - content fits within viewport with pagination
  */
 export default function StatisticsView({ trades, holdings, stats }) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [lastUpdate, setLastUpdate] = useState(new Date());
-  const [isUpdating, setIsUpdating] = useState(false);
-  const itemsPerPage = 10;
+  const [holdingsPage, setHoldingsPage] = useState(1);
+  const [tradesPage, setTradesPage] = useState(1);
+  const holdingsPerPage = 5;
+  const tradesPerPage = 8;
   
-  // Calculate pagination
-  const totalPages = Math.ceil(trades.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentTrades = trades.slice(startIndex, endIndex);
+  // Calculate pagination for holdings
+  const totalHoldingsPages = Math.ceil(holdings.length / holdingsPerPage);
+  const holdingsStartIndex = (holdingsPage - 1) * holdingsPerPage;
+  const holdingsEndIndex = holdingsStartIndex + holdingsPerPage;
+  const currentHoldings = holdings.slice(holdingsStartIndex, holdingsEndIndex);
   
-  // Reset to page 1 when trades change
+  // Calculate pagination for trades
+  const totalTradesPages = Math.ceil(trades.length / tradesPerPage);
+  const tradesStartIndex = (tradesPage - 1) * tradesPerPage;
+  const tradesEndIndex = tradesStartIndex + tradesPerPage;
+  const currentTrades = trades.slice(tradesStartIndex, tradesEndIndex);
+  
+  // Reset to page 1 when data changes
   useEffect(() => {
-    setCurrentPage(1);
+    setHoldingsPage(1);
+  }, [holdings.length]);
+  
+  useEffect(() => {
+    setTradesPage(1);
   }, [trades.length]);
   
-  // Track updates with visual feedback
-  useEffect(() => {
-    setLastUpdate(new Date());
-    setIsUpdating(true);
-    const timer = setTimeout(() => setIsUpdating(false), 500);
-    return () => clearTimeout(timer);
-  }, [holdings, stats, trades]);
-  
   return (
-    <div>
-      {/* Real-time Update Indicator */}
-      <div style={{
+    <div style={{ 
+      display: 'flex', 
+      height: '100%', 
+      overflow: 'hidden',
+      background: '#f5f5f5'
+    }}>
+      {/* Left Panel: Performance Overview (35%) */}
+      <div style={{ 
+        width: '35%', 
         display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 16,
-        padding: '8px 12px',
-        background: isUpdating ? '#E8F5E9' : '#fafafa',
-        border: '1px solid #e0e0e0',
-        fontSize: 11,
-        fontFamily: '"Courier New", monospace',
-        transition: 'background 0.3s ease'
+        flexDirection: 'column',
+        background: '#ffffff',
+        borderRight: '2px solid #e0e0e0',
+        overflow: 'hidden'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{
-            width: 8,
-            height: 8,
-            borderRadius: '50%',
-            background: isUpdating ? '#4CAF50' : '#9E9E9E',
-            animation: isUpdating ? 'pulse 1s infinite' : 'none'
-          }} />
-          <span style={{ color: '#666666' }}>
-            {isUpdating ? '⟳ Updating...' : '✓ Live Data'}
-          </span>
-        </div>
-        <span style={{ color: '#999999' }}>
-          Last update: {lastUpdate.toLocaleTimeString()}
-        </span>
-      </div>
-      
-      {/* Overview Section */}
-      {stats && (
-        <div className="section">
-          <div className="section-header">
-            <h2 className="section-title">Performance Overview</h2>
-          </div>
-          
-          {/* Stats Cards */}
-          <div className="stats-grid">
-            <div className="stat-card">
-              <div className="stat-card-label">Total Asset Value</div>
-              <div className="stat-card-value">
-                ${formatNumber(stats.totalAssetValue || 0)}
-              </div>
-            </div>
-            
-            <div className="stat-card">
-              <div className="stat-card-label">Total Return</div>
-              <div className={`stat-card-value ${(stats.totalReturn || 0) >= 0 ? 'positive' : 'negative'}`}>
-                {(stats.totalReturn || 0) >= 0 ? '+' : ''}{(stats.totalReturn || 0).toFixed(2)}%
-              </div>
-            </div>
-            
-            <div className="stat-card">
-              <div className="stat-card-label">Cash Position</div>
-              <div className="stat-card-value">
-                ${formatNumber(stats.cashPosition || 0)}
-              </div>
-            </div>
-            
-            <div className="stat-card">
-              <div className="stat-card-label">Total Trades</div>
-              <div className="stat-card-value">{stats.totalTrades || 0}</div>
-            </div>
-            
-            <div className="stat-card">
-              <div className="stat-card-label">Win Rate</div>
-              <div className={`stat-card-value ${stats.winRate >= 0.5 ? 'positive' : 'negative'}`}>
-                {Math.round(stats.winRate * 100)}%
-              </div>
-            </div>
-          </div>
-          
-          {/* Ticker Weights */}
-          {stats.tickerWeights && Object.keys(stats.tickerWeights).length > 0 && (
-            <div style={{ marginTop: 24 }}>
-              <h3 style={{ 
-                fontSize: 14, 
-                fontWeight: 700, 
-                marginBottom: 12,
-                letterSpacing: 1,
+        {stats ? (
+          <div style={{ 
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%'
+          }}>
+            {/* Header */}
+            <div style={{
+              marginBottom: 24,
+              paddingBottom: 16,
+              borderBottom: '3px solid #000000'
+            }}>
+              <h2 style={{
+                fontSize: 16,
+                fontWeight: 700,
+                letterSpacing: 2,
+                margin: 0,
+                color: '#000000',
                 textTransform: 'uppercase'
               }}>
-                Ticker Weights
-              </h3>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-                {Object.entries(stats.tickerWeights).map(([ticker, weight]) => (
-                  <div key={ticker} style={{
-                    padding: '8px 12px',
-                    border: '1px solid #e0e0e0',
-                    background: '#fafafa',
-                    fontSize: 11,
-                    fontWeight: 700
-                  }}>
-                    {ticker}: {(weight * 100).toFixed(2)}%
-                  </div>
-                ))}
-              </div>
+                Performance
+              </h2>
             </div>
-          )}
-        </div>
-      )}
-      
-      {/* Portfolio Holdings Section */}
-      <div className="section">
-        <div className="section-header">
-          <h2 className="section-title">Portfolio Holdings</h2>
-        </div>
-        
-        {holdings.length === 0 ? (
-          <div className="empty-state">No positions currently held</div>
-        ) : (
-          <div className="table-wrapper">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Ticker</th>
-                  <th>Quantity</th>
-                  <th>Current Price</th>
-                  <th>Market Value</th>
-                  <th>Weight</th>
-                </tr>
-              </thead>
-              <tbody>
-                {holdings.map(h => (
-                  <tr key={h.ticker}>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                        {h.ticker !== 'CASH' && <StockLogo ticker={h.ticker} size={20} />}
-                        <span style={{ fontWeight: 700, color: '#000000' }}>{h.ticker}</span>
+            
+            {/* Main Stats - Hierarchical Layout */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {/* Primary Metric - Total Asset Value */}
+              <div style={{
+                padding: '20px 0',
+                borderBottom: '1px solid #e0e0e0'
+              }}>
+                <div style={{
+                  fontSize: 10,
+                  color: '#666666',
+                  fontWeight: 700,
+                  letterSpacing: 1.5,
+                  marginBottom: 12,
+                  textTransform: 'uppercase'
+                }}>
+                  Total Asset Value
+                </div>
+                <div style={{
+                  fontSize: 36,
+                  fontWeight: 700,
+                  color: '#000000',
+                  fontFamily: '"Courier New", monospace',
+                  lineHeight: 1
+                }}>
+                  ${formatNumber(stats.totalAssetValue || 0)}
+                </div>
+              </div>
+              
+              {/* Secondary Metrics - Grid */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 16,
+                paddingBottom: 20,
+                borderBottom: '1px solid #e0e0e0'
+              }}>
+                <div>
+                  <div style={{
+                    fontSize: 9,
+                    color: '#999999',
+                    fontWeight: 700,
+                    letterSpacing: 1,
+                    marginBottom: 8,
+                    textTransform: 'uppercase'
+                  }}>
+                    Return
+                  </div>
+                  <div style={{
+                    fontSize: 28,
+                    fontWeight: 700,
+                    color: (stats.totalReturn || 0) >= 0 ? '#00C853' : '#FF1744',
+                    fontFamily: '"Courier New", monospace'
+                  }}>
+                    {(stats.totalReturn || 0) >= 0 ? '+' : ''}{(stats.totalReturn || 0).toFixed(2)}%
+                  </div>
+                </div>
+                
+                <div>
+                  <div style={{
+                    fontSize: 9,
+                    color: '#999999',
+                    fontWeight: 700,
+                    letterSpacing: 1,
+                    marginBottom: 8,
+                    textTransform: 'uppercase'
+                  }}>
+                    Win Rate
+                  </div>
+                  <div style={{
+                    fontSize: 28,
+                    fontWeight: 700,
+                    color: stats.winRate >= 0.5 ? '#00C853' : '#FF1744',
+                    fontFamily: '"Courier New", monospace'
+                  }}>
+                    {Math.round(stats.winRate * 100)}%
+                  </div>
+                </div>
+              </div>
+              
+              {/* Tertiary Metrics - Compact List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'baseline',
+                  padding: '8px 0',
+                  borderBottom: '1px solid #f0f0f0'
+                }}>
+                  <div style={{
+                    fontSize: 10,
+                    color: '#666666',
+                    fontWeight: 600,
+                    letterSpacing: 0.5,
+                    textTransform: 'uppercase'
+                  }}>
+                    Cash Position
+                  </div>
+                  <div style={{
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: '#000000',
+                    fontFamily: '"Courier New", monospace'
+                  }}>
+                    ${formatNumber(stats.cashPosition || 0)}
+                  </div>
+                </div>
+                
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'baseline',
+                  padding: '8px 0',
+                  borderBottom: '1px solid #f0f0f0'
+                }}>
+                  <div style={{
+                    fontSize: 10,
+                    color: '#666666',
+                    fontWeight: 600,
+                    letterSpacing: 0.5,
+                    textTransform: 'uppercase'
+                  }}>
+                    Total Trades
+                  </div>
+                  <div style={{
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: '#000000',
+                    fontFamily: '"Courier New", monospace'
+                  }}>
+                    {stats.totalTrades || 0}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Ticker Weights - Compact */}
+              {stats.tickerWeights && Object.keys(stats.tickerWeights).length > 0 && (
+                <div style={{ 
+                  marginTop: 'auto',
+                  paddingTop: 20,
+                  borderTop: '1px solid #e0e0e0'
+                }}>
+                  <div style={{ 
+                    fontSize: 10, 
+                    fontWeight: 700, 
+                    marginBottom: 12,
+                    letterSpacing: 1,
+                    textTransform: 'uppercase',
+                    color: '#666666'
+                  }}>
+                    Portfolio Weights
+                  </div>
+                  <div className="statistics-table-container" style={{ 
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: 8,
+                    maxHeight: 120
+                  }}>
+                    {Object.entries(stats.tickerWeights).map(([ticker, weight]) => (
+                      <div key={ticker} style={{
+                        padding: '6px 10px',
+                        background: '#fafafa',
+                        border: '1px solid #e0e0e0',
+                        fontSize: 10,
+                        fontWeight: 700,
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        fontFamily: '"Courier New", monospace'
+                      }}>
+                        <span style={{ color: '#000000' }}>{ticker}</span>
+                        <span style={{ color: '#00C853' }}>{(weight * 100).toFixed(1)}%</span>
                       </div>
-                    </td>
-                    <td>{h.ticker === 'CASH' ? '-' : h.quantity}</td>
-                    <td>{h.ticker === 'CASH' ? '-' : `$${Number(h.currentPrice).toFixed(2)}`}</td>
-                    <td style={{ fontWeight: 700 }}>${formatNumber(h.marketValue)}</td>
-                    <td>{(Number(h.weight) * 100).toFixed(2)}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div style={{ 
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+            color: '#999999',
+            fontSize: 12,
+            letterSpacing: 0.5
+          }}>
+            No statistics available
           </div>
         )}
       </div>
       
-      {/* Trade History Section */}
-      <div className="section">
-        <div className="section-header">
-          <h2 className="section-title">Transaction History</h2>
-          {trades.length > 0 && (
-            <div style={{ 
-              fontSize: '11px', 
-              color: '#666666',
-              fontFamily: '"Courier New", monospace'
+      {/* Right Panel: Holdings + Trades (65%) */}
+      <div style={{ 
+        width: '65%', 
+        display: 'flex',
+        flexDirection: 'column',
+        background: '#ffffff',
+        overflow: 'hidden'
+      }}>
+        {/* Portfolio Holdings - Top Half */}
+        <div style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          background: '#ffffff',
+          margin: '16px 16px 8px 16px',
+          border: '1px solid #e0e0e0',
+          overflow: 'hidden'
+        }}>
+          <div style={{
+            padding: '16px 20px',
+            borderBottom: '2px solid #000000',
+            flexShrink: 0
+          }}>
+            <h2 style={{
+              fontSize: 13,
+              fontWeight: 700,
+              letterSpacing: 1.5,
+              margin: 0,
+              color: '#000000',
+              textTransform: 'uppercase'
             }}>
-              Total: {trades.length} trades
-            </div>
-          )}
-        </div>
-        
-        {trades.length === 0 ? (
-          <div className="empty-state">No trades recorded</div>
-        ) : (
-          <>
-            <div className="table-wrapper">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Time</th>
-                    <th>Stock</th>
-                    <th>Side</th>
-                    <th>Quantity</th>
-                    <th>Price</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {currentTrades.map(t => (
-                    <tr key={t.id}>
-                      <td style={{ fontSize: 11, color: '#666666', fontFamily: '"Courier New", monospace' }}>
-                        {formatDateTime(t.timestamp)}
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center' }}>
-                          <StockLogo ticker={t.ticker} size={18} />
-                          <span style={{ fontWeight: 700, color: '#000000' }}>{t.ticker}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <span style={{
-                          display: 'inline-block',
-                          padding: '2px 8px',
-                          fontSize: 10,
-                          fontWeight: 700,
-                          border: `1px solid ${t.side === 'LONG' ? '#00C853' : t.side === 'SHORT' ? '#FF1744' : '#666666'}`,
-                          color: t.side === 'LONG' ? '#00C853' : t.side === 'SHORT' ? '#FF1744' : '#666666'
-                        }}>
-                          {t.side}
-                        </span>
-                      </td>
-                      <td>{t.qty}</td>
-                      <td>${Number(t.price).toFixed(2)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="pagination-controls">
-                <button 
-                  className="pagination-btn"
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                >
-                  ◀ Prev
-                </button>
-                
-                <div className="pagination-info">
-                  Page {currentPage} of {totalPages}
-                  <span style={{ margin: '0 8px', color: '#e0e0e0' }}>|</span>
-                  Showing {startIndex + 1}-{Math.min(endIndex, trades.length)} of {trades.length}
+              Portfolio Holdings
+            </h2>
+          </div>
+          
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            {holdings.length === 0 ? (
+              <div style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#999999',
+                fontSize: 11,
+                letterSpacing: 0.5
+              }}>
+                No positions currently held
+              </div>
+            ) : (
+              <>
+                <div className="statistics-table-container" style={{ flex: 1 }}>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Ticker</th>
+                        <th>Quantity</th>
+                        <th>Price</th>
+                        <th>Value</th>
+                        <th>Weight</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {currentHoldings.map(h => (
+                        <tr key={h.ticker}>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              {h.ticker !== 'CASH' && <StockLogo ticker={h.ticker} size={18} />}
+                              <span style={{ fontWeight: 700, color: '#000000' }}>{h.ticker}</span>
+                            </div>
+                          </td>
+                          <td>{h.ticker === 'CASH' ? '-' : h.quantity}</td>
+                          <td>{h.ticker === 'CASH' ? '-' : `$${Number(h.currentPrice).toFixed(2)}`}</td>
+                          <td style={{ fontWeight: 700 }}>${formatNumber(h.marketValue)}</td>
+                          <td>{(Number(h.weight) * 100).toFixed(2)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
                 
-                <button 
-                  className="pagination-btn"
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                >
-                  Next ▶
-                </button>
+                {totalHoldingsPages > 1 && (
+                  <div style={{
+                    padding: '12px 20px',
+                    borderTop: '1px solid #e0e0e0',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexShrink: 0,
+                    background: '#fafafa'
+                  }}>
+                    <button 
+                      className="pagination-btn"
+                      onClick={() => setHoldingsPage(p => Math.max(1, p - 1))}
+                      disabled={holdingsPage === 1}
+                    >
+                      ◀ Prev
+                    </button>
+                    
+                    <div className="pagination-info">
+                      {holdingsPage} / {totalHoldingsPages}
+                    </div>
+                    
+                    <button 
+                      className="pagination-btn"
+                      onClick={() => setHoldingsPage(p => Math.min(totalHoldingsPages, p + 1))}
+                      disabled={holdingsPage === totalHoldingsPages}
+                    >
+                      Next ▶
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+        
+        {/* Transaction History - Bottom Half */}
+        <div style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          background: '#ffffff',
+          margin: '8px 16px 16px 16px',
+          border: '1px solid #e0e0e0',
+          overflow: 'hidden'
+        }}>
+          <div style={{
+            padding: '16px 20px',
+            borderBottom: '2px solid #000000',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexShrink: 0
+          }}>
+            <h2 style={{
+              fontSize: 13,
+              fontWeight: 700,
+              letterSpacing: 1.5,
+              margin: 0,
+              color: '#000000',
+              textTransform: 'uppercase'
+            }}>
+              Transaction History
+            </h2>
+            {trades.length > 0 && (
+              <div style={{ 
+                fontSize: 10, 
+                color: '#666666',
+                fontFamily: '"Courier New", monospace'
+              }}>
+                {trades.length} total
               </div>
             )}
-          </>
-        )}
+          </div>
+          
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            {trades.length === 0 ? (
+              <div style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#999999',
+                fontSize: 11,
+                letterSpacing: 0.5
+              }}>
+                No trades recorded
+              </div>
+            ) : (
+              <>
+                <div className="statistics-table-container" style={{ flex: 1 }}>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Time</th>
+                        <th>Stock</th>
+                        <th>Side</th>
+                        <th>Qty</th>
+                        <th>Price</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {currentTrades.map(t => (
+                        <tr key={t.id}>
+                          <td style={{ fontSize: 10, color: '#666666', fontFamily: '"Courier New", monospace' }}>
+                            {formatDateTime(t.timestamp)}
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <StockLogo ticker={t.ticker} size={16} />
+                              <span style={{ fontWeight: 700, color: '#000000' }}>{t.ticker}</span>
+                            </div>
+                          </td>
+                          <td>
+                            <span style={{
+                              display: 'inline-block',
+                              padding: '2px 6px',
+                              fontSize: 9,
+                              fontWeight: 700,
+                              border: `1px solid ${t.side === 'LONG' ? '#00C853' : t.side === 'SHORT' ? '#FF1744' : '#666666'}`,
+                              color: t.side === 'LONG' ? '#00C853' : t.side === 'SHORT' ? '#FF1744' : '#666666'
+                            }}>
+                              {t.side}
+                            </span>
+                          </td>
+                          <td>{t.qty}</td>
+                          <td>${Number(t.price).toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                
+                {totalTradesPages > 1 && (
+                  <div style={{
+                    padding: '12px 20px',
+                    borderTop: '1px solid #e0e0e0',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexShrink: 0,
+                    background: '#fafafa'
+                  }}>
+                    <button 
+                      className="pagination-btn"
+                      onClick={() => setTradesPage(p => Math.max(1, p - 1))}
+                      disabled={tradesPage === 1}
+                    >
+                      ◀ Prev
+                    </button>
+                    
+                    <div className="pagination-info">
+                      {tradesPage} / {totalTradesPages}
+                    </div>
+                    
+                    <button 
+                      className="pagination-btn"
+                      onClick={() => setTradesPage(p => Math.min(totalTradesPages, p + 1))}
+                      disabled={tradesPage === totalTradesPages}
+                    >
+                      Next ▶
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
-

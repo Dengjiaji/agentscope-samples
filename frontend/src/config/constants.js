@@ -8,6 +8,7 @@ export const LOGO_BASE_URL = "/assets/logos";
 
 export const ASSETS = {
   roomBg: `${ASSET_BASE_URL}/full_room_with_roles_tech_style.png`,
+  teamLogo: `${ASSET_BASE_URL}/team_logo.png`,
 };
 
 // Stock logos mapping
@@ -37,42 +38,42 @@ export const AGENT_SEATS = [
 // Agent definitions with subtle color schemes (very light backgrounds)
 export const AGENTS = [
   { 
-    id: "Portfolio Manager",
+    id: "portfolio_manager",
     name: "Portfolio Manager",
     role: "Portfolio Manager",
     avatar: `${ASSET_BASE_URL}/agent_1.png`,
     colors: { bg: '#F9FDFF', text: '#1565C0', accent: '#1565C0' }
   },
   { 
-    id: "Risk Manager",
+    id: "risk_manager",
     name: "Risk Manager",
     role: "Risk Manager",
     avatar: `${ASSET_BASE_URL}/agent_2.png`,
     colors: { bg: '#FFF8F8', text: '#C62828', accent: '#C62828' }
   },
   { 
-    id: "Valuation Analyst",
+    id: "valuation_analyst",
     name: "Valuation Analyst",
     role: "Valuation Analyst",
     avatar: `${ASSET_BASE_URL}/agent_3.png`,
     colors: { bg: '#FAFFFA', text: '#2E7D32', accent: '#2E7D32' }
   },
   { 
-    id: "Sentiment Analyst",
+    id: "sentiment_analyst",
     name: "Sentiment Analyst",
     role: "Sentiment Analyst",
     avatar: `${ASSET_BASE_URL}/agent_4.png`,
     colors: { bg: '#FCFAFF', text: '#6A1B9A', accent: '#6A1B9A' }
   },
   { 
-    id: "Fundamentals Analyst",
+    id: "fundamentals_analyst",
     name: "Fundamentals Analyst",
     role: "Fundamentals Analyst",
     avatar: `${ASSET_BASE_URL}/agent_5.png`,
     colors: { bg: '#FFFCF7', text: '#E65100', accent: '#E65100' }
   },
   { 
-    id: "Technical Analyst",
+    id: "technical_analyst",
     name: "Technical Analyst",
     role: "Technical Analyst",
     avatar: `${ASSET_BASE_URL}/agent_6.png`,

@@ -33,11 +33,12 @@ export default function LiveTradingApp() {
   const [currentDate, setCurrentDate] = useState(null);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [now, setNow] = useState(() => new Date());
-  const [mainTab, setMainTab] = useState('live'); // 'live' | 'statistics' | 'performance'
   
-  // View toggle: 'room' or 'chart'
+  // View toggle: 'room' | 'chart' | 'statistics'
   const [currentView, setCurrentView] = useState('chart'); // Start with chart, then animate to room
   const [isInitialAnimating, setIsInitialAnimating] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [isUpdating, setIsUpdating] = useState(false);
   
   // Chart data
   const [chartTab, setChartTab] = useState('all');
@@ -80,6 +81,14 @@ export default function LiveTradingApp() {
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
+  
+  // Track updates with visual feedback
+  useEffect(() => {
+    setLastUpdate(new Date());
+    setIsUpdating(true);
+    const timer = setTimeout(() => setIsUpdating(false), 500);
+    return () => clearTimeout(timer);
+  }, [holdings, stats, trades, portfolioData.netValue]);
   
   // Initial animation: show room drawer sliding in
   useEffect(() => {
@@ -790,176 +799,174 @@ export default function LiveTradingApp() {
           <span>TRADING INTELLIGENCE</span>
         </div>
         
-        <div className="header-tabs">
-          <button
-            className={`header-tab ${mainTab === 'live' ? 'active' : ''}`}
-            onClick={() => setMainTab('live')}
-          >
-            Live
-          </button>
-          <button
-            className={`header-tab ${mainTab === 'statistics' ? 'active' : ''}`}
-            onClick={() => setMainTab('statistics')}
-          >
-            Statistics
-          </button>
-          <button
-            className={`header-tab ${mainTab === 'performance' ? 'active' : ''}`}
-            onClick={() => setMainTab('performance')}
-          >
-            Agent Performance
-          </button>
-        </div>
-
+        {/* Real-time Update Indicator */}
         <div className="header-status">
-          <span className={`status-indicator ${isConnected ? 'live' : 'disconnected'}`}>
-            {isConnected ? '● LIVE' : '○ OFFLINE'}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: isUpdating ? '#4CAF50' : (isConnected ? '#9E9E9E' : '#FF1744'),
+              animation: isUpdating ? 'pulse 1s infinite' : 'none'
+            }} />
+            <span className={`status-indicator ${isConnected ? 'live' : 'disconnected'}`}>
+              {isConnected ? (isUpdating ? '⟳ Updating...' : '✓ Live Data') : '○ OFFLINE'}
+            </span>
+          </div>
+          <span style={{ fontSize: '11px', color: '#999', fontFamily: '"Courier New", monospace' }}>
+            LAST UPDATE: {lastUpdate.toLocaleTimeString()}
           </span>
-          {currentDate && (
-            <span style={{ fontSize: '11px', color: '#666' }}>
-              Trading: {currentDate}
-            </span>
-          )}
-          {progress.total > 0 && (
-            <span style={{ fontSize: '11px', color: '#666' }}>
-              {progress.current}/{progress.total}
-            </span>
-          )}
-          <span>{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
         </div>
       </div>
       
       {/* Main Content */}
-      {mainTab === 'live' ? (
-        <>
-          {/* Ticker Bar */}
-          <div className="ticker-bar">
-            <div className="ticker-track">
-              {[0, 1].map((groupIdx) => (
-                <div key={groupIdx} className="ticker-group">
-                  {tickers.map(ticker => (
-                    <div key={`${ticker.symbol}-${groupIdx}`} className="ticker-item">
-                      <StockLogo ticker={ticker.symbol} size={16} />
-                      <span className="ticker-symbol">{ticker.symbol}</span>
-                      <span className="ticker-price">
-                        <span className={`ticker-price-value ${rollingTickers[ticker.symbol] ? 'rolling' : ''}`}>
-                          {ticker.price !== null && ticker.price !== undefined 
-                            ? `$${formatTickerPrice(ticker.price)}` 
-                            : '-'}
-                        </span>
-                      </span>
-                      <span className={`ticker-change ${
-                        ticker.change === null || ticker.change === undefined 
-                          ? '' 
-                          : ticker.change >= 0 ? 'positive' : 'negative'
-                      }`}>
-                        {ticker.change !== null && ticker.change !== undefined
-                          ? `${ticker.change >= 0 ? '+' : ''}${ticker.change.toFixed(2)}%`
+      <>
+        {/* Ticker Bar */}
+        <div className="ticker-bar">
+          <div className="ticker-track">
+            {[0, 1].map((groupIdx) => (
+              <div key={groupIdx} className="ticker-group">
+                {tickers.map(ticker => (
+                  <div key={`${ticker.symbol}-${groupIdx}`} className="ticker-item">
+                    <StockLogo ticker={ticker.symbol} size={16} />
+                    <span className="ticker-symbol">{ticker.symbol}</span>
+                    <span className="ticker-price">
+                      <span className={`ticker-price-value ${rollingTickers[ticker.symbol] ? 'rolling' : ''}`}>
+                        {ticker.price !== null && ticker.price !== undefined 
+                          ? `$${formatTickerPrice(ticker.price)}` 
                           : '-'}
                       </span>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-            <div className="portfolio-value">
-              <span className="portfolio-label">PORTFOLIO</span>
-              <span className="portfolio-amount">${formatNumber(portfolioData.netValue)}</span>
-            </div>
+                    </span>
+                    <span className={`ticker-change ${
+                      ticker.change === null || ticker.change === undefined 
+                        ? '' 
+                        : ticker.change >= 0 ? 'positive' : 'negative'
+                    }`}>
+                      {ticker.change !== null && ticker.change !== undefined
+                        ? `${ticker.change >= 0 ? '+' : ''}${ticker.change.toFixed(2)}%`
+                        : '-'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ))}
           </div>
-          
-          <div className="main-container" ref={containerRef}>
-            {/* Left Panel: Chart/Room Toggle View */}
-            <div className="left-panel" style={{ width: `${leftWidth}%` }}>
-              <div className="chart-section">
-                <div className="view-container">
-                  {/* Left toggle button - show when chart is visible */}
-                  {currentView === 'chart' && (
+          <div className="portfolio-value">
+            <span className="portfolio-label">PORTFOLIO</span>
+            <span className="portfolio-amount">${formatNumber(portfolioData.netValue)}</span>
+          </div>
+        </div>
+        
+        <div className="main-container" ref={containerRef}>
+          {/* Left Panel: Three-View Toggle (Room/Chart/Statistics) */}
+          <div className="left-panel" style={{ width: `${leftWidth}%` }}>
+            <div className="chart-section">
+              <div className="view-container">
+                {/* Navigation buttons */}
+                {currentView === 'room' && (
+                  <button
+                    className="view-toggle-btn right"
+                    onClick={() => setCurrentView('chart')}
+                    title="Show Chart View"
+                  >
+                    ▶
+                  </button>
+                )}
+                
+                {currentView === 'chart' && (
+                  <>
                     <button
                       className="view-toggle-btn left"
                       onClick={() => setCurrentView('room')}
                       title="Show Room View"
                     >
-                      ▶
-                    </button>
-                  )}
-                  
-                  {/* Right toggle button - show when room is visible */}
-                  {currentView === 'room' && (
-                    <button
-                      className="view-toggle-btn right"
-                      onClick={() => setCurrentView('chart')}
-                      title="Show Chart View"
-                    >
                       ◀
                     </button>
-                  )}
+                    <button
+                      className="view-toggle-btn right"
+                      onClick={() => setCurrentView('statistics')}
+                      title="Show Statistics"
+                    >
+                      ▶
+                    </button>
+                  </>
+                )}
+                
+                {currentView === 'statistics' && (
+                  <button
+                    className="view-toggle-btn left"
+                    onClick={() => setCurrentView('chart')}
+                    title="Show Chart View"
+                  >
+                    ◀
+                  </button>
+                )}
+                
+                {/* Slider container with three views */}
+                <div className={`view-slider-three ${currentView === 'room' ? 'show-room' : currentView === 'statistics' ? 'show-statistics' : 'show-chart'} ${!isInitialAnimating ? 'normal-speed' : ''}`}>
+                  {/* Room View Panel */}
+                  <div className="view-panel">
+                    <RoomView 
+                      bubbles={bubbles} 
+                      bubbleFor={bubbleFor} 
+                      leaderboard={leaderboard}
+                    />
+                  </div>
                   
-                  {/* Slider container with both views */}
-                  <div className={`view-slider ${currentView === 'room' ? 'show-room' : 'show-chart'} ${!isInitialAnimating ? 'normal-speed' : ''}`}>
-                    {/* Room View Panel */}
-                    <div className="view-panel">
-                      <RoomView bubbles={bubbles} bubbleFor={bubbleFor} />
-                    </div>
-                    
-                    {/* Chart View Panel */}
-                    <div className="view-panel">
-                      <div className="chart-container">
-                        {/* Floating Timeframe Tabs */}
-                        <div className="chart-tabs-floating">
-                          <button
-                            className={`chart-tab ${chartTab === 'all' ? 'active' : ''}`}
-                            onClick={() => setChartTab('all')}
-                          >
-                            ALL
-                          </button>
-                          <button
-                            className={`chart-tab ${chartTab === '30d' ? 'active' : ''}`}
-                            onClick={() => setChartTab('30d')}
-                          >
-                            30D
-                          </button>
-                        </div>
-
-                        <NetValueChart 
-                          equity={portfolioData.equity}
-                          baseline={portfolioData.baseline}
-                          baseline_vw={portfolioData.baseline_vw}
-                          momentum={portfolioData.momentum}
-                          strategies={portfolioData.strategies}
-                        />
+                  {/* Chart View Panel */}
+                  <div className="view-panel">
+                    <div className="chart-container">
+                      {/* Floating Timeframe Tabs */}
+                      <div className="chart-tabs-floating">
+                        <button
+                          className={`chart-tab ${chartTab === 'all' ? 'active' : ''}`}
+                          onClick={() => setChartTab('all')}
+                        >
+                          ALL
+                        </button>
+                        <button
+                          className={`chart-tab ${chartTab === '30d' ? 'active' : ''}`}
+                          onClick={() => setChartTab('30d')}
+                        >
+                          30D
+                        </button>
                       </div>
+
+                      <NetValueChart 
+                        equity={portfolioData.equity}
+                        baseline={portfolioData.baseline}
+                        baseline_vw={portfolioData.baseline_vw}
+                        momentum={portfolioData.momentum}
+                        strategies={portfolioData.strategies}
+                      />
                     </div>
+                  </div>
+                  
+                  {/* Statistics View Panel */}
+                  <div className="view-panel">
+                    <StatisticsView
+                      trades={trades}
+                      holdings={holdings}
+                      stats={stats}
+                    />
                   </div>
                 </div>
               </div>
             </div>
-
-            {/* Resizer */}
-            <div 
-              className={`resizer ${isResizing ? 'resizing' : ''}`}
-              onMouseDown={handleMouseDown}
-            />
-
-            {/* Right Panel: Agent Feed */}
-            <div className="right-panel" style={{ width: `${100 - leftWidth}%` }}>
-              <AgentFeed feed={feed} conferences={conferences} />
-            </div>
           </div>
-        </>
-      ) : mainTab === 'statistics' ? (
-        <div className="leaderboard-page">
-          <StatisticsView
-            trades={trades}
-            holdings={holdings}
-            stats={stats}
+
+          {/* Resizer */}
+          <div 
+            className={`resizer ${isResizing ? 'resizing' : ''}`}
+            onMouseDown={handleMouseDown}
           />
+
+          {/* Right Panel: Agent Feed */}
+          <div className="right-panel" style={{ width: `${100 - leftWidth}%` }}>
+            <AgentFeed feed={feed} conferences={conferences} />
+          </div>
         </div>
-      ) : (
-        <div className="performance-page">
-          <PerformanceView leaderboard={leaderboard} />
-        </div>
-      )}
+      </>
     </div>
   );
 }

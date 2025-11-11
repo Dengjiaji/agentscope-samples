@@ -56,7 +56,6 @@ export default function GlobalStyles() {
         font-weight: 700;
         letter-spacing: 1px;
         color: #000000;
-        border-right: 1px solid #e0e0e0;
         display: flex;
         align-items: center;
         gap: 8px;
@@ -109,7 +108,6 @@ export default function GlobalStyles() {
         gap: 16px;
         font-size: 11px;
         color: #666666;
-        border-left: 1px solid #e0e0e0;
       }
       
       .status-indicator {
@@ -294,8 +292,8 @@ export default function GlobalStyles() {
       }
       
       .resizer {
-        width: 4px;
-        background: #e0e0e0;
+        width: 2px;
+        background: #000000;
         cursor: col-resize;
         flex-shrink: 0;
         transition: background 0.2s;
@@ -369,10 +367,19 @@ export default function GlobalStyles() {
         align-items: center;
         gap: 6px;
         transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        position: relative;
       }
       
       .agent-indicator.speaking {
         transform: scale(1.05);
+      }
+      
+      .agent-indicator.hovered {
+        transform: scale(1.1);
+      }
+      
+      .agent-indicator:hover {
+        transform: scale(1.08);
       }
       
       .agent-avatar-wrapper {
@@ -427,6 +434,26 @@ export default function GlobalStyles() {
         }
         50% {
           box-shadow: 0 0 20px rgba(0, 200, 83, 1);
+        }
+      }
+      
+      @keyframes cardAppear {
+        0% {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(0.8);
+        }
+        100% {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1);
+        }
+      }
+      
+      @keyframes fadeIn {
+        0% {
+          opacity: 0;
+        }
+        100% {
+          opacity: 1;
         }
       }
       
@@ -555,32 +582,38 @@ export default function GlobalStyles() {
         overflow: hidden;
       }
       
-      .view-slider {
+      /* Three-view slider (Room / Chart / Statistics) */
+      .view-slider-three {
         position: absolute;
-        width: 100%;
+        width: 300%;
         height: 100%;
         display: flex;
         transition: transform 1.6s cubic-bezier(0.34, 1.56, 0.64, 1);
       }
       
-      .view-slider.normal-speed {
+      .view-slider-three.normal-speed {
         transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
       }
       
-      .view-slider.show-chart {
-        transform: translateX(-100%);
-      }
-      
-      .view-slider.show-room {
+      .view-slider-three.show-room {
         transform: translateX(0);
       }
       
+      .view-slider-three.show-chart {
+        transform: translateX(-33.333%);
+      }
+      
+      .view-slider-three.show-statistics {
+        transform: translateX(-66.666%);
+      }
+      
       .view-panel {
-        flex: 0 0 100%;
-        width: 100%;
+        flex: 0 0 33.333%;
+        width: 33.333%;
         height: 100%;
         display: flex;
         flex-direction: column;
+        overflow: hidden;
       }
       
       /* Chart Tabs - Floating inside chart */
@@ -641,21 +674,26 @@ export default function GlobalStyles() {
       }
       
       .feed-header {
-        padding: 16px 20px;
-        border-bottom: 1px solid #e0e0e0;
+        padding: 20px;
         background: #ffffff;
         width: 100%;
         max-width: none;
+        position: relative;
+        border-bottom: 2px solid #000000;
       }
       
       .feed-title {
         font-size: 12px;
         font-weight: 700;
-        letter-spacing: 2px;
+        letter-spacing: 3px;
         margin: 0;
         color: #000000;
         text-transform: uppercase;
+        position: relative;
+        display: inline-block;
       }
+      
+
       
       .feed-content {
         flex: 1;
@@ -820,7 +858,7 @@ export default function GlobalStyles() {
       .section {
         margin-bottom: 32px;
         background: #ffffff;
-        border: 1px solid #e0e0e0;
+        border: 1px solid #000000;
         padding: 20px;
         width: 100%;
         max-width: none;
@@ -886,8 +924,7 @@ export default function GlobalStyles() {
       .data-table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 12px;
-        border: 1px solid #e0e0e0;
+        font-size: 11px;
         table-layout: auto;
         max-width: none;
       }
@@ -901,13 +938,16 @@ export default function GlobalStyles() {
       .data-table thead th {
         background: #000000;
         color: #ffffff;
-        padding: 12px 14px;
+        padding: 10px 12px;
         text-align: left;
         font-weight: 700;
         letter-spacing: 1px;
-        font-size: 11px;
+        font-size: 9px;
         border-right: 1px solid #333333;
         text-transform: uppercase;
+        position: sticky;
+        top: 0;
+        z-index: 10;
       }
       
       .data-table thead th:last-child {
@@ -915,16 +955,16 @@ export default function GlobalStyles() {
       }
       
       .data-table tbody tr {
-        border-bottom: 1px solid #e0e0e0;
-        transition: all 0.15s;
+        border-bottom: 1px solid #f0f0f0;
+        transition: all 0.1s;
       }
       
       .data-table tbody tr:hover {
-        background: #f9f9f9;
+        background: #fafafa;
       }
       
       .data-table tbody td {
-        padding: 12px 14px;
+        padding: 10px 12px;
         color: #000000;
       }
       
@@ -969,7 +1009,7 @@ export default function GlobalStyles() {
       }
       
       .stat-card {
-        border: 1px solid #e0e0e0;
+        border: 1px solid #000000;
         padding: 16px;
         background: #fafafa;
         transition: all 0.2s;
@@ -977,7 +1017,7 @@ export default function GlobalStyles() {
       
       .stat-card:hover {
         border-color: #000000;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 2px rgba(0,0,0,0.1);
       }
       
       .stat-card-label {
@@ -1018,17 +1058,17 @@ export default function GlobalStyles() {
       }
       
       .pagination-btn {
-        padding: 8px 16px;
+        padding: 6px 12px;
         border: 1px solid #000000;
         border-radius: 0;
         background: #ffffff;
         font-family: inherit;
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 700;
         letter-spacing: 0.5px;
         color: #000000;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all 0.15s;
         text-transform: uppercase;
       }
       
@@ -1041,7 +1081,7 @@ export default function GlobalStyles() {
         border-color: #e0e0e0;
         color: #cccccc;
         cursor: not-allowed;
-        opacity: 0.5;
+        opacity: 0.4;
       }
       
       .pagination-btn:focus {
@@ -1049,9 +1089,9 @@ export default function GlobalStyles() {
       }
       
       .pagination-info {
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 700;
-        color: #000000;
+        color: #666666;
         letter-spacing: 0.5px;
         font-family: 'Courier New', monospace;
       }
@@ -1073,6 +1113,17 @@ export default function GlobalStyles() {
       
       ::-webkit-scrollbar-thumb:hover {
         background: #999999;
+      }
+      
+      /* Hide scrollbar for statistics tables */
+      .statistics-table-container {
+        overflow-y: auto;
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE and Edge */
+      }
+      
+      .statistics-table-container::-webkit-scrollbar {
+        display: none; /* Chrome, Safari, Opera */
       }
       
       /* Responsive */
