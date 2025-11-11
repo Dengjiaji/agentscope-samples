@@ -13,7 +13,7 @@ from agentscope.tool import Toolkit
 from ..graph.state import AgentState
 from ..utils.progress import progress
 from ..llm.models import get_model  # 使用 AgentScope 模型
-from .llm_tool_selector import LLMToolSelector
+from .tool_selector import Toolselector
 from ..tools.data_tools import get_last_tradeday
 from ..config.constants import ANALYST_TYPES
 
@@ -57,7 +57,7 @@ class AnalystAgent(AgentBase):
         self.config = config or {}
         
         # 使用LLM工具选择器（内部使用Toolkit）
-        self.tool_selector = LLMToolSelector()
+        self.tool_selector = Toolselector()
         self.toolkit = self.tool_selector.get_toolkit()  # 获取Toolkit实例
     
     def execute(self, state: AgentState) -> Dict[str, Any]:

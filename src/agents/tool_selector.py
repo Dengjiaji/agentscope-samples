@@ -29,7 +29,7 @@ from src.tools.analysis_tools import (
     residual_income_valuation_analysis,
 )
 
-class LLMToolSelector:
+class Toolselector:
     """基于LLM的智能工具选择器"""
     
     # 工具分类映射（用于确定API key）
