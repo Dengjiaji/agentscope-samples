@@ -5,6 +5,9 @@ import React from 'react';
  * Displays agent performance leaderboard and signal history
  */
 export default function PerformanceView({ leaderboard }) {
+  const rankedAgents = Array.isArray(leaderboard)
+    ? leaderboard.filter(agent => agent.agentId !== 'risk_manager')
+    : [];
   return (
     <div>
       {/* Agent Performance Section */}
@@ -13,7 +16,7 @@ export default function PerformanceView({ leaderboard }) {
           <h2 className="section-title">Agent Performance - Signal Accuracy</h2>
         </div>
         
-        {leaderboard.length === 0 ? (
+        {rankedAgents.length === 0 ? (
           <div className="empty-state">No leaderboard data available</div>
         ) : (
           <div className="table-wrapper">
@@ -31,7 +34,7 @@ export default function PerformanceView({ leaderboard }) {
                 </tr>
               </thead>
               <tbody>
-                {leaderboard.map(agent => {
+                {rankedAgents.map(agent => {
                   const bullTotal = agent.bull?.n || 0;
                   const bullWins = agent.bull?.win || 0;
                   const bullUnknown = agent.bull?.unknown || 0;
@@ -96,14 +99,14 @@ export default function PerformanceView({ leaderboard }) {
       </div>
       
       {/* Signal History with Dates */}
-      {leaderboard.length > 0 && leaderboard.some(agent => agent.signals && agent.signals.length > 0) && (
+      {rankedAgents.length > 0 && rankedAgents.some(agent => agent.signals && agent.signals.length > 0) && (
         <div className="section" style={{ marginTop: 32 }}>
           <div className="section-header">
             <h2 className="section-title">Signal History</h2>
           </div>
           
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 20 }}>
-            {leaderboard.map(agent => {
+            {rankedAgents.map(agent => {
               if (!agent.signals || agent.signals.length === 0) return null;
               
               // Sort by date descending (newest first)

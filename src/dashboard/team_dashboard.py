@@ -18,11 +18,18 @@ class TeamDashboardGenerator:
     """团队仪表盘数据生成器"""
     
     # Agent信息配置
+    TEAM_ROLES = {'portfolio_manager', 'risk_manager'}
+    
     AGENT_CONFIG = {
         'portfolio_manager': {
             'name': 'Portfolio Manager',
             'role': 'Portfolio Manager',
             'avatar': 'pm'
+        },
+        'risk_manager': {
+            'name': 'Risk Manager',
+            'role': 'Risk Manager',
+            'avatar': 'risk'
         },
         'sentiment_analyst': {
             'name': 'Sentiment Analyst',
@@ -1559,7 +1566,7 @@ class TeamDashboardGenerator:
                 'signals': perf.get('signals', [])  # 完整的信号历史记录（包含日期）
             }
             
-            if agent_id == 'portfolio_manager':
+            if agent_id in self.TEAM_ROLES:
                 team_entries.append(entry)
             else:
                 ranking_entries.append(entry)
@@ -1614,7 +1621,7 @@ class TeamDashboardGenerator:
         # Leaderboard
         leaderboard = []
         for agent_id, config in self.AGENT_CONFIG.items():
-            is_team_role = agent_id == 'portfolio_manager'
+            is_team_role = agent_id in self.TEAM_ROLES
             leaderboard.append({
                 'agentId': agent_id,
                 'name': config['name'],

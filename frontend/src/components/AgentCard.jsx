@@ -39,6 +39,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
 
   const rankMedal = agent.rank ? getRankMedal(agent.rank) : null;
   const isPortfolioManager = agent.id === 'portfolio_manager';
+  const isRiskManager = agent.id === 'risk_manager';
   const displayName = isPortfolioManager ? 'Team' : agent.name;
 
   return (
@@ -125,7 +126,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
           </div>
           
           {/* Risk Manager Note */}
-          {agent.id === 'risk_manager' && (
+          {isRiskManager && (
             <div style={{
               padding: '8px 12px',
               background: '#FFF9E6',
@@ -149,110 +150,116 @@ export default function AgentCard({ agent, onClose, isClosing }) {
           )}
           
           {/* Overall Win Rate */}
-          <div style={{
-            padding: '8px 14px',
-            background: '#fafafa',
-            border: '2px solid #e0e0e0',
-            textAlign: 'center',
-            minWidth: 160
-          }}>
+          {!isRiskManager && (
             <div style={{
-              fontSize: 10,
-              color: '#333333',
-              fontWeight: 700,
-              letterSpacing: 1,
-              marginBottom: 4,
-              textTransform: 'uppercase'
+              padding: '8px 14px',
+              background: '#fafafa',
+              border: '2px solid #e0e0e0',
+              textAlign: 'center',
+              minWidth: 160
             }}>
-              Win Rate
+              <div style={{
+                fontSize: 10,
+                color: '#333333',
+                fontWeight: 700,
+                letterSpacing: 1,
+                marginBottom: 4,
+                textTransform: 'uppercase'
+              }}>
+                Win Rate
+              </div>
+              <div style={{
+                fontSize: 36,
+                fontWeight: 700,
+                color: overallColor,
+                fontFamily: '"Courier New", monospace',
+                lineHeight: 1,
+                marginBottom: 2
+              }}>
+                {overallWinRate != null ? `${(overallWinRate * 100).toFixed(1)}%` : 'N/A'}
+              </div>
+              <div style={{
+                fontSize: 9,
+                color: '#555555'
+              }}>
+                {evaluatedTotal}E / {totalSignals}T
+              </div>
             </div>
-            <div style={{
-              fontSize: 36,
-              fontWeight: 700,
-              color: overallColor,
-              fontFamily: '"Courier New", monospace',
-              lineHeight: 1,
-              marginBottom: 2
-            }}>
-              {overallWinRate != null ? `${(overallWinRate * 100).toFixed(1)}%` : 'N/A'}
-            </div>
-            <div style={{
-              fontSize: 9,
-              color: '#555555'
-            }}>
-              {evaluatedTotal}E / {totalSignals}T
-            </div>
-          </div>
+          )}
           
           {/* Bull Stats */}
-          <div style={{
-            padding: '8px 12px',
-            background: '#F0FFF4',
-            border: '2px solid #00C853',
-            minWidth: 140
-          }}>
+          {!isRiskManager && (
             <div style={{
-              fontSize: 10,
-              fontWeight: 700,
-              color: '#00C853',
-              letterSpacing: 1,
-              marginBottom: 4,
-              textTransform: 'uppercase'
+              padding: '8px 12px',
+              background: '#F0FFF4',
+              border: '2px solid #00C853',
+              minWidth: 140
             }}>
-              Bull ▲
+              <div style={{
+                fontSize: 10,
+                fontWeight: 700,
+                color: '#00C853',
+                letterSpacing: 1,
+                marginBottom: 4,
+                textTransform: 'uppercase'
+              }}>
+                Bull ▲
+              </div>
+              <div style={{
+                fontSize: 28,
+                fontWeight: 700,
+                color: bullWinRate != null ? (bullWinRate >= 0.5 ? '#00C853' : '#333333') : '#555555',
+                marginBottom: 2,
+                lineHeight: 1
+              }}>
+                {bullWinRate != null ? `${(bullWinRate * 100).toFixed(1)}%` : 'N/A'}
+              </div>
+              <div style={{
+                fontSize: 9,
+                color: '#333333'
+              }}>
+                {bullWins}W / {evaluatedBull}E
+                {bullUnknown > 0 && ` / ${bullUnknown}P`}
+              </div>
             </div>
-            <div style={{
-              fontSize: 28,
-              fontWeight: 700,
-              color: bullWinRate != null ? (bullWinRate >= 0.5 ? '#00C853' : '#333333') : '#555555',
-              marginBottom: 2,
-              lineHeight: 1
-            }}>
-              {bullWinRate != null ? `${(bullWinRate * 100).toFixed(1)}%` : 'N/A'}
-            </div>
-            <div style={{
-              fontSize: 9,
-              color: '#333333'
-            }}>
-              {bullWins}W / {evaluatedBull}E
-              {bullUnknown > 0 && ` / ${bullUnknown}P`}
-            </div>
-          </div>
+          )}
           
           {/* Bear Stats */}
-          <div style={{
-            padding: '8px 12px',
-            background: '#FFF5F5',
-            border: '2px solid #FF1744',
-            minWidth: 140
-          }}>
+          {!isRiskManager && (
             <div style={{
-              fontSize: 10,
-              fontWeight: 700,
-              color: '#FF1744',
-              letterSpacing: 1,
-              marginBottom: 4,
-              textTransform: 'uppercase'
+              padding: '8px 12px',
+              background: '#FFF5F5',
+              border: '2px solid #FF1744',
+              minWidth: 140
             }}>
-              Bear ▼
+              <div style={{
+                fontSize: 10,
+                fontWeight: 700,
+                color: '#FF1744',
+                letterSpacing: 1,
+                marginBottom: 4,
+                textTransform: 'uppercase'
+              }}>
+                Bear ▼
+              </div>
+              <div style={{
+                fontSize: 28,
+                fontWeight: 700,
+                color: bearWinRate != null ? (bearWinRate >= 0.5 ? '#00C853' : '#333333') : '#555555',
+                marginBottom: 2,
+                lineHeight: 1
+              }}>
+                {bearWinRate != null ? `${(bearWinRate * 100).toFixed(1)}%` : 'N/A'}
+              </div>
+              <div style={{
+                fontSize: 9,
+                color: '#333333'
+              }}>
+                {bearWins}W / {evaluatedBear}E
+                {bearUnknown > 0 && ` / ${bearUnknown}P`}
+              </div>
             </div>
-            <div style={{
-              fontSize: 28,
-              fontWeight: 700,
-              color: bearWinRate != null ? (bearWinRate >= 0.5 ? '#00C853' : '#333333') : '#555555',
-              marginBottom: 2,
-              lineHeight: 1
-            }}>
-              {bearWinRate != null ? `${(bearWinRate * 100).toFixed(1)}%` : 'N/A'}
-            </div>
-            <div style={{
-              fontSize: 9,
-              color: '#333333'
-            }}>
-              {bearWins}W / {evaluatedBear}E
-              {bearUnknown > 0 && ` / ${bearUnknown}P`}
-            </div>
-          </div>
+          )}
           
           {/* Recent Signals - Horizontal scroll */}
           {agent.signals && agent.signals.length > 0 && (
