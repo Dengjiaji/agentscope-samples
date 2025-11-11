@@ -1512,6 +1512,8 @@ class TeamDashboardGenerator:
         agent_performance = state.get('agent_performance', {})
         
         leaderboard = []
+        ranking_entries = []
+        team_entries = []
         
         for agent_id, perf in agent_performance.items():
             # 计算胜率
@@ -1536,7 +1538,7 @@ class TeamDashboardGenerator:
                 'avatar': 'default'
             })
             
-            leaderboard.append({
+            entry = {
                 'agentId': agent_id,
                 'name': agent_config['name'],
                 'role': agent_config['role'],
@@ -1555,18 +1557,28 @@ class TeamDashboardGenerator:
                 },
                 'logs': perf.get('logs', []),  # 前10条日志
                 'signals': perf.get('signals', [])  # 完整的信号历史记录（包含日期）
-            })
+            }
+            
+            if agent_id == 'portfolio_manager':
+                team_entries.append(entry)
+            else:
+                ranking_entries.append(entry)
         
-        # 按胜率排序，胜率相同时 Portfolio Manager 排在前面
-        leaderboard.sort(key=lambda x: (
+        # 按胜率排序（仅分析师参与排名）
+        ranking_entries.sort(key=lambda x: (
             0 if x['winRate'] is not None else 1,  # 有效胜率优先
             -(x['winRate'] if x['winRate'] is not None else 0),  # 胜率降序
-            0 if x['agentId'] == 'portfolio_manager' else 1  # PM优先
         ))
         
         # 填充排名
-        for i, agent in enumerate(leaderboard, 1):
+        for i, agent in enumerate(ranking_entries, 1):
             agent['rank'] = i
+        
+        # 团队类角色不参与排名
+        for agent in team_entries:
+            agent['rank'] = None
+        
+        leaderboard = ranking_entries + team_entries
         
         self._save_json(self.leaderboard_file, leaderboard)
     
@@ -1602,12 +1614,13 @@ class TeamDashboardGenerator:
         # Leaderboard
         leaderboard = []
         for agent_id, config in self.AGENT_CONFIG.items():
+            is_team_role = agent_id == 'portfolio_manager'
             leaderboard.append({
                 'agentId': agent_id,
                 'name': config['name'],
                 'role': config['role'],
                 'avatar': config['avatar'],
-                'rank': 0,
+                'rank': None if is_team_role else 0,
                 'winRate': 0.0,
                 'bull': {'n': 0, 'win': 0},
                 'bear': {'n': 0, 'win': 0},
