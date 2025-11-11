@@ -247,8 +247,6 @@ class LiveTradingThinkingFund:
                             role_key=agent
                         )
 
-                self.streamer.print("agent","", role_key=agent)
-
                 
         self.live_system.save_daily_signals(target_date, pm_signals)
         print("system", f"已保存 {len(pm_signals)} 个股票的交易信号")
