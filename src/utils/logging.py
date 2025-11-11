@@ -75,3 +75,13 @@ def enable_verbose_logging():
     # 重新启用一些有用的日志
     logging.getLogger('httpx').setLevel(logging.INFO)
     logging.getLogger('openai').setLevel(logging.INFO)
+
+
+def enable_memory_debug():
+    """启用记忆系统的详细调试日志"""
+    logging.getLogger('src.memory.reme_memory').setLevel(logging.DEBUG)
+    logging.getLogger('src.memory.mem0_memory').setLevel(logging.DEBUG)
+    logging.getLogger('src.memory.manager').setLevel(logging.DEBUG)
+    logging.getLogger('src.memory.reflection').setLevel(logging.DEBUG)
+    logging.getLogger('src.tools.memory_tools').setLevel(logging.DEBUG)
+    print("✅ 记忆系统调试日志已启用")

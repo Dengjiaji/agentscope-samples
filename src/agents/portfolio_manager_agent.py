@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 from .prompt_loader import PromptLoader
 from typing_extensions import Literal as LiteralType
 from ..utils.tool_call import tool_call
-from ..memory.framework_bridge import get_memory_bridge
+from ..memory.manager import get_memory
 
 
 class PortfolioDecision(BaseModel):
@@ -373,13 +373,15 @@ class PortfolioManagerAgent(AgentBase):
         memories_by_ticker = {}
         
         try:
-            # 获取memory bridge
-            memory_bridge = get_memory_bridge()
+            # 获取base_dir（从config或使用默认值）
+            base_dir = self.config.get('base_dir', 'default')
+            
+            # 获取memory实例
+            memory = get_memory(base_dir)
             
             # ⭐ 统一使用 "portfolio_manager" 作为memory的user_id
             # 无论是direction还是portfolio模式，都使用同一个memory space
             # 这样可以共享经验，避免记忆分散
-            # 注意：portfolio_manager 已在服务器初始化时注册，此处无需重复注册
             memory_user_id = "portfolio_manager"
             
             # 为每个ticker生成搜索query并检索记忆
@@ -390,17 +392,19 @@ class PortfolioManagerAgent(AgentBase):
                 
                 # 从memory系统检索相关记忆
                 try:
-                    relevant_memories = memory_bridge.get_relevant_memories(
-                        analyst_id=memory_user_id,  # 统一使用 "portfolio_manager"
+                    # 直接调用memory.search
+                    relevant_memories = memory.search(
                         query=query,
-                        limit=top_k
+                        user_id=memory_user_id,  # 统一使用 "portfolio_manager"
+                        top_k=top_k
                     )
                     
                     # 格式化记忆为可读字符串
                     memory_strings = []
                     for mem in relevant_memories:
                         if isinstance(mem, dict):
-                            memory_content = mem.get('memory', str(mem))
+                            # 新API返回 {'id': ..., 'content': ..., 'metadata': ...}
+                            memory_content = mem.get('content', str(mem))
                             memory_strings.append(memory_content)
                         else:
                             memory_strings.append(str(mem))

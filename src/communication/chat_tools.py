@@ -11,7 +11,7 @@ from typing import Dict, List, Any, Optional
 from pydantic import BaseModel, Field
 
 from src.llm.models import get_model as get_agentscope_model
-from src.memory import unified_memory_manager as memory_manager
+from src.memory.manager import get_memory
 from src.agents.prompt_loader import PromptLoader
 
 class PrivateChatMessage(BaseModel):
@@ -242,18 +242,8 @@ class CommunicationManager:
         if streamer:
             streamer.print("system", f"开始私聊: {manager_id} <-> {analyst_id}\n话题: {topic}")
         
-        # 在分析师记忆中记录通信开始
-        analyst_memory = memory_manager.get_analyst_memory(analyst_id)
-        communication_id = None
-        if analyst_memory:
-            # 获取 trading_date 作为 analysis_date
-            analysis_date = state.get("metadata", {}).get("trading_date") or state.get("data", {}).get("end_date")
-            communication_id = analyst_memory.start_communication(
-                communication_type="private_chat",
-                participants=[manager_id, analyst_id],
-                topic=topic,
-                analysis_date=analysis_date
-            )
+        # 注意：通信记录功能已简化，不再记录start_communication
+        # 如需要可以通过memory.add()直接添加记忆
         
         # 开始私聊
         initial_message = f"Regarding {topic}, I would like to discuss your analysis results with you. Your current signal is: {json.dumps(analyst_signal, ensure_ascii=False)}"
@@ -261,12 +251,6 @@ class CommunicationManager:
         chat_id = self.private_chat_system.start_private_chat(
             manager_id, analyst_id, initial_message
         )
-        
-        # 记录初始消息到分析师记忆
-        if analyst_memory and communication_id:
-            analyst_memory.add_communication_message(
-                communication_id, manager_id, initial_message
-            )
         
         conversation_history = []
         current_analyst_signal = analyst_signal.copy()
@@ -435,23 +419,33 @@ class CommunicationManager:
             conversation_history, manager_id, analyst_id, topic, chat_id
         )
 
-        # 将对话历史存储到分析师memory中
-        if analyst_memory and communication_id:
-            from src.memory.unified_memory import safe_memory_add
+        # 将对话历史存储到各参与者的memory中
+        from src.memory import get_memory
+
+        # 从state获取base_dir（如果存在）
+        base_dir = state.get("metadata", {}).get("config_name", "mock") if state else "mock"
+        
+        try:
+            memory = get_memory(base_dir)
+            memory_content = "\n".join([msg.get("content", "") for msg in memory_format["messages"]])
             
-            # 将messages和metadata存储到memory
-            result = safe_memory_add(
-                memory_instance=analyst_memory.memory,
-                messages=memory_format["messages"],
-                user_id=analyst_id,
-                metadata=memory_format["metadata"],
-                infer=False,
-                operation_name=f"私聊记录存储-{analyst_id}"
-            )
+            # 存储到分析师的memory
+            analyst_metadata = memory_format["metadata"].copy()
+            analyst_metadata["stored_in"] = analyst_id
+            memory.add(memory_content, analyst_id, analyst_metadata)
+            print(f"✅ 对话历史已存储到 {analyst_id} 的memory")
             
+            # 同时存储到管理者的memory
+            manager_metadata = memory_format["metadata"].copy()
+            manager_metadata["stored_in"] = manager_id
+            memory.add(memory_content, manager_id, manager_metadata)
+            print(f"✅ 对话历史已存储到 {manager_id} 的memory")
             
-            # 完成通信记录
-            analyst_memory.complete_communication(communication_id)
+        except Exception as e:
+            print(f"❌ 存储对话历史失败: {e}")
+            import traceback
+            traceback.print_exc()
+
 
       
         # pdb.set_trace()
@@ -480,19 +474,8 @@ class CommunicationManager:
         
         # 为每个分析师记录会议开始
         # 获取 trading_date 作为 analysis_date
-        analysis_date = state.get("metadata", {}).get("trading_date") or state.get("data", {}).get("end_date")
-        
-        communication_ids = {}
-        for analyst_id in analyst_ids:
-            analyst_memory = memory_manager.get_analyst_memory(analyst_id)
-            if analyst_memory:
-                comm_id = analyst_memory.start_communication(
-                    communication_type="meeting",
-                    participants=[manager_id] + analyst_ids,
-                    topic=topic,
-                    analysis_date=analysis_date
-                )
-                communication_ids[analyst_id] = comm_id
+        # 注意：通信记录功能已简化，不再记录start_communication
+        # 如需要可以通过memory.add()直接添加记忆
         
         # 初始化会议信息（只用于日志记录）
         print(f"会议创建成功 - ID: {meeting_id}")
@@ -675,28 +658,47 @@ class CommunicationManager:
         
         print("会议结束")
         streamer.print("conference_end",conference_id=meeting_id)
-        memory_format = self._convert_transcript_to_memory_format(
-            meeting_transcript, meeting_id, topic, max_rounds
-        )
-
-        # 完成所有分析师的通信记录
-        for analyst_id in analyst_ids:
-            if analyst_id in communication_ids:
-                analyst_memory = memory_manager.get_analyst_memory(analyst_id)
-                if analyst_memory:
-                    from src.memory.unified_memory import safe_memory_add
-                    
-                    # 将messages和metadata存储到memory
-                    result = safe_memory_add(
-                        memory_instance=analyst_memory.memory,
-                        messages=memory_format["messages"],
-                        user_id=analyst_id,
-                        metadata=memory_format["metadata"],
-                        infer=False,
-                        operation_name=f"会议记录存储-{analyst_id}"
-                    )
-                    
-                    analyst_memory.complete_communication(communication_ids[analyst_id])
+        
+        # 保存会议记录到各参与者的memory
+        try:
+            base_dir = state.get("metadata", {}).get("config_name", "default")
+            memory = get_memory(base_dir)
+            
+            # 构建会议记录内容
+            memory_content = f"会议记录\n主题: {topic}\n会议ID: {meeting_id}\n\n" + "\n".join([
+                f"[第{entry.get('round', 'N/A')}轮] {entry.get('speaker', '')}: {entry.get('content', '')}" 
+                for entry in meeting_transcript
+            ])
+            
+            # 构建metadata（确保所有值都是基本类型）
+            participants_str = ",".join([manager_id] + analyst_ids)
+            metadata = {
+                "meeting_id": meeting_id,
+                "topic": topic,
+                "total_rounds": max_rounds,
+                "total_messages": len(meeting_transcript),
+                "participants": participants_str,  # 转换为字符串
+                "communication_type": "meeting",
+                "manager_id": manager_id
+            }
+            
+            # 为每个分析师保存会议记录
+            for analyst_id in analyst_ids:
+                analyst_metadata = metadata.copy()
+                analyst_metadata["stored_in"] = analyst_id
+                memory.add(memory_content, analyst_id, analyst_metadata)
+                print(f"✅ 会议记录已存储到 {analyst_id} 的memory")
+            
+            # 同时保存到管理者的memory
+            manager_metadata = metadata.copy()
+            manager_metadata["stored_in"] = manager_id
+            memory.add(memory_content, manager_id, manager_metadata)
+            print(f"✅ 会议记录已存储到 {manager_id} 的memory")
+            
+        except Exception as e:
+            print(f"❌ 存储会议记录失败: {e}")
+            import traceback
+            traceback.print_exc()
         # pdb.set_trace()
 
         result = {
@@ -714,16 +716,26 @@ class CommunicationManager:
         """获取分析师在私聊中的回应（两阶段记忆检索）"""
         
         # ========== 第一阶段：让analyst生成记忆查询query ⭐⭐⭐ ==========
-        analyst_memory = memory_manager.get_analyst_memory(analyst_id)
         relevant_memories = ""
         
-        if analyst_memory:
+        try:
+            # 获取base_dir（从state或使用默认值）
+            base_dir = state.get("metadata", {}).get("config_name", "default")
+            print(f"\n{'='*60}")
+            print(f"🔍 [chat_tools] 开始记忆检索")
+            print(f"   analyst_id: {analyst_id}")
+            print(f"   base_dir: {base_dir}")
+            
+            memory = get_memory(base_dir)
+            print(f"   memory实例: {type(memory).__name__}")
+            
             tickers = state.get("data", {}).get("tickers", [])
             
             # 1. 生成记忆查询query
             memory_query = self._generate_memory_query_for_chat(
                 analyst_id, topic, conversation_history, tickers, state
             )
+            print(f"   memory_query: {memory_query[:100]}..." if memory_query else "   memory_query: None")
             
             # 2. 使用生成的query检索相关记忆
             if memory_query:
@@ -737,30 +749,35 @@ class CommunicationManager:
                             operation_type="search"
                         )
                     
-                    search_results = analyst_memory.memory.search(
+                    print(f"   调用 memory.search()...")
+                    search_results = memory.search(
                         query=memory_query,
                         user_id=analyst_id,
-                        top_k=1  # ⭐ 修正参数名：limit -> top_k (reme框架标准参数)
+                        top_k=1
                     )
+                    print(f"   搜索结果数量: {len(search_results) if search_results else 0}")
                     
-                    if search_results and search_results.get('results'):
+                    # search_results 是一个列表: [{'id': ..., 'content': ..., 'metadata': ...}, ...]
+                    if search_results:
                         relevant_memories = "\n".join([
-                            f"- {mem.get('memory', '')}" 
-                            for mem in search_results['results']
+                            f"- {mem.get('content', '')}" 
+                            for mem in search_results
                         ])
-                        print(f"✅ {analyst_id} 检索到 {len(search_results['results'])} 条相关记忆")
+                        print(f"   ✅ {analyst_id} 检索到 {len(search_results)} 条相关记忆")
+                        print(f"{'='*60}\n")
                         
                         # 广播搜索成功
                         if streamer:
                             streamer.print(
                                 "memory",
-                                f"找到 {len(search_results['results'])} 条相关记忆",
+                                f"找到 {len(search_results)} 条相关记忆",
                                 agent_id=analyst_id,
                                 operation_type="search_success"
                             )
                         # print(relevant_memories)
                     else:
-                        print(f"⚠️ {analyst_id} 未检索到相关记忆")
+                        print(f"   ⚠️ {analyst_id} 未检索到相关记忆")
+                        print(f"{'='*60}\n")
                         if streamer:
                             streamer.print(
                                 "memory",
@@ -769,7 +786,10 @@ class CommunicationManager:
                                 operation_type="search_empty"
                             )
                 except Exception as e:
-                    print(f"⚠️ {analyst_id} 记忆检索失败: {e}")
+                    print(f"   ❌ {analyst_id} 记忆检索失败: {e}")
+                    print(f"{'='*60}\n")
+                    import traceback
+                    traceback.print_exc()
                     relevant_memories = ""
                     if streamer:
                         streamer.print(
@@ -778,6 +798,12 @@ class CommunicationManager:
                             agent_id=analyst_id,
                             operation_type="search_error"
                         )
+        except Exception as e:
+            print(f"   ❌ {analyst_id} 记忆系统错误: {e}")
+            print(f"{'='*60}\n")
+            import traceback
+            traceback.print_exc()
+            relevant_memories = ""
         
         # ========== 第二阶段：基于检索到的记忆生成回应 ⭐⭐⭐ ==========
         prompt_data = {
@@ -917,13 +943,13 @@ class CommunicationManager:
             
             messages.append(message)
         
-        # 构建metadata
+        # 构建metadata（注意：向量数据库只支持str, int, float, bool, None类型）
         metadata = {
             "chat_id": chat_id,
             "topic": topic,
             "total_rounds": len([entry for entry in conversation_history if entry["speaker"] == analyst_id]),
             "total_messages": len(conversation_history) + 1,  # +1 for initial message
-            "participants": [manager_id, analyst_id],
+            "participants": f"{manager_id},{analyst_id}",  # 转换为字符串
             "communication_type": "private_chat",
             "manager_id": manager_id,
             "analyst_id": analyst_id
@@ -968,10 +994,13 @@ class CommunicationManager:
         """获取分析师在会议中的发言（两阶段记忆检索）"""
         
         # ========== 第一阶段：让analyst生成记忆查询query ⭐⭐⭐ ==========
-        analyst_memory = memory_manager.get_analyst_memory(analyst_id)
         relevant_memories = ""
         
-        if analyst_memory:
+        try:
+            # 获取base_dir（从state或使用默认值）
+            base_dir = state.get("metadata", {}).get("config_name", "default")
+            memory = get_memory(base_dir)
+            
             tickers = state.get("data", {}).get("tickers", [])
             
             # 1. 生成记忆查询query
@@ -991,25 +1020,26 @@ class CommunicationManager:
                             operation_type="search"
                         )
                     
-                    search_results = analyst_memory.memory.search(
+                    search_results = memory.search(
                         query=memory_query,
                         user_id=analyst_id,
-                        top_k=1  # ⭐ 修正参数名：limit -> top_k (reme框架标准参数)
+                        top_k=1
                     )
                     
-                    if search_results and search_results.get('results'):
+                    # search_results 是一个列表: [{'id': ..., 'content': ..., 'metadata': ...}, ...]
+                    if search_results:
                         relevant_memories = "\n".join([
-                            f"- {mem.get('memory', '')}" 
-                            for mem in search_results['results']
+                            f"- {mem.get('content', '')}" 
+                            for mem in search_results
                         ])
-                        print(f"✅ {analyst_id} 在会议中检索到 {len(search_results['results'])} 条相关记忆")
+                        print(f"✅ {analyst_id} 在会议中检索到 {len(search_results)} 条相关记忆")
                         print(relevant_memories)
                         
                         # 广播搜索成功
                         if streamer:
                             streamer.print(
                                 "memory",
-                                f"找到 {len(search_results['results'])} 条相关记忆",
+                                f"找到 {len(search_results)} 条相关记忆",
                                 agent_id=analyst_id,
                                 operation_type="search_success"
                             )
@@ -1032,6 +1062,9 @@ class CommunicationManager:
                             agent_id=analyst_id,
                             operation_type="search_error"
                         )
+        except Exception as e:
+            print(f"⚠️ {analyst_id} 记忆系统错误: {e}")
+            relevant_memories = ""
         
         # ========== 第二阶段：基于检索到的记忆生成发言 ⭐⭐⭐ ==========
         prompt_data = {

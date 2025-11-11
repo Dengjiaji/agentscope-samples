@@ -48,6 +48,7 @@ class LiveTradingSystem:
     def __init__(self, base_dir: str = None, streamer=None, pause_before_trade: bool = False):
         """初始化Live交易系统"""
         # self.base_dir = Path(base_dir) if base_dir else Path(__file__).parent
+        self.config_name = base_dir or "default"
         self.base_dir = Path(get_directory_config(base_dir))
         self.live_dir = self.base_dir / "live_trading"
         self.data_dir = self.live_dir / "data"
@@ -212,7 +213,8 @@ class LiveTradingSystem:
             max_communication_cycles=max_comm_cycles,
             prefetch_data=True,
             okr_enabled=False,
-            custom_session_id=custom_session_id
+            custom_session_id=custom_session_id,
+            config_name=self.config_name
         )
         
         # ========== 如果有portfolio_state，需要预先注入到state中 ⭐⭐⭐ ==========
@@ -348,7 +350,8 @@ class LiveTradingSystem:
         multi_day_manager = MultiDayManager(
             engine=self.engine,
             base_output_dir=str(self.reports_dir / "temp"),
-            custom_session_id=custom_session_id
+            custom_session_id=custom_session_id,
+            config_name=self.config_name
         )
         
         for ticker, signal_data in signals.items():

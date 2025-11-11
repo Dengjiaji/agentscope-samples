@@ -29,7 +29,6 @@ from src.tools.data_tools import (
     get_insider_trades,
     get_company_news,
 )
-from src.communication.analyst_memory_mem0 import memory_manager_mem0_adapter as memory_manager
 from src.okr.okr_manager import OKRManager
 
 
@@ -44,7 +43,8 @@ class MultiDayManager:
         prefetch_data: bool = True,
         okr_enabled: bool = False,
         custom_session_id: str = None,
-        data_source: str = "finnhub"
+        data_source: str = "finnhub",
+        config_name: str = "default"
     ):
         """
         初始化多日管理器
@@ -57,6 +57,7 @@ class MultiDayManager:
             okr_enabled: 是否启用OKR
             custom_session_id: 自定义会话ID
             data_source: 数据源 ("finnhub" 或 "financial_datasets", 默认: "finnhub")
+            config_name: 记忆系统配置名称（用于OKR等功能）
         """
         self.engine = engine
         self.base_output_dir = base_output_dir
@@ -64,6 +65,7 @@ class MultiDayManager:
         self.prefetch_data = prefetch_data
         self.okr_enabled = okr_enabled
         self.data_source = data_source
+        self.config_name = config_name
         
         # 状态追踪
         self.session_id = custom_session_id
@@ -214,7 +216,7 @@ class MultiDayManager:
         """初始化OKR管理器"""
         if self.okr_manager is None and self.okr_enabled:
             analyst_ids = list(self.engine.core_analysts.keys())
-            self.okr_manager = OKRManager(analyst_ids)
+            self.okr_manager = OKRManager(analyst_ids, base_dir=self.config_name)
             print(f"OKR管理器已初始化，管理 {len(analyst_ids)} 个分析师")
 
     
