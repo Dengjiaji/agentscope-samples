@@ -28,7 +28,7 @@ from src.servers.streamer import WebSocketStreamer, ConsoleStreamer, MultiStream
 from src.servers.polling_price_manager import PollingPriceManager
 from src.servers.state_manager import StateManager
 from src.servers.mock import MockSimulator
-from live_trading_thinking_fund import LiveTradingThinkingFund
+from live_trading_fund import LiveTradingFund
 from src.config.env_config import LiveThinkingFundConfig
 from src.tools.data_tools import get_prices
 from src.utils.progress import progress
@@ -579,8 +579,8 @@ class Server:
         )
         
         # 初始化交易系统
-        self.thinking_fund = LiveTradingThinkingFund(
-            base_dir=self.config.config_name,
+        self.thinking_fund = LiveTradingFund(
+            config_name=self.config.config_name,
             streamer=broadcast_streamer,
             mode=self.config.mode,
             initial_cash=self.config.initial_cash,
