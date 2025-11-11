@@ -18,8 +18,6 @@ import threading
 # 添加项目路径
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
-from src.memory.mem0_env_loader import ensure_mem0_env_loaded
-ensure_mem0_env_loaded()
 
 from src.graph.state import AgentState
 
@@ -29,10 +27,8 @@ from src.agents.analyst_agent import AnalystAgent
 from agentscope.message import Msg
 
 # 导入通知系统
-# 使用基于 Mem0 的通知系统与工具
-from src.communication.notification_system_mem0 import (
-    mem0_notification_system as notification_system,
-    should_send_notification)
+from src.communication.notification_system import notification_system
+from src.communication import should_send_notification
 
 # 导入第二轮LLM分析系统
 from src.agents.second_round_llm_analyst import (
@@ -63,7 +59,6 @@ from src.communication.chat_tools import (
     communication_manager,
     CommunicationDecision
 )
-from src.memory import unified_memory_manager as memory_manager
 
 # 导入日志配置
 from src.utils.logging import setup_logging
@@ -104,11 +99,6 @@ class AdvancedInvestmentAnalysisEngine:
                 ),
                 'description': config['description']
             }
-        
-        # 统一通过记忆系统注册分析师与通知（记忆管理器内部会注册通知系统）
-        for agent_id, agent_info in self.core_analysts.items():
-            memory_manager.register_analyst(agent_id, agent_info['name'])
-        memory_manager.register_analyst("portfolio_manager", "投资组合经理")
         
         logging.info("高级投资分析引擎初始化完成")
     
@@ -163,20 +153,6 @@ class AdvancedInvestmentAnalysisEngine:
         print(f"\n开始执行 {agent_name} 分析...")
         
         try:
-            # 获取分析师记忆并开始分析会话
-            analyst_memory = memory_manager.get_analyst_memory(agent_id)
-            session_id = None
-            if analyst_memory:
-                tickers = state.get("data", {}).get("tickers", [])
-                # 获取 trading_date 作为 analysis_date
-                analysis_date = state.get("metadata", {}).get("trading_date") or state.get("data", {}).get("end_date")
-                session_id = analyst_memory.start_analysis_session(
-                    session_type="first_round",
-                    tickers=tickers,
-                    context={"notifications_enabled": True},
-                    analysis_date=analysis_date
-                )
-            
             # 获取agent的通知记忆
             agent_memory = notification_system.get_agent_memory(agent_id)
             
@@ -188,12 +164,6 @@ class AdvancedInvestmentAnalysisEngine:
             
             if analysis_result:
                 print(f"{agent_name} 分析完成")
-                
-                # 完成分析会话记录
-                if analyst_memory and session_id:
-                    # 获取 trading_date 作为 analysis_date
-                    analysis_date = state.get("metadata", {}).get("trading_date") or state.get("data", {}).get("end_date")
-                    analyst_memory.complete_analysis_session(session_id, analysis_result, analysis_date)
                 
                 # 判断是否需要发送通知（可选）
                 notifications_enabled = state["metadata"].get("notifications_enabled", True)
@@ -546,20 +516,6 @@ class AdvancedInvestmentAnalysisEngine:
         print(f"\n{agent_name} 开始第二轮LLM分析...")
         
         try:
-            # 获取分析师记忆并开始第二轮分析会话
-            analyst_memory = memory_manager.get_analyst_memory(agent_id)
-            session_id = None
-            if analyst_memory:
-                tickers = state["data"]["tickers"]
-                # 获取 trading_date 作为 analysis_date
-                analysis_date = state.get("metadata", {}).get("trading_date") or state.get("data", {}).get("end_date")
-                session_id = analyst_memory.start_analysis_session(
-                    session_type="second_round",
-                    tickers=tickers,
-                    context={"first_round_report": first_round_report},
-                    analysis_date=analysis_date
-                )
-            
             # 提取需要的数据
             tickers = state["data"]["tickers"]
             
@@ -592,17 +548,6 @@ class AdvancedInvestmentAnalysisEngine:
             state["data"]["analyst_signals"][f"{agent_id}_round2"] = analysis_result
             
             print(f"{agent_name} 第二轮LLM分析完成")
-            
-            # 记录第二轮分析结果到记忆
-            if analyst_memory and session_id:
-                analysis_summary = f"第二轮分析完成，基于第一轮结果和通知进行了调整"
-                analyst_memory.add_analysis_message(
-                    session_id, "assistant", analysis_summary,
-                    {"llm_analysis": llm_analysis.model_dump()}
-                )
-                # 获取 trading_date 作为 analysis_date
-                analysis_date = state.get("metadata", {}).get("trading_date") or state.get("data", {}).get("end_date")
-                analyst_memory.complete_analysis_session(session_id, analysis_result, analysis_date)
             
             # 显示每个ticker的信号
             for ticker_signal in llm_analysis.ticker_signals:

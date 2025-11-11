@@ -25,7 +25,7 @@ import websockets
 from websockets.server import WebSocketServerProtocol
 from websockets.exceptions import ConnectionClosedError
 
-from src.memory.memory_factory import initialize_memory_system
+from src.memory import get_memory
 from src.servers.streamer import BroadcastStreamer
 from src.servers.polling_price_manager import PollingPriceManager
 from src.servers.mock_price_manager import MockPriceManager
@@ -114,34 +114,11 @@ class LiveTradingServer:
         self.initial_cash = config.initial_cash
         
         # 初始化记忆系统
-        from src.servers.streamer import ConsoleStreamer
-        console_streamer = ConsoleStreamer()
-        memory_instance = initialize_memory_system(
-            base_dir=config.config_name,
-            streamer=console_streamer
-        )
-        logger.info(f"✅ 记忆系统已初始化: {memory_instance.get_framework_name()}")
+        memory_instance = get_memory(config.config_name)
+        logger.info(f"✅ 记忆系统已初始化")
         
-        # 注册分析师到记忆系统
-        from src.memory.framework_bridge import get_memory_bridge
-        memory_bridge = get_memory_bridge()
-        
-        analyst_definitions = {
-            'fundamentals_analyst': '基本面分析师',
-            'technical_analyst': '技术分析师',
-            'sentiment_analyst': '情绪分析师',
-            'valuation_analyst': '估值分析师',
-            'portfolio_manager': '投资组合经理',
-            'risk_manager': '风险管理师'
-        }
-        
-        for analyst_id, analyst_name in analyst_definitions.items():
-            try:
-                memory_bridge.register_analyst(analyst_id, analyst_name)
-            except Exception as e:
-                logger.warning(f"注册 {analyst_id} 失败: {e}")
-        
-        logger.info("✅ 所有分析师已注册到记忆系统")
+        # 记忆系统初始化完成（不需要预注册分析师）
+        logger.info("✅ 记忆系统准备就绪")
         
         # 初始化交易系统
         self.thinking_fund = None

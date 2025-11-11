@@ -11,19 +11,21 @@ from typing import Dict, List, Optional, Any, Tuple
 from pathlib import Path
 
 from src.tools.data_tools import get_price_data
-from src.communication.analyst_memory_mem0 import memory_manager_mem0_adapter as memory_manager
+from src.memory import reset_analyst_memory
 
 class OKRManager:
     """OKR管理器 - 处理分析师绩效评估和淘汰机制"""
     
-    def __init__(self, analyst_ids: List[str]):
+    def __init__(self, analyst_ids: List[str], base_dir: str = "live_mode"):
         """
         初始化OKR管理器
         
         Args:
             analyst_ids: 分析师ID列表
+            base_dir: 记忆系统基础目录
         """
         self.analyst_ids = analyst_ids.copy()
+        self.base_dir = base_dir
         
         # 初始化权重（平均分配）
         equal_weight = 1.0 / len(analyst_ids) if analyst_ids else 0.0
@@ -308,7 +310,7 @@ class OKRManager:
         # 执行淘汰和重置
         try:
             # 重置分析师记忆
-            memory_manager.reset_analyst_memory(worst_analyst)
+            reset_analyst_memory(worst_analyst, self.base_dir)
             
             # 记录新入职
             self.new_hires[worst_analyst] = current_date
@@ -444,7 +446,8 @@ class OKRManager:
             "new_hires": self.new_hires.copy(),
             "config": {
                 "review_interval": self.review_interval,
-                "okr_interval": self.okr_interval
+                "okr_interval": self.okr_interval,
+                "base_dir": self.base_dir
             },
             "export_timestamp": datetime.now().isoformat()
         }
@@ -467,6 +470,7 @@ class OKRManager:
         config = data.get("config", {})
         self.review_interval = config.get("review_interval", 5)
         self.okr_interval = config.get("okr_interval", 30)
+        self.base_dir = config.get("base_dir", "live_mode")
         
         print(f"OKR数据导入完成: {len(self.analyst_ids)}个分析师, "
               f"{len(self.signal_history)}个信号记录")

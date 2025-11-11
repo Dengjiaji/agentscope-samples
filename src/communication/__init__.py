@@ -3,19 +3,10 @@ Communication module for agent interactions
 Provides notification, debate, and meeting functionalities
 """
 
-from .notification_system_mem0 import (
-    Notification,
-    # NotificationMemory, 
-    # NotificationSystem,
-    # notification_system,
-    send_notification,
-    should_send_notification)
+from .notification_system import notification_system
+from .notification_helpers import should_send_notification
 
 __all__ = [
-    'Notification',
-    'NotificationMemory',
-    'NotificationSystem', 
     'notification_system',
-    'send_notification',
     'should_send_notification',
 ]

@@ -28,7 +28,7 @@ from collections import defaultdict
 from dotenv import load_dotenv
 
 from src.config.constants import ANALYST_TYPES
-from src.memory.memory_system import LLMMemoryDecisionSystem
+from src.memory import MemoryReflectionSystem
 from src.servers.streamer import ConsoleStreamer
 from src.dashboard.team_dashboard import TeamDashboardGenerator
 
@@ -38,9 +38,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
 
 from src.config.env_config import LiveThinkingFundConfig
-from src.memory.memory_factory import initialize_memory_system
-
-# from src.memory.unified_memory import unified_memory_manager
+from src.memory import get_memory
 MEMORY_AVAILABLE = True
 LLM_AVAILABLE = True
 MEMORY_TOOLS_AVAILABLE = True
@@ -74,11 +72,11 @@ class LiveTradingThinkingFund:
 
         # 初始化记忆管理系统
         if MEMORY_TOOLS_AVAILABLE:
-            self.llm_memory_system = LLMMemoryDecisionSystem()
-            print("LLM记忆管理系统已启用")
+            self.memory_reflection = MemoryReflectionSystem(base_dir=base_dir, streamer=self.streamer)
+            print("记忆复盘系统已启用")
         else:
-            self.llm_memory_system = None
-            print("LLM记忆管理系统未启用")
+            self.memory_reflection = None
+            print("记忆复盘系统未启用")
 
         # 时间点定义
         self.PRE_MARKET = "pre_market"    # 交易前
@@ -514,22 +512,23 @@ class LiveTradingThinkingFund:
             return self._run_central_review_mode(date, tickers, pm_signals, ana_signals, real_returns)
     
     def _run_central_review_mode(self, date: str, tickers: List[str], pm_signals: Dict, ana_signals: Dict, real_returns: Dict) -> Dict[str, Any]:
-        """Central Review模式：PM统一管理记忆（旧模式）"""
-        self.streamer.print("system", "===== Portfolio Manager 记忆管理决策 =====")
+        """Central Review模式：统一LLM管理记忆"""
+        self.streamer.print("system", "===== Central Review 记忆管理 =====")
 
-        execution_results = None
         try:
-            if self.llm_memory_system:
-                performance_data = {
+            if self.memory_reflection:
+                reflection_data = {
                     'pm_signals': pm_signals,
                     'actual_returns': real_returns,
                     'analyst_signals': ana_signals,
                     'tickers': tickers
                 }
 
-                # 使用LLM进行记忆管理决策（tool_call模式）
-                llm_decision = self.llm_memory_system.make_llm_memory_decision_with_tools(
-                    performance_data, date
+                # 使用统一复盘系统（central_review模式）
+                llm_decision = self.memory_reflection.perform_reflection(
+                    date=date, 
+                    reflection_data=reflection_data, 
+                    mode="central_review"
                 )
 
                 # 显示LLM决策结果（合并输出）
@@ -665,82 +664,53 @@ class LiveTradingThinkingFund:
             }
         
         try:
-            from src.memory.agent_self_reflection import create_reflection_system
+            self.streamer.print("system", "\n--- Individual Review 模式 ---")
             
-            # ========== 1. 各分析师自我复盘 ==========
-            self.streamer.print("system", "\n--- 分析师自我复盘 ---")
+            # 准备所有agents的数据
+            agents_data = {}
             
-            analysts = ANALYST_TYPES.keys()
-            
-            for analyst_id in analysts:
-                try:
-                    # 提取该分析师的信号
-                    my_signals = {}
-                    for ticker in tickers:
-                        if analyst_id in ana_signals and ticker in ana_signals[analyst_id]:
-                            signal_value = ana_signals[analyst_id][ticker]['signal']
-                            signal_data = ana_signals[analyst_id][ticker]
-                            
-                            # 优先使用 reasoning，如果不存在则使用 tool_analysis
-                            reasoning_text = signal_data.get('reasoning') or signal_data.get('tool_analysis', '')
-                            
-                            my_signals[ticker] = {
-                                'signal': signal_value if isinstance(signal_value, str) else 'N/A',
-                                'confidence': signal_data.get('confidence', 0),
-                                'reasoning': reasoning_text
-                            }
-                    # pdb.set_trace()
-                    # 创建复盘系统
-                    reflection_system = create_reflection_system(analyst_id, self.base_dir)
-                    
-                    # 执行自我复盘
-                    result = reflection_system.perform_self_reflection(
-                        date=date,
-                        reflection_data={
-                            'my_signals': my_signals,
-                            'actual_returns': real_returns,
-                            'pm_decisions': pm_signals
-                        },
-                        context={
-                            'market_condition': 'normal'
+            # ========== 1. 各分析师数据 ==========
+            for analyst_id in ANALYST_TYPES.keys():
+                my_signals = {}
+                for ticker in tickers:
+                    if analyst_id in ana_signals and ticker in ana_signals[analyst_id]:
+                        signal_value = ana_signals[analyst_id][ticker]['signal']
+                        signal_data = ana_signals[analyst_id][ticker]
+                        reasoning_text = signal_data.get('reasoning') or signal_data.get('tool_analysis', '')
+                        
+                        my_signals[ticker] = {
+                            'signal': signal_value if isinstance(signal_value, str) else 'N/A',
+                            'confidence': signal_data.get('confidence', 0),
+                            'reasoning': reasoning_text
                         }
-                    )
-                    
-                    reflection_results[analyst_id] = result
-                    
-                except Exception as e:
-                    print(f"⚠️ {analyst_id} 自我复盘失败: {e}")
-                    reflection_results[analyst_id] = {
-                        'status': 'failed',
-                        'error': str(e)
-                    }
-            
-            # ========== 2. PM自我复盘 ==========
-            self.streamer.print("system", "\n--- Portfolio Manager 自我复盘 ---")
-            
-            try:
-                pm_reflection_system = create_reflection_system('portfolio_manager', self.base_dir)
                 
-                pm_result = pm_reflection_system.perform_self_reflection(
+                agents_data[analyst_id] = {
+                    'agent_id': analyst_id,
+                    'my_signals': my_signals,
+                    'actual_returns': real_returns,
+                    'pm_decisions': pm_signals
+                }
+            
+            # ========== 2. PM数据 ==========
+            agents_data['portfolio_manager'] = {
+                'agent_id': 'portfolio_manager',
+                'my_decisions': pm_signals,
+                'analyst_signals': ana_signals,
+                'actual_returns': real_returns,
+                'portfolio_summary': portfolio_summary
+            }
+            
+            # ========== 3. 执行统一复盘 ==========
+            if self.memory_reflection:
+                result = self.memory_reflection.perform_reflection(
                     date=date,
-                    reflection_data={
-                        'pm_decisions': pm_signals,
-                        'analyst_signals': ana_signals,
-                        'actual_returns': real_returns,
-                        'portfolio_summary': portfolio_summary
-                    },
-                    context={
-                        'market_condition': 'normal'
-                    }
+                    reflection_data={'agents_data': agents_data},
+                    mode="individual_review"
                 )
                 
-                reflection_results['portfolio_manager'] = pm_result
-                
-            except Exception as e:
-                print(f"⚠️ Portfolio Manager 自我复盘失败: {e}")
-                reflection_results['portfolio_manager'] = {
-                    'status': 'failed',
-                    'error': str(e)
+                reflection_results = {
+                    agent_result['agent_id']: agent_result 
+                    for agent_result in result.get('agents_results', [])
                 }
             
             # ========== 3. 生成总结报告 ==========
@@ -1176,8 +1146,8 @@ def main():
         console_streamer = ConsoleStreamer()
         
         # 初始化记忆系统（自动根据环境变量选择框架）
-        memory_instance = initialize_memory_system(base_dir=config.config_name, streamer=console_streamer)
-        print(f"✅ 记忆系统已初始化: {memory_instance.get_framework_name()}")
+        memory_instance = get_memory(base_dir=config.config_name)
+        print(f"✅ 记忆系统已初始化")
         
         # 初始化思考基金系统，传递mode和portfolio参数
         thinking_fund = LiveTradingThinkingFund(

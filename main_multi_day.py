@@ -238,7 +238,8 @@ def main():
             base_output_dir=config.output_dir,
             max_communication_cycles=config.max_comm_cycles,
             prefetch_data=not config.disable_data_prefetch,
-            okr_enabled=config.enable_okr
+            okr_enabled=config.enable_okr,
+            config_name="default"
         )
         
         # 执行多日策略分析

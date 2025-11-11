@@ -12,11 +12,20 @@ from agentscope.tool import Toolkit
 
 # 导入记忆模块
 try:
-    from src.memory.memory_factory import get_memory_instance
+    from src.memory import get_memory
     MEMORY_AVAILABLE = True
 except ImportError as e:
     print(f"警告: 无法导入记忆模块: {e}")
     MEMORY_AVAILABLE = False
+
+
+# 全局base_dir缓存
+_cached_base_dir = None
+
+def _set_base_dir(base_dir: str):
+    """设置base_dir用于创建memory实例"""
+    global _cached_base_dir
+    _cached_base_dir = base_dir
 
 
 # 全局streamer引用（用于广播memory操作）
@@ -28,10 +37,11 @@ def set_memory_tools_streamer(streamer):
     _global_streamer = streamer
 
 def _get_memory_instance():
-    """获取记忆实例（从工厂获取）"""
-    if not MEMORY_AVAILABLE:
+    """获取记忆实例"""
+    global _cached_base_dir
+    if not MEMORY_AVAILABLE or not _cached_base_dir:
         return None
-    return get_memory_instance()
+    return get_memory(_cached_base_dir)
 
 def _broadcast_memory_operation(operation_type: str, content: str, agent_id: str):
     """广播memory操作到前端"""
@@ -96,7 +106,7 @@ def search_and_update_analyst_memory(
             top_k=1
         )
         
-        if not search_results.get('results'):
+        if not search_results:
             _broadcast_memory_operation(
                 operation_type="search_failed",
                 content=f"未找到相关记忆: {query}",
@@ -109,9 +119,9 @@ def search_and_update_analyst_memory(
             }
         
         # 获取搜索到的记忆
-        found_memory = search_results['results'][0]
+        found_memory = search_results[0]
         memory_id = found_memory['id']
-        original_content = found_memory.get('memory', '')
+        original_content = found_memory.get('content', '')
         
         # 🔍 打印调试信息：显示搜索到的记忆
         print(f"\n{'='*60}")
@@ -131,32 +141,12 @@ def search_and_update_analyst_memory(
         print(f"\n💡 更新原因: {reason}")
         print(f"{'='*60}\n")
         
-        # 获取框架类型，以便正确传递参数
-        framework_name = getattr(memory_instance, 'get_framework_name', lambda: 'unknown')()
-        
-        # 更新记忆
-        if framework_name == 'reme':
-            # ReMe 框架需要 workspace_id 参数和 metadata
-            workspace_id = analyst_id  # 直接使用 analyst_id 作为 workspace_id
-            result = memory_instance.update(
-                memory_id=memory_id,
-                data={
-                    'content': new_content,
-                    'metadata': {
-                        'type': 'memory_update',
-                        'analyst_id': analyst_id,
-                        'update_reason': reason,
-                        'updated_by': 'portfolio_manager'
-                    }
-                },
-                workspace_id=workspace_id
-            )
-        else:
-            # Mem0 框架不需要 workspace_id
-            result = memory_instance.update(
-                memory_id=memory_id,
-                data=new_content
-            )
+        # 更新记忆（使用统一的API）
+        result = memory_instance.update(
+            memory_id=memory_id,
+            content=new_content,
+            user_id=analyst_id
+        )
         
         # ✅ 打印更新成功信息
         print(f"✅ 记忆更新成功!")
@@ -236,7 +226,7 @@ def search_and_delete_analyst_memory(
             top_k=1
         )
         
-        if not search_results.get('results'):
+        if not search_results:
             _broadcast_memory_operation(
                 operation_type="search_failed",
                 content=f"未找到相关记忆: {query}",
@@ -249,9 +239,9 @@ def search_and_delete_analyst_memory(
             }
         
         # 获取搜索到的记忆
-        found_memory = search_results['results'][0]
+        found_memory = search_results[0]
         memory_id = found_memory['id']
-        memory_content = found_memory.get('memory', '')
+        memory_content = found_memory.get('content', '')
         
         # 🔍 打印调试信息：显示要删除的记忆
         print(f"\n{'='*60}")
@@ -267,20 +257,11 @@ def search_and_delete_analyst_memory(
         print(f"\n⚠️  删除原因: {reason}")
         print(f"{'='*60}\n")
         
-        # 获取框架类型，以便正确传递参数
-        framework_name = getattr(memory_instance, 'get_framework_name', lambda: 'unknown')()
-        
-        # 删除记忆
-        if framework_name == 'reme':
-            # ReMe 框架需要 workspace_id 参数
-            workspace_id = analyst_id  # 直接使用 analyst_id 作为 workspace_id
-            result = memory_instance.delete(
-                memory_id=memory_id,
-                workspace_id=workspace_id
-            )
-        else:
-            # Mem0 框架不需要 workspace_id
-            result = memory_instance.delete(memory_id=memory_id)
+        # 删除记忆（使用统一的API）
+        result = memory_instance.delete(
+            memory_id=memory_id,
+            user_id=analyst_id
+        )
         
         # ✅ 打印删除成功信息
         print(f"✅ 记忆删除成功!")

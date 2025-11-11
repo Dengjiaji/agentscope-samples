@@ -1,17 +1,16 @@
 # 导入项目的memory模块
 try:
-    from src.memory.mem0_core import mem0_integration
-    from src.memory.unified_memory import unified_memory_manager
-    from mem0 import Memory
-    MEM0_AVAILABLE = True
+    from src.memory import get_memory
+    MEMORY_AVAILABLE = True
     print("成功导入项目Memory模块")
 except ImportError as e:
     print(f"无法导入项目Memory模块: {e}")
-    MEM0_AVAILABLE = False
+    MEMORY_AVAILABLE = False
 import pdb
 
 
-memo = mem0_integration.get_memory_instance("shared_analysts")
+# 使用新的记忆系统
+memory = get_memory("mock")  # 使用mock配置，或替换为你的config_name
 pdb.set_trace()
 
 
