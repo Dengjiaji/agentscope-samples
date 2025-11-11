@@ -164,6 +164,22 @@ class AdvancedInvestmentAnalysisEngine:
             
             if analysis_result:
                 print(f"{agent_name} 分析完成")
+
+                # 写入分析结果到agent记忆
+                analysis_date = state["metadata"].get("trading_date") or state["data"].get("end_date")
+                ticker_signals = []
+                for ticker, signal_data in analysis_result.items():
+                    if isinstance(signal_data, dict) and 'signal' in signal_data:
+                        ticker_signals.append(f"{ticker}: {signal_data['signal']} (置信度: {signal_data.get('confidence', 'N/A')}%)")
+                
+                from src.memory import get_memory
+                base_dir = state.get("metadata", {}).get("config_name", "mock") if state else "mock"
+                memory = get_memory(base_dir=base_dir)
+                memory.add(
+                    user_id=agent_id,
+                    content=f"[{analysis_date}] 完成分析 - {', '.join(ticker_signals) if ticker_signals else '无信号'}\n详细信息：{analysis_result}",
+                    metadata={"type": "analysis_result", "date": analysis_date}
+                )
                 
                 # 判断是否需要发送通知（可选）
                 notifications_enabled = state["metadata"].get("notifications_enabled", True)
@@ -194,6 +210,25 @@ class AdvancedInvestmentAnalysisEngine:
                         
                         print(f"通知已发送 (ID: {notification_id})")
                         print(f"通知内容: {notification_decision['content']}")
+
+                        # 广播通知到所有agent的记忆
+                        notification_content = f"[通知] 来自 {agent_id}: {notification_decision['content']}"
+                        all_agent_ids = list(self.core_analysts.keys()) + ["portfolio_manager"]
+                        from src.memory import get_memory
+                        base_dir = state.get("metadata", {}).get("config_name", "mock") if state else "mock"
+                        memory = get_memory(base_dir=base_dir)
+                        for recipient_id in all_agent_ids:
+                            memory.add(
+                                user_id=recipient_id,
+                                content=f"[{backtest_date}] {notification_content}",
+                                metadata={
+                                    "type": "notification",
+                                    "sender": agent_id,
+                                    "urgency": notification_decision.get("urgency", "medium"),
+                                    "date": backtest_date
+                                }
+                            )
+                        
                         if self.streamer:
                             self.streamer.print("agent", 
                                 f"📢 {notification_decision['content']} [Level of urgency: {notification_decision.get('urgency', 'medium')}]",
