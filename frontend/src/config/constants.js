@@ -100,7 +100,7 @@ export const CHART_MARGIN = { left: 60, right: 20, top: 20, bottom: 40 };
 export const AXIS_TICKS = 5;
 
 // WebSocket configuration
-export const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8001";
+export const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8765";
 
 // Initial ticker symbols (MAG7 companies)
 export const INITIAL_TICKERS = [

@@ -28,7 +28,7 @@ from src.servers.streamer import WebSocketStreamer, ConsoleStreamer, MultiStream
 from src.servers.polling_price_manager import PollingPriceManager
 from src.servers.state_manager import StateManager
 from src.servers.mock import MockSimulator
-from live_trading_thinking_fund import LiveTradingThinkingFund
+from live_trading_fund import LiveTradingFund
 from src.config.env_config import LiveThinkingFundConfig
 from src.tools.data_tools import get_prices
 from src.utils.progress import progress
@@ -579,8 +579,8 @@ class Server:
         )
         
         # 初始化交易系统
-        self.thinking_fund = LiveTradingThinkingFund(
-            base_dir=self.config.config_name,
+        self.thinking_fund = LiveTradingFund(
+            config_name=self.config.config_name,
             streamer=broadcast_streamer,
             mode=self.config.mode,
             initial_cash=self.config.initial_cash,
@@ -748,7 +748,7 @@ class Server:
             except Exception as e:
                 logger.error(f"❌ Dashboard 文件监控异常: {e}")
     
-    async def start(self, host: str = "0.0.0.0", port: int = 8001, mock: bool = False):
+    async def start(self, host: str = "0.0.0.0", port: int = 8765, mock: bool = False):
         """启动服务器
         
         Args:
@@ -824,7 +824,7 @@ async def main():
     parser = argparse.ArgumentParser(description='持续运行的交易系统服务器')
     parser.add_argument('--mock', action='store_true', help='使用Mock模式（测试前端）')
     parser.add_argument('--host', default='0.0.0.0', help='监听地址 (默认: 0.0.0.0)')
-    parser.add_argument('--port', type=int, default=8001, help='监听端口 (默认: 8001)')
+    parser.add_argument('--port', type=int, default=8765, help='监听端口 (默认: 8765)')
     args = parser.parse_args()
     
     # 加载配置

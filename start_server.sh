@@ -176,12 +176,12 @@ else
         echo "   历史记录: 继续使用 📚"
     fi
 fi
-echo "   WebSocket端口: 8001"
+echo "   WebSocket端口: 8765"
 echo ""
 
 # 启动服务器
 echo "🌐 启动服务器..."
-echo "   访问: http://localhost:8001"
+echo "   访问: http://localhost:8765"
 echo "   按 Ctrl+C 停止服务器"
 echo ""
 

@@ -30,7 +30,7 @@ from src.servers.streamer import BroadcastStreamer
 from src.servers.polling_price_manager import PollingPriceManager
 from src.servers.mock_price_manager import MockPriceManager
 from src.servers.state_manager import StateManager
-from live_trading_thinking_fund import LiveTradingThinkingFund
+from live_trading_fund import LiveTradingFund
 from src.config.env_config import LiveThinkingFundConfig
 from src.tools.data_tools import get_prices
 
@@ -792,8 +792,8 @@ class LiveTradingServer:
         )
         
         # 初始化交易系统
-        self.thinking_fund = LiveTradingThinkingFund(
-            base_dir=self.config.config_name,
+        self.thinking_fund = LiveTradingFund(
+            config_name=self.config.config_name,
             streamer=broadcast_streamer,
             mode=self.config.mode,
             initial_cash=self.config.initial_cash,
@@ -1034,7 +1034,7 @@ class LiveTradingServer:
             except Exception as e:
                 logger.error(f"❌ Dashboard 文件监控异常: {e}")
     
-    async def start(self, host: str = "0.0.0.0", port: int = 8001):
+    async def start(self, host: str = "0.0.0.0", port: int = 8765):
         """启动服务器"""
         self.loop = asyncio.get_event_loop()
         
@@ -1082,7 +1082,7 @@ async def main():
     parser.add_argument('--lookback-days', type=int, default=0, help='回溯天数（默认: 0，即不回测，直接运行今天）')
     parser.add_argument('--config-name', default='live_mode', help='配置名称（默认: live_mode）')
     parser.add_argument('--host', default='0.0.0.0', help='监听地址（默认: 0.0.0.0）')
-    parser.add_argument('--port', type=int, default=8001, help='监听端口（默认: 8001）')
+    parser.add_argument('--port', type=int, default=8765, help='监听端口（默认: 8765')
     parser.add_argument('--pause-before-trade', action='store_true', dest='pause_before_trade_cli', help='暂停模式：完成分析但不执行交易，仅更新价格')
     args = parser.parse_args()
     
