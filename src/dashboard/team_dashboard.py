@@ -274,19 +274,19 @@ class TeamDashboardGenerator:
         Returns:
             更新统计信息
         """
-        if pre_market_result.get('status') != 'success':
-            print(f"⚠️ {date} 交易前分析未成功，跳过仪表盘更新")
-            return {'status': 'skipped', 'reason': 'pre_market not successful'}
+        # if pre_market_result.get('status') != 'success':
+        #     print(f"⚠️ {date} 交易前分析未成功，跳过仪表盘更新")
+        #     return {'status': 'skipped', 'reason': 'pre_market not successful'}
         
         # 加载内部状态
         state = self._load_internal_state()
         
         # 提取数据
-        pm_signals = pre_market_result.get('signals', {})
         live_env = pre_market_result.get('live_env', {})
         real_returns = live_env.get('real_returns', {})
+        pm_signals = live_env.get('pm_signals', {})
         ana_signals = live_env.get('ana_signals', {})
-        
+        pdb.set_trace()
         # 时间戳（使用交易日的时间戳）
         date_obj = datetime.strptime(date, "%Y-%m-%d")
         timestamp_ms = int(date_obj.timestamp() * 1000)

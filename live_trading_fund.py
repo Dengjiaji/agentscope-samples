@@ -17,7 +17,7 @@ python live_trading_fund.py --date 2025-01-15 --config_name my_config
 # Force run
 python live_trading_fund.py --date 2025-01-15 --force-run --config_name my_config
 """
-
+import pdb
 import os
 import sys
 import argparse

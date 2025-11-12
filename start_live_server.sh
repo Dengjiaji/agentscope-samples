@@ -28,7 +28,7 @@ LOOKBACK_DAYS=0  # 默认0天，不回测历史，直接运行当前交易日
 AUTO_CLEAN=false
 CONFIG_NAME="live_mode"
 HOST="0.0.0.0"
-PORT=8001
+PORT=8765
 PAUSE_BEFORE_TRADE=false
 
 show_help() {
@@ -43,7 +43,7 @@ show_help() {
     echo "  --config-name NAME     配置名称（默认: live_mode）"
     echo "  --clean                清空历史记录"
     echo "  --host HOST            监听地址（默认: 0.0.0.0）"
-    echo "  --port PORT            监听端口（默认: 8001）"
+    echo "  --port PORT            监听端口（默认: 8765"
     echo "  --pause-before-trade   暂停模式：完成分析但不执行交易，仅更新价格"
     echo "  --help                 显示此帮助信息"
     echo ""
