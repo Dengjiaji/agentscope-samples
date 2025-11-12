@@ -30,6 +30,8 @@ CONFIG_NAME="live_mode"
 HOST="0.0.0.0"
 PORT=8765
 PAUSE_BEFORE_TRADE=false
+TIME_ACCELERATOR=1.0  # 时间加速器（1.0=正常，60.0=1分钟当1小时）
+VIRTUAL_START_TIME=""  # 虚拟起始时间
 
 show_help() {
     echo "在线交易模式启动脚本"
@@ -45,14 +47,23 @@ show_help() {
     echo "  --host HOST            监听地址（默认: 0.0.0.0）"
     echo "  --port PORT            监听端口（默认: 8765"
     echo "  --pause-before-trade   暂停模式：完成分析但不执行交易，仅更新价格"
+    echo "  --time-accelerator N   时间加速器（默认: 1.0，用于调试，60.0=1分钟当1小时）"
+    echo "  --virtual-start-time \"YYYY-MM-DD HH:MM:SS\"  虚拟起始时间（仅Mock模式，例如: \"2024-11-12 22:25:00\"）"
+    echo "                         指定后，系统将以该时间作为'今天'进行回测"
     echo "  --help                 显示此帮助信息"
+    echo ""
+    echo "回测逻辑说明:"
+    echo "  • Mock模式 + virtual-start-time: 以虚拟时间为'今天'，往前回测N天"
+    echo "  • 真实数据模式: 以当前真实时间为'今天'，往前回测N天"
+    echo "  • 回测完成后，进入'今天'的在线模式"
     echo ""
     echo "示例:"
     echo "  $0                                    # 正常模式，直接运行今天"
     echo "  $0 --mock                             # Mock模式，直接运行今天"
-    echo "  $0 --lookback-days 3                  # 回溯3天（如需历史回测）"
+    echo "  $0 --lookback-days 3                  # 真实数据，回溯3天到今天"
     echo "  $0 --pause-before-trade               # 暂停模式：分析完成后不执行交易"
-    echo "  $0 --mock --lookback-days 0 --clean   # Mock模式，直接运行今天，清空历史"
+    echo "  $0 --mock --lookback-days 5 \\        # Mock模式，从2024-11-06回测到2024-11-11"
+    echo "     --virtual-start-time \"2024-11-11 22:20:00\""
     echo ""
     exit 0
 }
@@ -86,6 +97,14 @@ while [[ $# -gt 0 ]]; do
         --pause-before-trade)
             PAUSE_BEFORE_TRADE=true
             shift
+            ;;
+        --time-accelerator)
+            TIME_ACCELERATOR="$2"
+            shift 2
+            ;;
+        --virtual-start-time)
+            VIRTUAL_START_TIME="$2"
+            shift 2
             ;;
         --help)
             show_help
@@ -303,11 +322,21 @@ echo ""
 echo "💡 功能说明:"
 echo "   ✨ 启动后立即开始实时更新股票价格板"
 if [ "$LOOKBACK_DAYS" -eq 0 ]; then
-    echo "   1. 系统将直接运行今天的交易日（不回测历史）"
+    if [ "$MOCK_MODE" = true ] && [ -n "$VIRTUAL_START_TIME" ]; then
+        echo "   1. 系统将直接运行虚拟时间的'今天'（不回测历史）"
+        echo "      参考日期: $VIRTUAL_START_TIME"
+    else
+        echo "   1. 系统将直接运行今天的交易日（不回测历史）"
+    fi
     echo "   2. 立即进行交易决策分析（不立即执行交易）"
 else
-    echo "   1. 系统将从 ${LOOKBACK_DAYS} 天前开始回测历史交易日"
-    echo "   2. 到达今天后，进行交易决策分析（不立即执行交易）"
+    if [ "$MOCK_MODE" = true ] && [ -n "$VIRTUAL_START_TIME" ]; then
+        echo "   1. 系统将以虚拟时间作为'今天'，从 ${LOOKBACK_DAYS} 天前开始回测"
+        echo "      参考日期: $VIRTUAL_START_TIME"
+    else
+        echo "   1. 系统将以真实时间作为'今天'，从 ${LOOKBACK_DAYS} 天前开始回测"
+    fi
+    echo "   2. 到达'今天'后，进行交易决策分析（不立即执行交易）"
 fi
 if [ "$MOCK_MODE" = false ]; then
     echo "   3. 如果今天是交易日且在交易时段，系统会等到收盘后才执行交易"
@@ -339,6 +368,14 @@ if [ "$PAUSE_BEFORE_TRADE" = true ]; then
     CMD="$CMD --pause-before-trade"
 fi
 
+if [ "$TIME_ACCELERATOR" != "1.0" ]; then
+    CMD="$CMD --time-accelerator $TIME_ACCELERATOR"
+fi
+
+if [ -n "$VIRTUAL_START_TIME" ]; then
+    CMD="$CMD --virtual-start-time \"$VIRTUAL_START_TIME\""
+fi
+
 # 执行命令
-$CMD
+eval $CMD
 

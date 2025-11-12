@@ -293,7 +293,6 @@ class TeamDashboardGenerator:
         real_returns = live_env.get('real_returns', {})
         pm_signals = live_env.get('pm_signals', {})
         ana_signals = live_env.get('ana_signals', {})
-        pdb.set_trace()
         # 时间戳（使用交易日的时间戳）
         date_obj = datetime.strptime(date, "%Y-%m-%d")
         timestamp_ms = int(date_obj.timestamp() * 1000)

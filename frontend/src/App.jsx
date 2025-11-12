@@ -726,6 +726,33 @@ export default function LiveTradingApp() {
         team_leaderboard: (e) => {
           if (Array.isArray(e.rows)) setLeaderboard(e.rows);
           else if (Array.isArray(e.leaderboard)) setLeaderboard(e.leaderboard);
+        },
+        
+        // 虚拟时间更新（Mock模式下的时间广播）
+        time_update: (e) => {
+          if (e.beijing_time_str) {
+            const statusEmoji = {
+              'market_open': '📊',
+              'off_market': '⏸️',
+              'non_trading_day': '📅',
+              'trade_execution': '💼'
+            };
+            
+            const emoji = statusEmoji[e.status] || '⏰';
+            let logMessage = `${emoji} 虚拟时间: ${e.beijing_time_str} | 状态: ${e.status}`;
+            
+            if (e.hours_to_open !== undefined) {
+              logMessage += ` | 距离开盘: ${e.hours_to_open}小时`;
+            }
+            if (e.hours_to_trade !== undefined) {
+              logMessage += ` | 距离交易: ${e.hours_to_trade}小时`;
+            }
+            if (e.trading_date) {
+              logMessage += ` | 交易日: ${e.trading_date}`;
+            }
+            
+            console.log(logMessage);
+          }
         }
       };
       

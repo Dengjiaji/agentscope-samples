@@ -16,7 +16,7 @@ from pathlib import Path
 from datetime import datetime, timedelta, time as datetime_time
 from typing import Set, Dict, Any, Optional, Tuple, List
 from dotenv import load_dotenv
-
+import pdb
 BASE_DIR = Path(__file__).resolve().parents[2]
 if str(BASE_DIR) not in sys.path:
     sys.path.append(str(BASE_DIR))
@@ -33,6 +33,7 @@ from src.servers.state_manager import StateManager
 from live_trading_fund import LiveTradingFund
 from src.config.env_config import LiveThinkingFundConfig
 from src.tools.data_tools import get_prices
+from src.utils.virtual_clock import VirtualClock, init_virtual_clock, get_virtual_clock
 
 # 尝试导入交易日历
 try:
@@ -51,14 +52,29 @@ logger = logging.getLogger(__name__)
 class LiveTradingServer:
     """在线交易服务器"""
     
-    def __init__(self, config: LiveThinkingFundConfig, mock_mode: bool = False, lookback_days: int = 0, pause_before_trade: bool = False):
+    def __init__(self, config: LiveThinkingFundConfig, mock_mode: bool = False, lookback_days: int = 0, pause_before_trade: bool = False, time_accelerator: float = 1.0, virtual_start_time: Optional[datetime] = None):
         self.config = config
         self.mock_mode = mock_mode
         self.lookback_days = lookback_days
         self.pause_before_trade = pause_before_trade
+        self.time_accelerator = time_accelerator  # 时间加速器，用于调试（1.0=正常，60.0=1分钟当1小时）
+        self.virtual_start_time = virtual_start_time  # 虚拟起始时间（用于Mock模式回测）
         self.connected_clients: Set[WebSocketServerProtocol] = set()
         self.lock = asyncio.Lock()
         self.loop = None
+        
+        # 初始化虚拟时钟（Mock模式下启用）
+        if mock_mode and time_accelerator != 1.0:
+            init_virtual_clock(
+                start_time=virtual_start_time,
+                time_accelerator=time_accelerator,
+                enabled=True
+            )
+            logger.info(f"🕐 虚拟时钟已启用: 加速 {time_accelerator}x, 起始时间: {virtual_start_time or '当前时间'}")
+        else:
+            init_virtual_clock(enabled=False)
+        
+        self.vclock = get_virtual_clock()
         
         # Dashboard 文件路径
         self.dashboard_dir = BASE_DIR / "logs_and_memory" / config.config_name / "sandbox_logs" / "team_dashboard"
@@ -131,6 +147,8 @@ class LiveTradingServer:
         self.current_phase = "backtest"  # backtest, live_analysis, live_monitoring
         self.is_today = False
         self.market_is_open = False
+        self.last_trading_date = None  # 记录上次执行交易的日期
+        self.trading_executed_today = False  # 标记今天是否已执行交易
     
     def _on_price_update(self, price_data: Dict[str, Any]):
         """价格更新回调 - 直接更新 holdings.json 和 stats.json 文件"""
@@ -658,6 +676,84 @@ class LiveTradingServer:
             logger.warning(f"获取收盘时间失败: {e}")
             return None
     
+    def _get_current_time_beijing(self) -> datetime:
+        """获取当前北京时间（用于美股交易时间判断）"""
+        from datetime import timezone
+        # 使用虚拟时钟（如果启用）
+        utc_now = self.vclock.now(timezone.utc)
+        beijing_tz = timezone(timedelta(hours=8))
+        return utc_now.astimezone(beijing_tz)
+    
+    def _is_market_open_time_beijing(self) -> bool:
+        """
+        检查当前北京时间是否在美股交易时段
+        美股交易时间：北京时间 22:30 - 次日 05:00（夏令时）或 23:30 - 次日 06:00（冬令时）
+        简化处理：使用 22:30 - 次日 05:00
+        """
+        now_beijing = self._get_current_time_beijing()
+        current_time = now_beijing.time()
+        
+        # 22:30 之后（今天晚上开盘）
+        if current_time >= datetime_time(22, 30):
+            return True
+        # 05:00 之前（昨天晚上开盘，今天凌晨还在交易）
+        if current_time < datetime_time(5, 0):
+            return True
+        
+        return False
+    
+    def _get_next_market_open_time_beijing(self) -> datetime:
+        """
+        获取下一次开盘时间（北京时间）
+        返回：下一次开盘的 datetime 对象（22:30）
+        """
+        now_beijing = self._get_current_time_beijing()
+        current_time = now_beijing.time()
+        
+        # 如果当前时间在 05:00 之后，22:30 之前，今天晚上开盘
+        if datetime_time(5, 0) <= current_time < datetime_time(22, 30):
+            open_time = now_beijing.replace(hour=22, minute=30, second=0, microsecond=0)
+            return open_time
+        
+        # 如果当前时间在 22:30 之后，明天晚上开盘
+        if current_time >= datetime_time(22, 30):
+            next_day = now_beijing + timedelta(days=1)
+            open_time = next_day.replace(hour=22, minute=30, second=0, microsecond=0)
+            return open_time
+        
+        # 如果当前时间在 05:00 之前，今天晚上开盘
+        open_time = now_beijing.replace(hour=22, minute=30, second=0, microsecond=0)
+        return open_time
+    
+    def _get_next_trade_execution_time_beijing(self) -> datetime:
+        """
+        获取下一次交易执行时间（北京时间）
+        返回：收盘后5分钟，即次日 05:05
+        """
+        now_beijing = self._get_current_time_beijing()
+        current_time = now_beijing.time()
+        
+        # 如果当前时间在 05:05 之前，今天凌晨 05:05 执行
+        if current_time < datetime_time(5, 5):
+            execution_time = now_beijing.replace(hour=5, minute=5, second=0, microsecond=0)
+            return execution_time
+        
+        # 否则，明天凌晨 05:05 执行
+        next_day = now_beijing + timedelta(days=1)
+        execution_time = next_day.replace(hour=5, minute=5, second=0, microsecond=0)
+        return execution_time
+    
+    def _should_execute_trading_now(self) -> bool:
+        """
+        判断当前是否应该执行交易
+        条件：收盘后5分钟（北京时间 05:05 左右）
+        """
+        now_beijing = self._get_current_time_beijing()
+        current_time = now_beijing.time()
+        
+        # 在 05:05 - 05:10 之间执行交易（给5分钟窗口）
+        return datetime_time(5, 5) <= current_time < datetime_time(5, 10)
+    
     async def handle_client(self, websocket: WebSocketServerProtocol):
         """处理客户端连接"""
         try:
@@ -801,12 +897,22 @@ class LiveTradingServer:
             pause_before_trade=self.pause_before_trade
         )
         
-        today = datetime.now().strftime("%Y-%m-%d")
+        # 确定"今天"的日期
+        # Mock模式且指定了虚拟起始时间：使用虚拟时间作为"今天"
+        # 否则：使用真实的当前时间
+        if self.mock_mode and self.virtual_start_time:
+            reference_time = self.virtual_start_time
+            today = reference_time.strftime("%Y-%m-%d")
+            logger.info(f"📅 使用虚拟时间作为参考点（今天）: {today}")
+        else:
+            reference_time = datetime.now()
+            today = reference_time.strftime("%Y-%m-%d")
+            logger.info(f"📅 使用真实时间作为参考点（今天）: {today}")
         
         # ========== 判断是否需要回测历史 ==========
         if self.lookback_days > 0:
             # ========== 阶段1: 回测历史n天 ==========
-            start_date = (datetime.now() - timedelta(days=self.lookback_days)).strftime("%Y-%m-%d")
+            start_date = (reference_time - timedelta(days=self.lookback_days)).strftime("%Y-%m-%d")
             
             trading_days = self.thinking_fund.generate_trading_dates(start_date, today)
             
@@ -852,7 +958,7 @@ class LiveTradingServer:
                     
                     # 更新状态
                     if result and result.get('pre_market'):
-                        signals = result['pre_market'].get('signals', {})
+                        signals = result['pre_market']['live_env'].get('pm_signals', {})
                         self.state_manager.update('latest_signals', signals)
                         
                         if self.config.mode == "portfolio":
@@ -934,7 +1040,8 @@ class LiveTradingServer:
                 result = None
             
             if result and result.get('pre_market'):
-                signals = result['pre_market'].get('signals', {})
+                # pdb.set_trace()
+                signals = result['pre_market']['live_env'].get('pm_signals', {})
                 self.state_manager.update('latest_signals', signals)
                 
                 await self.broadcast({
@@ -959,63 +1066,251 @@ class LiveTradingServer:
                 'content': f'❌ 今日分析失败: {str(e)}，但价格监控将继续运行'
             })
         
-        # ========== 阶段3: 进入持续监控状态 ==========
-        logger.info("===== [持续监控] 分析完成，继续价格监控 =====")
-        self.current_phase = "live_monitoring"
-        self.state_manager.update('status', 'live_monitoring')
+        # ========== 阶段3: 进入持续监控和自动交易循环 ==========
+        logger.info("===== [持续监控] 进入连续运行模式 =====")
+        await self._continuous_trading_loop()
+    
+    async def _continuous_trading_loop(self):
+        """
+        连续交易循环 - 核心逻辑
+        1. 在交易时段（22:30-05:00）启动价格监控
+        2. 在收盘后（05:05）执行交易和回测
+        3. 在非交易时段只维持页面时间更新
+        """
+        logger.info("🔄 启动连续交易循环")
+        
+        while True:
+            now_beijing = self._get_current_time_beijing()
+            current_date_str = now_beijing.strftime("%Y-%m-%d")
+            
+            # 检查是否为交易日（使用美国日期判断）
+            us_date = (now_beijing - timedelta(hours=12)).strftime("%Y-%m-%d")  # 粗略转换为美国日期
+            is_trading_day = self._is_trading_day(us_date)
+            
+            if not is_trading_day:
+                # 非交易日：只维持页面更新
+                await self._handle_non_trading_day(now_beijing)
+                await self.vclock.sleep(60)  # 每分钟检查一次（虚拟时间）
+                continue
+            
+            # 交易日逻辑
+            is_market_open = self._is_market_open_time_beijing()
+            should_execute_trade = self._should_execute_trading_now()
+            
+            if is_market_open:
+                # 市场开盘时段（22:30-05:00）：实时价格监控
+                await self._handle_market_open_period(now_beijing, us_date)
+                await self.vclock.sleep(60)  # 每分钟检查一次（虚拟时间）
+                
+            elif should_execute_trade and not self.trading_executed_today:
+                # 收盘后执行交易时间（05:05-05:10）
+                await self._handle_trade_execution(us_date)
+                self.trading_executed_today = True
+                self.last_trading_date = us_date
+                await self.vclock.sleep(300)  # 执行后等待5分钟（虚拟时间）
+                
+            else:
+                # 非交易时段（05:10-22:30）：只维持页面更新
+                await self._handle_off_market_period(now_beijing)
+                
+                # 重置今日交易标记（如果已经过了交易执行窗口）
+                if now_beijing.time() >= datetime_time(5, 10) and self.trading_executed_today:
+                    # 保持标记，直到下一个交易日
+                    pass
+                
+                # 如果接近开盘时间，缩短等待
+                next_open = self._get_next_market_open_time_beijing()
+                time_to_open = (next_open - now_beijing).total_seconds()
+                
+                if time_to_open < 600:  # 距离开盘不到10分钟
+                    await self.vclock.sleep(30)  # 虚拟时间30秒
+                else:
+                    await self.vclock.sleep(300)  # 虚拟时间5分钟
+            
+            # 检查日期变更，重置交易执行标记
+            new_date = self._get_current_time_beijing().strftime("%Y-%m-%d")
+            if new_date != current_date_str:
+                self.trading_executed_today = False
+                logger.info(f"📅 日期变更: {current_date_str} -> {new_date}，重置交易标记")
+    
+    async def _handle_non_trading_day(self, now_beijing: datetime):
+        """处理非交易日：只维持页面时间更新，不获取价格"""
+        current_phase = self.state_manager.get('status')
+        
+        if current_phase != 'non_trading_day':
+            self.current_phase = "non_trading_day"
+            self.state_manager.update('status', 'non_trading_day')
+            
+            # 停止价格管理器
+            if self.price_manager and not self.mock_mode:
+                logger.info("🛑 非交易日，停止价格获取")
+                self.price_manager.stop()
+            
+            await self.broadcast({
+                'type': 'system',
+                'content': f'📅 今天是非交易日 ({now_beijing.strftime("%Y-%m-%d")}），只维持页面更新'
+            })
+            logger.info(f"📅 非交易日: {now_beijing.strftime('%Y-%m-%d')}")
+        
+        # 广播时间更新
+        next_open = self._get_next_market_open_time_beijing()
+        hours_to_open = (next_open - now_beijing).total_seconds() / 3600
+        
+        logger.info(f"⏰ 当前时间: {now_beijing.strftime('%Y-%m-%d %H:%M:%S')} | 状态: 非交易日 | 距离开盘: {hours_to_open:.1f}小时")
+        
+        await self.broadcast({
+            'type': 'time_update',
+            'beijing_time': now_beijing.isoformat(),
+            'beijing_time_str': now_beijing.strftime('%Y-%m-%d %H:%M:%S'),
+            'status': 'non_trading_day',
+            'next_open': next_open.isoformat(),
+            'hours_to_open': round(hours_to_open, 1)
+        })
+    
+    async def _handle_market_open_period(self, now_beijing: datetime, trading_date: str):
+        """处理市场开盘时段：实时价格监控"""
+        current_phase = self.state_manager.get('status')
+        
+        if current_phase != 'market_open':
+            self.current_phase = "market_open"
+            self.state_manager.update('status', 'market_open')
+            self.state_manager.update('current_trading_date', trading_date)
+            
+            # 确保价格管理器运行
+            if self.price_manager and not self.mock_mode:
+                if not hasattr(self.price_manager, 'running') or not self.price_manager.running:
+                    logger.info("🚀 市场开盘，启动价格获取")
+                    self.price_manager.start()
+            
+            await self.broadcast({
+                'type': 'system',
+                'content': f'📊 市场开盘 (交易日: {trading_date})，实时价格监控中...'
+            })
+            logger.info(f"📊 市场开盘时段: {now_beijing.strftime('%H:%M:%S')}")
+        
+        # 计算距离收盘和交易执行的时间
+        next_trade_time = self._get_next_trade_execution_time_beijing()
+        hours_to_trade = (next_trade_time - now_beijing).total_seconds() / 3600
+        
+        logger.info(f"⏰ 当前时间: {now_beijing.strftime('%Y-%m-%d %H:%M:%S')} | 状态: 市场开盘 | 距离交易执行: {hours_to_trade:.1f}小时")
+        
+        # 广播时间和状态更新
+        await self.broadcast({
+            'type': 'time_update',
+            'beijing_time': now_beijing.isoformat(),
+            'beijing_time_str': now_beijing.strftime('%Y-%m-%d %H:%M:%S'),
+            'status': 'market_open',
+            'trading_date': trading_date,
+            'next_trade_time': next_trade_time.isoformat(),
+            'hours_to_trade': round(hours_to_trade, 1)
+        })
+    
+    async def _handle_trade_execution(self, trading_date: str):
+        """处理交易执行：收盘后执行交易并回测"""
+        logger.info(f"💼 开始执行交易 (交易日: {trading_date})")
+        
+        self.current_phase = "trade_execution"
+        self.state_manager.update('status', 'trade_execution')
         
         await self.broadcast({
             'type': 'system',
-            'content': '分析完成，价格监控持续运行中...'
+            'content': f'💼 收盘后交易执行开始 (交易日: {trading_date})...'
         })
         
-        # 检查是否需要等待收盘
-        if not self.mock_mode:
-            self.market_is_open = self._is_trading_hours()
-            is_trading_day = self._is_trading_day()
+        # 停止价格管理器
+        if self.price_manager and not self.mock_mode:
+            logger.info("🛑 停止实时价格获取，准备执行交易")
+            self.price_manager.stop()
+        
+        # 执行交易回测（类似回测脚本的逻辑）
+        loop = asyncio.get_event_loop()
+        broadcast_streamer = BroadcastStreamer(
+            broadcast_callback=self.broadcast,
+            event_loop=loop,
+            console_output=True
+        )
+        
+        # 使用现有的 thinking_fund 或创建新的
+        if not self.thinking_fund:
+            self.thinking_fund = LiveTradingFund(
+                config_name=self.config.config_name,
+                streamer=broadcast_streamer,
+                mode=self.config.mode,
+                initial_cash=self.config.initial_cash,
+                margin_requirement=self.config.margin_requirement,
+                pause_before_trade=False  # 执行交易时不暂停
+            )
+        
+        # 运行完整的交易日模拟（包括交易执行）
+        result = await asyncio.to_thread(
+            self.thinking_fund.run_full_day_simulation,
+            date=trading_date,
+            tickers=self.config.tickers,
+            max_comm_cycles=self.config.max_comm_cycles,
+            force_run=True,
+            enable_communications=not self.config.disable_communications,
+            enable_notifications=not self.config.disable_notifications
+        )
+        
+        # 更新状态
+        if result and result.get('pre_market'):
+            signals = result['pre_market']['live_env'].get('pm_signals', {})
+            self.state_manager.update('latest_signals', signals)
             
-            if not is_trading_day:
-                await self.broadcast({
-                    'type': 'system',
-                    'content': '今天不是交易日，只进行价格监控'
-                })
-                logger.info("📅 今天不是交易日，只进行价格监控")
-            elif self.market_is_open:
-                close_time = self._get_market_close_time()
-                if close_time:
-                    close_time_str = close_time.strftime("%H:%M")
-                    await self.broadcast({
-                        'type': 'system',
-                        'content': f'市场开盘中，预计收盘时间: {close_time_str}，等待收盘后执行交易...'
-                    })
-                    logger.info(f"⏳ 市场开盘中（收盘时间: {close_time_str}），将等待收盘后执行交易")
-                else:
-                    await self.broadcast({
-                        'type': 'system',
-                        'content': '市场开盘中，等待收盘后执行交易...'
-                    })
-                    logger.info("⏳ 市场开盘中，将等待收盘...")
-                
-                # TODO: 添加一个后台任务，在收盘时自动执行交易
-                # 这里可以添加定时检查，当市场收盘时触发交易执行
-            else:
-                await self.broadcast({
-                    'type': 'system',
-                    'content': '市场已收盘，可执行交易（当前版本仅等待，暂不自动执行）'
-                })
-                logger.info("✅ 市场已收盘，可执行交易")
-        else:
             await self.broadcast({
                 'type': 'system',
-                'content': 'Mock模式运行中，使用虚拟价格进行测试'
+                'content': f'✅ 交易执行完成 ({trading_date})，生成 {len(signals)} 个信号'
             })
-            logger.info("🎭 Mock模式运行中")
+            logger.info(f"✅ 交易执行完成: {trading_date}")
+            
+            # 广播交易完成事件
+            await self.broadcast({
+                'type': 'trade_execution_complete',
+                'date': trading_date,
+                'signals_count': len(signals),
+                'timestamp': datetime.now().isoformat()
+            })
         
-        # 保持运行（持续监控价格）
-        logger.info("✅ 在线模式启动完成，持续监控中...")
-        logger.info(f"💡 实时数据更新频率: {'每5秒 (Mock)' if self.mock_mode else '每10秒 (Finnhub Quote API)'}")
+        self.state_manager.save()
+        logger.info(f"💾 交易数据已保存: {trading_date}")
+    
+    async def _handle_off_market_period(self, now_beijing: datetime):
+        """处理非交易时段：只维持页面更新"""
+        current_phase = self.state_manager.get('status')
         
-        await asyncio.Future()  # 永久运行
+        if current_phase not in ['off_market', 'trade_execution']:
+            self.current_phase = "off_market"
+            self.state_manager.update('status', 'off_market')
+            
+            # 停止价格管理器
+            if self.price_manager and not self.mock_mode:
+                if hasattr(self.price_manager, 'running') and self.price_manager.running:
+                    logger.info("🛑 非交易时段，停止价格获取")
+                    self.price_manager.stop()
+            
+            next_open = self._get_next_market_open_time_beijing()
+            hours_to_open = (next_open - now_beijing).total_seconds() / 3600
+            
+            await self.broadcast({
+                'type': 'system',
+                'content': f'⏸️ 非交易时段，距离下次开盘约 {hours_to_open:.1f} 小时'
+            })
+            logger.info(f"⏸️ 非交易时段: {now_beijing.strftime('%H:%M:%S')}")
+        
+        # 广播时间更新
+        next_open = self._get_next_market_open_time_beijing()
+        hours_to_open = (next_open - now_beijing).total_seconds() / 3600
+        
+        logger.info(f"⏰ 当前时间: {now_beijing.strftime('%Y-%m-%d %H:%M:%S')} | 状态: 非交易时段 | 距离开盘: {hours_to_open:.1f}小时")
+        
+        await self.broadcast({
+            'type': 'time_update',
+            'beijing_time': now_beijing.isoformat(),
+            'beijing_time_str': now_beijing.strftime('%Y-%m-%d %H:%M:%S'),
+            'status': 'off_market',
+            'next_open': next_open.isoformat(),
+            'hours_to_open': round(hours_to_open, 1)
+        })
     
     async def _periodic_state_saver(self):
         """定期保存状态（每5分钟）"""
@@ -1084,6 +1379,8 @@ async def main():
     parser.add_argument('--host', default='0.0.0.0', help='监听地址（默认: 0.0.0.0）')
     parser.add_argument('--port', type=int, default=8765, help='监听端口（默认: 8765')
     parser.add_argument('--pause-before-trade', action='store_true', dest='pause_before_trade_cli', help='暂停模式：完成分析但不执行交易，仅更新价格')
+    parser.add_argument('--time-accelerator', type=float, default=1.0, help='时间加速器（用于调试，1.0=正常，60.0=1分钟当1小时）')
+    parser.add_argument('--virtual-start-time', type=str, default=None, help='虚拟起始时间（格式: "2024-11-12 22:25:00"，仅Mock模式有效）')
     args = parser.parse_args()
     
     # 加载配置
@@ -1117,9 +1414,26 @@ async def main():
         logger.info(f"   交易执行: ⏸️ 暂停模式（仅分析，不执行交易）[来源: {pause_source}]")
     else:
         logger.info(f"   交易执行: ▶️ 正常模式（分析后执行交易）")
+    if args.time_accelerator != 1.0:
+        logger.info(f"   ⚡ 时间加速: {args.time_accelerator}x（调试模式）")
+    
+    # 解析虚拟起始时间
+    virtual_start_time = None
+    if args.virtual_start_time and args.mock:
+        from datetime import timezone
+        virtual_start_time = datetime.strptime(args.virtual_start_time, "%Y-%m-%d %H:%M:%S")
+        virtual_start_time = virtual_start_time.replace(tzinfo=timezone(timedelta(hours=8)))  # 北京时间
+        logger.info(f"   🕐 虚拟起始时间: {virtual_start_time.strftime('%Y-%m-%d %H:%M:%S')} (北京时间)")
     
     # 创建并启动服务器
-    server = LiveTradingServer(config, mock_mode=args.mock, lookback_days=args.lookback_days, pause_before_trade=pause_before_trade)
+    server = LiveTradingServer(
+        config, 
+        mock_mode=args.mock, 
+        lookback_days=args.lookback_days, 
+        pause_before_trade=pause_before_trade,
+        time_accelerator=args.time_accelerator,
+        virtual_start_time=virtual_start_time
+    )
     await server.start(host=args.host, port=args.port)
 
 
