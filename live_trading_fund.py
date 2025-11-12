@@ -231,13 +231,13 @@ class LiveTradingFund:
                 
                 if self.mode == "signal":
                     self.streamer.print("agent", 
-                        f"{ticker}: Final signal {signal}({action}, confidence {confidence}%, daily return {daily_ret:.2f}%)",
+                        f"{ticker}: Final signal {signal}(confidence {confidence}%, daily return {daily_ret:.2f}%)",
                         role_key='portfolio_manager'
                     )
                 elif self.mode == "portfolio":
                     quantity = signal_info.get('quantity', 0)
                     self.streamer.print("agent", 
-                        f"{ticker}: Final signal {signal}({action} {quantity} shares, confidence {confidence}%, stock daily return {daily_ret:.2f}%)",
+                        f"{ticker}: Final signal {action}({quantity} shares, confidence {confidence}%, stock daily return {daily_ret:.2f}%)",
                         role_key='portfolio_manager'
                     )
 
