@@ -106,7 +106,7 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard }) {
   const speakingAgents = useMemo(() => {
     const speaking = {};
     AGENTS.forEach(agent => {
-      const bubble = bubbleFor(agent.id);
+      const bubble = bubbleFor(agent.name);
       speaking[agent.id] = !!bubble;
     });
     return speaking;
@@ -261,7 +261,7 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard }) {
             
             {/* Speech Bubbles */}
             {AGENTS.map((agent, idx) => {
-              const bubble = bubbleFor(agent.id);
+              const bubble = bubbleFor(agent.name);
               if (!bubble) return null;
               
               const pos = AGENT_SEATS[idx];
