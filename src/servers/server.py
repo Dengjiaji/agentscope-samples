@@ -30,6 +30,7 @@ from src.servers.state_manager import StateManager
 from src.servers.mock import MockSimulator
 from live_trading_fund import LiveTradingFund
 from src.config.env_config import LiveThinkingFundConfig
+from src.config.path_config import get_logs_and_memory_dir
 from src.tools.data_tools import get_prices
 from src.utils.progress import progress
 
@@ -48,7 +49,7 @@ class Server:
         self.loop = None  # 事件循环引用，在start时设置
         
         # ========== 方案B：Dashboard 文件路径 ⭐⭐⭐ ==========
-        self.dashboard_dir = BASE_DIR / "logs_and_memory" / config.config_name / "sandbox_logs" / "team_dashboard"
+        self.dashboard_dir = get_logs_and_memory_dir() / config.config_name / "sandbox_logs" / "team_dashboard"
         self.dashboard_files = {
             'summary': self.dashboard_dir / 'summary.json',
             'holdings': self.dashboard_dir / 'holdings.json',

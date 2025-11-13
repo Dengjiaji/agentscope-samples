@@ -16,6 +16,7 @@ from pathlib import Path
 from src.llm.models import get_model, ModelProvider
 from src.agents.prompt_loader import PromptLoader
 from src.config.constants import ROLE_TO_AGENT
+from src.config.path_config import get_logs_and_memory_dir
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ class MemoryOperationLogger:
     """记忆操作日志记录器"""
     
     def __init__(self, base_dir: str):
-        self.log_dir = Path("logs_and_memory") / base_dir / "memory_operations"
+        self.log_dir = get_logs_and_memory_dir() / base_dir / "memory_operations"
         self.log_dir.mkdir(parents=True, exist_ok=True)
         
         today = datetime.now().strftime("%Y%m%d")

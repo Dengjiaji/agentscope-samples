@@ -15,6 +15,7 @@ from .base import LongTermMemory
 from flowllm.storage.vector_store import ChromaVectorStore
 from flowllm.embedding_model import OpenAICompatibleEmbeddingModel
 from flowllm.schema.vector_node import VectorNode
+from src.config.path_config import get_logs_and_memory_dir
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ class ReMeMemory(LongTermMemory):
         
         # 使用全局统一的存储目录
         if ReMeMemory._global_store_dir is None:
-            ReMeMemory._global_store_dir = os.path.join("logs_and_memory", base_dir, "memory_data", "reme_vector_store")
+            ReMeMemory._global_store_dir = str(get_logs_and_memory_dir() / base_dir / "memory_data" / "reme_vector_store")
             os.makedirs(ReMeMemory._global_store_dir, exist_ok=True)
         
         self.store_dir = ReMeMemory._global_store_dir

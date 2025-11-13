@@ -11,6 +11,8 @@ set -e
 # 获取脚本所在目录
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
+# logs_and_memory 目录位于项目父目录下
+LOGS_AND_MEMORY_DIR="$SCRIPT_DIR/../logs_and_memory"
 
 # 解析参数
 MODE="normal"
@@ -75,7 +77,7 @@ CONFIG_NAME='mock'
 # 正常模式下询问是否清空历史记录
 CLEAN_HISTORY=false
 if [ "$MODE" = "normal" ]; then
-    BASE_DATA_DIR="./logs_and_memory/${CONFIG_NAME}"
+    BASE_DATA_DIR="$LOGS_AND_MEMORY_DIR/${CONFIG_NAME}"
     
     # 检查是否存在历史数据
     if [ -d "$BASE_DATA_DIR" ] && [ "$(ls -A $BASE_DATA_DIR 2>/dev/null)" ]; then

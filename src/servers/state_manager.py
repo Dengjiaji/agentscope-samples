@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, asdict, field
 
+from src.config.path_config import get_logs_and_memory_dir
+
 logger = logging.getLogger(__name__)
 
 
@@ -67,8 +69,8 @@ class StateManager:
     
     def get_state_file_path(self) -> Path:
         """获取状态文件路径"""
-        # 统一存储到 logs_and_memory/{config_name}/state/ 目录
-        state_dir = self.base_dir / "logs_and_memory" / self.config_name / "state"
+        # 统一存储到 logs_and_memory/{config_name}/state/ 目录（位于项目父目录下）
+        state_dir = get_logs_and_memory_dir() / self.config_name / "state"
         state_dir.mkdir(parents=True, exist_ok=True)
         return state_dir / f"server_state.json"  # 简化文件名
     
@@ -167,8 +169,8 @@ class StateManager:
     def load_historical_equity(self) -> Dict[str, List]:
         """加载历史equity数据"""
         try:
-            # 统一从 logs_and_memory/{config_name}/state/ 读取
-            returns_file = self.base_dir / "logs_and_memory" / self.config_name / "state" / "cumulative_returns.json"
+            # 统一从 logs_and_memory/{config_name}/state/ 读取（位于项目父目录下）
+            returns_file = get_logs_and_memory_dir() / self.config_name / "state" / "cumulative_returns.json"
             if not returns_file.exists():
                 return {'equity': [], 'baseline': [], 'strategies': []}
             

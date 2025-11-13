@@ -10,6 +10,7 @@ from typing import Dict, List, Any, Optional
 from mem0 import Memory
 
 from .base import LongTermMemory
+from src.config.path_config import get_logs_and_memory_dir
 
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,7 @@ class Mem0Memory(LongTermMemory):
         Args:
             base_dir: 存储基础目录（config_name）
         """
-        self.base_dir = os.path.join("logs_and_memory", base_dir)
+        self.base_dir = str(get_logs_and_memory_dir() / base_dir)
         
         # Mem0配置
         config = {

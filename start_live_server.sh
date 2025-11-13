@@ -20,6 +20,8 @@ set -e
 # 获取脚本所在目录
 SCRIPT_DIR="$( cd "$( dirname "$0" )" && pwd )"
 cd "$SCRIPT_DIR"
+# logs_and_memory 目录位于项目父目录下
+LOGS_AND_MEMORY_DIR="$SCRIPT_DIR/../logs_and_memory"
 
 # ==================== 解析参数 ====================
 MODE="live"
@@ -207,7 +209,7 @@ if [ "$MOCK_MODE" = false ]; then
 fi
 
 # ==================== 历史记录管理 ====================
-BASE_DATA_DIR="./logs_and_memory/${CONFIG_NAME}"
+BASE_DATA_DIR="$LOGS_AND_MEMORY_DIR/${CONFIG_NAME}"
 
 # 检查是否存在历史数据
 CLEAN_HISTORY=false
