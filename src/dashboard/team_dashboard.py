@@ -14,6 +14,20 @@ import os
 import pdb
 import pandas as pd
 
+# 尝试导入交易日历包
+try:
+    import pandas_market_calendars as mcal
+    _NYSE_CALENDAR = mcal.get_calendar('NYSE')
+    US_TRADING_CALENDAR_AVAILABLE = True
+except ImportError:
+    try:
+        import exchange_calendars as xcals
+        _NYSE_CALENDAR = xcals.get_calendar('XNYS')
+        US_TRADING_CALENDAR_AVAILABLE = True
+    except ImportError:
+        _NYSE_CALENDAR = None
+        US_TRADING_CALENDAR_AVAILABLE = False
+
 class TeamDashboardGenerator:
     """团队仪表盘数据生成器"""
     
@@ -92,6 +106,55 @@ class TeamDashboardGenerator:
         # 缓存价格数据
         self._price_cache = {}  # ticker -> DataFrame
         
+    def _get_next_trading_day(self, date: str) -> str:
+        """
+        获取指定日期的下一个交易日
+        
+        Args:
+            date: 日期字符串 (YYYY-MM-DD)
+            
+        Returns:
+            下一个交易日的日期字符串 (YYYY-MM-DD)
+        """
+        if US_TRADING_CALENDAR_AVAILABLE and _NYSE_CALENDAR is not None:
+            try:
+                # 从当前日期往后推30天，获取所有交易日
+                current_date = datetime.strptime(date, "%Y-%m-%d")
+                end_search = current_date + timedelta(days=30)
+                
+                if hasattr(_NYSE_CALENDAR, 'valid_days'):
+                    # pandas_market_calendars
+                    trading_dates = _NYSE_CALENDAR.valid_days(
+                        start_date=date,
+                        end_date=end_search.strftime("%Y-%m-%d")
+                    )
+                else:
+                    # exchange_calendars
+                    trading_dates = _NYSE_CALENDAR.sessions_in_range(
+                        date,
+                        end_search.strftime("%Y-%m-%d")
+                    )
+                
+                # 转换为日期列表
+                trading_dates_list = [pd.Timestamp(d).strftime("%Y-%m-%d") for d in trading_dates]
+                
+                # 查找当前日期在列表中的位置
+                if date in trading_dates_list:
+                    idx = trading_dates_list.index(date)
+                    if idx + 1 < len(trading_dates_list):
+                        return trading_dates_list[idx + 1]
+                else:
+                    # 如果当前日期不是交易日，返回第一个交易日
+                    if trading_dates_list:
+                        return trading_dates_list[0]
+            except Exception as e:
+                print(f"⚠️ 获取下一个交易日失败 ({date}): {e}")
+        
+        # Fallback: 简单加1天（不考虑周末和节假日）
+        current_date = datetime.strptime(date, "%Y-%m-%d")
+        next_date = current_date + timedelta(days=1)
+        return next_date.strftime("%Y-%m-%d")
+    
     def _load_json(self, file_path: Path, default: Any = None) -> Any:
         """加载JSON文件"""
         if not file_path.exists():
@@ -293,9 +356,13 @@ class TeamDashboardGenerator:
         real_returns = live_env.get('real_returns', {})
         pm_signals = live_env.get('pm_signals', {})
         ana_signals = live_env.get('ana_signals', {})
-        # 时间戳（使用交易日的时间戳）
-        date_obj = datetime.strptime(date, "%Y-%m-%d")
-        timestamp_ms = int(date_obj.timestamp() * 1000)
+        # 时间戳（使用下一个交易日的05:00:00 Asia/Shanghai时区）
+        # 这样equity value会显示在下一个交易日的05:00位置
+        next_trading_day_str = self._get_next_trading_day(date)
+        next_trading_day_obj = datetime.strptime(next_trading_day_str, "%Y-%m-%d")
+        # 设置为05:00:00（Asia/Shanghai时区的05:00）
+        next_day_0500 = next_trading_day_obj.replace(hour=5, minute=0, second=0, microsecond=0)
+        timestamp_ms = int(next_day_0500.timestamp() * 1000)
         
         update_stats = {
             'date': date,
@@ -800,13 +867,19 @@ class TeamDashboardGenerator:
         portfolio_state = state['portfolio_state']
         
         # 如果是第一次更新（历史记录为空），先添加初始点（和 Baseline 保持一致）
+        # 初始值使用当天的05:00:00，而不是下一个交易日的05:00
         if len(state['equity_history']) == 0:
+            date_obj = datetime.strptime(date, "%Y-%m-%d")
+            # 设置为当天的05:00:00（Asia/Shanghai时区）
+            date_0500 = date_obj.replace(hour=5, minute=0, second=0, microsecond=0)
+            initial_timestamp_ms = int(date_0500.timestamp() * 1000)
+            
             initial_point = {
-                't': timestamp_ms,
+                't': initial_timestamp_ms,
                 'v': round(self.initial_cash, 2)  # $100,000
             }
             state['equity_history'].append(initial_point)
-            print(f"📊 Portfolio 初始点: ${self.initial_cash:,.2f}")
+            print(f"📊 Portfolio 初始点: ${self.initial_cash:,.2f} at {date} 05:00:00")
         
         # 计算当前总价值：现金 + 持仓市值（使用真实价格）
         cash = portfolio_state['cash']
@@ -934,14 +1007,20 @@ class TeamDashboardGenerator:
         baseline_state = state['baseline_state']
         
         # 如果 baseline 刚初始化，且历史记录为空，先添加初始点
+        # 初始值使用当天的05:00:00，而不是下一个交易日的05:00
         if baseline_state['initialized'] and len(state['baseline_history']) == 0:
+            date_obj = datetime.strptime(date, "%Y-%m-%d")
+            # 设置为当天的05:00:00（Asia/Shanghai时区）
+            date_0500 = date_obj.replace(hour=5, minute=0, second=0, microsecond=0)
+            initial_timestamp_ms = int(date_0500.timestamp() * 1000)
+            
             # 添加初始资金作为起始点（和 Portfolio 保持一致）
             initial_point = {
-                't': timestamp_ms,
+                't': initial_timestamp_ms,
                 'v': round(self.initial_cash, 2)  # $100,000
             }
             state['baseline_history'].append(initial_point)
-            print(f"📊 Buy & Hold 初始点: ${self.initial_cash:,.2f}")
+            print(f"📊 Buy & Hold 初始点: ${self.initial_cash:,.2f} at {date} 05:00:00")
         
         # 计算 Buy & Hold 策略的当前总价值
         baseline_value = self._calculate_buy_and_hold_value(date, state)
@@ -1084,14 +1163,20 @@ class TeamDashboardGenerator:
         baseline_vw_state = state['baseline_vw_state']
         
         # 如果 baseline_vw 刚初始化，且历史记录为空，先添加初始点
+        # 初始值使用当天的05:00:00，而不是下一个交易日的05:00
         if baseline_vw_state['initialized'] and len(state['baseline_vw_history']) == 0:
+            date_obj = datetime.strptime(date, "%Y-%m-%d")
+            # 设置为当天的05:00:00（Asia/Shanghai时区）
+            date_0500 = date_obj.replace(hour=5, minute=0, second=0, microsecond=0)
+            initial_timestamp_ms = int(date_0500.timestamp() * 1000)
+            
             # 添加初始资金作为起始点
             initial_point = {
-                't': timestamp_ms,
+                't': initial_timestamp_ms,
                 'v': round(self.initial_cash, 2)
             }
             state['baseline_vw_history'].append(initial_point)
-            print(f"📊 价值加权 Buy & Hold 初始点: ${self.initial_cash:,.2f}")
+            print(f"📊 价值加权 Buy & Hold 初始点: ${self.initial_cash:,.2f} at {date} 05:00:00")
         
         # 计算价值加权 Buy & Hold 策略的当前总价值
         baseline_vw_value = self._calculate_buy_and_hold_vw_value(date, state)
@@ -1307,13 +1392,19 @@ class TeamDashboardGenerator:
             self._rebalance_momentum_portfolio(date, available_tickers, state)
         
         # 如果动量策略刚初始化，且历史记录为空，先添加初始点
+        # 初始值使用当天的05:00:00，而不是下一个交易日的05:00
         if momentum_state['initialized'] and len(state['momentum_history']) == 0:
+            date_obj = datetime.strptime(date, "%Y-%m-%d")
+            # 设置为当天的05:00:00（Asia/Shanghai时区）
+            date_0500 = date_obj.replace(hour=5, minute=0, second=0, microsecond=0)
+            initial_timestamp_ms = int(date_0500.timestamp() * 1000)
+            
             initial_point = {
-                't': timestamp_ms,
+                't': initial_timestamp_ms,
                 'v': round(self.initial_cash, 2)
             }
             state['momentum_history'].append(initial_point)
-            print(f"📊 动量策略初始点: ${self.initial_cash:,.2f}")
+            print(f"📊 动量策略初始点: ${self.initial_cash:,.2f} at {date} 05:00:00")
         
         # 计算动量策略的当前总价值
         momentum_value = self._calculate_momentum_value(date, state)
