@@ -300,7 +300,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
                       fontSize: 16,
                       color: isBull ? '#00C853' : isBear ? '#FF1744' : '#555555'
                     }}>
-                      {isBull ? '▲' : isBear ? '▼' : '—'}
+                      {isBull ? 'bull' : isBear ? 'bear' : 'neutral'}
                     </div>
                     <div style={{
                       fontSize: 8,
@@ -310,9 +310,9 @@ export default function AgentCard({ agent, onClose, isClosing }) {
                     </div>
                     <div style={{
                       fontSize: 14,
-                      color: isUnknown ? '#555555' : (isCorrect ? '#00C853' : '#FF1744')
+                      color: '#555555'
                     }}>
-                      {isUnknown ? '?' : (isCorrect ? '✓' : '✗')}
+                      {isUnknown ? 'unknown' : (isCorrect ? 'correct' : 'wrong')}
                     </div>
                   </div>
                 );
