@@ -725,6 +725,54 @@ class LiveTradingServer:
         open_time = now_beijing.replace(hour=22, minute=30, second=0, microsecond=0)
         return open_time
     
+    def _get_market_status(self) -> Dict[str, Any]:
+        """
+        获取当前市场状态信息
+        
+        Returns:
+            包含市场状态的字典
+        """
+        now_beijing = self._get_current_time_beijing()
+        current_date_str = now_beijing.strftime("%Y-%m-%d")
+        
+        # 检查是否为交易日（使用美国日期判断）
+        us_date = (now_beijing - timedelta(hours=12)).strftime("%Y-%m-%d")
+        is_trading_day = self._is_trading_day(us_date)
+        
+        if not is_trading_day:
+            return {
+                'status': 'closed',
+                'status_text': 'US Market Closed',
+                'is_trading_day': False,
+                'is_market_open': False,
+                'current_time': now_beijing.isoformat(),
+                'current_time_str': now_beijing.strftime('%Y-%m-%d %H:%M:%S')
+            }
+        
+        # 交易日：检查是否在交易时段
+        is_market_open = self._is_market_open_time_beijing()
+        
+        if is_market_open:
+            return {
+                'status': 'open',
+                'status_text': 'US Market Open',
+                'is_trading_day': True,
+                'is_market_open': True,
+                'current_time': now_beijing.isoformat(),
+                'current_time_str': now_beijing.strftime('%Y-%m-%d %H:%M:%S'),
+                'trading_date': us_date
+            }
+        else:
+            return {
+                'status': 'closed',
+                'status_text': 'US Market Closed',
+                'is_trading_day': True,
+                'is_market_open': False,
+                'current_time': now_beijing.isoformat(),
+                'current_time_str': now_beijing.strftime('%Y-%m-%d %H:%M:%S'),
+                'trading_date': us_date
+            }
+    
     def _get_next_trade_execution_time_beijing(self) -> datetime:
         """
         获取下一次交易执行时间（北京时间）
@@ -802,6 +850,10 @@ class LiveTradingServer:
                 logger.info(f"✅ 从文件加载 Dashboard 数据成功")
             except Exception as e:
                 logger.error(f"⚠️ 从文件加载 Dashboard 数据失败: {e}")
+            
+            # 添加服务器模式和市场状态信息
+            initial_state['server_mode'] = 'live'
+            initial_state['market_status'] = self._get_market_status()
             
             # 发送完整状态
             await websocket.send(json.dumps({
@@ -1158,13 +1210,21 @@ class LiveTradingServer:
         
         logger.info(f"⏰ 当前时间: {now_beijing.strftime('%Y-%m-%d %H:%M:%S')} | 状态: 非交易日 | 距离开盘: {hours_to_open:.1f}小时")
         
+        market_status = self._get_market_status()
         await self.broadcast({
             'type': 'time_update',
             'beijing_time': now_beijing.isoformat(),
             'beijing_time_str': now_beijing.strftime('%Y-%m-%d %H:%M:%S'),
             'status': 'non_trading_day',
             'next_open': next_open.isoformat(),
-            'hours_to_open': round(hours_to_open, 1)
+            'hours_to_open': round(hours_to_open, 1),
+            'market_status': market_status
+        })
+        
+        # 单独广播市场状态更新
+        await self.broadcast({
+            'type': 'market_status_update',
+            'market_status': market_status
         })
     
     async def _handle_market_open_period(self, now_beijing: datetime, trading_date: str):
@@ -1195,6 +1255,7 @@ class LiveTradingServer:
         logger.info(f"⏰ 当前时间: {now_beijing.strftime('%Y-%m-%d %H:%M:%S')} | 状态: 市场开盘 | 距离交易执行: {hours_to_trade:.1f}小时")
         
         # 广播时间和状态更新
+        market_status = self._get_market_status()
         await self.broadcast({
             'type': 'time_update',
             'beijing_time': now_beijing.isoformat(),
@@ -1202,7 +1263,14 @@ class LiveTradingServer:
             'status': 'market_open',
             'trading_date': trading_date,
             'next_trade_time': next_trade_time.isoformat(),
-            'hours_to_trade': round(hours_to_trade, 1)
+            'hours_to_trade': round(hours_to_trade, 1),
+            'market_status': market_status
+        })
+        
+        # 单独广播市场状态更新
+        await self.broadcast({
+            'type': 'market_status_update',
+            'market_status': market_status
         })
     
     async def _handle_trade_execution(self, trading_date: str):
@@ -1303,13 +1371,21 @@ class LiveTradingServer:
         
         logger.info(f"⏰ 当前时间: {now_beijing.strftime('%Y-%m-%d %H:%M:%S')} | 状态: 非交易时段 | 距离开盘: {hours_to_open:.1f}小时")
         
+        market_status = self._get_market_status()
         await self.broadcast({
             'type': 'time_update',
             'beijing_time': now_beijing.isoformat(),
             'beijing_time_str': now_beijing.strftime('%Y-%m-%d %H:%M:%S'),
             'status': 'off_market',
             'next_open': next_open.isoformat(),
-            'hours_to_open': round(hours_to_open, 1)
+            'hours_to_open': round(hours_to_open, 1),
+            'market_status': market_status
+        })
+        
+        # 单独广播市场状态更新
+        await self.broadcast({
+            'type': 'market_status_update',
+            'market_status': market_status
         })
     
     async def _periodic_state_saver(self):
@@ -1326,6 +1402,18 @@ class LiveTradingServer:
             try:
                 await asyncio.sleep(5)
                 await self._broadcast_dashboard_from_files()
+                
+                # 定期更新市场状态（每30秒）
+                if hasattr(self, '_last_market_status_update'):
+                    if (datetime.now() - self._last_market_status_update).total_seconds() >= 60:
+                        market_status = self._get_market_status()
+                        await self.broadcast({
+                            'type': 'market_status_update',
+                            'market_status': market_status
+                        })
+                        self._last_market_status_update = datetime.now()
+                else:
+                    self._last_market_status_update = datetime.now()
             except Exception as e:
                 logger.error(f"❌ Dashboard 文件监控异常: {e}")
     

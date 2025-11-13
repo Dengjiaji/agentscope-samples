@@ -490,6 +490,13 @@ class Server:
                 
                 initial_state['portfolio'] = initial_portfolio
             
+            # 添加服务器模式标识（回测模式）
+            initial_state['server_mode'] = 'backtest'
+            initial_state['market_status'] = {
+                'status': 'backtest',
+                'status_text': 'Backtest Mode'
+            }
+            
             # 发送完整状态给新连接的客户端
             await websocket.send(json.dumps({
                 'type': 'initial_state',
@@ -595,8 +602,9 @@ class Server:
         
         # 生成交易日列表
         start_date = self.config.start_date or "2025-11-07"
-        end_date = self.config.end_date or datetime.now().strftime("%Y-%m-%d")
-        
+        # end_date = self.config.end_date or datetime.now().strftime("%Y-%m-%d")
+        end_date = self.config.end_date or "2025-11-12"
+
         trading_days = self.thinking_fund.generate_trading_dates(start_date, end_date)
         logger.info(f"📅 计划运行 {len(trading_days)} 个交易日: {start_date} -> {end_date}")
         

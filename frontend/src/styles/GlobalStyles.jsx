@@ -101,7 +101,6 @@ export default function GlobalStyles() {
       }
       
       .header-status {
-        margin-left: auto;
         padding: 14px 20px;
         display: flex;
         align-items: center;

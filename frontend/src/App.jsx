@@ -73,6 +73,10 @@ export default function LiveTradingApp() {
   const [leftWidth, setLeftWidth] = useState(70); // percentage
   const [isResizing, setIsResizing] = useState(false);
   
+  // Market status
+  const [serverMode, setServerMode] = useState(null); // 'live' | 'backtest' | null
+  const [marketStatus, setMarketStatus] = useState(null); // { status, status_text, ... }
+  
   const clientRef = useRef(null);
   const containerRef = useRef(null);
   
@@ -342,6 +346,14 @@ export default function LiveTradingApp() {
             setSystemStatus(state.status || 'initializing');
             setCurrentDate(state.current_date);
             
+            // 设置服务器模式和市场状态
+            if (state.server_mode) {
+              setServerMode(state.server_mode);
+            }
+            if (state.market_status) {
+              setMarketStatus(state.market_status);
+            }
+            
             if (state.trading_days_total) {
               setProgress({
                 current: state.trading_days_completed || 0,
@@ -377,6 +389,13 @@ export default function LiveTradingApp() {
             console.log('Initial state loaded');
           } catch (error) {
             console.error('Error loading initial state:', error);
+          }
+        },
+        
+        // Market status update
+        market_status_update: (e) => {
+          if (e.market_status) {
+            setMarketStatus(e.market_status);
           }
         },
         
@@ -730,6 +749,11 @@ export default function LiveTradingApp() {
             
             console.log(logMessage);
           }
+          
+          // 更新市场状态（如果包含在time_update中）
+          if (e.market_status) {
+            setMarketStatus(e.market_status);
+          }
         }
       };
       
@@ -803,23 +827,61 @@ export default function LiveTradingApp() {
           <span>TRADING INTELLIGENCE</span>
         </div>
         
-        {/* Real-time Update Indicator */}
-        <div className="header-status">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              background: isUpdating ? '#4CAF50' : (isConnected ? '#9E9E9E' : '#FF1744'),
-              animation: isUpdating ? 'pulse 1s infinite' : 'none'
-            }} />
-            <span className={`status-indicator ${isConnected ? 'live' : 'disconnected'}`}>
-              {isConnected ? (isUpdating ? '⟳ Updating...' : '✓ Live Data') : '○ OFFLINE'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginLeft: 'auto' }}>
+          {/* Market Status Indicator */}
+          {serverMode && marketStatus && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '4px 12px',
+              borderRadius: 4,
+              background: serverMode === 'backtest' 
+                ? '#424242' 
+                : (marketStatus.status === 'open' ? '#1B5E20' : '#B71C1C'),
+              border: `1px solid ${serverMode === 'backtest' 
+                ? '#616161' 
+                : (marketStatus.status === 'open' ? '#4CAF50' : '#F44336')}`
+            }}>
+              <span style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: serverMode === 'backtest' 
+                  ? '#9E9E9E' 
+                  : (marketStatus.status === 'open' ? '#4CAF50' : '#F44336'),
+                flexShrink: 0
+              }} />
+              <span style={{
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#FFFFFF',
+                fontFamily: '"Courier New", monospace',
+                letterSpacing: '0.5px'
+              }}>
+                {marketStatus.status_text || 'Status'}
+              </span>
+            </div>
+          )}
+          
+          {/* Real-time Update Indicator */}
+          <div className="header-status">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: isUpdating ? '#4CAF50' : (isConnected ? '#9E9E9E' : '#FF1744'),
+                animation: isUpdating ? 'pulse 1s infinite' : 'none'
+              }} />
+              <span className={`status-indicator ${isConnected ? 'live' : 'disconnected'}`}>
+                {isConnected ? (isUpdating ? '⟳ Updating...' : '✓ Live Data') : '○ OFFLINE'}
+              </span>
+            </div>
+            <span style={{ fontSize: '11px', color: '#999', fontFamily: '"Courier New", monospace' }}>
+              LAST UPDATE: {lastUpdate.toLocaleTimeString()}
             </span>
           </div>
-          <span style={{ fontSize: '11px', color: '#999', fontFamily: '"Courier New", monospace' }}>
-            LAST UPDATE: {lastUpdate.toLocaleTimeString()}
-          </span>
         </div>
       </div>
       

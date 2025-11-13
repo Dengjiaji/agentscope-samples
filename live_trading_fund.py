@@ -307,22 +307,20 @@ class LiveTradingFund:
             # Portfolio mode: Display detailed operation info
             for ticker in tickers:
                 if ticker in pm_signals:
-                    # pdb.set_trace()
                     signal_info = pm_signals[ticker]
                     action = signal_info.get('action', 'N/A')
                     quantity = signal_info.get('quantity', 0)
                     confidence = signal_info.get('confidence', 'N/A')
-                    signal = signal_info.get('signal', 'N/A')
                     reasoning = signal_info.get('reasoning', '')
                     
                     # Display operation and quantity
                     if quantity > 0:
                         pm_review_lines.append(
-                            f"  {ticker}: {signal} ({action} {quantity} shares, confidence: {confidence}%)"
+                            f"  {ticker}: {action} ({quantity} shares, confidence: {confidence}%)"
                         )
                     else:
                         pm_review_lines.append(
-                            f"  {ticker}: {signal} ({action}, confidence: {confidence}%)"
+                            f"  {ticker}: {action} ( confidence: {confidence}%)"
                         )
                     
                     # Add decision reasoning
@@ -337,7 +335,7 @@ class LiveTradingFund:
                     signal_info = pm_signals[ticker]
                     reasoning = signal_info.get('reasoning', '')
                     pm_review_lines.append(
-                        f"  {ticker}: {signal_info.get('signal', 'N/A')} ({signal_info.get('action', 'N/A')}, confidence: {signal_info.get('confidence', 'N/A')}%)"
+                        f"  {ticker}: {signal_info['signal']} (confidence: {signal_info.get('confidence', 'N/A')}%)"
                     )
                     # Add decision reasoning
                     if reasoning:
