@@ -29,7 +29,7 @@ from src.communication.notification_system import notification_system
 from src.communication import should_send_notification
 
 # Import second round LLM analysis
-from src.agents.second_round_llm_analyst import (
+from src.agents.analyst_agent import (
     run_second_round_llm_analysis,
     format_second_round_result_for_state,
 )
