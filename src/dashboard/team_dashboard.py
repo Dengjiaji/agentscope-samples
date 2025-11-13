@@ -14,19 +14,8 @@ import os
 import pdb
 import pandas as pd
 
-# 尝试导入交易日历包
-try:
-    import pandas_market_calendars as mcal
-    _NYSE_CALENDAR = mcal.get_calendar('NYSE')
-    US_TRADING_CALENDAR_AVAILABLE = True
-except ImportError:
-    try:
-        import exchange_calendars as xcals
-        _NYSE_CALENDAR = xcals.get_calendar('XNYS')
-        US_TRADING_CALENDAR_AVAILABLE = True
-    except ImportError:
-        _NYSE_CALENDAR = None
-        US_TRADING_CALENDAR_AVAILABLE = False
+import pandas_market_calendars as mcal
+
 
 class TeamDashboardGenerator:
     """团队仪表盘数据生成器"""
@@ -116,6 +105,8 @@ class TeamDashboardGenerator:
         Returns:
             下一个交易日的日期字符串 (YYYY-MM-DD)
         """
+        _NYSE_CALENDAR = mcal.get_calendar('NYSE')
+
         if US_TRADING_CALENDAR_AVAILABLE and _NYSE_CALENDAR is not None:
             try:
                 # 从当前日期往后推30天，获取所有交易日

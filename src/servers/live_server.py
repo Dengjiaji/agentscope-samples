@@ -35,14 +35,10 @@ from src.config.env_config import LiveThinkingFundConfig
 from src.tools.data_tools import get_prices
 from src.utils.virtual_clock import VirtualClock, init_virtual_clock, get_virtual_clock
 
-# 尝试导入交易日历
-try:
-    import pandas_market_calendars as mcal
-    _NYSE_CALENDAR = mcal.get_calendar('NYSE')
-    CALENDAR_AVAILABLE = True
-except ImportError:
-    _NYSE_CALENDAR = None
-    CALENDAR_AVAILABLE = False
+
+import pandas_market_calendars as mcal
+_NYSE_CALENDAR = mcal.get_calendar('NYSE')
+
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -603,7 +599,7 @@ class LiveTradingServer:
         Returns:
             是否为交易日
         """
-        if not CALENDAR_AVAILABLE or not _NYSE_CALENDAR:
+        if not _NYSE_CALENDAR:
             # 如果没有日历，简单判断（周一到周五）
             target_date = datetime.strptime(date_str, "%Y-%m-%d") if date_str else datetime.now()
             return target_date.weekday() < 5  # 0-4 是周一到周五
@@ -624,7 +620,7 @@ class LiveTradingServer:
         Returns:
             是否在交易时段
         """
-        if not CALENDAR_AVAILABLE or not _NYSE_CALENDAR:
+        if not _NYSE_CALENDAR:
             # 如果没有日历，简单判断
             now = datetime.now()
             # 注意：这里假设本地时间接近美东时间，实际应该转换时区
@@ -656,7 +652,7 @@ class LiveTradingServer:
         Returns:
             收盘时间（datetime对象），如果不是交易日返回None
         """
-        if not CALENDAR_AVAILABLE or not _NYSE_CALENDAR:
+        if not _NYSE_CALENDAR:
             # 简化处理：假设收盘时间为16:00
             now = datetime.now()
             if now.weekday() >= 5:

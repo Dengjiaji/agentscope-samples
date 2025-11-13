@@ -10,13 +10,9 @@ from typing import Dict, List, Any, Optional, Annotated
 from pydantic import Field
 from agentscope.tool import Toolkit
 
-# 导入记忆模块
-try:
-    from src.memory import get_memory
-    MEMORY_AVAILABLE = True
-except ImportError as e:
-    print(f"警告: 无法导入记忆模块: {e}")
-    MEMORY_AVAILABLE = False
+
+from src.memory import get_memory
+
 
 
 # 全局base_dir缓存
@@ -39,7 +35,7 @@ def set_memory_tools_streamer(streamer):
 def _get_memory_instance():
     """获取记忆实例"""
     global _cached_base_dir
-    if not MEMORY_AVAILABLE or not _cached_base_dir:
+    if not _cached_base_dir:
         return None
     return get_memory(_cached_base_dir)
 

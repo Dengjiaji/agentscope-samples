@@ -20,19 +20,9 @@ from src.data.schema import (
     CompanyFactsResponse,
 )
 
-# 尝试导入交易日历包
-try:
-    import pandas_market_calendars as mcal
-    _NYSE_CALENDAR = mcal.get_calendar('NYSE')
-    US_TRADING_CALENDAR_AVAILABLE = True
-except ImportError:
-    try:
-        import exchange_calendars as xcals
-        _NYSE_CALENDAR = xcals.get_calendar('XNYS')
-        US_TRADING_CALENDAR_AVAILABLE = True
-    except ImportError:
-        _NYSE_CALENDAR = None
-        US_TRADING_CALENDAR_AVAILABLE = False
+
+import pandas_market_calendars as mcal
+
 
 # Global cache instance
 _cache = get_cache()
@@ -49,8 +39,9 @@ def get_last_tradeday(date: str) -> str:
         上一个交易日的日期字符串 (YYYY-MM-DD)
     """
     current_date = datetime.datetime.strptime(date, "%Y-%m-%d")
-    
-    if US_TRADING_CALENDAR_AVAILABLE and _NYSE_CALENDAR is not None:
+    _NYSE_CALENDAR = mcal.get_calendar('NYSE')
+
+    if _NYSE_CALENDAR is not None:
         # 获取当前日期之前的交易日
         # 从当前日期往前推90天，获取所有交易日
         start_search = current_date - datetime.timedelta(days=90)

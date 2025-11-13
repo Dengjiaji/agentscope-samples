@@ -18,15 +18,8 @@ from matplotlib import rcParams
 import seaborn as sns
 
 # Try importing US trading calendar packages
-try:
-    import pandas_market_calendars as mcal
-    US_TRADING_CALENDAR_AVAILABLE = True
-except ImportError:
-    try:
-        import exchange_calendars as xcals
-        US_TRADING_CALENDAR_AVAILABLE = True
-    except ImportError:
-        US_TRADING_CALENDAR_AVAILABLE = False
+import pandas_market_calendars as mcal
+
 
 from src.tools.data_tools import (
     get_prices,
@@ -89,7 +82,7 @@ class MultiDayStrategy:
         
         # Cache NYSE calendar object (avoid repeated loading)
         self.nyse_calendar = None
-        if US_TRADING_CALENDAR_AVAILABLE and 'mcal' in globals():
+        if 'mcal' in globals():
             try:
                 self.nyse_calendar = mcal.get_calendar('NYSE')
             except Exception as e:
@@ -177,7 +170,7 @@ class MultiDayStrategy:
                 return True  # Default to trading day on error
         
         # Fallback: use exchange_calendars
-        if US_TRADING_CALENDAR_AVAILABLE and 'xcals' in globals():
+        if 'xcals' in globals():
             try:
                 nyse = xcals.get_calendar('XNYS')  # NYSE ISO code
                 trading_dates = nyse.sessions_in_range(date, date)
@@ -198,26 +191,22 @@ class MultiDayStrategy:
         Returns:
             List of trading dates
         """
-        if US_TRADING_CALENDAR_AVAILABLE:
-            try:
-                # Priority: use pandas_market_calendars
-                if 'mcal' in globals():
-                    nyse = mcal.get_calendar('NYSE')
-                    trading_dates = nyse.valid_days(start_date=start_date, end_date=end_date)
-                    return [date.strftime("%Y-%m-%d") for date in trading_dates]
+        try:
+            # Priority: use pandas_market_calendars
+            if 'mcal' in globals():
+                nyse = mcal.get_calendar('NYSE')
+                trading_dates = nyse.valid_days(start_date=start_date, end_date=end_date)
+                return [date.strftime("%Y-%m-%d") for date in trading_dates]
+            
+            # Alternative: use exchange_calendars
+            elif 'xcals' in globals():
+                nyse = xcals.get_calendar('XNYS')  # NYSE ISO code
+                trading_dates = nyse.sessions_in_range(start_date, end_date)
+                return [date.strftime("%Y-%m-%d") for date in trading_dates]
                 
-                # Alternative: use exchange_calendars
-                elif 'xcals' in globals():
-                    nyse = xcals.get_calendar('XNYS')  # NYSE ISO code
-                    trading_dates = nyse.sessions_in_range(start_date, end_date)
-                    return [date.strftime("%Y-%m-%d") for date in trading_dates]
-                    
-            except Exception as e:
-                print(f"⚠️ Failed to get US trading calendar, falling back to simple business days: {e}")
-        else:
-            print(f"⚠️ US trading calendar package not installed, using simple business days")
-            print(f"   Recommended: pip install pandas_market_calendars")
-        
+        except Exception as e:
+            print(f"⚠️ Failed to get US trading calendar, falling back to simple business days: {e}")
+       
         # Fallback to simple business day method
         date_range = pd.date_range(start_date, end_date, freq="B")
         return [date.strftime("%Y-%m-%d") for date in date_range]
