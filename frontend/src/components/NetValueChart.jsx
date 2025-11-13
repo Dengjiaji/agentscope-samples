@@ -3,31 +3,294 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { formatNumber, formatFullNumber } from '../utils/formatters';
 
 /**
+ * Helper function to get the start time of the most recent trading session
+ * Trading session: 22:30 - next day 05:00
+ */
+function getRecentTradingSessionStart() {
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+  
+  // Check if currently in trading session
+  const isInTradingSession = (currentHour === 22 && currentMinute >= 30) || 
+                              currentHour >= 23 || 
+                              (currentHour >= 0 && currentHour < 5) ||
+                              (currentHour === 5 && currentMinute === 0);
+  
+  let sessionStartTime;
+  if (isInTradingSession) {
+    // Currently in trading session, find today's 22:30
+    sessionStartTime = new Date(now);
+    sessionStartTime.setHours(22, 30, 0, 0);
+    // If current time is before 22:30, it means yesterday's 22:30
+    if (now < sessionStartTime) {
+      sessionStartTime.setDate(sessionStartTime.getDate() - 1);
+    }
+  } else {
+    // Not in trading session, find previous session start (yesterday 22:30)
+    sessionStartTime = new Date(now);
+    sessionStartTime.setDate(sessionStartTime.getDate() - 1);
+    sessionStartTime.setHours(22, 30, 0, 0);
+  }
+  
+  return sessionStartTime;
+}
+
+/**
+ * Helper function to filter strategy data for live view
+ * Returns data matching the structure of filteredEquity (with start point if applicable)
+ * strategyData should be an array of { t: timestamp, v: value } objects
+ */
+function filterStrategyDataForLive(strategyData, equity, sessionStartTime) {
+  if (!strategyData || strategyData.length === 0 || !equity || equity.length === 0) return [];
+  
+  // Find the last index before session
+  let lastDataBeforeSession = null;
+  for (let i = equity.length - 1; i >= 0; i--) {
+    if (equity[i].t < sessionStartTime.getTime()) {
+      if (strategyData[i] && strategyData[i].v !== undefined && strategyData[i].v !== null) {
+        lastDataBeforeSession = strategyData[i];
+      }
+      break;
+    }
+  }
+  
+  // Find data points in the session
+  const sessionData = [];
+  for (let i = 0; i < equity.length; i++) {
+    if (equity[i].t >= sessionStartTime.getTime() && strategyData[i] && 
+        strategyData[i].v !== undefined && strategyData[i].v !== null) {
+      sessionData.push(strategyData[i]);
+    }
+  }
+  
+  // If we have a value before session and session data, add the start point
+  // Create a start point with timestamp just before session start
+  if (lastDataBeforeSession && sessionData.length > 0) {
+    const startPoint = {
+      t: sessionStartTime.getTime() - 1,
+      v: lastDataBeforeSession.v
+    };
+    return [startPoint, ...sessionData];
+  }
+  
+  return sessionData;
+}
+
+/**
  * Net Value Chart Component
  * Displays portfolio value over time with multiple strategy comparisons
  */
-export default function NetValueChart({ equity, baseline, baseline_vw, momentum, strategies }) {
+export default function NetValueChart({ equity, baseline, baseline_vw, momentum, strategies, chartTab = 'all' }) {
   const [activePoint, setActivePoint] = useState(null);
   const [stableYRange, setStableYRange] = useState(null);
   
-  const chartData = useMemo(() => {
+  // Filter equity data based on chartTab
+  const filteredEquity = useMemo(() => {
     if (!equity || equity.length === 0) return [];
     
-    return equity.map((d, idx) => {
+    if (chartTab === 'all') {
+      // All图：每天只显示最后一个点
+      // 逻辑：保留每日22:30以前的最后一个equity值（美国下一个交易日开盘前的最后一个equity value）
+      // 22:30之后的数据属于下一个交易日的交易时段，不在此图中显示
+      // 时间处理：时间戳(ms) -> UTC -> Asia/Shanghai时区，然后以Asia/Shanghai时间为基准进行分组和判断
+      const dailyData = {};
+      
+      equity.forEach((d) => {
+        // 时间戳是毫秒数，先创建UTC时间，然后转换为Asia/Shanghai时区
+        // 等价于: pd.to_datetime(timestamp, unit='ms', utc=True).dt.tz_convert('Asia/Shanghai')
+        const utcDate = new Date(d.t); // 时间戳(ms) -> UTC时间
+        
+        // 使用Intl API获取Asia/Shanghai时区的日期时间组件
+        const formatter = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'Asia/Shanghai',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        });
+        
+        const parts = formatter.formatToParts(utcDate);
+        const year = parts.find(p => p.type === 'year').value;
+        const month = parts.find(p => p.type === 'month').value;
+        const day = parts.find(p => p.type === 'day').value;
+        const hour = parseInt(parts.find(p => p.type === 'hour').value);
+        const minute = parseInt(parts.find(p => p.type === 'minute').value);
+        
+        // 判断是否在22:30之前（Asia/Shanghai时区）
+        const isBefore2230 = hour < 22 || (hour === 22 && minute < 30);
+        
+        // 只处理22:30之前的数据
+        if (isBefore2230) {
+          // 使用Asia/Shanghai时区的日期作为key
+          const dateKey = `${year}-${month}-${day}`;
+          
+          // 如果这一天还没有数据，或者当前数据的时间更晚，则更新
+          if (!dailyData[dateKey] || new Date(d.t) > new Date(dailyData[dateKey].t)) {
+            dailyData[dateKey] = d;
+          }
+        }
+      });
+      
+      // 转换为数组并按时间排序
+      return Object.values(dailyData).sort((a, b) => a.t - b.t);
+    } else if (chartTab === '30d') {
+      // Live图：显示最近一次交易时段（22:30-05:00）的所有更新
+      if (equity.length === 0) return [];
+      
+      const sessionStartTime = getRecentTradingSessionStart();
+      
+      // 找到上一个交易日最后的net_value（sessionStartTime之前最后一个点）
+      let lastValueBeforeSession = null;
+      for (let i = equity.length - 1; i >= 0; i--) {
+        if (equity[i].t < sessionStartTime.getTime()) {
+          lastValueBeforeSession = equity[i].v;
+          break;
+        }
+      }
+      
+      // 如果找不到上一个交易日的值，使用equity的第一个值
+      if (lastValueBeforeSession === null && equity.length > 0) {
+        lastValueBeforeSession = equity[0].v;
+      }
+      
+      // 找到sessionStartTime之后的所有点
+      const sessionData = equity.filter(d => d.t >= sessionStartTime.getTime());
+      
+      // 如果有上一个交易日的最后值，在session数据前添加一个起点
+      if (lastValueBeforeSession !== null && sessionData.length > 0) {
+        // 确保起点的时间在session开始之前
+        const startPoint = {
+          t: sessionStartTime.getTime() - 1,
+          v: lastValueBeforeSession
+        };
+        return [startPoint, ...sessionData];
+      }
+      
+      return sessionData;
+    }
+    
+    return equity;
+  }, [equity, chartTab]);
+  
+  // Helper function to get daily indices for 'all' view
+  const getDailyIndices = useMemo(() => {
+    if (!equity || equity.length === 0) return new Set();
+    const dailyIndices = new Set();
+    const dailyData = {};
+    
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Shanghai',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+    
+    equity.forEach((d, idx) => {
+      const utcDate = new Date(d.t);
+      const parts = formatter.formatToParts(utcDate);
+      const hour = parseInt(parts.find(p => p.type === 'hour').value);
+      const minute = parseInt(parts.find(p => p.type === 'minute').value);
+      
+      // 判断是否在22:30之前（Asia/Shanghai时区）
+      const isBefore2230 = hour < 22 || (hour === 22 && minute < 30);
+      
+      // 只处理22:30之前的数据
+      if (isBefore2230) {
+        const year = parts.find(p => p.type === 'year').value;
+        const month = parts.find(p => p.type === 'month').value;
+        const day = parts.find(p => p.type === 'day').value;
+        const dateKey = `${year}-${month}-${day}`;
+        
+        if (!dailyData[dateKey] || new Date(d.t) > new Date(dailyData[dateKey].t)) {
+          dailyData[dateKey] = { data: d, index: idx };
+        }
+      }
+    });
+    
+    Object.values(dailyData).forEach(({ index }) => dailyIndices.add(index));
+    return dailyIndices;
+  }, [equity]);
+  
+  // Filter baseline, baseline_vw, momentum, strategies to match filteredEquity indices
+  const filteredBaseline = useMemo(() => {
+    if (!baseline || baseline.length === 0 || !equity || equity.length === 0) return [];
+    if (chartTab === 'all') {
+      return baseline.filter((_, idx) => getDailyIndices.has(idx));
+    } else if (chartTab === '30d') {
+      const sessionStartTime = getRecentTradingSessionStart();
+      return filterStrategyDataForLive(baseline, equity, sessionStartTime);
+    }
+    return baseline;
+  }, [baseline, equity, chartTab, getDailyIndices]);
+  
+  const filteredBaselineVw = useMemo(() => {
+    if (!baseline_vw || baseline_vw.length === 0 || !equity || equity.length === 0) return [];
+    if (chartTab === 'all') {
+      return baseline_vw.filter((_, idx) => getDailyIndices.has(idx));
+    } else if (chartTab === '30d') {
+      const sessionStartTime = getRecentTradingSessionStart();
+      return filterStrategyDataForLive(baseline_vw, equity, sessionStartTime);
+    }
+    return baseline_vw;
+  }, [baseline_vw, equity, chartTab, getDailyIndices]);
+  
+  const filteredMomentum = useMemo(() => {
+    if (!momentum || momentum.length === 0 || !equity || equity.length === 0) return [];
+    if (chartTab === 'all') {
+      return momentum.filter((_, idx) => getDailyIndices.has(idx));
+    } else if (chartTab === '30d') {
+      const sessionStartTime = getRecentTradingSessionStart();
+      return filterStrategyDataForLive(momentum, equity, sessionStartTime);
+    }
+    return momentum;
+  }, [momentum, equity, chartTab, getDailyIndices]);
+  
+  const filteredStrategies = useMemo(() => {
+    if (!strategies || strategies.length === 0 || !equity || equity.length === 0) return [];
+    if (chartTab === 'all') {
+      return strategies.filter((_, idx) => getDailyIndices.has(idx));
+    } else if (chartTab === '30d') {
+      const sessionStartTime = getRecentTradingSessionStart();
+      return filterStrategyDataForLive(strategies, equity, sessionStartTime);
+    }
+    return strategies;
+  }, [strategies, equity, chartTab, getDailyIndices]);
+  
+  const chartData = useMemo(() => {
+    if (!filteredEquity || filteredEquity.length === 0) return [];
+    
+    return filteredEquity.map((d, idx) => {
       const date = new Date(d.t);
+      // For live view, strategy data might have different timestamps, so we need to match by index
+      // For all view, indices should align
+      const baselineVal = filteredBaseline?.[idx] ? 
+        (typeof filteredBaseline[idx] === 'object' ? filteredBaseline[idx].v : filteredBaseline[idx]) : null;
+      const baselineVwVal = filteredBaselineVw?.[idx] ? 
+        (typeof filteredBaselineVw[idx] === 'object' ? filteredBaselineVw[idx].v : filteredBaselineVw[idx]) : null;
+      const momentumVal = filteredMomentum?.[idx] ? 
+        (typeof filteredMomentum[idx] === 'object' ? filteredMomentum[idx].v : filteredMomentum[idx]) : null;
+      const strategyVal = filteredStrategies?.[idx] ? 
+        (typeof filteredStrategies[idx] === 'object' ? filteredStrategies[idx].v : filteredStrategies[idx]) : null;
+      
       return {
         index: idx,
         time: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + 
               ' ' + date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
         timestamp: d.t,
         portfolio: d.v,
-        baseline: baseline?.[idx]?.v || null,
-        baseline_vw: baseline_vw?.[idx]?.v || null,
-        momentum: momentum?.[idx]?.v || null,
-        strategy: strategies?.[idx]?.v || null
+        baseline: baselineVal || null,
+        baseline_vw: baselineVwVal || null,
+        momentum: momentumVal || null,
+        strategy: strategyVal || null
       };
     });
-  }, [equity, baseline, baseline_vw, momentum, strategies]);
+  }, [filteredEquity, filteredBaseline, filteredBaselineVw, filteredMomentum, filteredStrategies]);
   
   const { yMin, yMax, xTickIndices } = useMemo(() => {
     if (chartData.length === 0) return { yMin: 0, yMax: 1, xTickIndices: [] };

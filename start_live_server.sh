@@ -18,7 +18,7 @@
 set -e
 
 # 获取脚本所在目录
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+SCRIPT_DIR="$( cd "$( dirname "$0" )" && pwd )"
 cd "$SCRIPT_DIR"
 
 # ==================== 解析参数 ====================
@@ -68,7 +68,7 @@ show_help() {
     exit 0
 }
 
-while [[ $# -gt 0 ]]; do
+while [ $# -gt 0 ]; do
     case $1 in
         --mock)
             MOCK_MODE=true
@@ -149,7 +149,7 @@ if [ "$MOCK_MODE" = false ]; then
     fi
     
     # 检查 FINNHUB_API_KEY
-    source .env
+    . .env
     if [ -z "$FINNHUB_API_KEY" ] || [ "$FINNHUB_API_KEY" = "your-finnhub-api-key-here" ]; then
         echo "❌ 未设置有效的 FINNHUB_API_KEY"
         echo ""

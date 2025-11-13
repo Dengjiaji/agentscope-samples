@@ -237,13 +237,8 @@ export default function LiveTradingApp() {
           };
         
         case 'team_summary':
-          return {
-            id: `team-summary-${evt.timestamp || Date.now()}-${Math.random()}`,
-            timestamp: evt.timestamp || Date.now(),
-            agent: 'System',
-            role: 'System',
-            content: `Portfolio update: $${formatNumber(evt.balance || 0)} (${evt.pnlPct >= 0 ? '+' : ''}${(evt.pnlPct || 0).toFixed(2)}%)`
-          };
+          // Don't create message for portfolio updates - they're shown in the ticker bar
+          return null;
         
         default:
           return null;
@@ -658,6 +653,7 @@ export default function LiveTradingApp() {
         },
         
         team_summary: (e) => {
+          // Update portfolio data silently without creating feed messages
           setPortfolioData(prev => ({
             ...prev,
             netValue: e.balance || prev.netValue,
@@ -668,26 +664,7 @@ export default function LiveTradingApp() {
             momentum: e.momentum || prev.momentum
           }));
           
-          const message = {
-            id: `team-summary-${Date.now()}-${Math.random()}`,
-            timestamp: e.timestamp || Date.now(),
-            agent: 'System',
-            role: 'System',
-            content: `Portfolio update: $${formatNumber(e.balance || 0)} (${e.pnlPct >= 0 ? '+' : ''}${(e.pnlPct || 0).toFixed(2)}%)`
-          };
-          
-          setConferences(prev => {
-            if (prev.active) {
-              const updated = { ...prev.active, messages: [...prev.active.messages, message] };
-              setFeed(f => f.map(item => 
-                item.type === 'conference' && item.id === prev.active.id ? { ...item, data: updated } : item
-              ));
-              return { ...prev, active: updated };
-            } else {
-              setFeed(prevFeed => [{ type: 'message', data: message, id: message.id }, ...prevFeed].slice(0, 200));
-              return prev;
-            }
-          });
+          // Portfolio updates are shown in the ticker bar, no need for feed messages
         },
         
         team_portfolio: (e) => {
@@ -965,6 +942,7 @@ export default function LiveTradingApp() {
                         baseline_vw={portfolioData.baseline_vw}
                         momentum={portfolioData.momentum}
                         strategies={portfolioData.strategies}
+                        chartTab={chartTab}
                       />
                     </div>
                   </div>
