@@ -3,15 +3,13 @@
 # 
 # 功能说明：
 # 1. 脚本启动后立即开始实时更新股票价格板
-# 2. 从指定天数开始回测历史交易日，然后进入今天在线模式
-# 3. 在线模式会高频获取实时价格，更新净值曲线、持仓盈亏等
-# 4. 如果今天是交易日且在交易时段，系统会等到收盘后才执行交易
-# 5. 支持Mock模式，用于非交易时段调试程序
+# 2. 在线模式会高频获取实时价格，更新净值曲线、持仓盈亏等
+# 3. 如果今天是交易日且在交易时段，系统会等到收盘后才执行交易
+# 4. 支持Mock模式，用于非交易时段调试程序
 #
 # 使用方法:
 #   ./start_live_server.sh                    # 正常模式（需要 FINNHUB_API_KEY）
 #   ./start_live_server.sh --mock             # Mock模式（测试用虚拟价格）
-#   ./start_live_server.sh --lookback-days 3  # 自定义回溯天数（默认: 7天）
 #   ./start_live_server.sh --clean            # 清空历史记录重新开始
 #   ./start_live_server.sh --help             # 显示帮助信息
 
@@ -26,7 +24,6 @@ LOGS_AND_MEMORY_DIR="$SCRIPT_DIR/../logs_and_memory"
 # ==================== 解析参数 ====================
 MODE="live"
 MOCK_MODE=false
-LOOKBACK_DAYS=0  # 默认0天，不回测历史，直接运行当前交易日
 AUTO_CLEAN=false
 CONFIG_NAME="live_mode"
 HOST="0.0.0.0"
@@ -43,7 +40,6 @@ show_help() {
     echo ""
     echo "选项:"
     echo "  --mock                 使用Mock模式（虚拟价格，用于测试）"
-    echo "  --lookback-days N      回溯天数（默认: 0，即不回测，直接运行今天）"
     echo "  --config-name NAME     配置名称（默认: live_mode）"
     echo "  --clean                清空历史记录"
     echo "  --host HOST            监听地址（默认: 0.0.0.0）"
@@ -51,21 +47,14 @@ show_help() {
     echo "  --pause-before-trade   暂停模式：完成分析但不执行交易，仅更新价格"
     echo "  --time-accelerator N   时间加速器（默认: 1.0，用于调试，60.0=1分钟当1小时）"
     echo "  --virtual-start-time \"YYYY-MM-DD HH:MM:SS\"  虚拟起始时间（仅Mock模式，例如: \"2024-11-12 22:25:00\"）"
-    echo "                         指定后，系统将以该时间作为'今天'进行回测"
+    echo "                         指定后，系统将以该时间作为'今天'运行"
     echo "  --help                 显示此帮助信息"
-    echo ""
-    echo "回测逻辑说明:"
-    echo "  • Mock模式 + virtual-start-time: 以虚拟时间为'今天'，往前回测N天"
-    echo "  • 真实数据模式: 以当前真实时间为'今天'，往前回测N天"
-    echo "  • 回测完成后，进入'今天'的在线模式"
     echo ""
     echo "示例:"
     echo "  $0                                    # 正常模式，直接运行今天"
     echo "  $0 --mock                             # Mock模式，直接运行今天"
-    echo "  $0 --lookback-days 3                  # 真实数据，回溯3天到今天"
     echo "  $0 --pause-before-trade               # 暂停模式：分析完成后不执行交易"
-    echo "  $0 --mock --lookback-days 5 \\        # Mock模式，从2024-11-06回测到2024-11-11"
-    echo "     --virtual-start-time \"2024-11-11 22:20:00\""
+    echo "  $0 --mock --virtual-start-time \"2024-11-11 22:20:00\"  # Mock模式，以指定时间作为今天"
     echo ""
     exit 0
 }
@@ -75,10 +64,6 @@ while [ $# -gt 0 ]; do
         --mock)
             MOCK_MODE=true
             shift
-            ;;
-        --lookback-days)
-            LOOKBACK_DAYS="$2"
-            shift 2
             ;;
         --config-name)
             CONFIG_NAME="$2"
@@ -306,7 +291,6 @@ else
     echo "   说明: 使用Finnhub Quote API高频获取实时价格"
 fi
 echo "   配置名称: ${CONFIG_NAME}"
-echo "   回溯天数: ${LOOKBACK_DAYS} 天"
 echo "   监听地址: ${HOST}:${PORT}"
 if [ "$PAUSE_BEFORE_TRADE" = true ]; then
     echo "   交易模式: ⏸️ 暂停 (仅分析，不执行交易)"
@@ -323,23 +307,13 @@ echo ""
 # ==================== 功能说明 ====================
 echo "💡 功能说明:"
 echo "   ✨ 启动后立即开始实时更新股票价格板"
-if [ "$LOOKBACK_DAYS" -eq 0 ]; then
-    if [ "$MOCK_MODE" = true ] && [ -n "$VIRTUAL_START_TIME" ]; then
-        echo "   1. 系统将直接运行虚拟时间的'今天'（不回测历史）"
-        echo "      参考日期: $VIRTUAL_START_TIME"
-    else
-        echo "   1. 系统将直接运行今天的交易日（不回测历史）"
-    fi
-    echo "   2. 立即进行交易决策分析（不立即执行交易）"
+if [ "$MOCK_MODE" = true ] && [ -n "$VIRTUAL_START_TIME" ]; then
+    echo "   1. 系统将直接运行虚拟时间的'今天'"
+    echo "      参考日期: $VIRTUAL_START_TIME"
 else
-    if [ "$MOCK_MODE" = true ] && [ -n "$VIRTUAL_START_TIME" ]; then
-        echo "   1. 系统将以虚拟时间作为'今天'，从 ${LOOKBACK_DAYS} 天前开始回测"
-        echo "      参考日期: $VIRTUAL_START_TIME"
-    else
-        echo "   1. 系统将以真实时间作为'今天'，从 ${LOOKBACK_DAYS} 天前开始回测"
-    fi
-    echo "   2. 到达'今天'后，进行交易决策分析（不立即执行交易）"
+    echo "   1. 系统将直接运行今天的交易日"
 fi
+echo "   2. 立即进行交易决策分析（不立即执行交易）"
 if [ "$MOCK_MODE" = false ]; then
     echo "   3. 如果今天是交易日且在交易时段，系统会等到收盘后才执行交易"
     echo "   4. 实时价格每10秒更新一次（Finnhub Quote API）"
@@ -358,7 +332,6 @@ echo ""
 # 构建命令
 CMD="python -u src/servers/live_server.py"
 CMD="$CMD --config-name $CONFIG_NAME"
-CMD="$CMD --lookback-days $LOOKBACK_DAYS"
 CMD="$CMD --host $HOST"
 CMD="$CMD --port $PORT"
 

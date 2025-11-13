@@ -107,7 +107,7 @@ class TeamDashboardGenerator:
         """
         _NYSE_CALENDAR = mcal.get_calendar('NYSE')
 
-        if US_TRADING_CALENDAR_AVAILABLE and _NYSE_CALENDAR is not None:
+        if _NYSE_CALENDAR is not None:
             try:
                 # 从当前日期往后推30天，获取所有交易日
                 current_date = datetime.strptime(date, "%Y-%m-%d")

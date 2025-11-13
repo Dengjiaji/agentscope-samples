@@ -2,10 +2,9 @@
 """
 在线模式服务器 - Live Trading System
 功能：
-1. 从当前时间点倒推n天运行历史回测
-2. 到达今天后，进行实时交易决策分析
-3. 高频获取实时价格，更新净值曲线、持仓盈亏等
-4. 支持Mock模式用于非交易时段测试
+1. 直接运行今天的实时交易决策分析
+2. 高频获取实时价格，更新净值曲线、持仓盈亏等
+3. 支持Mock模式用于非交易时段测试
 """
 import asyncio
 import json
@@ -48,10 +47,9 @@ logger = logging.getLogger(__name__)
 class LiveTradingServer:
     """在线交易服务器"""
     
-    def __init__(self, config: LiveThinkingFundConfig, mock_mode: bool = False, lookback_days: int = 0, pause_before_trade: bool = False, time_accelerator: float = 1.0, virtual_start_time: Optional[datetime] = None):
+    def __init__(self, config: LiveThinkingFundConfig, mock_mode: bool = False, pause_before_trade: bool = False, time_accelerator: float = 1.0, virtual_start_time: Optional[datetime] = None):
         self.config = config
         self.mock_mode = mock_mode
-        self.lookback_days = lookback_days
         self.pause_before_trade = pause_before_trade
         self.time_accelerator = time_accelerator  # 时间加速器，用于调试（1.0=正常，60.0=1分钟当1小时）
         self.virtual_start_time = virtual_start_time  # 虚拟起始时间（用于Mock模式回测）
@@ -957,99 +955,19 @@ class LiveTradingServer:
             today = reference_time.strftime("%Y-%m-%d")
             logger.info(f"📅 使用真实时间作为参考点（今天）: {today}")
         
-        # ========== 判断是否需要回测历史 ==========
-        if self.lookback_days > 0:
-            # ========== 阶段1: 回测历史n天 ==========
-            start_date = (reference_time - timedelta(days=self.lookback_days)).strftime("%Y-%m-%d")
-            
-            trading_days = self.thinking_fund.generate_trading_dates(start_date, today)
-            
-            # 区分历史日期和今天
-            historical_days = [d for d in trading_days if d < today]
-            
-            logger.info(f"📅 阶段1: 回测历史 {len(historical_days)} 个交易日: {start_date} -> {historical_days[-1] if historical_days else 'N/A'}")
-            logger.info(f"📅 阶段2: 今天在线模式: {today}")
-            
-            self.state_manager.update('status', 'backtest')
-            self.state_manager.update('trading_days_total', len(trading_days))
-            self.state_manager.update('trading_days_completed', 0)
-            self.current_phase = "backtest"
-            
-            await self.broadcast({
-                'type': 'system',
-                'content': f'系统启动 - 回测 {len(historical_days)} 天，然后进入今天在线模式'
-            })
-            
-            # 运行历史回测
-            for idx, date in enumerate(historical_days, 1):
-                logger.info(f"===== [回测 {idx}/{len(historical_days)}] {date} =====")
-                self.state_manager.update('current_date', date)
-                self.state_manager.update('trading_days_completed', idx)
-                
-                await self.broadcast({
-                    'type': 'day_start',
-                    'date': date,
-                    'phase': 'backtest',
-                    'progress': idx / len(trading_days)
-                })
-                
-                try:
-                    result = await asyncio.to_thread(
-                        self.thinking_fund.run_full_day_simulation,
-                        date=date,
-                        tickers=self.config.tickers,
-                        max_comm_cycles=self.config.max_comm_cycles,
-                        force_run=False,
-                        enable_communications=not self.config.disable_communications,
-                        enable_notifications=not self.config.disable_notifications
-                    )
-                    
-                    # 更新状态
-                    if result and result.get('pre_market'):
-                        signals = result['pre_market']['live_env'].get('pm_signals', {})
-                        self.state_manager.update('latest_signals', signals)
-                        
-                        if self.config.mode == "portfolio":
-                            live_env = result['pre_market'].get('live_env', {})
-                            portfolio_summary = live_env.get('portfolio_summary', {})
-                            updated_portfolio = live_env.get('updated_portfolio', {})
-                            
-                            # Portfolio数据会通过 Dashboard 文件更新机制自动处理
-                            pass
-                    
-                    await self.broadcast({
-                        'type': 'day_complete',
-                        'date': date,
-                        'phase': 'backtest',
-                        'timestamp': datetime.now().isoformat()
-                    })
-                    
-                    self.state_manager.save()
-                    
-                except Exception as e:
-                    logger.error(f"❌ {date} 运行失败: {e}")
-                    await self.broadcast({
-                        'type': 'day_error',
-                        'date': date,
-                        'error': str(e),
-                        'timestamp': datetime.now().isoformat()
-                    })
-                
-                await asyncio.sleep(0.5)
-        else:
-            # ========== 无需回测，直接进入今天 ==========
-            logger.info(f"📅 直接进入今天在线模式: {today}（跳过历史回测）")
-            
-            self.state_manager.update('status', 'live_analysis')
-            self.state_manager.update('trading_days_total', 1)
-            self.state_manager.update('trading_days_completed', 0)
-            
-            await self.broadcast({
-                'type': 'system',
-                'content': f'系统启动 - 直接进入今天在线模式 ({today})，无历史回测'
-            })
+        # ========== 直接进入今天在线模式 ==========
+        logger.info(f"📅 直接进入今天在线模式: {today}")
         
-        # ========== 阶段2: 今天的在线模式 ==========
+        self.state_manager.update('status', 'live_analysis')
+        self.state_manager.update('trading_days_total', 1)
+        self.state_manager.update('trading_days_completed', 0)
+        
+        await self.broadcast({
+            'type': 'system',
+            'content': f'系统启动 - 直接进入今天在线模式 ({today})'
+        })
+        
+        # ========== 今天的在线模式 ==========
         logger.info(f"===== [在线模式] {today} =====")
         self.current_phase = "live_analysis"
         self.is_today = True
@@ -1114,7 +1032,7 @@ class LiveTradingServer:
                 'content': f'❌ 今日分析失败: {str(e)}，但价格监控将继续运行'
             })
         
-        # ========== 阶段3: 进入持续监控和自动交易循环 ==========
+        # ========== 进入持续监控和自动交易循环 ==========
         logger.info("===== [持续监控] 进入连续运行模式 =====")
         await self._continuous_trading_loop()
     
@@ -1458,7 +1376,6 @@ async def main():
     
     parser = argparse.ArgumentParser(description='在线交易系统服务器')
     parser.add_argument('--mock', action='store_true', help='使用Mock模式（虚拟价格测试）')
-    parser.add_argument('--lookback-days', type=int, default=0, help='回溯天数（默认: 0，即不回测，直接运行今天）')
     parser.add_argument('--config-name', default='live_mode', help='配置名称（默认: live_mode）')
     parser.add_argument('--host', default='0.0.0.0', help='监听地址（默认: 0.0.0.0）')
     parser.add_argument('--port', type=int, default=8765, help='监听端口（默认: 8765')
@@ -1489,7 +1406,6 @@ async def main():
     logger.info("📊 在线交易服务器配置:")
     logger.info(f"   配置名称: {config.config_name}")
     logger.info(f"   运行模式: {'🎭 MOCK（虚拟价格）' if args.mock else '🚀 LIVE（实时价格）'}")
-    logger.info(f"   回溯天数: {args.lookback_days}")
     logger.info(f"   监控股票: {config.tickers}")
     if config.mode == "portfolio":
         logger.info(f"   初始现金: ${config.initial_cash:,.2f}")
@@ -1513,7 +1429,6 @@ async def main():
     server = LiveTradingServer(
         config, 
         mock_mode=args.mock, 
-        lookback_days=args.lookback_days, 
         pause_before_trade=pause_before_trade,
         time_accelerator=args.time_accelerator,
         virtual_start_time=virtual_start_time
