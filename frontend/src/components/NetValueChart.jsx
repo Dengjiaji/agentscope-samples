@@ -136,7 +136,7 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
       
       // 转换为数组并按时间排序
       return Object.values(dailyData).sort((a, b) => a.t - b.t);
-    } else if (chartTab === '30d') {
+    } else if (chartTab === 'live') {
       // Live图：显示最近一次交易时段（22:30-05:00）的所有更新
       if (equity.length === 0) return [];
       
@@ -222,7 +222,7 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
     if (!baseline || baseline.length === 0 || !equity || equity.length === 0) return [];
     if (chartTab === 'all') {
       return baseline.filter((_, idx) => getDailyIndices.has(idx));
-    } else if (chartTab === '30d') {
+    } else if (chartTab === 'live') {
       const sessionStartTime = getRecentTradingSessionStart();
       return filterStrategyDataForLive(baseline, equity, sessionStartTime);
     }
@@ -233,7 +233,7 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
     if (!baseline_vw || baseline_vw.length === 0 || !equity || equity.length === 0) return [];
     if (chartTab === 'all') {
       return baseline_vw.filter((_, idx) => getDailyIndices.has(idx));
-    } else if (chartTab === '30d') {
+    } else if (chartTab === 'live') {
       const sessionStartTime = getRecentTradingSessionStart();
       return filterStrategyDataForLive(baseline_vw, equity, sessionStartTime);
     }
@@ -244,7 +244,7 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
     if (!momentum || momentum.length === 0 || !equity || equity.length === 0) return [];
     if (chartTab === 'all') {
       return momentum.filter((_, idx) => getDailyIndices.has(idx));
-    } else if (chartTab === '30d') {
+    } else if (chartTab === 'live') {
       const sessionStartTime = getRecentTradingSessionStart();
       return filterStrategyDataForLive(momentum, equity, sessionStartTime);
     }
@@ -255,7 +255,7 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
     if (!strategies || strategies.length === 0 || !equity || equity.length === 0) return [];
     if (chartTab === 'all') {
       return strategies.filter((_, idx) => getDailyIndices.has(idx));
-    } else if (chartTab === '30d') {
+    } else if (chartTab === 'live') {
       const sessionStartTime = getRecentTradingSessionStart();
       return filterStrategyDataForLive(strategies, equity, sessionStartTime);
     }
@@ -308,20 +308,9 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
     const dataMax = Math.max(...allValues);
     const range = dataMax - dataMin || 1;
     
-    // Calculate standard deviation for variance-based padding
-    const mean = allValues.reduce((sum, v) => sum + v, 0) / allValues.length;
-    const variance = allValues.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / allValues.length;
-    const stdDev = Math.sqrt(variance);
-    
-    const relativeStdDev = stdDev / mean;
-    let paddingFactor;
-    if (relativeStdDev < 0.01) {
-      paddingFactor = stdDev * 0.5;
-    } else if (relativeStdDev < 0.05) {
-      paddingFactor = stdDev * 0.2;
-    } else {
-      paddingFactor = range * 0.1;
-    }
+    // Use a smaller fixed percentage for equity charts to better show changes
+    // For equity data, smaller padding allows better visualization of price movements
+    const paddingFactor = range * 0.03; // Reduced from 0.1 to 0.03 (3% instead of 10%)
     
     let yMinCalc = dataMin - paddingFactor;
     let yMaxCalc = dataMax + paddingFactor;
