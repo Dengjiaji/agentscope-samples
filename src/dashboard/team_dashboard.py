@@ -495,15 +495,20 @@ class TeamDashboardGenerator:
         price_history = state.get('price_history', {})
         
         if ticker in price_history and date in price_history[ticker]:
-            return price_history[ticker][date]
+            actual_price = price_history[ticker][date]
+            if actual_price is not None:
+                return actual_price
         
-        # 如果有历史价格，使用最新的
+        # 如果有历史价格，使用最新的非None价格
         if ticker in price_history and price_history[ticker]:
             dates = sorted(price_history[ticker].keys())
-            return price_history[ticker][dates[-1]]
+            # 从最新日期开始向前查找，找到第一个非None的价格
+            for date in reversed(dates):
+                price = price_history[ticker][date]
+                if price is not None:
+                    return price
         
-        # 默认价格
-        return self.DEFAULT_BASE_PRICE
+       
     
     def _get_ticker_price(self, ticker: str, date: str, signal_info: Dict, 
                          portfolio_state: Dict, real_returns: Dict) -> float:
@@ -1480,10 +1485,9 @@ class TeamDashboardGenerator:
         # 计算总价值用于计算权重（使用真实价格）
         total_value = cash
         for ticker, pos in positions.items():
-            pdb.set_trace()
             current_price = self._get_current_price(ticker, last_date, state) if last_date else self.DEFAULT_BASE_PRICE
             total_value += pos['qty'] * current_price
-        
+
         holdings = []
         # 添加股票持仓
         for ticker, pos in positions.items():
