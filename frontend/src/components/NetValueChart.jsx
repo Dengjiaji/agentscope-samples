@@ -161,7 +161,12 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
   const CustomDot = ({ dataKey, ...props }) => {
     const { cx, cy, payload, index } = props;
     const isActive = activePoint === index;
+    const isLastPoint = index === chartData.length - 1;
     
+    // Only show dot for the last point
+    if (!isLastPoint) {
+      return null;
+    }
     const colors = {
       portfolio: '#00C853',
       baseline: '#FF6B00',
@@ -174,7 +179,7 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
       <circle
         cx={cx}
         cy={cy}
-        r={isActive ? 5 : 3}
+        r={isActive ? 6 : 8}
         fill={colors[dataKey]}
         stroke="#ffffff"
         strokeWidth={2}
@@ -214,7 +219,6 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
         data={chartData} 
         margin={{ top: 20, right: 30, bottom: 50, left: 60 }}
       >
-        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
         <XAxis 
           dataKey="time" 
           stroke="#666666"

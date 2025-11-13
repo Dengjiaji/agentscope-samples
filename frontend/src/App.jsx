@@ -955,7 +955,7 @@ export default function LiveTradingApp() {
                           className={`chart-tab ${chartTab === '30d' ? 'active' : ''}`}
                           onClick={() => setChartTab('30d')}
                         >
-                          30D
+                          LIVE
                         </button>
                       </div>
 
