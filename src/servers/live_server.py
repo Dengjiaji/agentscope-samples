@@ -144,6 +144,10 @@ class LiveTradingServer:
         self.market_is_open = False
         self.last_trading_date = None  # 记录上次执行交易的日期
         self.trading_executed_today = False  # 标记今天是否已执行交易
+        self.analysis_executed_today = False  # 标记今天是否已执行盘前分析
+        
+        # 保存每天的信号和结果，用于第二天更新 agent perf
+        self.daily_signals = {}  # {date: {'ana_signals': ..., 'pm_signals': ...}}
     
     def _on_price_update(self, price_data: Dict[str, Any]):
         """价格更新回调 - 直接更新 holdings.json 和 stats.json 文件"""
@@ -789,13 +793,13 @@ class LiveTradingServer:
     def _should_execute_trading_now(self) -> bool:
         """
         判断当前是否应该执行交易
-        条件：收盘后5分钟（北京时间 05:05 左右）
+        条件：收盘后（北京时间 05:05 - 10:00）
         """
         now_beijing = self._get_current_time_beijing()
         current_time = now_beijing.time()
         
-        # 在 05:05 - 05:10 之间执行交易（给5分钟窗口）
-        return datetime_time(5, 5) <= current_time < datetime_time(5, 10)
+        # 在 05:05 - 10:00 之间执行交易（5小时窗口，适应时间加速）
+        return datetime_time(5, 5) <= current_time < datetime_time(10, 0)
     
     async def handle_client(self, websocket: WebSocketServerProtocol):
         """处理客户端连接"""
@@ -944,20 +948,21 @@ class LiveTradingServer:
             pause_before_trade=self.pause_before_trade
         )
         
-        # 确定"今天"的日期
-        # Mock模式且指定了虚拟起始时间：使用虚拟时间作为"今天"
+        # 确定"今天"的美国交易日期
+        # Mock模式且指定了虚拟起始时间：使用虚拟时间
         # 否则：使用真实的当前时间
         if self.mock_mode and self.virtual_start_time:
             reference_time = self.virtual_start_time
-            today = reference_time.strftime("%Y-%m-%d")
-            logger.info(f"📅 使用虚拟时间作为参考点（今天）: {today}")
         else:
             reference_time = datetime.now()
-            today = reference_time.strftime("%Y-%m-%d")
-            logger.info(f"📅 使用真实时间作为参考点（今天）: {today}")
+        
+        # 转换为美国交易日期（北京时间 - 12小时）
+        today_us = (reference_time - timedelta(hours=12)).strftime("%Y-%m-%d")
+        logger.info(f"📅 当前北京时间: {reference_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info(f"📅 对应美国交易日: {today_us}")
         
         # ========== 直接进入今天在线模式 ==========
-        logger.info(f"📅 直接进入今天在线模式: {today}")
+        logger.info(f"📅 直接进入今天在线模式: {today_us}")
         
         self.state_manager.update('status', 'live_analysis')
         self.state_manager.update('trading_days_total', 1)
@@ -965,90 +970,168 @@ class LiveTradingServer:
         
         await self.broadcast({
             'type': 'system',
-            'content': f'系统启动 - 直接进入今天在线模式 ({today})'
+            'content': f'系统启动 - 直接进入今天在线模式 (美国交易日: {today_us})'
         })
         
         # ========== 今天的在线模式 ==========
-        logger.info(f"===== [在线模式] {today} =====")
+        logger.info(f"===== [在线模式] 美国交易日 {today_us} =====")
         self.current_phase = "live_analysis"
         self.is_today = True
         
         self.state_manager.update('status', 'live_analysis')
-        self.state_manager.update('current_date', today)
+        self.state_manager.update('current_date', today_us)
         
         # 根据暂停模式发送不同的消息
         if self.pause_before_trade:
             await self.broadcast({
                 'type': 'system',
-                'content': f'⏸️ 进入今天在线模式 - {today}，正在进行交易决策分析（暂停模式：不执行交易）...'
+                'content': f'⏸️ 进入今天在线模式 - 美国交易日 {today_us}，正在进行交易决策分析（暂停模式：不执行交易）...'
             })
         else:
             await self.broadcast({
                 'type': 'system',
-                'content': f'进入今天在线模式 - {today}，正在进行交易决策分析...'
+                'content': f'进入今天在线模式 - 美国交易日 {today_us}，正在进行交易决策分析...'
             })
         
-        # 运行今天的分析（不执行交易）
-        try:
-            result = await asyncio.to_thread(
-                self.thinking_fund.run_full_day_simulation,
-                date=today,
-                tickers=self.config.tickers,
-                max_comm_cycles=self.config.max_comm_cycles,
-                force_run=True,
-                enable_communications=not self.config.disable_communications,
-                enable_notifications=not self.config.disable_notifications
-            )
-            
-            # 检查返回值类型
-            if not isinstance(result, dict):
-                logger.error(f"❌ 分析返回类型错误: 期望dict，实际{type(result).__name__}")
-                logger.error(f"   返回值: {result}")
-                result = None
-            
-            if result and result.get('pre_market'):
-                # pdb.set_trace()
-                signals = result['pre_market']['live_env'].get('pm_signals', {})
-                self.state_manager.update('latest_signals', signals)
-                
-                await self.broadcast({
-                    'type': 'system',
-                    'content': f'今日交易决策完成，生成 {len(signals)} 个股票信号'
-                })
-                logger.info(f"✅ 今日分析完成，生成 {len(signals)} 个信号")
-            else:
-                logger.warning("⚠️ 今日分析未返回有效信号（可能是分析失败或返回格式问题）")
-                await self.broadcast({
-                    'type': 'system',
-                    'content': '⚠️ 今日分析未能生成有效信号，将继续价格监控'
-                })
-                
-        except Exception as e:
-            logger.error(f"❌ 今日分析失败: {e}", exc_info=True)
-            import traceback
-            logger.error(f"详细堆栈:\n{traceback.format_exc()}")
-            
-            await self.broadcast({
-                'type': 'system',
-                'content': f'❌ 今日分析失败: {str(e)}，但价格监控将继续运行'
-            })
+        # 第一天启动：立即运行盘前分析（func1）
+        await self._run_pre_market_analysis(today_us)
         
         # ========== 进入持续监控和自动交易循环 ==========
         logger.info("===== [持续监控] 进入连续运行模式 =====")
         await self._continuous_trading_loop()
     
+    async def _run_pre_market_analysis(self, date: str):
+        """运行盘前分析（func1）：调用 strategy.run_single_day 生成信号"""
+        
+        logger.info(f"===== [盘前分析] {date} =====")
+        
+        await self.broadcast({
+            'type': 'system',
+            'content': f'📊 开始盘前分析 ({date})...'
+        })
+        
+        result = await asyncio.to_thread(
+            self.thinking_fund.run_pre_market_analysis_only,
+            date=date,
+            tickers=self.config.tickers,
+            max_comm_cycles=self.config.max_comm_cycles,
+            force_run=True,
+            enable_communications=not self.config.disable_communications,
+            enable_notifications=not self.config.disable_notifications
+        )
+        
+        if not isinstance(result, dict):
+            logger.error(f"❌ 分析返回类型错误: 期望dict，实际{type(result).__name__}")
+            logger.error(f"   返回值: {result}")
+            await self.broadcast({
+                'type': 'system',
+                'content': f'❌ 盘前分析失败: 返回类型错误'
+            })
+            return
+        
+        if result.get('status') != 'success':
+            logger.warning(f"⚠️ 盘前分析未成功: {result.get('reason', 'unknown')}")
+            await self.broadcast({
+                'type': 'system',
+                'content': f"⚠️ 盘前分析跳过: {result.get('reason', 'unknown')}"
+            })
+            return
+        
+        pre_market = result.get('pre_market', {})
+        live_env = pre_market.get('live_env', {})
+        
+        pm_signals = live_env.get('pm_signals', {})
+        ana_signals = live_env.get('ana_signals', {})
+        
+        # 保存信号供第二天使用
+        self.daily_signals[date] = {
+            'ana_signals': ana_signals,
+            'pm_signals': pm_signals,
+            'pre_market_result': result
+        }
+        
+        self.state_manager.update('latest_signals', pm_signals)
+        
+        await self.broadcast({
+            'type': 'system',
+            'content': f'✅ 盘前分析完成 ({date})，生成 {len(pm_signals)} 个股票信号'
+        })
+        logger.info(f"✅ 盘前分析完成: {date}，生成 {len(pm_signals)} 个信号")
+        
+        # 设置标记（避免短时间内重复运行）
+        self.analysis_executed_today = True
+    
+    async def _run_trade_execution_with_prev_update(self, date: str):
+        """执行交易并更新前一天的 agent perf（func2）"""
+        
+        logger.info(f"===== [交易执行] {date} =====")
+        
+        await self.broadcast({
+            'type': 'system',
+            'content': f'💼 开始交易执行 ({date})...'
+        })
+        
+        # 获取当天的信号
+        current_day_data = self.daily_signals.get(date)
+        
+        # 获取前一个交易日
+        prev_date = self.last_trading_date
+        prev_signals = self.daily_signals.get(prev_date) if prev_date else None
+        
+        result = await asyncio.to_thread(
+            self.thinking_fund.run_trade_execution_and_update_prev_perf,
+            date=date,
+            tickers=self.config.tickers,
+            pre_market_result=current_day_data.get('pre_market_result') if current_day_data else None,
+            prev_date=prev_date,
+            prev_signals=prev_signals
+        )
+        
+        if result.get('prev_day_updated'):
+            await self.broadcast({
+                'type': 'system',
+                'content': f'✅ 已更新前一交易日 ({prev_date}) 的 agent 表现'
+            })
+            logger.info(f"✅ 已更新前一交易日的 agent perf: {prev_date}")
+        
+        if result.get('status') == 'success':
+            await self.broadcast({
+                'type': 'system',
+                'content': f'✅ 交易执行完成 ({date})'
+            })
+            logger.info(f"✅ 交易执行完成: {date}")
+            
+            # 广播交易完成事件
+            await self.broadcast({
+                'type': 'trade_execution_complete',
+                'date': date,
+                'timestamp': datetime.now().isoformat()
+            })
+        
+        self.state_manager.save()
+        logger.info(f"💾 交易数据已保存: {date}")
+    
+    def _should_run_pre_market_analysis(self) -> bool:
+        """判断当前是否应该运行盘前分析（22:30:00 之后）"""
+        now_beijing = self._get_current_time_beijing()
+        current_time = now_beijing.time()
+        
+        # 在 22:30:00 - 22:40:00 之间运行盘前分析（10分钟窗口，适应时间加速）
+        return datetime_time(22, 30, 0) <= current_time < datetime_time(23, 30, 0)
+    
     async def _continuous_trading_loop(self):
         """
         连续交易循环 - 核心逻辑
-        1. 在交易时段（22:30-05:00）启动价格监控
-        2. 在收盘后（05:05）执行交易和回测
-        3. 在非交易时段只维持页面时间更新
+        1. 每天 22:30-22:40（10分钟窗口）运行盘前分析（func1）
+        2. 每天 05:05-10:00（5小时窗口）执行交易并更新前一天的 agent perf（func2）
+        3. 在交易时段（22:30-05:00）启动价格监控
+        4. 在非交易时段（10:00-22:30）只维持页面时间更新
+        5. 使用标记避免窗口内重复执行
         """
         logger.info("🔄 启动连续交易循环")
         
         while True:
             now_beijing = self._get_current_time_beijing()
-            current_date_str = now_beijing.strftime("%Y-%m-%d")
             
             # 检查是否为交易日（使用美国日期判断）
             us_date = (now_beijing - timedelta(hours=12)).strftime("%Y-%m-%d")  # 粗略转换为美国日期
@@ -1062,28 +1145,37 @@ class LiveTradingServer:
             
             # 交易日逻辑
             is_market_open = self._is_market_open_time_beijing()
+            should_run_analysis = self._should_run_pre_market_analysis()
             should_execute_trade = self._should_execute_trading_now()
             
-            if is_market_open:
+            # 调试日志
+            if should_run_analysis:
+                logger.debug(f"🔍 检测到盘前分析时间窗口 | analysis_executed_today={self.analysis_executed_today} | us_date={us_date}")
+            if should_execute_trade:
+                logger.debug(f"🔍 检测到交易执行时间窗口 | trading_executed_today={self.trading_executed_today} | us_date={us_date}")
+            
+            if should_run_analysis and not self.analysis_executed_today:
+                # 开盘后运行盘前分析（22:30:00-22:40:00，10分钟窗口）
+                logger.info(f"🎯 触发盘前分析 (func1) | us_date={us_date} | 北京时间={now_beijing.strftime('%H:%M:%S')}")
+                await self._run_pre_market_analysis(us_date)
+                await self.vclock.sleep(30)  # 等待30秒（虚拟时间）
+                
+            elif is_market_open:
                 # 市场开盘时段（22:30-05:00）：实时价格监控
                 await self._handle_market_open_period(now_beijing, us_date)
                 await self.vclock.sleep(60)  # 每分钟检查一次（虚拟时间）
                 
             elif should_execute_trade and not self.trading_executed_today:
-                # 收盘后执行交易时间（05:05-05:10）
-                await self._handle_trade_execution(us_date)
+                # 收盘后执行交易时间（05:05-10:00，5小时窗口）
+                logger.info(f"🎯 触发交易执行 (func2) | us_date={us_date} | 北京时间={now_beijing.strftime('%H:%M:%S')}")
+                await self._run_trade_execution_with_prev_update(us_date)
                 self.trading_executed_today = True
                 self.last_trading_date = us_date
                 await self.vclock.sleep(300)  # 执行后等待5分钟（虚拟时间）
                 
             else:
-                # 非交易时段（05:10-22:30）：只维持页面更新
+                # 非交易时段（10:00-22:30）：只维持页面更新
                 await self._handle_off_market_period(now_beijing)
-                
-                # 重置今日交易标记（如果已经过了交易执行窗口）
-                if now_beijing.time() >= datetime_time(5, 10) and self.trading_executed_today:
-                    # 保持标记，直到下一个交易日
-                    pass
                 
                 # 如果接近开盘时间，缩短等待
                 next_open = self._get_next_market_open_time_beijing()
@@ -1094,11 +1186,16 @@ class LiveTradingServer:
                 else:
                     await self.vclock.sleep(300)  # 虚拟时间5分钟
             
-            # 检查日期变更，重置交易执行标记
-            new_date = self._get_current_time_beijing().strftime("%Y-%m-%d")
-            if new_date != current_date_str:
-                self.trading_executed_today = False
-                logger.info(f"📅 日期变更: {current_date_str} -> {new_date}，重置交易标记")
+            # 检查美国交易日变更，重置标记
+            # 在 10:00-22:29 之间重置标记（确保在交易执行窗口结束后，下次分析前）
+            current_time = now_beijing.time()
+            if datetime_time(10, 0) <= current_time < datetime_time(22, 29):
+                if self.trading_executed_today or self.analysis_executed_today:
+                    logger.info(f"📅 重置每日标记 | 北京时间={now_beijing.strftime('%H:%M:%S')} | us_date={us_date}")
+                    logger.info(f"   重置前: trading_executed={self.trading_executed_today}, analysis_executed={self.analysis_executed_today}")
+                    self.trading_executed_today = False
+                    self.analysis_executed_today = False
+                    logger.info(f"   重置后: trading_executed={self.trading_executed_today}, analysis_executed={self.analysis_executed_today}")
     
     async def _handle_non_trading_day(self, now_beijing: datetime):
         """处理非交易日：只维持页面时间更新，不获取价格"""
@@ -1187,75 +1284,6 @@ class LiveTradingServer:
             'type': 'market_status_update',
             'market_status': market_status
         })
-    
-    async def _handle_trade_execution(self, trading_date: str):
-        """处理交易执行：收盘后执行交易并回测"""
-        logger.info(f"💼 开始执行交易 (交易日: {trading_date})")
-        
-        self.current_phase = "trade_execution"
-        self.state_manager.update('status', 'trade_execution')
-        
-        await self.broadcast({
-            'type': 'system',
-            'content': f'💼 收盘后交易执行开始 (交易日: {trading_date})...'
-        })
-        
-        # 停止价格管理器
-        if self.price_manager and not self.mock_mode:
-            logger.info("🛑 停止实时价格获取，准备执行交易")
-            self.price_manager.stop()
-        
-        # 执行交易回测（类似回测脚本的逻辑）
-        loop = asyncio.get_event_loop()
-        broadcast_streamer = BroadcastStreamer(
-            broadcast_callback=self.broadcast,
-            event_loop=loop,
-            console_output=True
-        )
-        
-        # 使用现有的 thinking_fund 或创建新的
-        if not self.thinking_fund:
-            self.thinking_fund = LiveTradingFund(
-                config_name=self.config.config_name,
-                streamer=broadcast_streamer,
-                mode=self.config.mode,
-                initial_cash=self.config.initial_cash,
-                margin_requirement=self.config.margin_requirement,
-                pause_before_trade=False  # 执行交易时不暂停
-            )
-        
-        # 运行完整的交易日模拟（包括交易执行）
-        result = await asyncio.to_thread(
-            self.thinking_fund.run_full_day_simulation,
-            date=trading_date,
-            tickers=self.config.tickers,
-            max_comm_cycles=self.config.max_comm_cycles,
-            force_run=True,
-            enable_communications=not self.config.disable_communications,
-            enable_notifications=not self.config.disable_notifications
-        )
-        
-        # 更新状态
-        if result and result.get('pre_market'):
-            signals = result['pre_market']['live_env'].get('pm_signals', {})
-            self.state_manager.update('latest_signals', signals)
-            
-            await self.broadcast({
-                'type': 'system',
-                'content': f'✅ 交易执行完成 ({trading_date})，生成 {len(signals)} 个信号'
-            })
-            logger.info(f"✅ 交易执行完成: {trading_date}")
-            
-            # 广播交易完成事件
-            await self.broadcast({
-                'type': 'trade_execution_complete',
-                'date': trading_date,
-                'signals_count': len(signals),
-                'timestamp': datetime.now().isoformat()
-            })
-        
-        self.state_manager.save()
-        logger.info(f"💾 交易数据已保存: {trading_date}")
     
     async def _handle_off_market_period(self, now_beijing: datetime):
         """处理非交易时段：只维持页面更新"""

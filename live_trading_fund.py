@@ -151,9 +151,14 @@ class LiveTradingFund:
         max_comm_cycles: int = 2,
         force_run: bool = False,
         enable_communications: bool = False,
-        enable_notifications: bool = False
+        enable_notifications: bool = False,
+        skip_real_returns: bool = False
     ) -> Dict[str, Any]:
-        """Run pre-market analysis"""
+        """Run pre-market analysis
+        
+        Args:
+            skip_real_returns: 如果为 True，则不计算 real_returns（用于 live 模式盘前分析）
+        """
         self.streamer.print("system", 
             f"===== Pre-Market Analysis ({date}) =====\n"
             f"Time point: {self.PRE_MARKET}\n"
@@ -209,14 +214,20 @@ class LiveTradingFund:
             if signals:
                 self.streamer.print("agent", "\n".join(signals), role_key=agent_id)
 
-        # Calculate daily returns
-        for ticker in tickers:
-            if ticker in final_decisions:
-                action = final_decisions[ticker].get('action', 'hold')
-                daily_return, real_return, close_price = self.strategy._calculate_stock_daily_return_from_signal(
-                    ticker, date, action
-                )
-                live_env['real_returns'][ticker] = daily_return
+        # Calculate daily returns (跳过如果是 live 模式盘前分析)
+        if not skip_real_returns:
+            for ticker in tickers:
+                if ticker in final_decisions:
+                    action = final_decisions[ticker].get('action', 'hold')
+                    daily_return, real_return, close_price = self.strategy._calculate_stock_daily_return_from_signal(
+                        ticker, date, action
+                    )
+                    live_env['real_returns'][ticker] = daily_return
+        else:
+            # Live 模式：real_returns 设为 None（表示未知）
+            for ticker in tickers:
+                if ticker in final_decisions:
+                    live_env['real_returns'][ticker] = None
 
         print("[system]", f"{date} Sandbox analysis completed")
 
@@ -224,22 +235,37 @@ class LiveTradingFund:
         for ticker in tickers:
             if ticker in final_decisions:
                 signal_info = final_decisions[ticker]
-                daily_ret = live_env['real_returns'].get(ticker, 0) * 100
                 signal = signal_info.get('signal', 'N/A')
                 action = signal_info.get('action', 'N/A')
                 confidence = signal_info.get('confidence', 0)
                 
-                if self.mode == "signal":
-                    self.streamer.print("agent", 
-                        f"{ticker}: Final signal {signal}(confidence {confidence}%, daily return {daily_ret:.2f}%)",
-                        role_key='portfolio_manager'
-                    )
-                elif self.mode == "portfolio":
-                    quantity = signal_info.get('quantity', 0)
-                    self.streamer.print("agent", 
-                        f"{ticker}: Final signal {action}({quantity} shares, confidence {confidence}%, stock daily return {daily_ret:.2f}%)",
-                        role_key='portfolio_manager'
-                    )
+                if skip_real_returns:
+                    # Live 模式：不显示 daily return（还未知）
+                    if self.mode == "signal":
+                        self.streamer.print("agent", 
+                            f"{ticker}: Final signal {signal}(confidence {confidence}%)",
+                            role_key='portfolio_manager'
+                        )
+                    elif self.mode == "portfolio":
+                        quantity = signal_info.get('quantity', 0)
+                        self.streamer.print("agent", 
+                            f"{ticker}: Final signal {action}({quantity} shares, confidence {confidence}%)",
+                            role_key='portfolio_manager'
+                        )
+                else:
+                    # 回测模式：显示 daily return
+                    daily_ret = live_env['real_returns'].get(ticker, 0) * 100
+                    if self.mode == "signal":
+                        self.streamer.print("agent", 
+                            f"{ticker}: Final signal {signal}(confidence {confidence}%, daily return {daily_ret:.2f}%)",
+                            role_key='portfolio_manager'
+                        )
+                    elif self.mode == "portfolio":
+                        quantity = signal_info.get('quantity', 0)
+                        self.streamer.print("agent", 
+                            f"{ticker}: Final signal {action}({quantity} shares, confidence {confidence}%, stock daily return {daily_ret:.2f}%)",
+                            role_key='portfolio_manager'
+                        )
 
         # Portfolio mode: Add portfolio info
         if self.mode == "portfolio":
@@ -816,6 +842,152 @@ class LiveTradingFund:
             self.streamer.print("system", f"Failed dates: {', '.join(summary['failed_day_list'])}")
         self.streamer.print("system", "=" * 40)
 
+    def run_pre_market_analysis_only(
+        self,
+        date: str,
+        tickers: List[str],
+        max_comm_cycles: int = 2,
+        force_run: bool = False,
+        enable_communications: bool = False,
+        enable_notifications: bool = False
+    ) -> Dict[str, Any]:
+        """运行盘前分析（只运行 strategy.run_single_day，不执行交易）"""
+        
+        is_trading_day = self.is_trading_day(date)
+        
+        if not is_trading_day:
+            print("[system]", f"{date} is not a trading day, skip pre-market analysis")
+            return {
+                'status': 'skipped',
+                'date': date,
+                'is_trading_day': False,
+                'reason': 'Not trading day'
+            }
+        
+        print("[system]", f"{date} is a trading day, executing pre-market analysis")
+        
+        # Display current portfolio state
+        if self.mode == "portfolio" and self.strategy.portfolio_state:
+            positions_count = len([p for p in self.strategy.portfolio_state.get('positions', {}).values() 
+                                  if p.get('long', 0) > 0 or p.get('short', 0) > 0])
+            self.streamer.print("system", 
+                f"Current portfolio: Cash ${self.strategy.portfolio_state['cash']:,.2f}, "
+                f"Positions {positions_count}")
+        
+        # Run pre-market analysis (不计算 real_returns，因为还没收盘)
+        pre_market_result = self.run_pre_market_analysis(
+            date, tickers, max_comm_cycles, force_run, enable_communications, enable_notifications,
+            skip_real_returns=True  # Live 模式：跳过 real_returns 计算
+        )
+        
+        return {
+            'status': 'success',
+            'date': date,
+            'is_trading_day': True,
+            'pre_market': pre_market_result
+        }
+    
+    def run_trade_execution_and_update_prev_perf(
+        self,
+        date: str,
+        tickers: List[str],
+        pre_market_result: Optional[Dict[str, Any]] = None,
+        prev_date: Optional[str] = None,
+        prev_signals: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """执行交易并更新前一天的 agent performance
+        
+        Args:
+            date: 当前交易日
+            tickers: 股票列表
+            pre_market_result: 当天的盘前分析结果（包含信号）
+            prev_date: 前一个交易日
+            prev_signals: 前一天的信号（ana_signals 和 pm_signals）
+        """
+        
+        is_trading_day = self.is_trading_day(date)
+        
+        if not is_trading_day:
+            print("[system]", f"{date} is not a trading day, skip trade execution")
+            return {
+                'status': 'skipped',
+                'date': date,
+                'is_trading_day': False,
+                'reason': 'Not trading day'
+            }
+        
+        print("[system]", f"{date} trade execution started")
+        
+        # 1. 更新前一天的 agent performance（如果提供了）
+        if prev_date and prev_signals:
+            self._update_previous_day_performance(prev_date, tickers, prev_signals)
+        
+        # 2. 执行当天的交易（如果有盘前分析结果）
+        post_market_result = None
+        if pre_market_result and pre_market_result.get('status') == 'success':
+            live_env = pre_market_result.get('live_env')
+            if live_env:
+                print("[system]", "Executing trades based on pre-market analysis...")
+                post_market_result = self.run_post_market_review(date, tickers, live_env)
+        
+        return {
+            'status': 'success',
+            'date': date,
+            'is_trading_day': True,
+            'post_market': post_market_result,
+            'prev_day_updated': prev_date is not None
+        }
+    
+    def _update_previous_day_performance(
+        self,
+        prev_date: str,
+        tickers: List[str],
+        prev_signals: Dict[str, Any]
+    ):
+        """更新前一天的 agent performance（现在可以获取 real_returns 了）"""
+        
+        print("[system]", f"Updating agent performance for previous trading day: {prev_date}")
+        
+        ana_signals = prev_signals.get('ana_signals', {})
+        pm_signals = prev_signals.get('pm_signals', {})
+        
+        # 计算前一天的 real_returns（现在可以获取到收盘价了）
+        real_returns = {}
+        for ticker in tickers:
+            if ticker in pm_signals:
+                action = pm_signals[ticker].get('action', 'hold')
+                daily_return, real_return, close_price = self.strategy._calculate_stock_daily_return_from_signal(
+                    ticker, prev_date, action
+                )
+                real_returns[ticker] = daily_return
+        
+        # 更新 dashboard 中的 agent performance
+        update_stats = {
+            'agents_updated': 0,
+            'signals_updated': 0
+        }
+        
+        dashboard_state = self.dashboard_generator._load_internal_state()
+        self.dashboard_generator._update_agent_performance(
+            date=prev_date,
+            ana_signals=ana_signals,
+            pm_signals=pm_signals,
+            real_returns=real_returns,
+            state=dashboard_state,
+            update_stats=update_stats
+        )
+        self.dashboard_generator._update_pm_performance(
+            date=prev_date,
+            pm_signals=pm_signals,
+            real_returns=real_returns,
+            state=dashboard_state,
+            update_stats=update_stats
+        )
+        self.dashboard_generator._save_internal_state(dashboard_state)
+        
+        self.streamer.print("system", 
+            f"Previous day performance updated: {update_stats['agents_updated']} agents evaluated")
+    
     def run_full_day_simulation(
         self,
         date: str,
@@ -825,7 +997,7 @@ class LiveTradingFund:
         enable_communications: bool = False,
         enable_notifications: bool = False
     ) -> Dict[str, Any]:
-        """Run complete day simulation (pre-market + post-market)"""
+        """Run complete day simulation (pre-market + post-market) - 向后兼容的完整版本"""
 
         results = {
             'date': date,
