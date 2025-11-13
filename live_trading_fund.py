@@ -692,7 +692,7 @@ class LiveTradingFund:
             ops_count = len(result['memory_operations'])
             status_emoji = "✅" if status == 'success' else "❌"
             summary_lines.append(f"  {status_emoji} {agent_id}: {status} ({ops_count} operations)")
-        pdb.set_trace()
+        # pdb.set_trace()
         return "\n".join(summary_lines)
 
     def generate_trading_dates(self, start_date: str, end_date: str) -> List[str]:

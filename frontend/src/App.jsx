@@ -76,15 +76,50 @@ export default function LiveTradingApp() {
   // Market status
   const [serverMode, setServerMode] = useState(null); // 'live' | 'backtest' | null
   const [marketStatus, setMarketStatus] = useState(null); // { status, status_text, ... }
+  const [virtualTime, setVirtualTime] = useState(null); // Virtual time from server (for mock mode)
   
   const clientRef = useRef(null);
   const containerRef = useRef(null);
   
-  // Clock
+  // Track last virtual time update to calculate increment
+  const lastVirtualTimeRef = useRef(null);
+  const virtualTimeOffsetRef = useRef(0);
+  
+  // Clock - use virtual time if available (for mock mode)
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
+    if (virtualTime) {
+      // In mock mode, calculate offset from real time
+      const virtualTimeMs = new Date(virtualTime).getTime();
+      const realTimeMs = Date.now();
+      virtualTimeOffsetRef.current = virtualTimeMs - realTimeMs;
+      lastVirtualTimeRef.current = virtualTimeMs;
+      setNow(new Date(virtualTime));
+      
+      // Update clock every second based on offset
+      const id = setInterval(() => {
+        const currentRealTime = Date.now();
+        const currentVirtualTime = currentRealTime + virtualTimeOffsetRef.current;
+        setNow(new Date(currentVirtualTime));
+      }, 1000);
+      
+      return () => clearInterval(id);
+    } else {
+      // In live mode, use real time
+      const id = setInterval(() => setNow(new Date()), 1000);
+      return () => clearInterval(id);
+    }
+  }, [virtualTime]);
+  
+  // Update clock when virtual time changes (recalculate offset)
+  useEffect(() => {
+    if (virtualTime) {
+      const virtualTimeMs = new Date(virtualTime).getTime();
+      const realTimeMs = Date.now();
+      virtualTimeOffsetRef.current = virtualTimeMs - realTimeMs;
+      lastVirtualTimeRef.current = virtualTimeMs;
+      setNow(new Date(virtualTime));
+    }
+  }, [virtualTime]);
   
   // Track updates with visual feedback
   useEffect(() => {
@@ -352,6 +387,15 @@ export default function LiveTradingApp() {
             }
             if (state.market_status) {
               setMarketStatus(state.market_status);
+              // 如果市场状态包含虚拟时间，保存它
+              if (state.market_status.current_time) {
+                try {
+                  const virtualTimeDate = new Date(state.market_status.current_time);
+                  setVirtualTime(virtualTimeDate);
+                } catch (error) {
+                  console.error('Error parsing virtual time from market_status:', error);
+                }
+              }
             }
             
             if (state.trading_days_total) {
@@ -748,6 +792,16 @@ export default function LiveTradingApp() {
             }
             
             console.log(logMessage);
+            
+            // 保存虚拟时间（用于图表过滤）
+            if (e.beijing_time) {
+              try {
+                const virtualTimeDate = new Date(e.beijing_time);
+                setVirtualTime(virtualTimeDate);
+              } catch (error) {
+                console.error('Error parsing virtual time:', error);
+              }
+            }
           }
           
           // 更新市场状态（如果包含在time_update中）
@@ -828,6 +882,30 @@ export default function LiveTradingApp() {
         </div>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginLeft: 'auto' }}>
+          {/* Mock Mode Indicator */}
+          {virtualTime && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '4px 10px',
+              borderRadius: 4,
+              background: '#FF9800',
+              border: '1px solid #FFB74D'
+            }}>
+              <span style={{ fontSize: '14px' }}></span>
+              <span style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                color: '#FFFFFF',
+                fontFamily: '"Courier New", monospace',
+                letterSpacing: '0.5px'
+              }}>
+                LIVE MOCK MODE
+              </span>
+            </div>
+          )}
+          
           {/* Market Status Indicator */}
           {serverMode && marketStatus && (
             <div style={{
@@ -863,6 +941,44 @@ export default function LiveTradingApp() {
               </span>
             </div>
           )}
+          
+          {/* Clock Display */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-end',
+            gap: 2,
+            padding: '4px 12px',
+            borderRadius: 4,
+            background: virtualTime ? '#1A237E' : '#212121',
+            border: `1px solid ${virtualTime ? '#3F51B5' : '#424242'}`
+          }}>
+            <span style={{
+              fontSize: '11px',
+              color: '#999',
+              fontFamily: '"Courier New", monospace',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              {virtualTime ? 'VIRTUAL TIME' : 'TIME'}
+            </span>
+            <span style={{
+              fontSize: '14px',
+              fontWeight: 700,
+              color: '#FFFFFF',
+              fontFamily: '"Courier New", monospace',
+              letterSpacing: '1px'
+            }}>
+              {now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+            </span>
+            <span style={{
+              fontSize: '10px',
+              color: '#999',
+              fontFamily: '"Courier New", monospace'
+            }}>
+              {now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            </span>
+          </div>
           
           {/* Real-time Update Indicator */}
           <div className="header-status">
@@ -1005,6 +1121,7 @@ export default function LiveTradingApp() {
                         momentum={portfolioData.momentum}
                         strategies={portfolioData.strategies}
                         chartTab={chartTab}
+                        virtualTime={virtualTime}
                       />
                     </div>
                   </div>

@@ -19,6 +19,7 @@ import pdb
 BASE_DIR = Path(__file__).resolve().parents[2]
 if str(BASE_DIR) not in sys.path:
     sys.path.append(str(BASE_DIR))
+from src.config.path_config import get_logs_and_memory_dir
 
 import websockets
 from websockets.server import WebSocketServerProtocol
@@ -71,7 +72,7 @@ class LiveTradingServer:
         self.vclock = get_virtual_clock()
         
         # Dashboard 文件路径
-        self.dashboard_dir = BASE_DIR / "logs_and_memory" / config.config_name / "sandbox_logs" / "team_dashboard"
+        self.dashboard_dir = get_logs_and_memory_dir() / config.config_name / "sandbox_logs" / "team_dashboard"
         self.dashboard_files = {
             'summary': self.dashboard_dir / 'summary.json',
             'holdings': self.dashboard_dir / 'holdings.json',

@@ -1,13 +1,33 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { formatNumber, formatFullNumber } from '../utils/formatters';
 
 /**
  * Helper function to get the start time of the most recent trading session
  * Trading session: 22:30 - next day 05:00
+ * @param {Date|null} virtualTime - Virtual time from server (for mock mode), or null to use real time
  */
-function getRecentTradingSessionStart() {
-  const now = new Date();
+function getRecentTradingSessionStart(virtualTime = null) {
+  // Use virtual time if provided (for mock mode), otherwise use real time
+  let now;
+  if (virtualTime) {
+    // Ensure virtualTime is a valid Date object
+    if (virtualTime instanceof Date && !isNaN(virtualTime.getTime())) {
+      now = virtualTime;
+    } else if (typeof virtualTime === 'string') {
+      now = new Date(virtualTime);
+      if (isNaN(now.getTime())) {
+        console.warn('Invalid virtualTime string, using current time:', virtualTime);
+        now = new Date();
+      }
+    } else {
+      console.warn('Invalid virtualTime type, using current time:', typeof virtualTime);
+      now = new Date();
+    }
+  } else {
+    now = new Date();
+  }
+  
   const currentHour = now.getHours();
   const currentMinute = now.getMinutes();
   
@@ -40,48 +60,63 @@ function getRecentTradingSessionStart() {
  * Helper function to filter strategy data for live view
  * Returns data matching the structure of filteredEquity (with start point if applicable)
  * strategyData should be an array of { t: timestamp, v: value } objects
+ * @param {Date|null} virtualTime - Virtual time from server (for mock mode), or null to use real time
  */
 function filterStrategyDataForLive(strategyData, equity, sessionStartTime) {
   if (!strategyData || strategyData.length === 0 || !equity || equity.length === 0) return [];
   
-  // Find the last index before session
-  let lastDataBeforeSession = null;
-  for (let i = equity.length - 1; i >= 0; i--) {
-    if (equity[i].t < sessionStartTime.getTime()) {
-      if (strategyData[i] && strategyData[i].v !== undefined && strategyData[i].v !== null) {
-        lastDataBeforeSession = strategyData[i];
+  try {
+    if (!sessionStartTime || isNaN(sessionStartTime.getTime())) {
+      console.warn('Invalid sessionStartTime in filterStrategyDataForLive');
+      return [];
+    }
+    
+    const sessionStartTimestamp = sessionStartTime.getTime();
+    
+    // Find the last index before session
+    let lastDataBeforeSession = null;
+    for (let i = equity.length - 1; i >= 0; i--) {
+      if (equity[i] && typeof equity[i].t === 'number' && equity[i].t < sessionStartTimestamp) {
+        if (strategyData[i] && strategyData[i].v !== undefined && strategyData[i].v !== null) {
+          lastDataBeforeSession = strategyData[i];
+        }
+        break;
       }
-      break;
     }
-  }
-  
-  // Find data points in the session
-  const sessionData = [];
-  for (let i = 0; i < equity.length; i++) {
-    if (equity[i].t >= sessionStartTime.getTime() && strategyData[i] && 
-        strategyData[i].v !== undefined && strategyData[i].v !== null) {
-      sessionData.push(strategyData[i]);
+    
+    // Find data points in the session
+    const sessionData = [];
+    for (let i = 0; i < equity.length; i++) {
+      if (equity[i] && typeof equity[i].t === 'number' && 
+          equity[i].t >= sessionStartTimestamp && 
+          strategyData[i] && 
+          strategyData[i].v !== undefined && strategyData[i].v !== null) {
+        sessionData.push(strategyData[i]);
+      }
     }
+    
+    // If we have a value before session and session data, add the start point
+    // Create a start point with timestamp just before session start
+    if (lastDataBeforeSession && sessionData.length > 0) {
+      const startPoint = {
+        t: sessionStartTimestamp - 1,
+        v: lastDataBeforeSession.v
+      };
+      return [startPoint, ...sessionData];
+    }
+    
+    return sessionData;
+  } catch (error) {
+    console.error('Error in filterStrategyDataForLive:', error);
+    return [];
   }
-  
-  // If we have a value before session and session data, add the start point
-  // Create a start point with timestamp just before session start
-  if (lastDataBeforeSession && sessionData.length > 0) {
-    const startPoint = {
-      t: sessionStartTime.getTime() - 1,
-      v: lastDataBeforeSession.v
-    };
-    return [startPoint, ...sessionData];
-  }
-  
-  return sessionData;
 }
 
 /**
  * Net Value Chart Component
  * Displays portfolio value over time with multiple strategy comparisons
  */
-export default function NetValueChart({ equity, baseline, baseline_vw, momentum, strategies, chartTab = 'all' }) {
+export default function NetValueChart({ equity, baseline, baseline_vw, momentum, strategies, chartTab = 'all', virtualTime = null }) {
   const [activePoint, setActivePoint] = useState(null);
   const [stableYRange, setStableYRange] = useState(null);
   
@@ -140,40 +175,53 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
       // Live图：显示最近一次交易时段（22:30-05:00）的所有更新
       if (equity.length === 0) return [];
       
-      const sessionStartTime = getRecentTradingSessionStart();
-      
-      // 找到上一个交易日最后的net_value（sessionStartTime之前最后一个点）
-      let lastValueBeforeSession = null;
-      for (let i = equity.length - 1; i >= 0; i--) {
-        if (equity[i].t < sessionStartTime.getTime()) {
-          lastValueBeforeSession = equity[i].v;
-          break;
+      try {
+        const sessionStartTime = getRecentTradingSessionStart(virtualTime);
+        
+        if (!sessionStartTime || isNaN(sessionStartTime.getTime())) {
+          console.warn('Invalid sessionStartTime, returning all equity data');
+          return equity;
         }
+        
+        const sessionStartTimestamp = sessionStartTime.getTime();
+        
+        // 找到上一个交易日最后的net_value（sessionStartTime之前最后一个点）
+        let lastValueBeforeSession = null;
+        for (let i = equity.length - 1; i >= 0; i--) {
+          if (equity[i] && typeof equity[i].t === 'number' && equity[i].t < sessionStartTimestamp) {
+            lastValueBeforeSession = equity[i].v;
+            break;
+          }
+        }
+        
+        // 如果找不到上一个交易日的值，使用equity的第一个值
+        if (lastValueBeforeSession === null && equity.length > 0 && equity[0]) {
+          lastValueBeforeSession = equity[0].v;
+        }
+        
+        // 找到sessionStartTime之后的所有点
+        const sessionData = equity.filter(d => d && typeof d.t === 'number' && d.t >= sessionStartTimestamp);
+        
+        // 如果有上一个交易日的最后值，在session数据前添加一个起点
+        if (lastValueBeforeSession !== null && sessionData.length > 0) {
+          // 确保起点的时间在session开始之前
+          const startPoint = {
+            t: sessionStartTimestamp - 1,
+            v: lastValueBeforeSession
+          };
+          return [startPoint, ...sessionData];
+        }
+        
+        return sessionData;
+      } catch (error) {
+        console.error('Error filtering equity for live view:', error);
+        // Fallback: return all equity data
+        return equity;
       }
-      
-      // 如果找不到上一个交易日的值，使用equity的第一个值
-      if (lastValueBeforeSession === null && equity.length > 0) {
-        lastValueBeforeSession = equity[0].v;
-      }
-      
-      // 找到sessionStartTime之后的所有点
-      const sessionData = equity.filter(d => d.t >= sessionStartTime.getTime());
-      
-      // 如果有上一个交易日的最后值，在session数据前添加一个起点
-      if (lastValueBeforeSession !== null && sessionData.length > 0) {
-        // 确保起点的时间在session开始之前
-        const startPoint = {
-          t: sessionStartTime.getTime() - 1,
-          v: lastValueBeforeSession
-        };
-        return [startPoint, ...sessionData];
-      }
-      
-      return sessionData;
     }
     
     return equity;
-  }, [equity, chartTab]);
+  }, [equity, chartTab, virtualTime]);
   
   // Helper function to get daily indices for 'all' view
   const getDailyIndices = useMemo(() => {
@@ -223,73 +271,88 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
     if (chartTab === 'all') {
       return baseline.filter((_, idx) => getDailyIndices.has(idx));
     } else if (chartTab === 'live') {
-      const sessionStartTime = getRecentTradingSessionStart();
+      const sessionStartTime = getRecentTradingSessionStart(virtualTime);
       return filterStrategyDataForLive(baseline, equity, sessionStartTime);
     }
     return baseline;
-  }, [baseline, equity, chartTab, getDailyIndices]);
+  }, [baseline, equity, chartTab, getDailyIndices, virtualTime]);
   
   const filteredBaselineVw = useMemo(() => {
     if (!baseline_vw || baseline_vw.length === 0 || !equity || equity.length === 0) return [];
     if (chartTab === 'all') {
       return baseline_vw.filter((_, idx) => getDailyIndices.has(idx));
     } else if (chartTab === 'live') {
-      const sessionStartTime = getRecentTradingSessionStart();
+      const sessionStartTime = getRecentTradingSessionStart(virtualTime);
       return filterStrategyDataForLive(baseline_vw, equity, sessionStartTime);
     }
     return baseline_vw;
-  }, [baseline_vw, equity, chartTab, getDailyIndices]);
+  }, [baseline_vw, equity, chartTab, getDailyIndices, virtualTime]);
   
   const filteredMomentum = useMemo(() => {
     if (!momentum || momentum.length === 0 || !equity || equity.length === 0) return [];
     if (chartTab === 'all') {
       return momentum.filter((_, idx) => getDailyIndices.has(idx));
     } else if (chartTab === 'live') {
-      const sessionStartTime = getRecentTradingSessionStart();
+      const sessionStartTime = getRecentTradingSessionStart(virtualTime);
       return filterStrategyDataForLive(momentum, equity, sessionStartTime);
     }
     return momentum;
-  }, [momentum, equity, chartTab, getDailyIndices]);
+  }, [momentum, equity, chartTab, getDailyIndices, virtualTime]);
   
   const filteredStrategies = useMemo(() => {
     if (!strategies || strategies.length === 0 || !equity || equity.length === 0) return [];
     if (chartTab === 'all') {
       return strategies.filter((_, idx) => getDailyIndices.has(idx));
     } else if (chartTab === 'live') {
-      const sessionStartTime = getRecentTradingSessionStart();
+      const sessionStartTime = getRecentTradingSessionStart(virtualTime);
       return filterStrategyDataForLive(strategies, equity, sessionStartTime);
     }
     return strategies;
-  }, [strategies, equity, chartTab, getDailyIndices]);
+  }, [strategies, equity, chartTab, getDailyIndices, virtualTime]);
   
   const chartData = useMemo(() => {
     if (!filteredEquity || filteredEquity.length === 0) return [];
     
-    return filteredEquity.map((d, idx) => {
-      const date = new Date(d.t);
-      // For live view, strategy data might have different timestamps, so we need to match by index
-      // For all view, indices should align
-      const baselineVal = filteredBaseline?.[idx] ? 
-        (typeof filteredBaseline[idx] === 'object' ? filteredBaseline[idx].v : filteredBaseline[idx]) : null;
-      const baselineVwVal = filteredBaselineVw?.[idx] ? 
-        (typeof filteredBaselineVw[idx] === 'object' ? filteredBaselineVw[idx].v : filteredBaselineVw[idx]) : null;
-      const momentumVal = filteredMomentum?.[idx] ? 
-        (typeof filteredMomentum[idx] === 'object' ? filteredMomentum[idx].v : filteredMomentum[idx]) : null;
-      const strategyVal = filteredStrategies?.[idx] ? 
-        (typeof filteredStrategies[idx] === 'object' ? filteredStrategies[idx].v : filteredStrategies[idx]) : null;
-      
-      return {
-        index: idx,
-        time: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + 
-              ' ' + date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
-        timestamp: d.t,
-        portfolio: d.v,
-        baseline: baselineVal || null,
-        baseline_vw: baselineVwVal || null,
-        momentum: momentumVal || null,
-        strategy: strategyVal || null
-      };
-    });
+    try {
+      return filteredEquity.map((d, idx) => {
+        if (!d || typeof d.t !== 'number' || typeof d.v !== 'number') {
+          console.warn('Invalid equity data point:', d);
+          return null;
+        }
+        
+        const date = new Date(d.t);
+        if (isNaN(date.getTime())) {
+          console.warn('Invalid timestamp:', d.t);
+          return null;
+        }
+        
+        // For live view, strategy data might have different timestamps, so we need to match by index
+        // For all view, indices should align
+        const baselineVal = filteredBaseline?.[idx] ? 
+          (typeof filteredBaseline[idx] === 'object' ? filteredBaseline[idx].v : filteredBaseline[idx]) : null;
+        const baselineVwVal = filteredBaselineVw?.[idx] ? 
+          (typeof filteredBaselineVw[idx] === 'object' ? filteredBaselineVw[idx].v : filteredBaselineVw[idx]) : null;
+        const momentumVal = filteredMomentum?.[idx] ? 
+          (typeof filteredMomentum[idx] === 'object' ? filteredMomentum[idx].v : filteredMomentum[idx]) : null;
+        const strategyVal = filteredStrategies?.[idx] ? 
+          (typeof filteredStrategies[idx] === 'object' ? filteredStrategies[idx].v : filteredStrategies[idx]) : null;
+        
+        return {
+          index: idx,
+          time: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + 
+                ' ' + date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+          timestamp: d.t,
+          portfolio: d.v,
+          baseline: baselineVal || null,
+          baseline_vw: baselineVwVal || null,
+          momentum: momentumVal || null,
+          strategy: strategyVal || null
+        };
+      }).filter(item => item !== null); // Remove null entries
+    } catch (error) {
+      console.error('Error processing chart data:', error);
+      return [];
+    }
   }, [filteredEquity, filteredBaseline, filteredBaselineVw, filteredMomentum, filteredStrategies]);
   
   const { yMin, yMax, xTickIndices } = useMemo(() => {
@@ -344,11 +407,7 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
       if (!needsUpdate) {
         yMinCalc = stableMin;
         yMaxCalc = stableMax;
-      } else {
-        setStableYRange({ min: yMinCalc, max: yMaxCalc });
       }
-    } else {
-      setStableYRange({ min: yMinCalc, max: yMaxCalc });
     }
     
     // Calculate x-axis tick indices
@@ -367,6 +426,32 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
     
     return { yMin: yMinCalc, yMax: yMaxCalc, xTickIndices: indices };
   }, [chartData, stableYRange]);
+  
+  // Update stableYRange in useEffect to avoid infinite re-renders
+  // Use functional update to avoid dependency on stableYRange
+  useEffect(() => {
+    if (yMin !== undefined && yMax !== undefined && yMin !== null && yMax !== null && isFinite(yMin) && isFinite(yMax)) {
+      setStableYRange(prevRange => {
+        if (!prevRange) {
+          // Initialize stable range
+          return { min: yMin, max: yMax };
+        } else {
+          // Check if update is needed (5% threshold)
+          const stableRange = prevRange.max - prevRange.min;
+          const threshold = stableRange * 0.05;
+          const needsUpdate = 
+            yMin < (prevRange.min + threshold) || 
+            yMax > (prevRange.max - threshold);
+          
+          if (needsUpdate) {
+            return { min: yMin, max: yMax };
+          }
+          // No update needed, return previous range
+          return prevRange;
+        }
+      });
+    }
+  }, [yMin, yMax]);
 
   if (!equity || equity.length === 0) {
     return (
