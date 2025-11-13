@@ -1480,6 +1480,7 @@ class TeamDashboardGenerator:
         # 计算总价值用于计算权重（使用真实价格）
         total_value = cash
         for ticker, pos in positions.items():
+            pdb.set_trace()
             current_price = self._get_current_price(ticker, last_date, state) if last_date else self.DEFAULT_BASE_PRICE
             total_value += pos['qty'] * current_price
         

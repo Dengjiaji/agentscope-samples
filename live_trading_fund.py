@@ -665,7 +665,7 @@ class LiveTradingFund:
         
         for agent_id, result in reflection_results.items():
             if result.get('status') == 'success':
-                ops_count = result.get('operations_count', 0)
+                ops_count = len(result['memory_operations'])
                 total_operations += ops_count
                 
                 for op in result.get('memory_operations', []):
@@ -689,7 +689,7 @@ class LiveTradingFund:
         summary_lines.append("\nEach Agent review status:")
         for agent_id, result in reflection_results.items():
             status = result.get('status', 'unknown')
-            ops_count = result.get('operations_count', 0)
+            ops_count = len(result['memory_operations'])
             status_emoji = "✅" if status == 'success' else "❌"
             summary_lines.append(f"  {status_emoji} {agent_id}: {status} ({ops_count} operations)")
         pdb.set_trace()
