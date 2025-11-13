@@ -307,6 +307,7 @@ class LiveTradingFund:
             # Portfolio mode: Display detailed operation info
             for ticker in tickers:
                 if ticker in pm_signals:
+                    # pdb.set_trace()
                     signal_info = pm_signals[ticker]
                     action = signal_info.get('action', 'N/A')
                     quantity = signal_info.get('quantity', 0)

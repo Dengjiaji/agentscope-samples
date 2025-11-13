@@ -816,9 +816,19 @@ class TeamDashboardGenerator:
         pm_perf.setdefault('bear_unknown', 0)
         
         for ticker, signal_info in pm_signals.items():
-            signal = signal_info.get('signal', 'neutral')
+
+            # PM outputs 'action' field, need to map to 'signal' format
+            action = signal_info['action']
+            # Map PM action to dashboard signal format
+            action_to_signal = {
+                'long': 'bullish',
+                'short': 'bearish',
+                'hold': 'neutral'
+            }
+            signal = action_to_signal[action.lower()]
+
             numeric_real_return, display_real_return = self._normalize_real_return(real_returns.get(ticker))
-            
+
             signal_lower = signal.lower()
             is_bull = 'bull' in signal_lower or signal_lower == 'long'
             is_bear = 'bear' in signal_lower or signal_lower == 'short'
