@@ -182,7 +182,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
                 fontSize: 9,
                 color: '#555555'
               }}>
-                {evaluatedTotal}E / {totalSignals}T
+                {bullWins + bearWins}Win / {evaluatedTotal}Eval / {totalSignals}Total
               </div>
             </div>
           )}
@@ -218,7 +218,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
                 fontSize: 9,
                 color: '#333333'
               }}>
-                {bullWins}W / {evaluatedBull}E
+                {bullWins}Win / {evaluatedBull}Eval
                 {bullUnknown > 0 && ` / ${bullUnknown}P`}
               </div>
             </div>
@@ -255,7 +255,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
                 fontSize: 9,
                 color: '#333333'
               }}>
-                {bearWins}W / {evaluatedBear}E
+                {bearWins}Win / {evaluatedBear}Eval
                 {bearUnknown > 0 && ` / ${bearUnknown}P`}
               </div>
             </div>
