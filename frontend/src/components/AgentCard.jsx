@@ -203,7 +203,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
                 marginBottom: 4,
                 textTransform: 'uppercase'
               }}>
-                Bull ▲
+                Bull Win Rate
               </div>
               <div style={{
                 fontSize: 28,
@@ -240,7 +240,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
                 marginBottom: 4,
                 textTransform: 'uppercase'
               }}>
-                Bear ▼
+                Bear Win Rate
               </div>
               <div style={{
                 fontSize: 28,
