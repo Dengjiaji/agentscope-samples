@@ -165,6 +165,37 @@ class VirtualClock:
             real_seconds = seconds / self.time_accelerator
             await asyncio.sleep(real_seconds)
     
+    def fast_forward(self, minutes: float = 30):
+        """
+        快进虚拟时间（向前跳转）
+        
+        Args:
+            minutes: 快进的分钟数（默认30分钟）
+        """
+        if not self.enabled:
+            raise RuntimeError("虚拟时钟未启用，无法快进时间")
+        
+        with self.lock:
+            # 获取当前虚拟时间
+            if self.paused:
+                current_virtual = self.pause_virtual_time
+            else:
+                real_elapsed = datetime.now(timezone.utc) - self.real_start_time
+                virtual_elapsed = real_elapsed * self.time_accelerator
+                current_virtual = self.virtual_start_time + virtual_elapsed
+            
+            # 快进指定分钟数
+            new_virtual_time = current_virtual + timedelta(minutes=minutes)
+            
+            # 更新虚拟时间起点
+            self.real_start_time = datetime.now(timezone.utc)
+            self.virtual_start_time = new_virtual_time
+            
+            # 如果处于暂停状态，也更新暂停时的虚拟时间
+            if self.paused:
+                self.pause_virtual_time = new_virtual_time
+                self.pause_real_time = self.real_start_time
+    
     def get_info(self) -> dict:
         """获取虚拟时钟信息"""
         return {

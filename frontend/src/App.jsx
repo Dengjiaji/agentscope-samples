@@ -826,6 +826,45 @@ export default function LiveTradingApp() {
           if (e.market_status) {
             setMarketStatus(e.market_status);
           }
+        },
+        
+        // 时间快进事件（Mock模式）
+        time_fast_forwarded: (e) => {
+          console.log(`⏩ 时间已快进 ${e.minutes} 分钟: ${e.old_time_str} → ${e.new_time_str}`);
+          
+          // 更新虚拟时间
+          if (e.new_time) {
+            try {
+              const virtualTimeDate = new Date(e.new_time);
+              setVirtualTime(virtualTimeDate);
+              
+              // 添加到feed显示
+              handlePushEvent({
+                type: 'system',
+                content: `⏩ 时间快进 ${e.minutes} 分钟: ${e.old_time_str} → ${e.new_time_str}`,
+                timestamp: Date.now()
+              });
+            } catch (error) {
+              console.error('Error parsing fast forwarded time:', error);
+            }
+          }
+        },
+        
+        // 快进成功响应
+        fast_forward_success: (e) => {
+          console.log(`✅ ${e.message}`);
+        },
+        
+        // 快进错误响应
+        error: (e) => {
+          if (e.message && e.message.includes('fast forward')) {
+            console.warn(`⚠️ ${e.message}`);
+            handlePushEvent({
+              type: 'system',
+              content: `⚠️ ${e.message}`,
+              timestamp: Date.now()
+            });
+          }
         }
       };
       
@@ -963,39 +1002,90 @@ export default function LiveTradingApp() {
           {/* Clock Display */}
           <div style={{
             display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-end',
-            gap: 2,
-            padding: '4px 12px',
-            borderRadius: 4,
-            background: virtualTime ? '#1A237E' : '#212121',
-            border: `1px solid ${virtualTime ? '#3F51B5' : '#424242'}`
+            alignItems: 'center',
+            gap: 8
           }}>
-            <span style={{
-              fontSize: '11px',
-              color: '#999',
-              fontFamily: '"Courier New", monospace',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-end',
+              gap: 2,
+              padding: '4px 12px',
+              borderRadius: 4,
+              background: virtualTime ? '#1A237E' : '#212121',
+              border: `1px solid ${virtualTime ? '#3F51B5' : '#424242'}`
             }}>
-              {virtualTime ? 'VIRTUAL TIME' : 'TIME'}
-            </span>
-            <span style={{
-              fontSize: '14px',
-              fontWeight: 700,
-              color: '#FFFFFF',
-              fontFamily: '"Courier New", monospace',
-              letterSpacing: '1px'
-            }}>
-              {now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
-            </span>
-            <span style={{
-              fontSize: '10px',
-              color: '#999',
-              fontFamily: '"Courier New", monospace'
-            }}>
-              {now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-            </span>
+              <span style={{
+                fontSize: '11px',
+                color: '#999',
+                fontFamily: '"Courier New", monospace',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px'
+              }}>
+                {virtualTime ? 'VIRTUAL TIME' : 'TIME'}
+              </span>
+              <span style={{
+                fontSize: '14px',
+                fontWeight: 700,
+                color: '#FFFFFF',
+                fontFamily: '"Courier New", monospace',
+                letterSpacing: '1px'
+              }}>
+                {now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+              </span>
+              <span style={{
+                fontSize: '10px',
+                color: '#999',
+                fontFamily: '"Courier New", monospace'
+              }}>
+                {now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </span>
+            </div>
+            
+            {/* Fast Forward Button (only in Mock mode) */}
+            {virtualTime && (
+              <button
+                onClick={() => {
+                  if (clientRef.current) {
+                    const success = clientRef.current.send({
+                      type: 'fast_forward_time',
+                      minutes: 30
+                    });
+                    if (!success) {
+                      console.error('Failed to send fast forward request');
+                    }
+                  }
+                }}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: 4,
+                  background: '#3F51B5',
+                  border: '1px solid #5C6BC0',
+                  color: '#FFFFFF',
+                  fontSize: '12px',
+                  fontFamily: '"Courier New", monospace',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = '#5C6BC0';
+                  e.target.style.borderColor = '#7986CB';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = '#3F51B5';
+                  e.target.style.borderColor = '#5C6BC0';
+                }}
+                title="快进30分钟 (Mock模式)"
+              >
+                ⏩ +30min
+              </button>
+            )}
           </div>
           
           {/* Real-time Update Indicator */}

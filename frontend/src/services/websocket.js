@@ -105,6 +105,22 @@ export class ReadOnlyClient {
     }
   }
   
+  send(message) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      try {
+        const messageStr = typeof message === 'string' ? message : JSON.stringify(message);
+        this.ws.send(messageStr);
+        return true;
+      } catch (e) {
+        console.error('Send error:', e);
+        return false;
+      }
+    } else {
+      console.warn('WebSocket is not connected, cannot send message');
+      return false;
+    }
+  }
+  
   disconnect() {
     this.shouldReconnect = false;
     this._stopHeartbeat();
