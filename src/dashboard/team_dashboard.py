@@ -584,14 +584,15 @@ class TeamDashboardGenerator:
                     # 仓位清空
                     del portfolio_state['positions'][ticker]
         
-        # 记录交易
-        for ticker, signal_info in pm_signals.items():
-            action = signal_info.get('action', 'hold')
-            quantity = signal_info.get('quantity', 0)
+        # 记录交易（仅记录实际执行成功的交易）
+        executed_trades = live_env.get('executed_trades', [])
+        for executed_trade in executed_trades:
+            ticker = executed_trade.get('ticker')
+            action = executed_trade.get('action', 'hold')
+            quantity = executed_trade.get('target_quantity', 0)
+            price = executed_trade.get('price', 0)
             
             if action != 'hold' and quantity > 0:
-                # 获取成交价格
-                price = self._get_ticker_price(ticker, date, signal_info, portfolio_state, real_returns)
                 numeric_real_return, _ = self._normalize_real_return(real_returns.get(ticker))
                 
                 # 计算该笔交易的P&L（基于当日收益, 未知时记为0）
