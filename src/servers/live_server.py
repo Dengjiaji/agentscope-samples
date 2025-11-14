@@ -42,7 +42,7 @@ _NYSE_CALENDAR = mcal.get_calendar('NYSE')
 
 
 load_dotenv()
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
 logger = logging.getLogger(__name__)
 
 
@@ -818,13 +818,13 @@ class LiveTradingServer:
     def _should_execute_trading_now(self) -> bool:
         """
         判断当前是否应该执行交易
-        条件：收盘后（北京时间 05:05 - 21:00）
+        条件：收盘后（北京时间 05:05 - 20:00）
         """
         now_beijing = self._get_current_time_beijing()
         current_time = now_beijing.time()
         
         # 在 05:05 - 10:00 之间执行交易（5小时窗口，适应时间加速）
-        return datetime_time(5, 5) <= current_time < datetime_time(21, 55)
+        return datetime_time(5, 5) <= current_time < datetime_time(20, 00)
     
     async def handle_client(self, websocket: WebSocketServerProtocol):
         """处理客户端连接"""
@@ -903,6 +903,51 @@ class LiveTradingServer:
                                 'type': 'state_response',
                                 'state': self.state_manager.get_full_state()
                             }, ensure_ascii=False, default=str))
+                        
+                        elif msg_type == 'fast_forward_time':
+                            # 时间快进功能（仅Mock模式）
+                            if not self.mock_mode:
+                                await websocket.send(json.dumps({
+                                    'type': 'error',
+                                    'message': '时间快进功能仅在Mock模式下可用'
+                                }, ensure_ascii=False, default=str))
+                            elif not self.vclock.enabled:
+                                await websocket.send(json.dumps({
+                                    'type': 'error',
+                                    'message': '虚拟时钟未启用'
+                                }, ensure_ascii=False, default=str))
+                            else:
+                                minutes = data.get('minutes', 30)  # 默认快进30分钟
+                                try:
+                                    old_time = self.vclock.now()
+                                    self.vclock.fast_forward(minutes)
+                                    new_time = self.vclock.now()
+                                    
+                                    logger.info(f"⏩ 时间快进: {minutes}分钟 ({old_time.strftime('%H:%M:%S')} → {new_time.strftime('%H:%M:%S')})")
+                                    
+                                    # 广播时间快进事件
+                                    await self.broadcast({
+                                        'type': 'time_fast_forwarded',
+                                        'minutes': minutes,
+                                        'old_time': old_time.isoformat(),
+                                        'new_time': new_time.isoformat(),
+                                        'old_time_str': old_time.strftime('%Y-%m-%d %H:%M:%S'),
+                                        'new_time_str': new_time.strftime('%Y-%m-%d %H:%M:%S')
+                                    })
+                                    
+                                    await websocket.send(json.dumps({
+                                        'type': 'fast_forward_success',
+                                        'minutes': minutes,
+                                        'old_time': old_time.isoformat(),
+                                        'new_time': new_time.isoformat(),
+                                        'message': f'时间已快进 {minutes} 分钟'
+                                    }, ensure_ascii=False, default=str))
+                                except Exception as e:
+                                    logger.error(f"时间快进失败: {e}")
+                                    await websocket.send(json.dumps({
+                                        'type': 'error',
+                                        'message': f'时间快进失败: {str(e)}'
+                                    }, ensure_ascii=False, default=str))
                             
                     except json.JSONDecodeError:
                         logger.warning("收到非JSON消息")
@@ -1074,6 +1119,8 @@ class LiveTradingServer:
             'pm_signals': pm_signals,
             'pre_market_result': result
         }
+
+        pdb.set_trace()
         
         self.state_manager.update('latest_signals', pm_signals)
         
@@ -1117,7 +1164,8 @@ class LiveTradingServer:
                 'type': 'system',
                 'content': f'✅ 已更新前一交易日 ({prev_date}) 的 agent 表现'
             })
-            logger.info(f"✅ 已更新前一交易日的 agent perf: {prev_date}")
+            self.broadcast({'type': 'system',
+                'content': f"✅ 已更新前一交易日的 agent perf: {prev_date}"})
         
         if result.get('status') == 'success':
             await self.broadcast({
@@ -1175,13 +1223,13 @@ class LiveTradingServer:
             
             # 调试日志
             if should_run_analysis:
-                logger.debug(f"🔍 检测到盘前分析时间窗口 | analysis_executed_today={self.analysis_executed_today} | us_date={us_date}")
+                print(f"🔍 检测到盘前分析时间窗口 | analysis_executed_today={self.analysis_executed_today} | us_date={us_date}")
             if should_execute_trade:
-                logger.debug(f"🔍 检测到交易执行时间窗口 | trading_executed_today={self.trading_executed_today} | us_date={us_date}")
+                print(f"🔍 检测到交易执行时间窗口 | trading_executed_today={self.trading_executed_today} | us_date={us_date}")
             
             if should_run_analysis and not self.analysis_executed_today:
                 # 开盘后运行盘前分析（22:30:00-22:40:00，10分钟窗口）
-                logger.info(f"🎯 触发盘前分析 (func1) | us_date={us_date} | 北京时间={now_beijing.strftime('%H:%M:%S')}")
+                print(f"🎯 触发盘前分析 (func1) | us_date={us_date} | 北京时间={now_beijing.strftime('%H:%M:%S')}")
                 await self._run_pre_market_analysis(us_date)
                 await self.vclock.sleep(30)  # 等待30秒（虚拟时间）
                 
@@ -1191,8 +1239,8 @@ class LiveTradingServer:
                 await self.vclock.sleep(60)  # 每分钟检查一次（虚拟时间）
                 
             elif should_execute_trade and not self.trading_executed_today:
-                # 收盘后执行交易时间（05:05-10:00，5小时窗口）
-                logger.info(f"🎯 触发交易执行 (func2) | us_date={us_date} | 北京时间={now_beijing.strftime('%H:%M:%S')}")
+                # 收盘后执行交易时间（05:05-21:00）
+                print(f"🎯 触发交易执行 (func2) | us_date={us_date} | 北京时间={now_beijing.strftime('%H:%M:%S')}")
                 await self._run_trade_execution_with_prev_update(us_date)
                 self.trading_executed_today = True
                 self.last_trading_date = us_date
@@ -1216,7 +1264,7 @@ class LiveTradingServer:
             # 在 10:00-22:29 之间检查是否需要重置标记（确保在交易执行窗口结束后，下次分析前）
             # ✅ 只有当日期真正变化时才重置，避免同一天内重复执行
             current_time = now_beijing.time()
-            if datetime_time(10, 0) <= current_time < datetime_time(22, 29):
+            if datetime_time(20, 0) <= current_time < datetime_time(22, 29):
                 # 检查日期是否真的变了
                 if self.last_executed_date and us_date != self.last_executed_date:
                     if self.trading_executed_today or self.analysis_executed_today:

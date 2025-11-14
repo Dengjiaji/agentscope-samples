@@ -288,14 +288,14 @@ class LiveTradingFund:
         })
         
         # Update team dashboard data
-        dashboard_update_stats = self.dashboard_generator.update_from_day_result(
-            date=date,
-            pre_market_result={'live_env': live_env, 'raw_results': result},
-            mode=self.mode
-        )
-        self.streamer.print("system", 
-            f"Team dashboard updated: {dashboard_update_stats.get('trades_added', 0)} trades added, "
-            f"{dashboard_update_stats.get('agents_updated', 0)} agents updated")
+        # dashboard_update_stats = self.dashboard_generator.update_from_day_result(
+        #     date=date,
+        #     pre_market_result={'live_env': live_env, 'raw_results': result},
+        #     mode=self.mode
+        # )
+        # self.streamer.print("system", 
+        #     f"Team dashboard updated: {dashboard_update_stats.get('trades_added', 0)} trades added, "
+        #     f"{dashboard_update_stats.get('agents_updated', 0)} agents updated")
        
 
         return {
@@ -997,10 +997,10 @@ class LiveTradingFund:
             live_env = pre_market_result['pre_market'].get('live_env')
             if live_env:
                 print("[system]", "Executing trades based on pre-market analysis...")
-                
+                # pdb.set_trace()
                 # 在 Live 模式下，只执行交易，不做记忆复盘
                 # 记忆复盘会在明天执行（在 _update_previous_day_performance 中）
-                post_market_result = self._execute_trades_only(date, tickers, live_env)
+                post_market_result = self._execute_trades_only(date, tickers, live_env,pre_market_result)
         
         return {
             'status': 'success',
@@ -1014,7 +1014,8 @@ class LiveTradingFund:
         self,
         date: str,
         tickers: List[str],
-        live_env: Dict[str, Any]
+        live_env: Dict[str, Any],
+        pre_market_result: Dict[str, Any]
     ) -> Dict[str, Any]:
         """仅执行交易操作，不进行记忆复盘（用于 Live 模式）
         
@@ -1040,6 +1041,17 @@ class LiveTradingFund:
                     trade_lines.append(f"  {ticker}: {signal_info.get('signal', 'N/A')}")
         
         self.streamer.print("agent", "\n".join(trade_lines), role_key="portfolio_manager")
+        
+        
+        dashboard_update_stats = self.dashboard_generator.update_from_day_result(
+            date=date,
+            pre_market_result=pre_market_result,
+            mode=self.mode
+        )
+        self.streamer.print("system", 
+            f"Dashboard updated: {dashboard_update_stats.get('trades_added', 0)} trades added, "
+            f"{dashboard_update_stats.get('agents_updated', 0)} agents updated")
+        # ================================================
         
         # 记录到 sandbox log
         log_data = {
@@ -1131,7 +1143,7 @@ class LiveTradingFund:
             'real_returns': real_returns,
             'portfolio_summary': prev_pre_market_result.get('live_env', {}).get('portfolio_summary', {})
         }
-        
+        # pdb.set_trace()
         # 执行记忆复盘
         self._perform_memory_review(prev_date, tickers, live_env)
     

@@ -343,7 +343,7 @@ class TeamDashboardGenerator:
         state = self._load_internal_state()
         
         # 提取数据
-        live_env = pre_market_result.get('live_env', {})
+        live_env = pre_market_result['pre_market'].get('live_env', {})
         real_returns = live_env.get('real_returns', {})
         pm_signals = live_env.get('pm_signals', {})
         ana_signals = live_env.get('ana_signals', {})
@@ -354,7 +354,6 @@ class TeamDashboardGenerator:
         # 设置为05:00:00（Asia/Shanghai时区的05:00）
         next_day_0500 = next_trading_day_obj.replace(hour=5, minute=0, second=0, microsecond=0)
         timestamp_ms = int(next_day_0500.timestamp() * 1000)
-        
         update_stats = {
             'date': date,
             'mode': mode,
@@ -366,7 +365,7 @@ class TeamDashboardGenerator:
         available_tickers = list(pm_signals.keys())
         self._initialize_buy_and_hold(date, available_tickers, state)
         self._initialize_buy_and_hold_vw(date, available_tickers, state)
-        
+        pdb.set_trace()
         # 1. 更新交易记录和持仓
         if mode == "portfolio":
             self._update_portfolio_mode(date, timestamp_ms, pm_signals, real_returns, 
@@ -586,14 +585,16 @@ class TeamDashboardGenerator:
         
         # 记录交易（仅记录实际执行成功的交易）
         executed_trades = live_env.get('executed_trades', [])
+        pdb.set_trace()
         for executed_trade in executed_trades:
-            
-            ticker = executed_trade.get('ticker')
-            action = executed_trade.get('action', 'hold')
-            quantity = executed_trade.get('target_quantity', 0)
-            price = executed_trade.get('price', 0)
+            pdb.set_trace()
+            ticker = executed_trade['ticker']
+            action = executed_trade['action']
+            quantity = executed_trade['target_quantity']
+            price = executed_trade['price']
             
             if action != 'hold' and quantity > 0:
+
                 numeric_real_return, _ = self._normalize_real_return(real_returns.get(ticker))
                 
                 # 计算该笔交易的P&L（基于当日收益, 未知时记为0）
@@ -627,7 +628,7 @@ class TeamDashboardGenerator:
                     'price': round(price, 2),
                     'pnl': round(pnl, 2)
                 }
-                
+                pdb.set_trace()
                 state['all_trades'].append(trade_record)
                 update_stats['trades_added'] += 1
     
