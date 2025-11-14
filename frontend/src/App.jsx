@@ -85,6 +85,17 @@ export default function LiveTradingApp() {
   const lastVirtualTimeRef = useRef(null);
   const virtualTimeOffsetRef = useRef(0);
   
+  // Set default chart tab based on market status
+  useEffect(() => {
+    if (marketStatus && marketStatus.status) {
+      if (marketStatus.status === 'open') {
+        setChartTab('live');
+      } else if (marketStatus.status === 'close' || marketStatus.status === 'closed') {
+        setChartTab('all');
+      }
+    }
+  }, [marketStatus?.status]);
+  
   // Clock - use virtual time if available (for mock mode)
   useEffect(() => {
     if (virtualTime) {
@@ -1099,6 +1110,7 @@ export default function LiveTradingApp() {
                       bubbles={bubbles} 
                       bubbleFor={bubbleFor} 
                       leaderboard={leaderboard}
+                      marketStatus={marketStatus}
                     />
                   </div>
                   

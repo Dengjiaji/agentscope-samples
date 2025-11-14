@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ASSETS, SCENE_NATIVE, AGENT_SEATS, AGENTS } from '../config/constants';
+import { ASSETS, SCENE_NATIVE, AGENT_SEATS, AGENTS, ASSET_BASE_URL } from '../config/constants';
 import AgentCard from './AgentCard';
 
 /**
@@ -8,10 +8,24 @@ import AgentCard from './AgentCard';
 function useImage(src) {
   const [img, setImg] = useState(null);
   useEffect(() => {
-    if (!src) return;
+    if (!src) {
+      setImg(null);
+      return;
+    }
+    // Reset image state when src changes
+    setImg(null);
     const image = new Image();
     image.src = src;
     image.onload = () => setImg(image);
+    image.onerror = () => {
+      console.error(`Failed to load image: ${src}`);
+      setImg(null);
+    };
+    // Cleanup: cancel loading if src changes
+    return () => {
+      image.onload = null;
+      image.onerror = null;
+    };
   }, [src]);
   return img;
 }
@@ -31,10 +45,24 @@ function getRankMedal(rank) {
  * Displays the conference room with agents, speech bubbles, and agent cards
  * Supports click and hover (1.5s) to show agent performance cards
  */
-export default function RoomView({ bubbles, bubbleFor, leaderboard }) {
+export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
-  const bgImg = useImage(ASSETS.roomBg);
+  
+  // Select background image based on market status
+  const roomBgSrc = useMemo(() => {
+    const status = marketStatus?.status;
+    
+    // Check if market is closed (handle both 'close' and 'closed')
+    if (marketStatus && (status === 'close' || status === 'closed')) {
+      return `${ASSET_BASE_URL}/full_room_dark.png`;
+    }
+    
+    // Default to light background (market open or no status)
+    return ASSETS.roomBg; // full_room_with_roles_tech_style.png
+  }, [marketStatus?.status]);
+  
+  const bgImg = useImage(roomBgSrc);
   
   // Calculate scale to fit canvas in container (80% of available space)
   const [scale, setScale] = useState(0.8);
@@ -89,18 +117,19 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard }) {
   // Draw room background
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !bgImg) return;
+    if (!canvas) return;
     
     const ctx = canvas.getContext('2d');
     ctx.imageSmoothingEnabled = false;
     
-    const draw = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(bgImg, 0, 0, SCENE_NATIVE.width, SCENE_NATIVE.height);
-    };
+    // Clear canvas first
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    draw();
-  }, [bgImg, scale]);
+    // Draw image if loaded
+    if (bgImg) {
+      ctx.drawImage(bgImg, 0, 0, SCENE_NATIVE.width, SCENE_NATIVE.height);
+    }
+  }, [bgImg, scale, roomBgSrc]);
   
   // Determine which agents are speaking
   const speakingAgents = useMemo(() => {
