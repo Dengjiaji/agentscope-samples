@@ -587,6 +587,7 @@ class TeamDashboardGenerator:
         # 记录交易（仅记录实际执行成功的交易）
         executed_trades = live_env.get('executed_trades', [])
         for executed_trade in executed_trades:
+            
             ticker = executed_trade.get('ticker')
             action = executed_trade.get('action', 'hold')
             quantity = executed_trade.get('target_quantity', 0)

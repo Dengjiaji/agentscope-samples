@@ -272,6 +272,12 @@ class LiveTradingFund:
         if self.mode == "portfolio":
             live_env['portfolio_summary'] = pm_results.get('portfolio_summary', {})
             live_env['updated_portfolio'] = result.get('updated_portfolio', {})
+            
+            # Get executed_trades from execution_report or final_execution_report
+            pm_results = result.get('portfolio_management_results', {})
+            execution_report = pm_results.get('final_execution_report') or pm_results.get('execution_report', {})
+            live_env['executed_trades'] = execution_report.get('executed_trades', [])
+            live_env['failed_trades'] = execution_report.get('failed_trades', [])
 
         # Record to sandbox log
         self._log_sandbox_activity(date, self.PRE_MARKET, {

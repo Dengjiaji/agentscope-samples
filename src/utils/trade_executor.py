@@ -179,7 +179,6 @@ class PortfolioTradeExecutor:
             
             # 执行交易
             trade_result = self._execute_single_trade(ticker, action, quantity, price, current_date)
-            
             if trade_result["status"] == "success":
                 execution_report["executed_trades"].append(trade_result)
                 action_emoji = {

@@ -292,7 +292,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
                 let resultFontSize = 18;
                 
                 if (isUnknown) {
-                  resultDisplay = 'unknown';
+                  resultDisplay = '?';
                   resultColor = '#FFA726'; // Orange for unknown
                   resultFontSize = 14; // Smaller font for text
                 } else if (isNeutral) {
