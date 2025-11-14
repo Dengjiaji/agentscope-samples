@@ -430,6 +430,69 @@ class LiveTradingFund:
             # Old mode: Central Review
             return self._run_central_review_mode(date, tickers, pm_signals, ana_signals, real_returns)
     
+    def _perform_memory_review(
+        self,
+        date: str,
+        tickers: List[str],
+        live_env: Dict[str, Any]
+    ):
+        """执行记忆复盘（独立函数，用于延迟复盘）
+        
+        这个函数会在第二天被调用，当我们有了 real_returns 之后
+        """
+        pm_signals = live_env.get('pm_signals', {})
+        ana_signals = live_env.get('ana_signals', {})
+        real_returns = live_env.get('real_returns', {})
+        
+        # 显示复盘信息
+        self.streamer.print("agent", 
+            f"===== Post-Market Review ({date}) =====\n"
+            f"Reviewing previous day's performance with actual returns",
+            role_key="portfolio_manager")
+        
+        # 1. Portfolio Manager 信号回顾
+        pm_review_lines = ["Portfolio Manager signal review:"]
+        for ticker in tickers:
+            if ticker in pm_signals:
+                signal_info = pm_signals[ticker]
+                if self.mode == "portfolio":
+                    action = signal_info.get('action', 'N/A')
+                    quantity = signal_info.get('quantity', 0)
+                    pm_review_lines.append(f"  {ticker}: {action} ({quantity} shares)")
+                else:
+                    pm_review_lines.append(f"  {ticker}: {signal_info.get('signal', 'N/A')}")
+        
+        # 2. 实际收益回顾
+        returns_lines = ["Actual returns:"]
+        for ticker in tickers:
+            if ticker in real_returns:
+                daily_ret = real_returns[ticker] * 100
+                returns_lines.append(f"  {ticker}: {daily_ret:.2f}%")
+        
+        # 3. 分析师信号对比
+        analyst_lines = ["Analyst signal comparison:"]
+        for agent, agent_signals in ana_signals.items():
+            analyst_lines.append(f"\n{agent}:")
+            for ticker in tickers:
+                signal_data = agent_signals.get(ticker, {})
+                signal = signal_data.get('signal', 'N/A') if isinstance(signal_data, dict) else 'N/A'
+                analyst_lines.append(f"  {ticker}: {signal}")
+        
+        self.streamer.print("agent", 
+            "\n".join(pm_review_lines) + "\n" + "\n".join(returns_lines) + "\n" + "\n".join(analyst_lines),
+            role_key="portfolio_manager")
+        
+        # 执行记忆复盘
+        review_mode = os.getenv('MEMORY_REVIEW_MODE', 'individual_review').lower()
+        
+        if review_mode == 'individual_review':
+            result = self._run_individual_review_mode(date, tickers, pm_signals, ana_signals, real_returns, live_env)
+        else:
+            result = self._run_central_review_mode(date, tickers, pm_signals, ana_signals, real_returns)
+        
+        self.streamer.print("system", f"✅ Memory review completed for {date}")
+        return result
+    
     def _run_central_review_mode(
         self,
         date: str,
@@ -894,7 +957,8 @@ class LiveTradingFund:
         tickers: List[str],
         pre_market_result: Optional[Dict[str, Any]] = None,
         prev_date: Optional[str] = None,
-        prev_signals: Optional[Dict[str, Any]] = None
+        prev_signals: Optional[Dict[str, Any]] = None,
+        skip_real_returns: bool = False
     ) -> Dict[str, Any]:
         """执行交易并更新前一天的 agent performance
         
@@ -924,12 +988,17 @@ class LiveTradingFund:
             self._update_previous_day_performance(prev_date, tickers, prev_signals)
         
         # 2. 执行当天的交易（如果有盘前分析结果）
+        # 注意：Live 模式下，这里只执行交易操作，不进行记忆复盘
+        # 因为当天还没有 real_returns（需要等到收盘后才有收盘价）
         post_market_result = None
         if pre_market_result and pre_market_result.get('status') == 'success':
-            live_env = pre_market_result.get('live_env')
+            live_env = pre_market_result['pre_market'].get('live_env')
             if live_env:
                 print("[system]", "Executing trades based on pre-market analysis...")
-                post_market_result = self.run_post_market_review(date, tickers, live_env)
+                
+                # 在 Live 模式下，只执行交易，不做记忆复盘
+                # 记忆复盘会在明天执行（在 _update_previous_day_performance 中）
+                post_market_result = self._execute_trades_only(date, tickers, live_env)
         
         return {
             'status': 'success',
@@ -939,18 +1008,69 @@ class LiveTradingFund:
             'prev_day_updated': prev_date is not None
         }
     
+    def _execute_trades_only(
+        self,
+        date: str,
+        tickers: List[str],
+        live_env: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """仅执行交易操作，不进行记忆复盘（用于 Live 模式）
+        
+        注意：在 Live 模式下，交易决策已经在盘前分析阶段通过 strategy.run_single_day 完成
+        这里主要是记录日志和更新 dashboard
+        """
+        pm_signals = live_env.get('pm_signals', {})
+        
+        self.streamer.print("system", 
+            f"===== Trade Execution ({date}) =====\n"
+            f"Executing trades based on pre-market signals")
+        
+        # 显示交易信号
+        trade_lines = ["Executing trades:"]
+        for ticker in tickers:
+            if ticker in pm_signals:
+                signal_info = pm_signals[ticker]
+                if self.mode == "portfolio":
+                    action = signal_info.get('action', 'N/A')
+                    quantity = signal_info.get('quantity', 0)
+                    trade_lines.append(f"  {ticker}: {action} ({quantity} shares)")
+                else:
+                    trade_lines.append(f"  {ticker}: {signal_info.get('signal', 'N/A')}")
+        
+        self.streamer.print("agent", "\n".join(trade_lines), role_key="portfolio_manager")
+        
+        # 记录到 sandbox log
+        log_data = {
+            'status': 'success',
+            'type': 'trade_execution_only',
+            'pm_signals': pm_signals,
+            'note': 'Memory review will be performed next day'
+        }
+        self._log_sandbox_activity(date, self.POST_MARKET, log_data)
+        
+        self.streamer.print("system", 
+            "✅ Trades executed. Memory review scheduled for next trading day.")
+        
+        return {
+            'status': 'success',
+            'type': 'trade_execution_only',
+            'date': date,
+            'note': 'Memory review will be performed next day when real_returns available'
+        }
+    
     def _update_previous_day_performance(
         self,
         prev_date: str,
         tickers: List[str],
         prev_signals: Dict[str, Any]
     ):
-        """更新前一天的 agent performance（现在可以获取 real_returns 了）"""
+        """更新前一天的 agent performance 并执行记忆复盘（现在可以获取 real_returns 了）"""
         
-        print("[system]", f"Updating agent performance for previous trading day: {prev_date}")
+        print("[system]", f"Updating agent performance and memory review for previous trading day: {prev_date}")
         
         ana_signals = prev_signals.get('ana_signals', {})
         pm_signals = prev_signals.get('pm_signals', {})
+        prev_pre_market_result = prev_signals.get('pre_market_result', {})
         
         # 计算前一天的 real_returns（现在可以获取到收盘价了）
         real_returns = {}
@@ -962,7 +1082,7 @@ class LiveTradingFund:
                 )
                 real_returns[ticker] = daily_return
         
-        # 更新 dashboard 中的 agent performance
+        # 1. 更新 dashboard 中的 agent performance
         update_stats = {
             'agents_updated': 0,
             'signals_updated': 0
@@ -988,6 +1108,21 @@ class LiveTradingFund:
         
         self.streamer.print("system", 
             f"Previous day performance updated: {update_stats['agents_updated']} agents evaluated")
+        
+        # 2. 执行前一天的记忆复盘（现在有了 real_returns，可以准确评估表现）
+        self.streamer.print("system", 
+            f"===== Memory Review for {prev_date} (Delayed) =====\n")
+        
+        # 构建 live_env（包含 real_returns）
+        live_env = {
+            'pm_signals': pm_signals,
+            'ana_signals': ana_signals,
+            'real_returns': real_returns,
+            'portfolio_summary': prev_pre_market_result.get('live_env', {}).get('portfolio_summary', {})
+        }
+        
+        # 执行记忆复盘
+        self._perform_memory_review(prev_date, tickers, live_env)
     
     def run_full_day_simulation(
         self,
