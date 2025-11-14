@@ -19,6 +19,9 @@ from src.config.path_config import get_logs_and_memory_dir
 
 logger = logging.getLogger(__name__)
 
+# 每条记忆的最大字符长度（text-embedding-v4 限制约为 8192 tokens，约等于 8000 字符）
+MAX_CONTENT_LENGTH = 8000
+
 
 class ReMeMemory(LongTermMemory):
     """
@@ -124,36 +127,108 @@ class ReMeMemory(LongTermMemory):
             self.vector_store.create_workspace(workspace_id)
     
     def add(self, content: str, user_id: str, metadata: Optional[Dict[str, Any]] = None) -> str:
-        """添加记忆"""
-        logger.debug(f"➕ [ReMeMemory] 添加记忆: user_id={user_id}, content_len={len(content)}")
+        """添加记忆
+        
+        如果内容超过 MAX_CONTENT_LENGTH，会自动分割成多条记录分别存储
+        """
+        if not content or not isinstance(content, str):
+            logger.warning(f"⚠️ [ReMeMemory] 输入内容为空或非字符串类型，跳过")
+            return ""
+        
+        content = content.strip()
+        if not content:
+            logger.warning(f"⚠️ [ReMeMemory] 输入内容为空（仅包含空白字符），跳过")
+            return ""
+        
+        content_len = len(content)
+        logger.debug(f"➕ [ReMeMemory] 添加记忆: user_id={user_id}, content_len={content_len}")
         
         self._ensure_workspace(user_id)
         workspace_id = self._get_workspace_id(user_id)
         
         logger.debug(f"   workspace_id={workspace_id}")
         
-        node_id = str(uuid.uuid4())
         node_metadata = metadata or {}
         node_metadata['user_id'] = user_id
         node_metadata['base_dir'] = self.base_dir
         
-        node = VectorNode(
-            unique_id=node_id,
-            workspace_id=workspace_id,
-            content=content,
-            metadata=node_metadata
-        )
-        
-        self.vector_store.insert([node], workspace_id)
-        self.vector_store.dump_workspace(workspace_id, path=self.store_dir)
-        
-        logger.debug(f"   ✅ 记忆已添加，node_id={node_id}")
-        logger.debug(f"   保存路径: {self.store_dir}/{workspace_id}.jsonl")
-        
-        return node_id
+        # 如果内容超过最大长度，分割成多条记录
+        if content_len > MAX_CONTENT_LENGTH:
+            logger.info(f"   内容长度 ({content_len}) 超过限制 ({MAX_CONTENT_LENGTH})，将分割成多条记录")
+            
+            # 按 MAX_CONTENT_LENGTH 分割内容
+            chunks = []
+            for i in range(0, content_len, MAX_CONTENT_LENGTH):
+                chunk = content[i:i + MAX_CONTENT_LENGTH]
+                chunks.append(chunk)
+            
+            logger.info(f"   分割成 {len(chunks)} 条记录")
+            
+            # 为每个片段创建节点
+            nodes = []
+            first_node_id = None
+            for idx, chunk in enumerate(chunks):
+                node_id = str(uuid.uuid4())
+                if idx == 0:
+                    first_node_id = node_id
+                
+                # 在元数据中记录这是分割记录的一部分
+                chunk_metadata = node_metadata.copy()
+                chunk_metadata['chunk_index'] = idx
+                chunk_metadata['total_chunks'] = len(chunks)
+                chunk_metadata['is_chunked'] = True
+                
+                node = VectorNode(
+                    unique_id=node_id,
+                    workspace_id=workspace_id,
+                    content=chunk,
+                    metadata=chunk_metadata
+                )
+                nodes.append(node)
+            
+            # 批量插入所有节点
+            self.vector_store.insert(nodes, workspace_id)
+            self.vector_store.dump_workspace(workspace_id, path=self.store_dir)
+            
+            logger.debug(f"   ✅ 记忆已添加（分割成 {len(chunks)} 条），第一条 node_id={first_node_id}")
+            logger.debug(f"   保存路径: {self.store_dir}/{workspace_id}.jsonl")
+            
+            return first_node_id
+        else:
+            # 内容长度正常，直接存储
+            node_id = str(uuid.uuid4())
+            
+            node = VectorNode(
+                unique_id=node_id,
+                workspace_id=workspace_id,
+                content=content,
+                metadata=node_metadata
+            )
+            
+            self.vector_store.insert([node], workspace_id)
+            self.vector_store.dump_workspace(workspace_id, path=self.store_dir)
+            
+            logger.debug(f"   ✅ 记忆已添加，node_id={node_id}")
+            logger.debug(f"   保存路径: {self.store_dir}/{workspace_id}.jsonl")
+            
+            return node_id
     
     def search(self, query: str, user_id: str, top_k: int = 5) -> List[Dict[str, Any]]:
         """搜索记忆"""
+        if not query or not isinstance(query, str):
+            logger.warning(f"⚠️ [ReMeMemory] 搜索查询为空或非字符串类型，返回空列表")
+            return []
+        
+        query = query.strip()
+        if not query:
+            logger.warning(f"⚠️ [ReMeMemory] 搜索查询为空（仅包含空白字符），返回空列表")
+            return []
+        
+        # 如果查询文本超过最大长度，截断
+        if len(query) > MAX_CONTENT_LENGTH:
+            logger.warning(f"⚠️ [ReMeMemory] 搜索查询长度 ({len(query)}) 超过限制 ({MAX_CONTENT_LENGTH})，将截断")
+            query = query[:MAX_CONTENT_LENGTH]
+        
         logger.debug(f"🔍 [ReMeMemory] 搜索记忆: user_id={user_id}, query={query[:100]}...")
         
         self._ensure_workspace(user_id)
@@ -187,22 +262,74 @@ class ReMeMemory(LongTermMemory):
         ]
     
     def update(self, memory_id: str, content: str, user_id: str) -> bool:
-        """更新记忆"""
+        """更新记忆
+        
+        如果内容超过 MAX_CONTENT_LENGTH，会自动分割成多条记录分别存储
+        注意：更新时会删除旧记录，如果旧记录是分割的，需要手动删除所有相关记录
+        """
+        if not content or not isinstance(content, str):
+            logger.warning(f"⚠️ [ReMeMemory] 更新内容为空或非字符串类型，跳过")
+            return False
+        
+        content = content.strip()
+        if not content:
+            logger.warning(f"⚠️ [ReMeMemory] 更新内容为空（仅包含空白字符），跳过")
+            return False
+        
         try:
             self._ensure_workspace(user_id)
             workspace_id = self._get_workspace_id(user_id)
             
-            # ReMe方式：删除旧节点，插入新节点
+            # 删除旧节点
             self.vector_store.delete([memory_id], workspace_id)
             
-            node = VectorNode(
-                unique_id=memory_id,
-                workspace_id=workspace_id,
-                content=content,
-                metadata={'user_id': user_id, 'base_dir': self.base_dir}
-            )
+            # 如果内容超过最大长度，分割成多条记录
+            content_len = len(content)
+            if content_len > MAX_CONTENT_LENGTH:
+                logger.info(f"   更新内容长度 ({content_len}) 超过限制 ({MAX_CONTENT_LENGTH})，将分割成多条记录")
+                
+                # 按 MAX_CONTENT_LENGTH 分割内容
+                chunks = []
+                for i in range(0, content_len, MAX_CONTENT_LENGTH):
+                    chunk = content[i:i + MAX_CONTENT_LENGTH]
+                    chunks.append(chunk)
+                
+                logger.info(f"   分割成 {len(chunks)} 条记录")
+                
+                # 为每个片段创建节点（第一条使用原 memory_id，其他创建新 ID）
+                nodes = []
+                for idx, chunk in enumerate(chunks):
+                    node_id = memory_id if idx == 0 else str(uuid.uuid4())
+                    
+                    chunk_metadata = {
+                        'user_id': user_id,
+                        'base_dir': self.base_dir,
+                        'chunk_index': idx,
+                        'total_chunks': len(chunks),
+                        'is_chunked': True
+                    }
+                    
+                    node = VectorNode(
+                        unique_id=node_id,
+                        workspace_id=workspace_id,
+                        content=chunk,
+                        metadata=chunk_metadata
+                    )
+                    nodes.append(node)
+                
+                # 批量插入所有节点
+                self.vector_store.insert(nodes, workspace_id)
+            else:
+                # 内容长度正常，直接更新
+                node = VectorNode(
+                    unique_id=memory_id,
+                    workspace_id=workspace_id,
+                    content=content,
+                    metadata={'user_id': user_id, 'base_dir': self.base_dir}
+                )
+                
+                self.vector_store.insert([node], workspace_id)
             
-            self.vector_store.insert([node], workspace_id)
             self.vector_store.dump_workspace(workspace_id, path=self.store_dir)
             
             return True

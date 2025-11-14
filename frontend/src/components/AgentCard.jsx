@@ -286,14 +286,21 @@ export default function AgentCard({ agent, onClose, isClosing }) {
                 const isCorrect = signal.is_correct === true;
                 const isUnknown = signal.is_correct === 'unknown' || signal.is_correct === null;
                 
-                // Determine result text: unknown has priority over neutral
-                let resultText;
+                // Determine result symbol/text and color: unknown has priority over neutral
+                let resultDisplay;
+                let resultColor = '#555555';
+                let resultFontSize = 18;
+                
                 if (isUnknown) {
-                  resultText = 'unknown';
+                  resultDisplay = 'unknown';
+                  resultColor = '#FFA726'; // Orange for unknown
+                  resultFontSize = 14; // Smaller font for text
                 } else if (isNeutral) {
-                  resultText = '-';
+                  resultDisplay = '-';
+                  resultColor = '#555555'; // Gray for neutral
                 } else {
-                  resultText = isCorrect ? 'correct' : 'wrong';
+                  resultDisplay = isCorrect ? '✓' : '✗';
+                  resultColor = isCorrect ? '#00C853' : '#FF1744'; // Green for correct, Red for wrong
                 }
                 
                 return (
@@ -328,10 +335,11 @@ export default function AgentCard({ agent, onClose, isClosing }) {
                       {signal.date?.substring(5, 10) || 'N/A'}
                     </div>
                     <div style={{
-                      fontSize: 14,
-                      color: '#555555'
+                      fontSize: resultFontSize,
+                      fontWeight: 700,
+                      color: resultColor
                     }}>
-                      {resultText}
+                      {resultDisplay}
                     </div>
                   </div>
                 );
