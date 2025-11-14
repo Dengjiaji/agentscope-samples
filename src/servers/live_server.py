@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import sys
+import subprocess
 from pathlib import Path
 from datetime import datetime, timedelta, time as datetime_time
 from typing import Set, Dict, Any, Optional, Tuple, List
@@ -1354,6 +1355,73 @@ class LiveTradingServer:
             'market_status': market_status
         })
     
+    async def _run_data_updater(self):
+        """执行数据更新任务"""
+        logger.info("🔄 [定时任务] 开始执行历史数据更新...")
+        
+        # 广播更新开始
+        await self.broadcast({
+            'type': 'system',
+            'content': '🔄 正在自动更新历史数据...'
+        })
+        
+        # 执行数据更新（在子进程中运行，避免阻塞）
+        process = await asyncio.create_subprocess_exec(
+            sys.executable, '-m', 'src.data.ret_data_updater',
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=str(BASE_DIR)
+        )
+        
+        stdout, stderr = await process.communicate()
+        
+        if process.returncode == 0:
+            logger.info("✅ [定时任务] 历史数据更新完成")
+            await self.broadcast({
+                'type': 'system',
+                'content': '✅ 历史数据更新完成'
+            })
+        else:
+            error_msg = stderr.decode('utf-8', errors='ignore') if stderr else "未知错误"
+            logger.warning(f"⚠️ [定时任务] 历史数据更新失败: {error_msg[:200]}")
+            await self.broadcast({
+                'type': 'system',
+                'content': f'⚠️ 历史数据更新失败（可能是周末/假期），将使用现有数据'
+            })
+    
+    async def _daily_data_updater_scheduler(self):
+        """每天 05:10 执行数据更新的调度器"""
+        logger.info("📅 数据更新调度器已启动（每天 05:10 执行）")
+        
+        try:
+            while True:
+                # 获取当前时间
+                now = datetime.now()
+                
+                # 计算下次执行时间（今天或明天的 05:10）
+                target_time = datetime_time(5, 10)  # 05:10
+                
+                if now.time() < target_time:
+                    # 今天还没到 05:10，今天执行
+                    next_run = datetime.combine(now.date(), target_time)
+                else:
+                    # 今天已经过了 05:10，明天执行
+                    next_run = datetime.combine(now.date() + timedelta(days=1), target_time)
+                
+                # 计算等待时间（秒）
+                wait_seconds = (next_run - now).total_seconds()
+                
+                logger.info(f"⏰ 下次数据更新时间: {next_run.strftime('%Y-%m-%d %H:%M:%S')} (等待 {wait_seconds/3600:.2f} 小时)")
+                
+                # 等待到执行时间
+                await asyncio.sleep(wait_seconds)
+                
+                # 执行数据更新
+                await self._run_data_updater()
+        except asyncio.CancelledError:
+            logger.info("📅 数据更新调度器已停止")
+            raise
+    
     async def _periodic_state_saver(self):
         """定期保存状态（每5分钟）"""
         while True:
@@ -1404,6 +1472,11 @@ class LiveTradingServer:
             saver_task = asyncio.create_task(self._periodic_state_saver())
             dashboard_monitor_task = asyncio.create_task(self._periodic_dashboard_monitor())
             
+            # 启动数据更新调度器（仅在非Mock模式下）
+            data_updater_task = None
+            if not self.mock_mode:
+                data_updater_task = asyncio.create_task(self._daily_data_updater_scheduler())
+            
             # 启动在线交易模拟
             simulation_task = asyncio.create_task(self.run_live_trading_simulation())
             
@@ -1417,6 +1490,8 @@ class LiveTradingServer:
                 
                 saver_task.cancel()
                 dashboard_monitor_task.cancel()
+                if data_updater_task:
+                    data_updater_task.cancel()
                 
                 if self.price_manager:
                     self.price_manager.stop()
