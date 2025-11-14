@@ -144,6 +144,7 @@ class LiveTradingServer:
         self.is_today = False
         self.market_is_open = False
         self.last_trading_date = None  # 记录上次执行交易的日期
+        self.last_executed_date = None  # 记录上次实际执行交易的美国日期（用于判断是否跨天）
         self.trading_executed_today = False  # 标记今天是否已执行交易
         self.analysis_executed_today = False  # 标记今天是否已执行盘前分析
         
@@ -817,13 +818,13 @@ class LiveTradingServer:
     def _should_execute_trading_now(self) -> bool:
         """
         判断当前是否应该执行交易
-        条件：收盘后（北京时间 05:05 - 10:00）
+        条件：收盘后（北京时间 05:05 - 21:00）
         """
         now_beijing = self._get_current_time_beijing()
         current_time = now_beijing.time()
         
         # 在 05:05 - 10:00 之间执行交易（5小时窗口，适应时间加速）
-        return datetime_time(5, 5) <= current_time < datetime_time(10, 0)
+        return datetime_time(5, 5) <= current_time < datetime_time(21, 55)
     
     async def handle_client(self, websocket: WebSocketServerProtocol):
         """处理客户端连接"""
@@ -1195,6 +1196,7 @@ class LiveTradingServer:
                 await self._run_trade_execution_with_prev_update(us_date)
                 self.trading_executed_today = True
                 self.last_trading_date = us_date
+                self.last_executed_date = us_date  # 记录实际执行日期
                 await self.vclock.sleep(300)  # 执行后等待5分钟（虚拟时间）
                 
             else:
@@ -1211,15 +1213,19 @@ class LiveTradingServer:
                     await self.vclock.sleep(300)  # 虚拟时间5分钟
             
             # 检查美国交易日变更，重置标记
-            # 在 10:00-22:29 之间重置标记（确保在交易执行窗口结束后，下次分析前）
+            # 在 10:00-22:29 之间检查是否需要重置标记（确保在交易执行窗口结束后，下次分析前）
+            # ✅ 只有当日期真正变化时才重置，避免同一天内重复执行
             current_time = now_beijing.time()
             if datetime_time(10, 0) <= current_time < datetime_time(22, 29):
-                if self.trading_executed_today or self.analysis_executed_today:
-                    logger.info(f"📅 重置每日标记 | 北京时间={now_beijing.strftime('%H:%M:%S')} | us_date={us_date}")
-                    logger.info(f"   重置前: trading_executed={self.trading_executed_today}, analysis_executed={self.analysis_executed_today}")
-                    self.trading_executed_today = False
-                    self.analysis_executed_today = False
-                    logger.info(f"   重置后: trading_executed={self.trading_executed_today}, analysis_executed={self.analysis_executed_today}")
+                # 检查日期是否真的变了
+                if self.last_executed_date and us_date != self.last_executed_date:
+                    if self.trading_executed_today or self.analysis_executed_today:
+                        logger.info(f"📅 检测到交易日变更 ({self.last_executed_date} → {us_date})，重置每日标记")
+                        logger.info(f"   北京时间={now_beijing.strftime('%H:%M:%S')}")
+                        logger.info(f"   重置前: trading_executed={self.trading_executed_today}, analysis_executed={self.analysis_executed_today}")
+                        self.trading_executed_today = False
+                        self.analysis_executed_today = False
+                        logger.info(f"   重置后: trading_executed={self.trading_executed_today}, analysis_executed={self.analysis_executed_today}")
     
     async def _handle_non_trading_day(self, now_beijing: datetime):
         """处理非交易日：只维持页面时间更新，不获取价格"""
