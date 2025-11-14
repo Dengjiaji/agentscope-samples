@@ -192,6 +192,24 @@ class LiveTradingServer:
         except Exception as e:
             logger.error(f"更新 Dashboard 文件失败 ({symbol}): {e}")
     
+    def _get_current_time_for_data(self) -> datetime:
+        """
+        获取用于数据记录的当前时间
+        Mock模式下使用virtual time，否则使用真实时间
+        """
+        if self.mock_mode and self.vclock.enabled:
+            return self.vclock.now()
+        else:
+            return datetime.now()
+    
+    def _get_current_timestamp_ms_for_data(self) -> int:
+        """
+        获取用于数据记录的时间戳（毫秒）
+        Mock模式下使用virtual time，否则使用真实时间
+        """
+        current_time = self._get_current_time_for_data()
+        return int(current_time.timestamp() * 1000)
+    
     def _update_dashboard_files_with_price(self, symbol: str, price: float):
         """更新 holdings.json、stats.json 和 summary.json 文件中的价格和相关计算"""
         holdings_file = self.dashboard_files.get('holdings')
@@ -300,7 +318,8 @@ class LiveTradingServer:
         
         if summary:
             try:
-                current_time = int(datetime.now().timestamp() * 1000)
+                # 使用virtual time（mock模式下）或真实时间
+                current_time = self._get_current_timestamp_ms_for_data()
                 
                 if updated:
                     summary['balance'] = round(total_value, 2)
@@ -320,7 +339,7 @@ class LiveTradingServer:
                     summary['equity'] = equity_list
                     summary_changed = True
                 
-                if self._update_benchmark_curves(summary, current_time or int(datetime.now().timestamp() * 1000)):
+                if self._update_benchmark_curves(summary, current_time):
                     summary_changed = True
                 
                 if summary_changed:
@@ -381,7 +400,9 @@ class LiveTradingServer:
             return
         price_history = self.internal_state.setdefault('price_history', {})
         ticker_history = price_history.setdefault(symbol, {})
-        today = datetime.now().strftime("%Y-%m-%d")
+        # 使用virtual time（mock模式下）或真实时间
+        current_time = self._get_current_time_for_data()
+        today = current_time.strftime("%Y-%m-%d")
         ticker_history[today] = price
     
     def _get_price_for_benchmark(self, ticker: str, fallback: Optional[float] = None) -> Optional[float]:
@@ -532,7 +553,9 @@ class LiveTradingServer:
     async def _broadcast_dashboard_from_files(self):
         """从文件读取 Dashboard 数据并广播"""
         updated_files = self._check_dashboard_files_updated()
-        timestamp = datetime.now().isoformat()
+        # 使用virtual time（mock模式下）或真实时间
+        current_time = self._get_current_time_for_data()
+        timestamp = current_time.isoformat()
         
         for file_type, is_updated in updated_files.items():
             if not is_updated:
