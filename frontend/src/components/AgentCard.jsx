@@ -282,8 +282,19 @@ export default function AgentCard({ agent, onClose, isClosing }) {
                 const signalType = signal.signal.toLowerCase();
                 const isBull = signalType.includes('bull') || signalType === 'long';
                 const isBear = signalType.includes('bear') || signalType === 'short';
+                const isNeutral = (!isBull && !isBear) || signalType.includes('neutral') || signalType === 'hold';
                 const isCorrect = signal.is_correct === true;
                 const isUnknown = signal.is_correct === 'unknown' || signal.is_correct === null;
+                
+                // Determine result text: unknown has priority over neutral
+                let resultText;
+                if (isUnknown) {
+                  resultText = 'unknown';
+                } else if (isNeutral) {
+                  resultText = '-';
+                } else {
+                  resultText = isCorrect ? 'correct' : 'wrong';
+                }
                 
                 return (
                   <div key={idx} style={{
@@ -320,7 +331,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
                       fontSize: 14,
                       color: '#555555'
                     }}>
-                      {isUnknown ? 'unknown' : (isCorrect ? 'correct' : 'wrong')}
+                      {resultText}
                     </div>
                   </div>
                 );
