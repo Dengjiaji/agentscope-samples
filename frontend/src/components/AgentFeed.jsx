@@ -77,7 +77,14 @@ function ConferenceMessage({ message }) {
     agentColors = getAgentColors(message.agentId, message.agent);
   }
   
-  const content = message.content || '';
+  // 处理内容 - 如果是对象则转换为 JSON 字符串
+  let content = message.content || '';
+  if (typeof content === 'object') {
+    content = JSON.stringify(content, null, 2);
+  } else {
+    content = String(content);
+  }
+  
   const needsTruncation = content.length > 800;
   const MAX_EXPANDED_LENGTH = 10000;
   
@@ -115,7 +122,14 @@ function MemoryItem({ memory }) {
   const [expanded, setExpanded] = useState(false);
   const colors = MESSAGE_COLORS.memory;
   
-  const content = memory.content || '';
+  // 处理内容 - 如果是对象则转换为 JSON 字符串
+  let content = memory.content || '';
+  if (typeof content === 'object') {
+    content = JSON.stringify(content, null, 2);
+  } else {
+    content = String(content);
+  }
+  
   const needsTruncation = content.length > 200;
   const MAX_EXPANDED_LENGTH = 1000;
   
@@ -170,7 +184,14 @@ function MessageItem({ message }) {
     title = message.agent || 'AGENT';
   }
   
-  const content = message.content || '';
+  // 处理内容 - 如果是对象则转换为 JSON 字符串
+  let content = message.content || '';
+  if (typeof content === 'object') {
+    content = JSON.stringify(content, null, 2);
+  } else {
+    content = String(content);
+  }
+  
   const needsTruncation = content.length > 200;
   const MAX_EXPANDED_LENGTH = 1000;
   

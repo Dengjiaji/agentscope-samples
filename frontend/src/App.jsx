@@ -764,8 +764,15 @@ export default function LiveTradingApp() {
         },
         
         team_leaderboard: (e) => {
-          if (Array.isArray(e.rows)) setLeaderboard(e.rows);
-          else if (Array.isArray(e.leaderboard)) setLeaderboard(e.leaderboard);
+          // 服务器发送的格式: { type: 'team_leaderboard', data: [...], timestamp: ... }
+          if (Array.isArray(e.data)) {
+            setLeaderboard(e.data);
+            console.log('✅ Leaderboard updated:', e.data.length, 'agents');
+          } else if (Array.isArray(e.rows)) {
+            setLeaderboard(e.rows);
+          } else if (Array.isArray(e.leaderboard)) {
+            setLeaderboard(e.leaderboard);
+          }
         },
         
         // 虚拟时间更新（Mock模式下的时间广播）

@@ -270,7 +270,15 @@ export default function AgentCard({ agent, onClose, isClosing }) {
               background: '#fafafa',
               border: '2px solid #e0e0e0'
             }}>
-              {agent.signals.slice(0, 15).map((signal, idx) => {
+              {[...agent.signals]
+                .sort((a, b) => {
+                  // Sort by date descending (newest first)
+                  const dateA = a.date || '';
+                  const dateB = b.date || '';
+                  return dateB.localeCompare(dateA);
+                })
+                .slice(0, 15)
+                .map((signal, idx) => {
                 const signalType = signal.signal.toLowerCase();
                 const isBull = signalType.includes('bull') || signalType === 'long';
                 const isBear = signalType.includes('bear') || signalType === 'short';

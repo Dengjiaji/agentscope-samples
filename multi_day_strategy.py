@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib import rcParams
 import seaborn as sns
-
+import pdb
 # Try importing US trading calendar packages
 import pandas_market_calendars as mcal
 
@@ -584,27 +584,14 @@ class MultiDayStrategy:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         data_path = os.path.join(current_dir, 'src', 'data', 'ret_data', f'{ticker}.csv')
         
-        if not os.path.exists(data_path):
-            print(f"Warning: Data file does not exist {data_path}, using simulated return")
-            return 0.0, 0.0, 0.0
-            
         prices_df = pd.read_csv(data_path)
-        
-        if prices_df.empty:
-            print(f"Warning: Unable to get {ticker} price data on {target_date}, using simulated return")
-            return 0.0, 0.0, 0.0
         
         # Find return for specified date
         prices_df.index = pd.to_datetime(prices_df['time']).dt.date
         
         # Find return closest to target date
-        try:
-            market_return = prices_df.loc[target_date, 'ret']
-            price = prices_df.loc[target_date, 'close']
-        except KeyError:
-            print(f"Warning: {ticker} data not found for date {target_date}")
-            return 0.0, 0.0, 0.0
-        
+        market_return = prices_df.loc[target_date, 'ret']
+        price = prices_df.loc[target_date, 'close']
         # Calculate final return based on trading direction
         if action == "long":
             return float(market_return), float(market_return), float(price)  # Long: get market return

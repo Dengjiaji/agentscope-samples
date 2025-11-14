@@ -282,19 +282,15 @@ class LiveTradingFund:
         })
         
         # Update team dashboard data
-        try:
-            dashboard_update_stats = self.dashboard_generator.update_from_day_result(
-                date=date,
-                pre_market_result={'live_env': live_env, 'raw_results': result},
-                mode=self.mode
-            )
-            self.streamer.print("system", 
-                f"Team dashboard updated: {dashboard_update_stats.get('trades_added', 0)} trades added, "
-                f"{dashboard_update_stats.get('agents_updated', 0)} agents updated")
-        except Exception as e:
-            self.streamer.print("system", f"⚠️ Team dashboard update failed: {str(e)}")
-            import traceback
-            traceback.print_exc()
+        dashboard_update_stats = self.dashboard_generator.update_from_day_result(
+            date=date,
+            pre_market_result={'live_env': live_env, 'raw_results': result},
+            mode=self.mode
+        )
+        self.streamer.print("system", 
+            f"Team dashboard updated: {dashboard_update_stats.get('trades_added', 0)} trades added, "
+            f"{dashboard_update_stats.get('agents_updated', 0)} agents updated")
+       
 
         return {
             'status': 'success',
@@ -1076,12 +1072,15 @@ class LiveTradingFund:
         real_returns = {}
         for ticker in tickers:
             if ticker in pm_signals:
-                action = pm_signals[ticker].get('action', 'hold')
+                action = pm_signals[ticker]['action']
                 daily_return, real_return, close_price = self.strategy._calculate_stock_daily_return_from_signal(
                     ticker, prev_date, action
                 )
-                real_returns[ticker] = daily_return
-        
+
+                real_returns[ticker] = real_return
+
+        self.streamer.print("system", real_returns)
+
         # 1. 更新 dashboard 中的 agent performance
         update_stats = {
             'agents_updated': 0,
@@ -1106,8 +1105,14 @@ class LiveTradingFund:
         )
         self.dashboard_generator._save_internal_state(dashboard_state)
         
+        # ⭐ 关键修复：生成前端需要的 dashboard 文件
+        # - stats.json: 包含 Portfolio Manager 的 win_rate 等统计数据
+        # - leaderboard.json: 包含所有 Agent 的排行榜数据
+        self.dashboard_generator._generate_stats(dashboard_state)
+        self.dashboard_generator._generate_leaderboard(dashboard_state)
+        
         self.streamer.print("system", 
-            f"Previous day performance updated: {update_stats['agents_updated']} agents evaluated")
+            f"Previous day performance updated: {update_stats['agents_updated']} agents evaluated, dashboard files refreshed")
         
         # 2. 执行前一天的记忆复盘（现在有了 real_returns，可以准确评估表现）
         self.streamer.print("system", 
