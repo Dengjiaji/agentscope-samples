@@ -396,16 +396,21 @@ export default function LiveTradingApp() {
             if (state.server_mode) {
               setServerMode(state.server_mode);
             }
+            // 检查是否是mock模式
+            const isMockMode = state.is_mock_mode === true;
             if (state.market_status) {
               setMarketStatus(state.market_status);
-              // 如果市场状态包含虚拟时间，保存它
-              if (state.market_status.current_time) {
+              // 只在Mock模式下，如果市场状态包含虚拟时间，才保存它
+              if (isMockMode && state.market_status.current_time) {
                 try {
                   const virtualTimeDate = new Date(state.market_status.current_time);
                   setVirtualTime(virtualTimeDate);
                 } catch (error) {
                   console.error('Error parsing virtual time from market_status:', error);
                 }
+              } else {
+                // 非Mock模式下清除virtualTime
+                setVirtualTime(null);
               }
             }
             
@@ -797,7 +802,8 @@ export default function LiveTradingApp() {
             };
             
             const emoji = statusEmoji[e.status] || '⏰';
-            let logMessage = `${emoji} 虚拟时间: ${e.beijing_time_str} | 状态: ${e.status}`;
+            const isMockMode = e.is_mock_mode === true;
+            let logMessage = `${emoji} ${isMockMode ? '虚拟时间' : '时间'}: ${e.beijing_time_str} | 状态: ${e.status}`;
             
             if (e.hours_to_open !== undefined) {
               logMessage += ` | 距离开盘: ${e.hours_to_open}小时`;
@@ -811,14 +817,17 @@ export default function LiveTradingApp() {
             
             console.log(logMessage);
             
-            // 保存虚拟时间（用于图表过滤）
-            if (e.beijing_time) {
+            // 只在Mock模式下保存虚拟时间（用于图表过滤和UI显示）
+            if (isMockMode && e.beijing_time) {
               try {
                 const virtualTimeDate = new Date(e.beijing_time);
                 setVirtualTime(virtualTimeDate);
               } catch (error) {
                 console.error('Error parsing virtual time:', error);
               }
+            } else {
+              // 非Mock模式下清除virtualTime
+              setVirtualTime(null);
             }
           }
           
@@ -999,51 +1008,51 @@ export default function LiveTradingApp() {
             </div>
           )}
           
-          {/* Clock Display */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8
-          }}>
+          {/* Clock Display (only in Mock mode) */}
+          {virtualTime && (
             <div style={{
               display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'flex-end',
-              gap: 2,
-              padding: '4px 12px',
-              borderRadius: 4,
-              background: virtualTime ? '#1A237E' : '#212121',
-              border: `1px solid ${virtualTime ? '#3F51B5' : '#424242'}`
+              alignItems: 'center',
+              gap: 8
             }}>
-              <span style={{
-                fontSize: '11px',
-                color: '#999',
-                fontFamily: '"Courier New", monospace',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px'
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-end',
+                gap: 2,
+                padding: '4px 12px',
+                borderRadius: 4,
+                background: '#1A237E',
+                border: '1px solid #3F51B5'
               }}>
-                {virtualTime ? 'VIRTUAL TIME' : 'TIME'}
-              </span>
-              <span style={{
-                fontSize: '14px',
-                fontWeight: 700,
-                color: '#FFFFFF',
-                fontFamily: '"Courier New", monospace',
-                letterSpacing: '1px'
-              }}>
-                {now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
-              </span>
-              <span style={{
-                fontSize: '10px',
-                color: '#999',
-                fontFamily: '"Courier New", monospace'
-              }}>
-                {now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-              </span>
-            </div>
-            
-            {/* Fast Forward Button (only in Mock mode) */}
-            {virtualTime && (
+                <span style={{
+                  fontSize: '11px',
+                  color: '#999',
+                  fontFamily: '"Courier New", monospace',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>
+                  VIRTUAL TIME
+                </span>
+                <span style={{
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  color: '#FFFFFF',
+                  fontFamily: '"Courier New", monospace',
+                  letterSpacing: '1px'
+                }}>
+                  {now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+                </span>
+                <span style={{
+                  fontSize: '10px',
+                  color: '#999',
+                  fontFamily: '"Courier New", monospace'
+                }}>
+                  {now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </span>
+              </div>
+              
+              {/* Fast Forward Button (only in Mock mode) */}
               <button
                 onClick={() => {
                   if (clientRef.current) {
@@ -1085,8 +1094,8 @@ export default function LiveTradingApp() {
               >
                 ⏩ +30min
               </button>
-            )}
-          </div>
+            </div>
+          )}
           
           {/* Real-time Update Indicator */}
           <div className="header-status">

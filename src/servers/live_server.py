@@ -877,6 +877,7 @@ class LiveTradingServer:
             
             # 添加服务器模式和市场状态信息
             initial_state['server_mode'] = 'live'
+            initial_state['is_mock_mode'] = self.mock_mode
             initial_state['market_status'] = self._get_market_status()
             
             # 发送完整状态
@@ -1308,7 +1309,8 @@ class LiveTradingServer:
             'status': 'non_trading_day',
             'next_open': next_open.isoformat(),
             'hours_to_open': round(hours_to_open, 1),
-            'market_status': market_status
+            'market_status': market_status,
+            'is_mock_mode': self.mock_mode
         })
         
         # 单独广播市场状态更新
@@ -1354,7 +1356,8 @@ class LiveTradingServer:
             'trading_date': trading_date,
             'next_trade_time': next_trade_time.isoformat(),
             'hours_to_trade': round(hours_to_trade, 1),
-            'market_status': market_status
+            'market_status': market_status,
+            'is_mock_mode': self.mock_mode
         })
         
         # 单独广播市场状态更新
@@ -1400,7 +1403,8 @@ class LiveTradingServer:
             'status': 'off_market',
             'next_open': next_open.isoformat(),
             'hours_to_open': round(hours_to_open, 1),
-            'market_status': market_status
+            'market_status': market_status,
+            'is_mock_mode': self.mock_mode
         })
         
         # 单独广播市场状态更新

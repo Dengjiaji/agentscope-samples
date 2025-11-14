@@ -602,9 +602,9 @@ class Server:
             logger.info(f"✅ 已订阅实时价格: {self.config.tickers}")
         
         # 生成交易日列表
-        start_date = self.config.start_date or "2025-11-07"
+        start_date = self.config.start_date or "2025-11-13"
         # end_date = self.config.end_date or datetime.now().strftime("%Y-%m-%d")
-        end_date = self.config.end_date or "2025-11-10"
+        end_date = self.config.end_date or "2025-11-13"
 
         trading_days = self.thinking_fund.generate_trading_dates(start_date, end_date)
         logger.info(f"📅 计划运行 {len(trading_days)} 个交易日: {start_date} -> {end_date}")
