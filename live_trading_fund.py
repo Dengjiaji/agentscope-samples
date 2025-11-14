@@ -238,18 +238,19 @@ class LiveTradingFund:
                 signal = signal_info.get('signal', 'N/A')
                 action = signal_info.get('action', 'N/A')
                 confidence = signal_info.get('confidence', 0)
-                
+                reasoning = signal_info.get('reasoning', 0)
+                # pdb.set_trace()
                 if skip_real_returns:
                     # Live 模式：不显示 daily return（还未知）
                     if self.mode == "signal":
                         self.streamer.print("agent", 
-                            f"{ticker}: Final signal {signal}(confidence {confidence}%)",
+                            f"{ticker}: Final signal {signal}(confidence {confidence}%) \n{reasoning}",
                             role_key='portfolio_manager'
                         )
                     elif self.mode == "portfolio":
                         quantity = signal_info.get('quantity', 0)
                         self.streamer.print("agent", 
-                            f"{ticker}: Final signal {action}({quantity} shares, confidence {confidence}%)",
+                            f"{ticker}: Final signal {action}({quantity} shares, confidence {confidence}%) \n{reasoning}",
                             role_key='portfolio_manager'
                         )
                 else:
@@ -257,13 +258,13 @@ class LiveTradingFund:
                     daily_ret = live_env['real_returns'].get(ticker, 0) * 100
                     if self.mode == "signal":
                         self.streamer.print("agent", 
-                            f"{ticker}: Final signal {signal}(confidence {confidence}%, daily return {daily_ret:.2f}%)",
+                            f"{ticker}: Final signal {signal}(confidence {confidence}%, daily return {daily_ret:.2f}%) \n{reasoning}",
                             role_key='portfolio_manager'
                         )
                     elif self.mode == "portfolio":
                         quantity = signal_info.get('quantity', 0)
                         self.streamer.print("agent", 
-                            f"{ticker}: Final signal {action}({quantity} shares, confidence {confidence}%, stock daily return {daily_ret:.2f}%)",
+                            f"{ticker}: Final signal {action}({quantity} shares, confidence {confidence}%, stock daily return {daily_ret:.2f}%) \n{reasoning}",
                             role_key='portfolio_manager'
                         )
 
