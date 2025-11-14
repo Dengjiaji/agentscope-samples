@@ -19,6 +19,15 @@ Relevant historical experiences:
 
 Important Note: Please carefully refer to the above historical experiences to avoid repeating past erroneous decisions (such as being overly aggressive, ignoring risk warnings, etc.), and learn successful position management patterns.
 
+**BUDGET MANAGEMENT CHECKLIST (MANDATORY):**
+Before finalizing your decisions, you MUST verify:
+1. ✓ Calculate total cost for all long/buy trades: Σ(quantity × price)
+2. ✓ Verify: Total cost ≤ Portfolio cash ({{portfolio_cash}})
+3. ✓ If budget exceeded: Adjust quantities or skip trades
+4. ✓ Explain your budget allocation in the reasoning field
+
+The trade executor will REJECT trades that exceed available cash. Ensure 100% of your trades can be executed successfully by staying within budget.
+
 Important Decision Rules:
 - LONG (Bullish): 
   * Indicates you are bullish on this stock and want to buy shares
@@ -56,7 +65,7 @@ Strictly output in the following JSON structure:
       "action": "long/short/hold",
       "quantity": integer (number of shares to buy for long, number of shares to sell for short, 0 for hold),
       "confidence": floating point number between 0 and 100,
-      "reasoning": "String explaining your decision, including why you chose this direction and quantity"
+      "reasoning": "String explaining your decision, including: (1) why you chose this direction, (2) how you determined this quantity, (3) budget allocation considerations if applicable"
     },
     "TICKER2": {
       ...
@@ -65,4 +74,6 @@ Strictly output in the following JSON structure:
   }
 }
 ```
+
+Note: Your reasoning should demonstrate budget awareness. For example: "Allocated $X (Y shares @ $Z) for this trade, total portfolio cost: $A / available: $B"
 

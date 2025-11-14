@@ -30,7 +30,24 @@ Trading Rules:
 
 - max_shares values have been pre-calculated to comply with position limits
 - You can see current positions in portfolio_positions, please decide the quantity to add or reduce based on this
-- Pay attention to cash and margin limits
+
+**CRITICAL: Budget Management Requirements**
+You MUST manage your budget carefully to ensure all trades can be successfully executed:
+1. Calculate total cost BEFORE making decisions: Sum(quantity × current_price) for all long actions
+2. Ensure total cost ≤ portfolio_cash (available cash)
+3. If total desired trades exceed cash, you MUST:
+   - Prioritize trades by signal strength and conviction
+   - Reduce quantities proportionally across tickers
+   - Or skip lower-priority trades entirely
+4. Consider existing cash from potential short/sell actions when calculating available budget
+5. It is better to execute fewer trades successfully than to have trades fail due to insufficient funds
+
+Example Budget Calculation:
+- Available cash: $10,000
+- Trade 1: AAPL long 50 shares @ $200 = $10,000
+- Trade 2: GOOGL long 30 shares @ $150 = $4,500
+- Total needed: $14,500 > $10,000 ❌ EXCEEDS BUDGET
+- Solution: Either reduce quantities (e.g., AAPL 35 shares + GOOGL 20 shares = $10,000) or skip one trade
 
 Available Actions:
 - "long": Bullish, buy quantity shares (incremental)
