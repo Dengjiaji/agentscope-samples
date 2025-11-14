@@ -605,8 +605,21 @@ def get_market_cap(
     ticker: str,
     end_date: str,
     api_key: str = None,
+    data_source: str = "finnhub",
 ) -> float | None:
-    """Fetch market cap from the API."""
+    """
+    Fetch market cap from the API.
+    
+    Args:
+        ticker: Stock ticker symbol
+        end_date: End date (YYYY-MM-DD)
+        api_key: API key (optional)
+        data_source: Data source ("finnhub" or "financial_datasets", default: "finnhub")
+                    Note: Finnhub returns market cap in millions, which will be converted to actual value.
+    
+    Returns:
+        Market cap in actual currency units (not millions)
+    """
     # Check if end_date is today
     if end_date == datetime.datetime.now().strftime("%Y-%m-%d"):
         # Get the market cap from company facts API
@@ -625,7 +638,7 @@ def get_market_cap(
         response_model = CompanyFactsResponse(**data)
         return response_model.company_facts.market_cap
 
-    financial_metrics = get_financial_metrics(ticker, end_date, api_key=api_key)
+    financial_metrics = get_financial_metrics(ticker, end_date, api_key=api_key, data_source=data_source)
     if not financial_metrics:
         return None
 
@@ -633,6 +646,10 @@ def get_market_cap(
 
     if not market_cap:
         return None
+
+    # Finnhub returns market cap in millions, convert to actual value
+    if data_source == "finnhub":
+        market_cap = market_cap * 1_000_000
 
     return market_cap
 
