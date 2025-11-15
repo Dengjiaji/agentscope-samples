@@ -96,8 +96,41 @@ class MemoryReflectionSystem:
         
         logger.info(f"Memory reflection system initialized ({model_provider_str}: {model_name})")
     
+    def _get_agent_llm(self, state: Optional[Dict], agent_id: str):
+        """
+        Get LLM model for a specific agent
+        
+        Args:
+            state: State object (optional)
+            agent_id: Agent ID
+            
+        Returns:
+            LLM model instance
+        """
+        if state is None:
+            # Fallback to default LLM
+            return self.llm
+        
+        from src.utils.tool_call import get_agent_model_config
+        
+        # Get agent-specific model configuration
+        model_name, model_provider = get_agent_model_config(state, agent_id)
+        
+        # Get API keys
+        api_keys = {}
+        if "data" in state and "api_keys" in state["data"]:
+            api_keys = state["data"]["api_keys"]
+        elif "metadata" in state:
+            request = state.get("metadata", {}).get("request")
+            if request and hasattr(request, 'api_keys'):
+                api_keys = request.api_keys
+        
+        # Create and return model instance
+        return get_model(model_name, model_provider, api_keys or {})
+       
+    
     def perform_reflection(self, date: str, reflection_data: Dict[str, Any], 
-                          mode: str = "individual_review") -> Dict[str, Any]:
+                          mode: str = "individual_review", state: Optional[Dict] = None) -> Dict[str, Any]:
         """
         Perform memory reflection
         
@@ -105,16 +138,17 @@ class MemoryReflectionSystem:
             date: Trading date
             reflection_data: Reflection data
             mode: Mode ('central_review' or 'individual_review')
+            state: Optional state object for getting agent-specific model configurations
             
         Returns:
             Reflection result
         """
         if mode == "central_review":
-            return self._central_review(date, reflection_data)
+            return self._central_review(date, reflection_data, state)
         else:
-            return self._individual_review(date, reflection_data)
+            return self._individual_review(date, reflection_data, state)
     
-    def _central_review(self, date: str, reflection_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _central_review(self, date: str, reflection_data: Dict[str, Any], state: Optional[Dict] = None) -> Dict[str, Any]:
         """Central Review mode: Unified LLM processes all agent memories"""
         try:
             pm_signals = reflection_data.get('pm_signals', {})
@@ -129,9 +163,12 @@ class MemoryReflectionSystem:
             
             logger.info(f"🤖 Central Review mode ({date})")
             
+            # Get LLM model - use portfolio_manager's model for central review
+            llm = self._get_agent_llm(state, "portfolio_manager")
+            
             # Call LLM
             messages = [{"role": "user", "content": prompt}]
-            response = self.llm(messages, temperature=0.7)
+            response = llm(messages, temperature=0.7)
             response_content = response.get("content", "") if isinstance(response, dict) else str(response)
             
             # Parse response
@@ -165,7 +202,7 @@ class MemoryReflectionSystem:
                 'error': str(e)
             }
     
-    def _individual_review(self, date: str, reflection_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _individual_review(self, date: str, reflection_data: Dict[str, Any], state: Optional[Dict] = None) -> Dict[str, Any]:
         """Individual Review mode: Each agent independently processes"""
         all_results = []
         
@@ -174,7 +211,7 @@ class MemoryReflectionSystem:
         
         for agent_id, agent_data in agents_data.items():
             try:
-                result = self._agent_self_reflection(agent_id, date, agent_data)
+                result = self._agent_self_reflection(agent_id, date, agent_data, state)
                 all_results.append(result)
             except Exception as e:
                 logger.error(f"❌ {agent_id} reflection failed: {e}")
@@ -193,7 +230,7 @@ class MemoryReflectionSystem:
         }
     
     def _agent_self_reflection(self, agent_id: str, date: str, 
-                               agent_data: Dict[str, Any]) -> Dict[str, Any]:
+                               agent_data: Dict[str, Any], state: Optional[Dict] = None) -> Dict[str, Any]:
         """Single agent's self-reflection"""
         agent_role = ROLE_TO_AGENT.get(agent_id, agent_id)
         
@@ -212,9 +249,12 @@ class MemoryReflectionSystem:
         
         logger.info(f"🔍 {agent_role} self-reflection ({date})")
         
+        # Get LLM model - use this agent's specific model
+        llm = self._get_agent_llm(state, agent_id)
+        
         # Call LLM
         messages = [{"role": "user", "content": prompt}]
-        response = self.llm(messages, temperature=0.7)
+        response = llm(messages, temperature=0.7)
         response_content = response.get("content", "") if isinstance(response, dict) else str(response)
         
         # Parse response

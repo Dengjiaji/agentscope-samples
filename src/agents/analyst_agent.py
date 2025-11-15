@@ -102,16 +102,15 @@ class AnalystAgent(AgentBase):
         start_date = data.get("start_date")
         end_date = data["end_date"]
         
-        # Get LLM
-        llm = None
-        try:
-            llm = get_model(
-                model_name=state["metadata"]['model_name'],
-                model_provider=state['metadata']['model_provider'],
-                api_keys=state['data']['api_keys']
-            )
-        except Exception as e:
-            print(f"Warning: Unable to get LLM model: {e}")
+        # Get LLM - use analyst-specific model configuration
+        from ..utils.tool_call import get_agent_model_config
+        
+        model_name, model_provider = get_agent_model_config(state, self.name)
+        llm = get_model(
+            model_name=model_name,
+            model_provider=model_provider,
+            api_keys=state['data']['api_keys']
+        )
         
         # Execute analysis
         analysis_results = {}
@@ -190,7 +189,7 @@ class AnalystAgent(AgentBase):
         # ⭐ Adjust end_date to previous trading day
         # This ensures analysis doesn't include incomplete same-day data
         adjusted_end_date = get_last_tradeday(end_date)
-        # print(f"📅 Analyst {self.agent_id} - Original date: {end_date}, Analysis end date (previous trading day): {adjusted_end_date}")
+        # print(f"📅 Analyst {self.name} - Original date: {end_date}, Analysis end date (previous trading day): {adjusted_end_date}")
         
         # 1. Generate market conditions
         market_conditions = {
@@ -361,7 +360,7 @@ Analysis Tools Selection and Reasoning:
     result = tool_call(
         messages=messages,
         pydantic_model=SecondRoundAnalysis,
-        agent_name=f"{agent_id}_second_round",
+        agent_name=agent_id,  # Use agent_id directly for correct model config
         state=state,
         default_factory=create_default_analysis
     )

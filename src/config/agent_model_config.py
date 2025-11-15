@@ -67,15 +67,12 @@ class AgentModelRequest:
             model_provider_str = os.getenv(f"AGENT_{agent_id.upper()}_MODEL_PROVIDER")
             
             if model_name and model_provider_str:
-                try:
-                    model_provider = ModelProvider(model_provider_str.upper())
-                    self.agent_configs[agent_id] = AgentModelConfig(
-                        model_name=model_name,
-                        model_provider=model_provider
-                    )
-                except ValueError:
-                    # Invalid provider, skip
-                    pass
+                model_provider = ModelProvider(model_provider_str.upper())
+                self.agent_configs[agent_id] = AgentModelConfig(
+                    model_name=model_name,
+                    model_provider=model_provider
+                )
+               
     
     def get_agent_model_config(self, agent_name: str) -> Tuple[str, ModelProvider]:
         """

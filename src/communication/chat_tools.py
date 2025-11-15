@@ -145,7 +145,7 @@ class CommunicationManager:
         except Exception as e:
             print(f"Error: Failed to write communication log: {e}")
     
-    def _get_llm_model(self, state, use_json_mode=False):
+    def _get_llm_model(self, state, agent_id="portfolio_manager", use_json_mode=False):
         """Get LLM model instance (using AgentScope model wrapper)"""
         # Get API keys from state
         api_keys = {}
@@ -158,8 +158,9 @@ class CommunicationManager:
         if not api_keys and state and "data" in state and "api_keys" in state["data"]:
             api_keys = state["data"]["api_keys"]
         
-        model_name = state.get("metadata", {}).get("model_name", "gpt-4o-mini")
-        model_provider = state.get("metadata", {}).get("model_provider", "OPENAI")
+        # Use portfolio_manager's model configuration for communication
+        from src.utils.tool_call import get_agent_model_config
+        model_name, model_provider = get_agent_model_config(state, agent_id)
         
         # Use AgentScope model wrapper
         llm = get_agentscope_model(model_name, model_provider, api_keys)
@@ -197,7 +198,7 @@ class CommunicationManager:
         ]
         
         # Get LLM model (enable JSON mode)
-        llm = self._get_llm_model(state, use_json_mode=True)
+        llm = self._get_llm_model(state, agent_id="portfolio_manager", use_json_mode=True)
         
         # Call model (using AgentScope method)
         response = llm(
@@ -824,7 +825,7 @@ class CommunicationManager:
         ]
         
         # Get LLM model (enable JSON mode)
-        llm = self._get_llm_model(state, use_json_mode=True)
+        llm = self._get_llm_model(state, agent_id=analyst_id, use_json_mode=True)
         
         # Call model (using AgentScope method)
         response = llm(
@@ -980,7 +981,7 @@ class CommunicationManager:
         ]
         
         # Get LLM model
-        llm = self._get_llm_model(state)
+        llm = self._get_llm_model(state, agent_id="portfolio_manager")
         
         # Call model (using AgentScope method)
         response = llm(messages=messages, temperature=0.7)
@@ -1086,7 +1087,7 @@ class CommunicationManager:
             {"role": "user", "content": human_prompt}
         ]
         # Get LLM model (enable JSON mode)
-        llm = self._get_llm_model(state, use_json_mode=True)
+        llm = self._get_llm_model(state, agent_id=analyst_id, use_json_mode=True)
         
         # Call model (using AgentScope method)
         response = llm(
@@ -1137,7 +1138,7 @@ class CommunicationManager:
         ]
         
         # Get LLM model
-        llm = self._get_llm_model(state)
+        llm = self._get_llm_model(state, agent_id="portfolio_manager")
         
         # Call model (using AgentScope method)
         response = llm(messages=messages, temperature=0.7)
@@ -1190,7 +1191,7 @@ class CommunicationManager:
         ]
         
         try:
-            llm = self._get_llm_model(state)
+            llm = self._get_llm_model(state, agent_id=analyst_id)
             response = llm(messages=messages, temperature=0.7)
             query = response["content"].strip()
             print(f"📝 {analyst_id} generated memory query: {query}")
@@ -1232,7 +1233,7 @@ class CommunicationManager:
         ]
         
         try:
-            llm = self._get_llm_model(state)
+            llm = self._get_llm_model(state, agent_id=analyst_id)
             response = llm(messages=messages, temperature=0.7)
             query = response["content"].strip()
             print(f"📝 {analyst_id} generated memory query in meeting: {query}")

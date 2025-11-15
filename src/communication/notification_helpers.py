@@ -175,9 +175,13 @@ If notification is not needed:
 Important: Reply content must be in pure JSON format, do not add any explanatory text or markdown markers.
 """
     
+    # Use the specific analyst's model configuration
+    from src.utils.tool_call import get_agent_model_config
+    model_name, model_provider = get_agent_model_config(state, agent_id)
+    
     model = get_model(
-        model_name=state["metadata"]['model_name'],
-        model_provider=state['metadata']['model_provider'],
+        model_name=model_name,
+        model_provider=model_provider,
         api_keys=state['data']['api_keys']
     )
     

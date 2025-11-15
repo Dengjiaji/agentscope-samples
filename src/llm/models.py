@@ -13,17 +13,17 @@ import agentscope
 
 class ModelProvider(str, Enum):
     """Supported LLM provider enumeration"""
-    ALIBABA = "Alibaba"
-    ANTHROPIC = "Anthropic"
-    DEEPSEEK = "DeepSeek"
-    GOOGLE = "Google"
-    GROQ = "Groq"
-    META = "Meta"
-    MISTRAL = "Mistral"
-    OPENAI = "OpenAI"
-    OLLAMA = "Ollama"
-    OPENROUTER = "OpenRouter"
-    GIGACHAT = "GigaChat"
+    ALIBABA = "ALIBABA"
+    ANTHROPIC = "ANTHROPIC"
+    DEEPSEEK = "DEEPSEEK"
+    GOOGLE = "GOOGLE"
+    GROQ = "GROQ"
+    META = "META"
+    MISTRAL = "MISTRAL"
+    OPENAI = "OPENAI"
+    OLLAMA = "OLLAMA"
+    OPENROUTER = "OPENROUTER"
+    GIGACHAT = "GIGACHAT"
 
 
 class ModelWrapper:
@@ -362,6 +362,7 @@ def get_model(
     Returns:
         AgentScopeModelWrapper instance
     """
+    print(f"Getting model: {model_name} {model_provider}")
     return ModelWrapper(
         model_name=model_name,
         model_provider=model_provider,

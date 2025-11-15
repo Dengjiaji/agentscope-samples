@@ -33,7 +33,17 @@ def tool_call(
         Pydantic model instance
     """
     
-    # Extract model configuration
+    # Extract model configuration and API keys
+    api_keys = {}
+    if state:
+        # Extract API keys from state
+        if "data" in state and "api_keys" in state["data"]:
+            api_keys = state["data"]["api_keys"]
+        elif "metadata" in state:
+            request = state.get("metadata", {}).get("request")
+            if request and hasattr(request, 'api_keys'):
+                api_keys = request.api_keys
+
     if state and agent_name:
         model_name, model_provider = get_agent_model_config(state, agent_name)
     else:
@@ -41,7 +51,7 @@ def tool_call(
         model_name = "gpt-4o-mini"
         model_provider = "OPENAI"
 
-    llm = get_model(model_name, model_provider, api_keys=None)
+    llm = get_model(model_name, model_provider, api_keys=api_keys or {})
 
     # Call LLM (with retry logic)
     for attempt in range(max_retries):

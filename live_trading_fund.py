@@ -178,7 +178,8 @@ class LiveTradingFund:
             'pm_signals': {},
             'ana_signals': defaultdict(lambda: defaultdict(str)),  # Automatically create nested dict, default value is empty string
             'real_returns': defaultdict(float) , # Auto-create, default value is 0.0
-            'daily_returns': defaultdict(float)
+            'daily_returns': defaultdict(float),
+            'state': result.get('state')  # Add state for memory reflection
         }
 
 
@@ -441,12 +442,13 @@ class LiveTradingFund:
 
         # Get review mode
         review_mode = os.getenv('MEMORY_REVIEW_MODE', 'individual_review').lower()
+        state = live_env.get('state')
         if review_mode == 'individual_review':
             # New mode: Individual Review
-            return self._run_individual_review_mode(date, tickers, pm_signals, ana_signals, daily_returns, real_returns, live_env)
+            return self._run_individual_review_mode(date, tickers, pm_signals, ana_signals, daily_returns, real_returns, live_env, state)
         else:
             # Old mode: Central Review
-            return self._run_central_review_mode(date, tickers, pm_signals, ana_signals, daily_returns, real_returns)
+            return self._run_central_review_mode(date, tickers, pm_signals, ana_signals, daily_returns, real_returns, state)
     
     def _perform_memory_review(
         self,
@@ -503,11 +505,12 @@ class LiveTradingFund:
         
         # Execute memory review
         review_mode = os.getenv('MEMORY_REVIEW_MODE', 'individual_review').lower()
+        state = live_env.get('state')
         
         if review_mode == 'individual_review':
-            result = self._run_individual_review_mode(date, tickers, pm_signals, ana_signals, daily_returns, real_returns, live_env)
+            result = self._run_individual_review_mode(date, tickers, pm_signals, ana_signals, daily_returns, real_returns, live_env, state)
         else:
-            result = self._run_central_review_mode(date, tickers, pm_signals, ana_signals, daily_returns, real_returns)
+            result = self._run_central_review_mode(date, tickers, pm_signals, ana_signals, daily_returns, real_returns, state)
        
         self.streamer.print("system", f"✅ Memory review completed for {date}")
         return result
@@ -519,7 +522,8 @@ class LiveTradingFund:
         pm_signals: Dict,
         ana_signals: Dict,
         daily_returns: Dict,
-        real_returns: Dict
+        real_returns: Dict,
+        state: Optional[Dict] = None
     ) -> Dict[str, Any]:
         """Central Review mode: Unified LLM manages memory"""
         self.streamer.print("system", "===== Central Review Memory Management =====")
@@ -538,7 +542,8 @@ class LiveTradingFund:
                 llm_decision = self.memory_reflection.perform_reflection(
                     date=date, 
                     reflection_data=reflection_data, 
-                    mode="central_review"
+                    mode="central_review",
+                    state=state
                 )
 
                 # Display LLM decision result
@@ -662,7 +667,8 @@ class LiveTradingFund:
         ana_signals: Dict,
         daily_returns: Dict,
         real_returns: Dict,
-        live_env: Dict[str, Any]
+        live_env: Dict[str, Any],
+        state: Optional[Dict] = None
     ) -> Dict[str, Any]:
         """Individual Review mode: Each Agent self-reviews independently (new mode)"""
         print("===== Individual Review Mode =====")
@@ -728,7 +734,8 @@ class LiveTradingFund:
                 result = self.memory_reflection.perform_reflection(
                     date=date,
                     reflection_data={'agents_data': agents_data},
-                    mode="individual_review"
+                    mode="individual_review",
+                    state=state
                 )
                 
                 reflection_results = {
@@ -1167,7 +1174,8 @@ class LiveTradingFund:
             'ana_signals': ana_signals,
             'real_returns': real_returns,
             'daily_returns': daily_returns,
-            'portfolio_summary': prev_pre_market_result.get('live_env', {}).get('portfolio_summary', {})
+            'portfolio_summary': prev_pre_market_result.get('live_env', {}).get('portfolio_summary', {}),
+            'state': prev_pre_market_result.get('live_env', {}).get('state')
         }
         # pdb.set_trace()
         # Execute memory review
