@@ -189,7 +189,12 @@ def get_agent_model_config(state, agent_name):
         model_name, model_provider = request.get_agent_model_config(agent_name)
         # Ensure we have valid values
         if model_name and model_provider:
-            return model_name, model_provider.value if hasattr(model_provider, 'value') else str(model_provider)
+            # Convert ModelProvider enum to string if needed
+            if hasattr(model_provider, 'value'):
+                model_provider = model_provider.value
+            elif isinstance(model_provider, ModelProvider):
+                model_provider = model_provider.value
+            return model_name, str(model_provider)
     
     # Fall back to global configuration (system defaults)
     model_name = state.get("metadata", {}).get("model_name") or "gpt-4.1"

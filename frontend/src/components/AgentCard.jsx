@@ -1,5 +1,6 @@
 import React from 'react';
 import { ASSETS } from '../config/constants';
+import { getModelIcon, getShortModelName } from '../utils/modelIcons';
 
 /**
  * Get rank medal/trophy
@@ -41,6 +42,10 @@ export default function AgentCard({ agent, onClose, isClosing }) {
   const isPortfolioManager = agent.id === 'portfolio_manager';
   const isRiskManager = agent.id === 'risk_manager';
   const displayName = isPortfolioManager ? 'Team' : agent.name;
+  
+  // Get model icon configuration
+  const modelInfo = getModelIcon(agent.modelName, agent.modelProvider);
+  const shortModelName = getShortModelName(agent.modelName);
 
   return (
     <div style={{
@@ -145,6 +150,54 @@ export default function AgentCard({ agent, onClose, isClosing }) {
                 wordWrap: 'break-word'
               }}>
                 ⓘ Risk Manager focuses on risk management and does not participate in prediction accuracy ranking.
+              </div>
+            </div>
+          )}
+          
+          {/* Model Info Card */}
+          {agent.modelName && (
+            <div style={{
+              padding: '8px 12px',
+              background: modelInfo.bgColor,
+              border: `2px solid ${modelInfo.color}`,
+              minWidth: 140,
+              position: 'relative',
+              cursor: 'help'
+            }}
+            title={`Model: ${agent.modelName}\nProvider: ${modelInfo.provider}`}>
+              <div style={{
+                fontSize: 10,
+                fontWeight: 700,
+                color: modelInfo.color,
+                letterSpacing: 1,
+                marginBottom: 4,
+                textTransform: 'uppercase'
+              }}>
+                Model
+              </div>
+              <div style={{
+                fontSize: 28,
+                lineHeight: 1,
+                marginBottom: 2
+              }}>
+                {modelInfo.icon}
+              </div>
+              <div style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: modelInfo.color,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}>
+                {shortModelName}
+              </div>
+              <div style={{
+                fontSize: 8,
+                color: '#666666',
+                marginTop: 2
+              }}>
+                {modelInfo.provider}
               </div>
             </div>
           )}

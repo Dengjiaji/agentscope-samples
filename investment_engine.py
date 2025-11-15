@@ -23,6 +23,7 @@ from src.graph.state import AgentState
 from src.config.constants import ANALYST_TYPES
 from src.agents.analyst_agent import AnalystAgent
 from agentscope.message import Msg
+from src.config.agent_model_config import AgentModelRequest
 
 # Import notification system
 from src.communication.notification_system import notification_system
@@ -91,8 +92,16 @@ class InvestmentEngine:
         
         logging.info("Investment engine initialized")
     
-    def create_base_state(self, tickers: List[str], start_date: str, end_date: str) -> AgentState:
-        """Create base AgentState"""
+    def create_base_state(self, tickers: List[str], start_date: str, end_date: str, agent_model_request: Optional[AgentModelRequest] = None) -> AgentState:
+        """
+        Create base AgentState
+        
+        Args:
+            tickers: List of stock tickers
+            start_date: Start date for analysis
+            end_date: End date for analysis
+            agent_model_request: Optional AgentModelRequest for agent-specific model configuration
+        """
         # Check environment variables
         api_key = os.getenv('FINANCIAL_DATASETS_API_KEY')
         openai_key = os.getenv('OPENAI_API_KEY')
@@ -100,6 +109,10 @@ class InvestmentEngine:
         
         if not api_key or not openai_key:
             raise ValueError("Missing required API keys, please check environment variables")
+        
+        # Create agent model request if not provided (will load from env if available)
+        if agent_model_request is None:
+            agent_model_request = AgentModelRequest()
         
         state = AgentState(
             messages=[Msg(
@@ -126,7 +139,8 @@ class InvestmentEngine:
                 "show_reasoning": False,
                 "model_name": model_name,
                 "model_provider": "OpenAI",
-                "communication_enabled": True
+                "communication_enabled": True,
+                "request": agent_model_request  # Add agent model request
             }
         )
         

@@ -1612,6 +1612,38 @@ class TeamDashboardGenerator:
         
         self._save_json(self.trades_file, trades)
     
+    def _get_agent_model_config(self, state: Dict, agent_id: str) -> tuple:
+        """
+        Get model configuration for a specific agent
+        
+        Args:
+            state: State dictionary
+            agent_id: Agent ID
+            
+        Returns:
+            Tuple of (model_name, model_provider)
+        """
+        # Try to get from request object (agent-specific config)
+        request = state.get('metadata', {}).get('request')
+        if request and hasattr(request, 'get_agent_model_config'):
+            model_name, model_provider = request.get_agent_model_config(agent_id)
+            if model_name and model_provider:
+                # Convert ModelProvider enum to string if needed
+                if hasattr(model_provider, 'value'):
+                    model_provider = model_provider.value
+                return model_name, str(model_provider)
+        
+        # Fall back to global configuration
+        model_name = state.get('metadata', {}).get('model_name', 'gpt-4o-mini')
+        model_provider = state.get('metadata', {}).get('model_provider', 'OPENAI')
+        
+        # Convert enum to string if necessary
+        if hasattr(model_provider, 'value'):
+            model_provider = model_provider.value
+        
+        return model_name, str(model_provider)
+     
+    
     def _generate_leaderboard(self, state: Dict):
         """Generate AI Agent leaderboard"""
         agent_performance = state.get('agent_performance', {})
@@ -1643,6 +1675,9 @@ class TeamDashboardGenerator:
                 'avatar': 'default'
             })
             
+            # Get model configuration for this agent
+            model_name, model_provider = self._get_agent_model_config(state, agent_id)
+            
             entry = {
                 'agentId': agent_id,
                 'name': agent_config['name'],
@@ -1661,7 +1696,9 @@ class TeamDashboardGenerator:
                     'unknown': bear_unknown
                 },
                 'logs': perf.get('logs', []),  # Last 10 logs
-                'signals': perf.get('signals', [])  # Complete signal history (includes dates)
+                'signals': perf.get('signals', []),  # Complete signal history (includes dates)
+                'modelName': model_name,  # Agent's model name
+                'modelProvider': model_provider  # Agent's model provider
             }
             
             if agent_id in self.TEAM_ROLES:

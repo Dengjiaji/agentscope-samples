@@ -27,11 +27,11 @@ HOST=""
 while [[ $# -gt 0 ]]; do
     case $1 in
         --mock)
-            MODE="mock"
+    MODE="mock"
             shift
             ;;
         --clean)
-            AUTO_CLEAN=true
+    AUTO_CLEAN=true
             shift
             ;;
         --port)

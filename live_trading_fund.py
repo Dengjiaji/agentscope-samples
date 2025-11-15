@@ -460,6 +460,7 @@ class LiveTradingFund:
         """
         pm_signals = live_env.get('pm_signals', {})
         ana_signals = live_env.get('ana_signals', {})
+        daily_returns = live_env.get('daily_returns', {})
         real_returns = live_env.get('real_returns', {})
         
         # Display review information
@@ -1111,6 +1112,7 @@ class LiveTradingFund:
         
         # Calculate previous day's real_returns (can now get closing prices)
         real_returns = {}
+        daily_returns = {}
         for ticker in tickers:
             if ticker in pm_signals:
                 action = pm_signals[ticker]['action']
@@ -1119,7 +1121,7 @@ class LiveTradingFund:
                 )
 
                 real_returns[ticker] = real_return
-
+                daily_returns[ticker] = daily_return
         self.streamer.print("system", real_returns)
 
         # 1. Update agent performance in dashboard
@@ -1164,6 +1166,7 @@ class LiveTradingFund:
             'pm_signals': pm_signals,
             'ana_signals': ana_signals,
             'real_returns': real_returns,
+            'daily_returns': daily_returns,
             'portfolio_summary': prev_pre_market_result.get('live_env', {}).get('portfolio_summary', {})
         }
         # pdb.set_trace()
