@@ -114,31 +114,31 @@ class Server:
         self._ensure_dashboard_initialized()
     
     def _ensure_dashboard_initialized(self):
-        """Ensure dashboard files are initialized, including leaderboard with model info"""
+        """
+        Ensure dashboard files are initialized and model info is up-to-date
+        This runs at server startup to immediately show correct model cards in frontend
+        """
         from src.dashboard.team_dashboard import TeamDashboardGenerator
-        from src.config.agent_model_config import AgentModelRequest
+        
+        # Create dashboard generator
+        dashboard_generator = TeamDashboardGenerator(
+            dashboard_dir=self.dashboard_dir,
+            initial_cash=self.initial_cash
+        )
         
         # Check if leaderboard file exists
         if not self.dashboard_files['leaderboard'].exists():
             logger.info("📊 Initializing dashboard files with agent model configuration...")
             
-            # Create dashboard generator
-            dashboard_generator = TeamDashboardGenerator(
-                dashboard_dir=self.dashboard_dir,
-                initial_cash=self.initial_cash
-            )
-            
-            # Create a minimal state with agent model configuration from env
-            agent_model_request = AgentModelRequest()  # This loads from env vars
-            initial_state = {
-                'metadata': {
-                    'request': agent_model_request
-                }
-            }
-            
-            # Initialize dashboard with model info
-            dashboard_generator.initialize_empty_dashboard(state=initial_state)
+            # Initialize all dashboard files with default values
+            dashboard_generator.initialize_empty_dashboard(state={})
             logger.info("✅ Dashboard initialized with agent model configuration")
+        else:
+            # Update model information in existing leaderboard
+            # This ensures frontend always shows latest model config from environment variables
+            logger.info("📊 Updating agent model information from environment variables...")
+            dashboard_generator.update_leaderboard_model_info()
+            logger.info("✅ Agent model information updated")
     
     def _on_price_update(self, price_data: Dict[str, Any]):
         """Price update callback - directly updates holdings.json and stats.json files"""
@@ -632,9 +632,9 @@ class Server:
             logger.info(f"✅ Subscribed to real-time prices: {self.config.tickers}")
         
         # Generate trading day list
-        start_date = self.config.start_date or "2025-11-13"
+        start_date = self.config.start_date or "2025-11-12"
         # end_date = self.config.end_date or datetime.now().strftime("%Y-%m-%d")
-        end_date = self.config.end_date or "2025-11-13"
+        end_date = self.config.end_date or "2025-11-12"
 
         trading_days = self.thinking_fund.generate_trading_dates(start_date, end_date)
         logger.info(f"📅 Planning to run {len(trading_days)} trading days: {start_date} -> {end_date}")

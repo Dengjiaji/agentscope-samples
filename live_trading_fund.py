@@ -1146,6 +1146,10 @@ class LiveTradingFund:
         }
         
         dashboard_state = self.dashboard_generator._load_internal_state()
+        
+        # Note: Model configuration is now always read fresh from environment variables
+        # in _get_agent_model_config(), no need to store in state
+        
         self.dashboard_generator._update_agent_performance(
             date=prev_date,
             ana_signals=ana_signals,
@@ -1165,7 +1169,7 @@ class LiveTradingFund:
         
         # ⭐ Key fix: Generate dashboard files needed by frontend
         # - stats.json: Contains Portfolio Manager's win_rate and other statistics
-        # - leaderboard.json: Contains leaderboard data for all Agents
+        # - leaderboard.json: Contains leaderboard data for all Agents (with model info)
         self.dashboard_generator._generate_stats(dashboard_state)
         self.dashboard_generator._generate_leaderboard(dashboard_state)
         

@@ -342,6 +342,9 @@ class TeamDashboardGenerator:
         # Load internal state
         state = self._load_internal_state()
         
+        # Note: Model configuration is now always read fresh from environment variables
+        # in _get_agent_model_config(), no need to store in state
+        
         # Extract data
         live_env = pre_market_result['pre_market'].get('live_env', {})
         real_returns = live_env.get('real_returns', {})
@@ -1615,37 +1618,38 @@ class TeamDashboardGenerator:
     def _get_agent_model_config(self, state: Dict, agent_id: str) -> tuple:
         """
         Get model configuration for a specific agent
+        Always reads from environment variables to ensure latest configuration
         
         Args:
-            state: State dictionary
+            state: State dictionary (not used for model config, kept for compatibility)
             agent_id: Agent ID
             
         Returns:
             Tuple of (model_name, model_provider)
         """
-        # Try to get from request object (agent-specific config)
-        request = state.get('metadata', {}).get('request')
-        if request and hasattr(request, 'get_agent_model_config'):
-            model_name, model_provider = request.get_agent_model_config(agent_id)
+        # Always load fresh from environment variables
+        from src.config.agent_model_config import AgentModelRequest
+        try:
+            agent_model_request = AgentModelRequest()  # This loads from env vars
+            model_name, model_provider = agent_model_request.get_agent_model_config(agent_id)
+            
             if model_name and model_provider:
                 # Convert ModelProvider enum to string if needed
                 if hasattr(model_provider, 'value'):
                     model_provider = model_provider.value
                 return model_name, str(model_provider)
+        except Exception as e:
+            print(f"⚠️ Failed to load agent model configuration for {agent_id}: {e}")
         
-        # Fall back to global configuration
-        model_name = state.get('metadata', {}).get('model_name', 'gpt-4o-mini')
-        model_provider = state.get('metadata', {}).get('model_provider', 'OPENAI')
-        
-        # Convert enum to string if necessary
-        if hasattr(model_provider, 'value'):
-            model_provider = model_provider.value
-        
-        return model_name, str(model_provider)
+        # Fall back to default if environment variable loading fails
+        return 'gpt-4o-mini', 'OPENAI'
      
     
     def _generate_leaderboard(self, state: Dict):
-        """Generate AI Agent leaderboard"""
+        """
+        Generate AI Agent leaderboard
+        Model configuration is always read fresh from environment variables
+        """
         agent_performance = state.get('agent_performance', {})
         
         leaderboard = []
@@ -1784,6 +1788,46 @@ class TeamDashboardGenerator:
         
         self._save_json(self.leaderboard_file, leaderboard)
         return leaderboard
+    
+    def update_leaderboard_model_info(self):
+        """
+        Update model information in existing leaderboard
+        This allows updating model config without losing performance data
+        Called at server startup to ensure latest model info is displayed
+        """
+        # Load existing leaderboard if it exists
+        existing_leaderboard = self._load_json(self.leaderboard_file, [])
+        
+        if not existing_leaderboard:
+            # If no leaderboard exists, create initial one
+            print("📊 No existing leaderboard found, creating initial leaderboard with model info...")
+            self._generate_initial_leaderboard({})
+            return
+        
+        # Update model info for each agent while preserving performance data
+        print("📊 Updating model information in existing leaderboard...")
+        updated_count = 0
+        
+        for entry in existing_leaderboard:
+            agent_id = entry.get('agentId')
+            if agent_id:
+                # Get latest model configuration from environment variables
+                model_name, model_provider = self._get_agent_model_config({}, agent_id)
+                
+                # Update model info (preserve all other data)
+                old_model = entry.get('modelName')
+                old_provider = entry.get('modelProvider')
+                
+                entry['modelName'] = model_name
+                entry['modelProvider'] = model_provider
+                
+                if old_model != model_name or old_provider != model_provider:
+                    updated_count += 1
+                    print(f"  ✅ Updated {agent_id}: {old_model or 'N/A'} → {model_name}")
+        
+        # Save updated leaderboard
+        self._save_json(self.leaderboard_file, existing_leaderboard)
+        print(f"✅ Model information updated for {updated_count} agents in leaderboard")
     
     def initialize_empty_dashboard(self, state: Dict = None):
         """
