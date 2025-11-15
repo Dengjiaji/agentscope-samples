@@ -1,11 +1,11 @@
 """
-虚拟时钟 - 用于 live脚本 debug 时间模拟和加速调试
+Virtual Clock - For live script debug time simulation and accelerated debugging
 
-功能：
-1. 可以设置任意起始时间
-2. 支持时间加速（例如60倍速）
-3. 全局单例，整个系统使用统一的虚拟时间
-4. 可以暂停/恢复/重置
+Features:
+1. Can set arbitrary start time
+2. Supports time acceleration (e.g., 60x speed)
+3. Global singleton, entire system uses unified virtual time
+4. Can pause/resume/reset
 """
 
 import asyncio
@@ -15,82 +15,82 @@ import threading
 
 
 class VirtualClock:
-    """虚拟时钟 - 支持时间模拟和加速"""
+    """Virtual clock - supports time simulation and acceleration"""
     
     def __init__(self, 
                  start_time: Optional[datetime] = None,
                  time_accelerator: float = 1.0,
                  enabled: bool = False):
         """
-        初始化虚拟时钟
+        Initialize virtual clock
         
         Args:
-            start_time: 起始时间（默认为当前时间）
-            time_accelerator: 时间加速倍数（1.0=正常，60.0=60倍速）
-            enabled: 是否启用虚拟时钟（False时使用真实系统时间）
+            start_time: Start time (defaults to current time)
+            time_accelerator: Time acceleration multiplier (1.0=normal, 60.0=60x speed)
+            enabled: Whether to enable virtual clock (False uses real system time)
         """
         self.enabled = enabled
         self.time_accelerator = time_accelerator
         
-        # 真实时间的起点
+        # Real time starting point
         self.real_start_time = datetime.now(timezone.utc)
         
-        # 虚拟时间的起点
+        # Virtual time starting point
         if start_time:
             if start_time.tzinfo is None:
-                # 如果没有时区信息，假设是UTC
+                # If no timezone info, assume UTC
                 self.virtual_start_time = start_time.replace(tzinfo=timezone.utc)
             else:
                 self.virtual_start_time = start_time
         else:
             self.virtual_start_time = self.real_start_time
         
-        # 暂停状态
+        # Pause state
         self.paused = False
         self.pause_real_time = None
         self.pause_virtual_time = None
         
-        # 线程锁
+        # Thread lock
         self.lock = threading.Lock()
     
     def now(self, tz: Optional[timezone] = None) -> datetime:
         """
-        获取当前时间
+        Get current time
         
         Args:
-            tz: 目标时区（默认UTC）
+            tz: Target timezone (default UTC)
         
         Returns:
-            当前时间（虚拟时间或真实时间）
+            Current time (virtual time or real time)
         """
         if not self.enabled:
-            # 未启用虚拟时钟，返回真实时间
+            # Virtual clock not enabled, return real time
             return datetime.now(tz or timezone.utc)
         
         with self.lock:
             if self.paused:
-                # 暂停状态，返回暂停时的虚拟时间
+                # Paused state, return virtual time at pause
                 current_time = self.pause_virtual_time
             else:
-                # 计算虚拟时间
+                # Calculate virtual time
                 real_elapsed = datetime.now(timezone.utc) - self.real_start_time
                 virtual_elapsed = real_elapsed * self.time_accelerator
                 current_time = self.virtual_start_time + virtual_elapsed
             
-            # 转换时区
+            # Convert timezone
             if tz:
                 return current_time.astimezone(tz)
             return current_time
     
     def set_time(self, new_time: datetime):
         """
-        设置虚拟时间（跳转到指定时间）
+        Set virtual time (jump to specified time)
         
         Args:
-            new_time: 新的虚拟时间
+            new_time: New virtual time
         """
         if not self.enabled:
-            raise RuntimeError("虚拟时钟未启用，无法设置时间")
+            raise RuntimeError("Virtual clock not enabled, cannot set time")
         
         with self.lock:
             if new_time.tzinfo is None:
@@ -104,7 +104,7 @@ class VirtualClock:
                 self.pause_virtual_time = new_time
     
     def pause(self):
-        """暂停虚拟时钟"""
+        """Pause virtual clock"""
         if not self.enabled:
             return
         
@@ -113,70 +113,70 @@ class VirtualClock:
                 self.paused = True
                 self.pause_real_time = datetime.now(timezone.utc)
                 
-                # 计算暂停时的虚拟时间
+                # Calculate virtual time at pause
                 real_elapsed = self.pause_real_time - self.real_start_time
                 virtual_elapsed = real_elapsed * self.time_accelerator
                 self.pause_virtual_time = self.virtual_start_time + virtual_elapsed
     
     def resume(self):
-        """恢复虚拟时钟"""
+        """Resume virtual clock"""
         if not self.enabled:
             return
         
         with self.lock:
             if self.paused:
-                # 重新设置起点，使虚拟时间从暂停点继续
+                # Reset starting point so virtual time continues from pause point
                 self.real_start_time = datetime.now(timezone.utc)
                 self.virtual_start_time = self.pause_virtual_time
                 self.paused = False
     
     def set_accelerator(self, accelerator: float):
         """
-        设置时间加速倍数
+        Set time acceleration multiplier
         
         Args:
-            accelerator: 新的加速倍数
+            accelerator: New acceleration multiplier
         """
         if not self.enabled:
             return
         
         with self.lock:
-            # 先计算当前虚拟时间
+            # First calculate current virtual time
             current_virtual = self.now()
             
-            # 更新加速倍数
+            # Update acceleration multiplier
             self.time_accelerator = accelerator
             
-            # 重新设置起点
+            # Reset starting point
             self.real_start_time = datetime.now(timezone.utc)
             self.virtual_start_time = current_virtual
     
     async def sleep(self, seconds: float):
         """
-        异步睡眠（考虑时间加速）
+        Async sleep (considering time acceleration)
         
         Args:
-            seconds: 虚拟时间的秒数
+            seconds: Number of seconds in virtual time
         """
         if not self.enabled:
             await asyncio.sleep(seconds)
         else:
-            # 根据加速倍数调整实际睡眠时间
+            # Adjust actual sleep time based on acceleration multiplier
             real_seconds = seconds / self.time_accelerator
             await asyncio.sleep(real_seconds)
     
     def fast_forward(self, minutes: float = 30):
         """
-        快进虚拟时间（向前跳转）
+        Fast forward virtual time (jump forward)
         
         Args:
-            minutes: 快进的分钟数（默认30分钟）
+            minutes: Number of minutes to fast forward (default 30 minutes)
         """
         if not self.enabled:
-            raise RuntimeError("虚拟时钟未启用，无法快进时间")
+            raise RuntimeError("Virtual clock not enabled, cannot fast forward time")
         
         with self.lock:
-            # 获取当前虚拟时间
+            # Get current virtual time
             if self.paused:
                 current_virtual = self.pause_virtual_time
             else:
@@ -184,20 +184,20 @@ class VirtualClock:
                 virtual_elapsed = real_elapsed * self.time_accelerator
                 current_virtual = self.virtual_start_time + virtual_elapsed
             
-            # 快进指定分钟数
+            # Fast forward specified minutes
             new_virtual_time = current_virtual + timedelta(minutes=minutes)
             
-            # 更新虚拟时间起点
+            # Update virtual time starting point
             self.real_start_time = datetime.now(timezone.utc)
             self.virtual_start_time = new_virtual_time
             
-            # 如果处于暂停状态，也更新暂停时的虚拟时间
+            # If paused, also update paused virtual time
             if self.paused:
                 self.pause_virtual_time = new_virtual_time
                 self.pause_real_time = self.real_start_time
     
     def get_info(self) -> dict:
-        """获取虚拟时钟信息"""
+        """Get virtual clock information"""
         return {
             'enabled': self.enabled,
             'time_accelerator': self.time_accelerator,
@@ -208,7 +208,7 @@ class VirtualClock:
         }
 
 
-# 全局虚拟时钟实例
+# Global virtual clock instance
 _global_clock: Optional[VirtualClock] = None
 
 
@@ -216,15 +216,15 @@ def init_virtual_clock(start_time: Optional[datetime] = None,
                        time_accelerator: float = 1.0,
                        enabled: bool = False) -> VirtualClock:
     """
-    初始化全局虚拟时钟
+    Initialize global virtual clock
     
     Args:
-        start_time: 起始时间（默认为当前时间）
-        time_accelerator: 时间加速倍数
-        enabled: 是否启用虚拟时钟
+        start_time: Start time (defaults to current time)
+        time_accelerator: Time acceleration multiplier
+        enabled: Whether to enable virtual clock
     
     Returns:
-        虚拟时钟实例
+        Virtual clock instance
     """
     global _global_clock
     _global_clock = VirtualClock(
@@ -237,37 +237,37 @@ def init_virtual_clock(start_time: Optional[datetime] = None,
 
 def get_virtual_clock() -> VirtualClock:
     """
-    获取全局虚拟时钟实例
+    Get global virtual clock instance
     
     Returns:
-        虚拟时钟实例
+        Virtual clock instance
     """
     global _global_clock
     if _global_clock is None:
-        # 如果未初始化，创建一个默认的（未启用）
+        # If not initialized, create a default one (disabled)
         _global_clock = VirtualClock(enabled=False)
     return _global_clock
 
 
 def virtual_now(tz: Optional[timezone] = None) -> datetime:
     """
-    获取当前虚拟时间（便捷函数）
+    Get current virtual time (convenience function)
     
     Args:
-        tz: 目标时区
+        tz: Target timezone
     
     Returns:
-        当前时间
+        Current time
     """
     return get_virtual_clock().now(tz)
 
 
 async def virtual_sleep(seconds: float):
     """
-    虚拟睡眠（便捷函数）
+    Virtual sleep (convenience function)
     
     Args:
-        seconds: 虚拟时间的秒数
+        seconds: Number of seconds in virtual time
     """
     await get_virtual_clock().sleep(seconds)
 

@@ -4,7 +4,7 @@ import json
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, Union
 
-# 导入 AgentScope 模型
+# Import AgentScope model
 from src.llm.models import get_model, ModelProvider
 from src.utils.progress import progress
 from src.graph.state import AgentState
@@ -19,31 +19,31 @@ def tool_call(
     default_factory=None,
 ) -> BaseModel:
     """
-    使用 AgentScope 模型包装器调用 LLM，支持结构化输出
+    Call LLM using AgentScope model wrapper, supports structured output
     
     Args:
-        messages: 提示内容（字符串或消息列表）
-        pydantic_model: Pydantic 模型类用于结构化输出
-        agent_name: Agent 名称（可选，用于进度更新和模型配置提取）
-        state: AgentState 对象（可选，用于提取 agent 特定的模型配置）
-        max_retries: 最大重试次数（默认: 3）
-        default_factory: 默认响应工厂函数（可选）
+        messages: Prompt content (string or message list)
+        pydantic_model: Pydantic model class for structured output
+        agent_name: Agent name (optional, for progress updates and model config extraction)
+        state: AgentState object (optional, for extracting agent-specific model config)
+        max_retries: Maximum retry count (default: 3)
+        default_factory: Default response factory function (optional)
     
     Returns:
-        Pydantic 模型实例
+        Pydantic model instance
     """
     
-    # 提取模型配置
+    # Extract model configuration
     if state and agent_name:
         model_name, model_provider = get_agent_model_config(state, agent_name)
     else:
-        # 使用系统默认配置
+        # Use system default configuration
         model_name = "gpt-4o-mini"
         model_provider = "OPENAI"
 
     llm = get_model(model_name, model_provider, api_keys=None)
 
-    # 调用 LLM（带重试逻辑）
+    # Call LLM (with retry logic)
     for attempt in range(max_retries):
         try:
 
@@ -54,66 +54,66 @@ def tool_call(
             )
             content = response["content"]
 
-            # 解析 JSON 响应
+            # Parse JSON response
             parsed_result = extract_json_from_response(content)
             if parsed_result:
                 result = pydantic_model(**parsed_result)
                 
-                # ✅ 检查关键字段是否为空（针对SecondRoundAnalysis）
+                # ✅ Check if key fields are empty (for SecondRoundAnalysis)
                 if hasattr(result, 'ticker_signals') and (not result.ticker_signals or len(result.ticker_signals) == 0):
-                    # 🔍 只在检测到空响应时打印调试日志
-                    print(f"\n⚠️ [{agent_name}] LLM返回空的ticker_signals (尝试 {attempt + 1}/{max_retries})")
-                    print(f"   响应长度: {len(content)} 字符")
-                    print(f"   响应预览: {content[:500]}...")
+                    # 🔍 Only print debug log when empty response detected
+                    print(f"\n⚠️ [{agent_name}] LLM returned empty ticker_signals (attempt {attempt + 1}/{max_retries})")
+                    print(f"   Response length: {len(content)} characters")
+                    print(f"   Response preview: {content[:500]}...")
                     
                     if attempt < max_retries - 1:
-                        print(f"   🔄 准备重试...")
-                        continue  # 重试
+                        print(f"   🔄 Preparing to retry...")
+                        continue  # Retry
                     else:
-                        # ❌ 达到最大重试次数，暂停程序
-                        print(f"\n❌❌❌ [{agent_name}] 达到最大重试次数 ({max_retries})，LLM持续返回空信号")
+                        # ❌ Reached maximum retries, pause program
+                        print(f"\n❌❌❌ [{agent_name}] Reached maximum retry count ({max_retries}), LLM continues to return empty signals")
                         
                         import pdb
                         pdb.set_trace()
                         
-                        # 如果用户选择继续，抛出异常
-                        raise ValueError(f"LLM持续返回空的ticker_signals after {max_retries} attempts")
+                        # If user chooses to continue, raise exception
+                        raise ValueError(f"LLM continues to return empty ticker_signals after {max_retries} attempts")
                 
                 return result
             
-            # 如果解析失败，尝试直接解析
+            # If parsing failed, try direct parsing
             try:
                 result = pydantic_model(**json.loads(content))
                 
-                # ✅ 同样检查直接解析的结果
+                # ✅ Also check directly parsed result
                 if hasattr(result, 'ticker_signals') and (not result.ticker_signals or len(result.ticker_signals) == 0):
-                    # 🔍 只在检测到空响应时打印调试日志
-                    print(f"\n⚠️ [{agent_name}] LLM返回空的ticker_signals (尝试 {attempt + 1}/{max_retries})")
-                    print(f"   响应长度: {len(content)} 字符")
-                    print(f"   响应预览: {content[:500]}...")
+                    # 🔍 Only print debug log when empty response detected
+                    print(f"\n⚠️ [{agent_name}] LLM returned empty ticker_signals (attempt {attempt + 1}/{max_retries})")
+                    print(f"   Response length: {len(content)} characters")
+                    print(f"   Response preview: {content[:500]}...")
                     
                     if attempt < max_retries - 1:
-                        print(f"   🔄 准备重试...")
-                        continue  # 重试
+                        print(f"   🔄 Preparing to retry...")
+                        continue  # Retry
                     else:
-                        # ❌ 达到最大重试次数，暂停程序
-                        print(f"\n❌❌❌ [{agent_name}] 达到最大重试次数 ({max_retries})，LLM持续返回空信号")
+                        # ❌ Reached maximum retries, pause program
+                        print(f"\n❌❌❌ [{agent_name}] Reached maximum retry count ({max_retries}), LLM continues to return empty signals")
                         
                         import pdb
                         pdb.set_trace()
                         
-                        # 如果用户选择继续，抛出异常
-                        raise ValueError(f"LLM持续返回空的ticker_signals after {max_retries} attempts")
+                        # If user chooses to continue, raise exception
+                        raise ValueError(f"LLM continues to return empty ticker_signals after {max_retries} attempts")
                 
                 return result
             except ValueError as ve:
-                # 重新抛出我们自己的ValueError
+                # Re-raise our own ValueError
                 raise ve
             except:
                 pass
 
         except Exception as e:
-            # 打印详细错误信息
+            # Print detailed error information
             error_details = f"LLM Error - Agent: {agent_name}, Model: {model_name} ({model_provider}), Attempt: {attempt + 1}/{max_retries}"
             print(f"{error_details}")
             print(f"Error Type: {type(e).__name__}")
@@ -130,12 +130,12 @@ def tool_call(
                 print(f"🚨 Agent: {agent_name}, Model: {model_name} ({model_provider})")
                 print(f"🚨 Final Error: {e}")
                 
-                # 使用 default_factory 或创建默认响应
+                # Use default_factory or create default response
                 if default_factory:
                     return default_factory()
                 return create_default_response(pydantic_model)
 
-    # 不应该到达这里
+    # Should not reach here
     return create_default_response(pydantic_model)
 
 
