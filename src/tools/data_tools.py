@@ -30,20 +30,20 @@ _cache = get_cache()
 
 def get_last_tradeday(date: str) -> str:
     """
-    获取指定日期的上一个交易日
+    Get the previous trading day for the specified date
     
     Args:
-        date: 日期字符串 (YYYY-MM-DD)
+        date: Date string (YYYY-MM-DD)
         
     Returns:
-        上一个交易日的日期字符串 (YYYY-MM-DD)
+        Previous trading day date string (YYYY-MM-DD)
     """
     current_date = datetime.datetime.strptime(date, "%Y-%m-%d")
     _NYSE_CALENDAR = mcal.get_calendar('NYSE')
 
     if _NYSE_CALENDAR is not None:
-        # 获取当前日期之前的交易日
-        # 从当前日期往前推90天，获取所有交易日
+        # Get trading days before current date
+        # Go back 90 days from current date to get all trading days
         start_search = current_date - datetime.timedelta(days=90)
         
         if hasattr(_NYSE_CALENDAR, 'valid_days'):
@@ -59,21 +59,21 @@ def get_last_tradeday(date: str) -> str:
                 current_date.strftime("%Y-%m-%d")
             )
         
-        # 转换为日期列表
+        # Convert to date list
         trading_dates_list = [pd.Timestamp(d).strftime("%Y-%m-%d") for d in trading_dates]
         
-        # 查找当前日期在列表中的位置
+        # Find current date position in the list
         if date in trading_dates_list:
-            # 如果当前日期是交易日，返回前一个交易日
+            # If current date is a trading day, return previous trading day
             idx = trading_dates_list.index(date)
             if idx > 0:
                 return trading_dates_list[idx - 1]
             else:
-                # 如果是第一个交易日，再往前推
+                # If it's the first trading day, go back further
                 prev_date = current_date - datetime.timedelta(days=1)
                 return get_last_tradeday(prev_date.strftime("%Y-%m-%d"))
         else:
-            # 如果当前日期不是交易日，返回最近的交易日
+            # If current date is not a trading day, return the nearest trading day
             if trading_dates_list:
                 return trading_dates_list[-1]
     

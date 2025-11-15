@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-记忆管理工具集
-为Portfolio Manager提供AgentScope Toolkit形式的记忆操作功能
+Memory Management Toolkit
+Provides memory operation functionality in AgentScope Toolkit format for Portfolio Manager
 """
 
 import json
@@ -15,32 +15,32 @@ from src.memory import get_memory
 
 
 
-# 全局base_dir缓存
+# Global base_dir cache
 _cached_base_dir = None
 
 def _set_base_dir(base_dir: str):
-    """设置base_dir用于创建memory实例"""
+    """Set base_dir for creating memory instance"""
     global _cached_base_dir
     _cached_base_dir = base_dir
 
 
-# 全局streamer引用（用于广播memory操作）
+# Global streamer reference (for broadcasting memory operations)
 _global_streamer = None
 
 def set_memory_tools_streamer(streamer):
-    """设置全局streamer用于广播memory操作"""
+    """Set global streamer for broadcasting memory operations"""
     global _global_streamer
     _global_streamer = streamer
 
 def _get_memory_instance():
-    """获取记忆实例"""
+    """Get memory instance"""
     global _cached_base_dir
     if not _cached_base_dir:
         return None
     return get_memory(_cached_base_dir)
 
 def _broadcast_memory_operation(operation_type: str, content: str, agent_id: str):
-    """广播memory操作到前端"""
+    """Broadcast memory operation to frontend"""
     global _global_streamer
     if _global_streamer:
         try:
@@ -51,33 +51,33 @@ def _broadcast_memory_operation(operation_type: str, content: str, agent_id: str
                 operation_type=operation_type
             )
         except Exception as e:
-            print(f"⚠️ 广播memory操作失败: {e}")
+            print(f"⚠️ Failed to broadcast memory operation: {e}")
 
 
-# ===================== 记忆管理工具 - AgentScope 工具函数 =====================
+# ===================== Memory Management Tools - AgentScope Tool Functions =====================
 
 def search_and_update_analyst_memory(
-    query: Annotated[str, Field(description="搜索查询内容，用于找到需要更新的记忆。例如：'苹果股票分析'、'技术指标预测'等")],
-    memory_id: Annotated[str, Field(description="要更新的记忆ID，如果不知道具体ID可以填写'auto'让系统自动搜索")],
-    analyst_id: Annotated[str, Field(description="分析师ID，可选值：sentiment_analyst、technical_analyst、fundamentals_analyst、valuation_analyst")],
-    new_content: Annotated[str, Field(description="新的记忆内容，用来替换错误的记忆。应该是正确的分析方法或经验总结")],
-    reason: Annotated[str, Field(description="更新原因，解释为什么要更新这个记忆，例如：'预测错误需要修正'、'分析方法有误'等")]
+    query: Annotated[str, Field(description="Search query content, used to find memories that need updating. Examples: 'Apple stock analysis', 'technical indicator predictions', etc.")],
+    memory_id: Annotated[str, Field(description="Memory ID to update, if you don't know the specific ID, you can fill in 'auto' to let the system search automatically")],
+    analyst_id: Annotated[str, Field(description="Analyst ID, possible values: sentiment_analyst, technical_analyst, fundamentals_analyst, valuation_analyst")],
+    new_content: Annotated[str, Field(description="New memory content to replace incorrect memory. Should be correct analysis methods or experience summaries")],
+    reason: Annotated[str, Field(description="Update reason, explaining why this memory needs to be updated, e.g., 'prediction error needs correction', 'analysis method is incorrect', etc.")]
 ) -> Dict[str, Any]:
     """
-    搜索并更新分析师的错误记忆内容
+    Search and update analyst's incorrect memory content
     
-    这个工具用于修正分析师的错误记忆，通过搜索找到相关记忆并更新为正确内容。
-    适用于分析师表现不佳但错误不算严重的情况。
+    This tool is used to correct analyst's incorrect memories by searching for related memories and updating them with correct content.
+    Suitable for cases where analyst performance is poor but errors are not severe.
     
     Args:
-        query: 搜索查询内容，用于找到需要更新的记忆
-        memory_id: 要更新的记忆ID（可填写'auto'自动搜索）
-        analyst_id: 分析师ID（sentiment_analyst/technical_analyst/fundamentals_analyst/valuation_analyst）
-        new_content: 新的记忆内容，用来替换错误的记忆
-        reason: 更新原因，说明为什么要更新这个记忆
+        query: Search query content, used to find memories that need updating
+        memory_id: Memory ID to update (can fill 'auto' for automatic search)
+        analyst_id: Analyst ID (sentiment_analyst/technical_analyst/fundamentals_analyst/valuation_analyst)
+        new_content: New memory content to replace incorrect memory
+        reason: Update reason, explaining why this memory needs to be updated
         
     Returns:
-        包含更新结果的字典，包含status、更新详情等信息
+        Dictionary containing update results, including status, update details, etc.
     """
     memory_instance = _get_memory_instance()
     if not memory_instance:
@@ -88,14 +88,14 @@ def search_and_update_analyst_memory(
         }
         
     try:
-        # 广播搜索操作
+        # Broadcast search operation
         _broadcast_memory_operation(
             operation_type="search",
-            content=f"搜索记忆: {query}",
+            content=f"Searching memory: {query}",
             agent_id=analyst_id
         )
         
-        # 搜索记忆
+        # Search memory
         search_results = memory_instance.search(
             query=query,
             user_id=analyst_id,
@@ -105,52 +105,52 @@ def search_and_update_analyst_memory(
         if not search_results:
             _broadcast_memory_operation(
                 operation_type="search_failed",
-                content=f"未找到相关记忆: {query}",
+                content=f"No related memory found: {query}",
                 agent_id=analyst_id
             )
             return {
                 'status': 'failed',
                 'tool_name': 'search_and_update_analyst_memory',
-                'error': f'未找到相关记忆: {query}'
+                'error': f'No related memory found: {query}'
             }
         
-        # 获取搜索到的记忆
+        # Get found memory
         found_memory = search_results[0]
         memory_id = found_memory['id']
         original_content = found_memory.get('content', '')
         
-        # 🔍 打印调试信息：显示搜索到的记忆
+        # 🔍 Print debug info: show found memory
         print(f"\n{'='*60}")
-        print(f"🔍 记忆更新调试信息")
+        print(f"🔍 Memory Update Debug Info")
         print(f"{'='*60}")
-        print(f"📌 分析师: {analyst_id}")
-        print(f"🔎 搜索查询: {query}")
-        print(f"🆔 记忆ID: {memory_id}")
-        print(f"\n📖 原始记忆内容:")
+        print(f"📌 Analyst: {analyst_id}")
+        print(f"🔎 Search Query: {query}")
+        print(f"🆔 Memory ID: {memory_id}")
+        print(f"\n📖 Original Memory Content:")
         print(f"{'-'*60}")
         print(f"{original_content[:500]}{'...' if len(original_content) > 500 else ''}")
         print(f"{'-'*60}")
-        print(f"\n✏️  新记忆内容:")
+        print(f"\n✏️  New Memory Content:")
         print(f"{'-'*60}")
         print(f"{new_content[:500]}{'...' if len(new_content) > 500 else ''}")
         print(f"{'-'*60}")
-        print(f"\n💡 更新原因: {reason}")
+        print(f"\n💡 Update Reason: {reason}")
         print(f"{'='*60}\n")
         
-        # 更新记忆（使用统一的API）
+        # Update memory (using unified API)
         result = memory_instance.update(
             memory_id=memory_id,
             content=new_content,
             user_id=analyst_id
         )
         
-        # ✅ 打印更新成功信息
-        print(f"✅ 记忆更新成功!")
-        print(f"   记忆ID: {memory_id}")
-        print(f"   分析师: {analyst_id}\n")
+        # ✅ Print update success info
+        print(f"✅ Memory update successful!")
+        print(f"   Memory ID: {memory_id}")
+        print(f"   Analyst: {analyst_id}\n")
         
-        # 广播更新操作
-        update_msg = f"更新记忆: {reason[:80]}..." if len(reason) > 80 else f"更新记忆: {reason}"
+        # Broadcast update operation
+        update_msg = f"Update memory: {reason[:80]}..." if len(reason) > 80 else f"Update memory: {reason}"
         _broadcast_memory_operation(
             operation_type="update",
             content=update_msg,
@@ -163,7 +163,7 @@ def search_and_update_analyst_memory(
             'memory_id': memory_id,
             'analyst_id': analyst_id,
             'reason': reason,
-            'original_content': original_content,  # 添加原始内容
+            'original_content': original_content,  # Add original content
             'updated_content': new_content,
             'result': result
         }
@@ -179,25 +179,25 @@ def search_and_update_analyst_memory(
 
 
 def search_and_delete_analyst_memory(
-    query: Annotated[str, Field(description="搜索查询内容，用于找到需要删除的记忆。例如：'错误的市场预测'、'不准确的技术分析'等")],
-    memory_id: Annotated[str, Field(description="要删除的记忆ID，如果不知道具体ID可以填写'auto'让系统自动搜索")],
-    analyst_id: Annotated[str, Field(description="分析师ID，可选值：sentiment_analyst、technical_analyst、fundamentals_analyst、valuation_analyst")],
-    reason: Annotated[str, Field(description="删除原因，解释为什么要删除这个记忆，例如：'严重错误的预测方法'、'误导性的分析逻辑'等")]
+    query: Annotated[str, Field(description="Search query content, used to find memories that need deletion. Examples: 'incorrect market predictions', 'inaccurate technical analysis', etc.")],
+    memory_id: Annotated[str, Field(description="Memory ID to delete, if you don't know the specific ID, you can fill in 'auto' to let the system search automatically")],
+    analyst_id: Annotated[str, Field(description="Analyst ID, possible values: sentiment_analyst, technical_analyst, fundamentals_analyst, valuation_analyst")],
+    reason: Annotated[str, Field(description="Deletion reason, explaining why this memory needs to be deleted, e.g., 'severely incorrect prediction method', 'misleading analysis logic', etc.")]
 ) -> Dict[str, Any]:
     """
-    搜索并删除分析师的严重错误记忆
+    Search and delete analyst's severely incorrect memories
     
-    这个工具用于删除分析师的严重错误记忆，适用于分析师表现极差或有严重错误的情况。
-    删除操作不可逆，请谨慎使用。
+    This tool is used to delete analyst's severely incorrect memories, suitable for cases where analyst performance is very poor or has serious errors.
+    Deletion operation is irreversible, please use with caution.
     
     Args:
-        query: 搜索查询内容，用于找到需要删除的记忆
-        memory_id: 要删除的记忆ID（可填写'auto'自动搜索）
-        analyst_id: 分析师ID（sentiment_analyst/technical_analyst/fundamentals_analyst/valuation_analyst）
-        reason: 删除原因，解释为什么要删除这个记忆
+        query: Search query content, used to find memories that need deletion
+        memory_id: Memory ID to delete (can fill 'auto' for automatic search)
+        analyst_id: Analyst ID (sentiment_analyst/technical_analyst/fundamentals_analyst/valuation_analyst)
+        reason: Deletion reason, explaining why this memory needs to be deleted
         
     Returns:
-        包含删除结果的字典，包含status、删除详情等信息
+        Dictionary containing deletion results, including status, deletion details, etc.
     """
     memory_instance = _get_memory_instance()
     if not memory_instance:
@@ -208,14 +208,14 @@ def search_and_delete_analyst_memory(
         }
         
     try:
-        # 广播搜索操作
+        # Broadcast search operation
         _broadcast_memory_operation(
             operation_type="search",
-            content=f"搜索待删除记忆: {query}",
+            content=f"Searching memory to delete: {query}",
             agent_id=analyst_id
         )
         
-        # 搜索记忆
+        # Search memory
         search_results = memory_instance.search(
             query=query,
             user_id=analyst_id,
@@ -225,47 +225,47 @@ def search_and_delete_analyst_memory(
         if not search_results:
             _broadcast_memory_operation(
                 operation_type="search_failed",
-                content=f"未找到相关记忆: {query}",
+                content=f"No related memory found: {query}",
                 agent_id=analyst_id
             )
             return {
                 'status': 'failed',
                 'tool_name': 'search_and_delete_analyst_memory',
-                'error': f'未找到相关记忆: {query}'
+                'error': f'No related memory found: {query}'
             }
         
-        # 获取搜索到的记忆
+        # Get found memory
         found_memory = search_results[0]
         memory_id = found_memory['id']
         memory_content = found_memory.get('content', '')
         
-        # 🔍 打印调试信息：显示要删除的记忆
+        # 🔍 Print debug info: show memory to delete
         print(f"\n{'='*60}")
-        print(f"🗑️  记忆删除调试信息")
+        print(f"🗑️  Memory Deletion Debug Info")
         print(f"{'='*60}")
-        print(f"📌 分析师: {analyst_id}")
-        print(f"🔎 搜索查询: {query}")
-        print(f"🆔 记忆ID: {memory_id}")
-        print(f"\n📖 要删除的记忆内容:")
+        print(f"📌 Analyst: {analyst_id}")
+        print(f"🔎 Search Query: {query}")
+        print(f"🆔 Memory ID: {memory_id}")
+        print(f"\n📖 Memory Content to Delete:")
         print(f"{'-'*60}")
         print(f"{memory_content[:500]}{'...' if len(memory_content) > 500 else ''}")
         print(f"{'-'*60}")
-        print(f"\n⚠️  删除原因: {reason}")
+        print(f"\n⚠️  Deletion Reason: {reason}")
         print(f"{'='*60}\n")
         
-        # 删除记忆（使用统一的API）
+        # Delete memory (using unified API)
         result = memory_instance.delete(
             memory_id=memory_id,
             user_id=analyst_id
         )
         
-        # ✅ 打印删除成功信息
-        print(f"✅ 记忆删除成功!")
-        print(f"   记忆ID: {memory_id}")
-        print(f"   分析师: {analyst_id}\n")
+        # ✅ Print deletion success info
+        print(f"✅ Memory deletion successful!")
+        print(f"   Memory ID: {memory_id}")
+        print(f"   Analyst: {analyst_id}\n")
         
-        # 广播删除操作
-        delete_msg = f"删除记忆: {reason[:80]}..." if len(reason) > 80 else f"删除记忆: {reason}"
+        # Broadcast deletion operation
+        delete_msg = f"Delete memory: {reason[:80]}..." if len(reason) > 80 else f"Delete memory: {reason}"
         _broadcast_memory_operation(
             operation_type="delete",
             content=delete_msg,
@@ -277,7 +277,7 @@ def search_and_delete_analyst_memory(
             'tool_name': 'search_and_delete_analyst_memory',
             'memory_id': memory_id,
             'analyst_id': analyst_id,
-            'deleted_content': memory_content,  # 添加被删除的内容
+            'deleted_content': memory_content,  # Add deleted content
             'deletion_reason': reason,
             'result': result
         }
@@ -294,16 +294,16 @@ def search_and_delete_analyst_memory(
 
 def add_reflection_memory(analyst_id: str, content: str, reason: str, date: str) -> Dict[str, Any]:
     """
-    为分析师添加反思和指导记忆
+    Add reflection and guidance memory for analyst
     
     Args:
-        analyst_id: 分析师ID
-        content: 反思内容
-        reason: 添加原因
-        date: 相关日期
+        analyst_id: Analyst ID
+        content: Reflection content
+        reason: Addition reason
+        date: Related date
         
     Returns:
-        包含添加结果的字典
+        Dictionary containing addition results
     """
     memory_instance = _get_memory_instance()
     if not memory_instance:
@@ -314,15 +314,8 @@ def add_reflection_memory(analyst_id: str, content: str, reason: str, date: str)
         }
         
     try:
-        messages = [
-            {
-                "role": "user",
-                "content": f"Portfolio Manager的反思和指导: {content}"
-            }
-        ]
-        
         result = memory_instance.add(
-            messages=messages,
+            content=f"Portfolio Manager's reflection and guidance: {content}",
             user_id=analyst_id,
             metadata={
                 "memory_type": "pm_reflection",
@@ -351,38 +344,38 @@ def add_reflection_memory(analyst_id: str, content: str, reason: str, date: str)
         }
 
 
-# ===================== AgentScope Toolkit 集成 =====================
+# ===================== AgentScope Toolkit Integration =====================
 
 def create_memory_toolkit() -> Toolkit:
     """
-    创建记忆管理工具包（AgentScope 原生 Toolkit）
+    Create memory management toolkit (AgentScope native Toolkit)
     
     Returns:
-        Toolkit 实例
+        Toolkit instance
     """
     toolkit = Toolkit()
     
-    # 注册工具函数 - AgentScope 会自动从函数签名和 docstring 提取参数信息
+    # Register tool functions - AgentScope will automatically extract parameter info from function signatures and docstrings
     toolkit.register_tool_function(search_and_update_analyst_memory)
     toolkit.register_tool_function(search_and_delete_analyst_memory)
     
     return toolkit
 
 
-# 使用示例
+# Usage example
 if __name__ == "__main__":
-    print("🛠️ 记忆管理工具集 - AgentScope Toolkit模式")
+    print("🛠️ Memory Management Toolkit - AgentScope Toolkit Mode")
     print("=" * 50)
     
-    # 创建并显示工具包
+    # Create and display toolkit
     toolkit = create_memory_toolkit()
     tool_names = list(toolkit.tools.keys())
     
-    # print(f"\n📋 可用工具 ({len(tool_names)}个):")
+    # print(f"\n📋 Available tools ({len(tool_names)}):")
     # for i, tool_name in enumerate(tool_names, 1):
     #     tool_info = toolkit.tools[tool_name]
-        # 提取函数的 docstring 第一行作为描述
+        # Extract first line of function docstring as description
     desc = toolkit.get_json_schemas()
     print(f"{desc}")
     
-    print("\n✅ 记忆管理工具集初始化完成")
+    print("\n✅ Memory management toolkit initialization completed")
