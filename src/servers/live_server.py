@@ -1041,7 +1041,7 @@ class LiveTradingServer:
         
         await self.broadcast({
             'type': 'system',
-            'content': f'System started - Directly entering today's live mode (US trading day: {today_us})'
+            'content': f"System started - Directly entering today's live mode (US trading day: {today_us})"
         })
         
         # ========== Today's live mode ==========
@@ -1056,7 +1056,7 @@ class LiveTradingServer:
         if self.pause_before_trade:
             await self.broadcast({
                 'type': 'system',
-                'content': f'⏸️ Entering today's live mode - US trading day {today_us}, running trading decision analysis (Pause mode: no trades executed)...'
+                'content': f"⏸️ Entering today's live mode - US trading day {today_us}, running trading decision analysis (Pause mode: no trades executed)..."
             })
         else:
             await self.broadcast({

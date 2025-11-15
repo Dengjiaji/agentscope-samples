@@ -602,9 +602,9 @@ class Server:
             logger.info(f"✅ Subscribed to real-time prices: {self.config.tickers}")
         
         # Generate trading day list
-        start_date = self.config.start_date or "2025-11-13"
+        start_date = self.config.start_date or "2025-11-12"
         # end_date = self.config.end_date or datetime.now().strftime("%Y-%m-%d")
-        end_date = self.config.end_date or "2025-11-13"
+        end_date = self.config.end_date or "2025-11-12"
 
         trading_days = self.thinking_fund.generate_trading_dates(start_date, end_date)
         logger.info(f"📅 Planning to run {len(trading_days)} trading days: {start_date} -> {end_date}")
