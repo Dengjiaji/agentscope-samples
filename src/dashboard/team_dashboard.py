@@ -365,7 +365,6 @@ class TeamDashboardGenerator:
         available_tickers = list(pm_signals.keys())
         self._initialize_buy_and_hold(date, available_tickers, state)
         self._initialize_buy_and_hold_vw(date, available_tickers, state)
-        pdb.set_trace()
         # 1. 更新交易记录和持仓
         if mode == "portfolio":
             self._update_portfolio_mode(date, timestamp_ms, pm_signals, real_returns, 
@@ -585,9 +584,9 @@ class TeamDashboardGenerator:
         
         # 记录交易（仅记录实际执行成功的交易）
         executed_trades = live_env.get('executed_trades', [])
-        pdb.set_trace()
+        # pdb.set_trace()
         for executed_trade in executed_trades:
-            pdb.set_trace()
+            # pdb.set_trace()
             ticker = executed_trade['ticker']
             action = executed_trade['action']
             quantity = executed_trade['target_quantity']
@@ -628,7 +627,7 @@ class TeamDashboardGenerator:
                     'price': round(price, 2),
                     'pnl': round(pnl, 2)
                 }
-                pdb.set_trace()
+                # pdb.set_trace()
                 state['all_trades'].append(trade_record)
                 update_stats['trades_added'] += 1
     

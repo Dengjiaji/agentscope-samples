@@ -287,16 +287,24 @@ class LiveTradingFund:
             'details': result
         })
         
-        # Update team dashboard data
-        # dashboard_update_stats = self.dashboard_generator.update_from_day_result(
-        #     date=date,
-        #     pre_market_result={'live_env': live_env, 'raw_results': result},
-        #     mode=self.mode
-        # )
-        # self.streamer.print("system", 
-        #     f"Team dashboard updated: {dashboard_update_stats.get('trades_added', 0)} trades added, "
-        #     f"{dashboard_update_stats.get('agents_updated', 0)} agents updated")
-       
+        # Update team dashboard data (only in backtest mode, not in live mode)
+        # 回测模式（skip_real_returns=False）时更新 dashboard
+        # 在线模式（skip_real_returns=True）时跳过 dashboard 更新
+        if not skip_real_returns:
+            try:
+                dashboard_update_stats = self.dashboard_generator.update_from_day_result(
+                    date=date,
+                    pre_market_result={'pre_market': {'live_env': live_env, 'raw_results': result}},
+                    mode=self.mode
+                )
+                self.streamer.print("system", 
+                    f"Team dashboard updated: {dashboard_update_stats.get('trades_added', 0)} trades added, "
+                    f"{dashboard_update_stats.get('agents_updated', 0)} agents updated")
+            except Exception as e:
+                self.streamer.print("system", f"⚠️ Dashboard update failed: {e}")
+                import traceback
+                print(f"Dashboard update error for {date}: {e}")
+                traceback.print_exc()
 
         return {
             'status': 'success',
@@ -1201,6 +1209,16 @@ class LiveTradingFund:
         # Return portfolio state
         if self.mode == "portfolio":
             results['portfolio_state'] = self.strategy.portfolio_state
+
+        # Update team dashboard data
+        # dashboard_update_stats = self.dashboard_generator.update_from_day_result(
+        #     date=date,
+        #     pre_market_result={'live_env': live_env, 'raw_results': result},
+        #     mode=self.mode
+        # )
+        # self.streamer.print("system", 
+        #     f"Team dashboard updated: {dashboard_update_stats.get('trades_added', 0)} trades added, "
+        #     f"{dashboard_update_stats.get('agents_updated', 0)} agents updated")
 
         self._print_day_summary(results['summary'])
 
