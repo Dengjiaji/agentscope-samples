@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-通信工具 - 私聊和开会功能的实现
+Communication Tools - Implementation of private chat and meeting features
 """
 
 import json
@@ -15,51 +15,51 @@ from src.memory.manager import get_memory
 from src.agents.prompt_loader import PromptLoader
 
 class PrivateChatMessage(BaseModel):
-    """私聊消息模型"""
+    """Private chat message model"""
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    sender: str = Field(..., description="发送者ID")
-    receiver: str = Field(..., description="接收者ID")
-    content: str = Field(..., description="消息内容")
+    sender: str = Field(..., description="Sender ID")
+    receiver: str = Field(..., description="Receiver ID")
+    content: str = Field(..., description="Message content")
     timestamp: datetime = Field(default_factory=datetime.now)
-    message_type: str = Field(default="chat", description="消息类型")
+    message_type: str = Field(default="chat", description="Message type")
 
 
 
 
 class SignalAdjustment(BaseModel):
-    """信号调整模型"""
-    ticker: str = Field(..., description="股票代码")
-    original_signal: str = Field(..., description="原始信号")
-    adjusted_signal: str = Field(..., description="调整后信号")
-    original_confidence: int = Field(..., description="原始信心度")
-    adjusted_confidence: int = Field(..., description="调整后信心度")
-    adjustment_reasoning: str = Field(..., description="调整原因")
+    """Signal adjustment model"""
+    ticker: str = Field(..., description="Stock ticker")
+    original_signal: str = Field(..., description="Original signal")
+    adjusted_signal: str = Field(..., description="Adjusted signal")
+    original_confidence: int = Field(..., description="Original confidence")
+    adjusted_confidence: int = Field(..., description="Adjusted confidence")
+    adjustment_reasoning: str = Field(..., description="Adjustment reasoning")
 
 
 class CommunicationDecision(BaseModel):
-    """交流决策模型"""
-    should_communicate: bool = Field(..., description="是否需要交流")
-    communication_type: str = Field(..., description="交流类型: private_chat 或 meeting")
-    target_analysts: List[str] = Field(default_factory=list, description="目标分析师列表")
-    discussion_topic: str = Field(..., description="讨论话题")
-    reasoning: str = Field(..., description="选择交流的原因")
+    """Communication decision model"""
+    should_communicate: bool = Field(..., description="Whether communication is needed")
+    communication_type: str = Field(..., description="Communication type: private_chat or meeting")
+    target_analysts: List[str] = Field(default_factory=list, description="Target analyst list")
+    discussion_topic: str = Field(..., description="Discussion topic")
+    reasoning: str = Field(..., description="Reason for choosing communication")
 
 
 class PrivateChatSystem:
-    """私聊系统"""
+    """Private chat system"""
     
     def __init__(self):
         self.chat_histories: Dict[str, List[PrivateChatMessage]] = {}
     
     def start_private_chat(self, manager_id: str, analyst_id: str, 
                           initial_message: str) -> str:
-        """开始私聊对话"""
+        """Start private chat conversation"""
         chat_key = f"{manager_id}_{analyst_id}"
         
         if chat_key not in self.chat_histories:
             self.chat_histories[chat_key] = []
         
-        # 添加管理者的初始消息
+        # Add manager's initial message
         message = PrivateChatMessage(
             sender=manager_id,
             receiver=analyst_id,
@@ -70,7 +70,7 @@ class PrivateChatSystem:
         return message.id
     
     def send_message(self, sender: str, receiver: str, content: str) -> str:
-        """发送消息"""
+        """Send message"""
         chat_key = f"{sender}_{receiver}" if sender < receiver else f"{receiver}_{sender}"
         
         if chat_key not in self.chat_histories:
@@ -86,7 +86,7 @@ class PrivateChatSystem:
         return message.id
     
     def get_chat_history(self, participant1: str, participant2: str) -> List[PrivateChatMessage]:
-        """获取聊天历史"""
+        """Get chat history"""
         chat_key = f"{participant1}_{participant2}" if participant1 < participant2 else f"{participant2}_{participant1}"
         return self.chat_histories.get(chat_key, [])
 
@@ -94,31 +94,31 @@ class PrivateChatSystem:
 
 
 class CommunicationManager:
-    """交流管理器"""
+    """Communication manager"""
     
     def __init__(self):
         self.private_chat_system = PrivateChatSystem()
         self.prompt_loader = PromptLoader()
         
     def _get_max_chars(self, state) -> int:
-        """获取沟通文本最大字数，默认400，可通过state.metadata.communication_max_chars覆盖"""
+        """Get maximum character count for communication text, default 400, can be overridden via state.metadata.communication_max_chars"""
         try:
             return int(state.get("metadata", {}).get("communication_max_chars", 400))
         except Exception:
             return 400
     
     def _truncate_text(self, text: str, max_chars: int) -> str:
-        """按字数上限截断文本（面向中文），保留前max_chars个字符"""
+        """Truncate text by character limit (for Chinese), keep first max_chars characters"""
         if not isinstance(text, str):
             return text
         return text if len(text) <= max_chars else text[:max_chars]
     
     def _persist_communication_result(self, payload: Dict[str, Any], comm_type: str, state):
-        """将沟通结果写入当前会话的输出JSON文件（从state.metadata.output_file获取）"""
+        """Write communication result to current session's output JSON file (obtained from state.metadata.output_file)"""
         default_name = f"/root/wuyue.wy/Project/IA/analysis_results_logs/communications_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         log_path = state.get("metadata", {}).get("output_file", default_name)
         try:
-            # 确保目录存在
+            # Ensure directory exists
             import os
             os.makedirs("/root/wuyue.wy/Project/IA/analysis_results_logs", exist_ok=True)
             with open(log_path, "r", encoding="utf-8") as f:
@@ -134,37 +134,37 @@ class CommunicationManager:
         elif comm_type == "meeting":
             data["communication_logs"].setdefault("meetings", []).append(payload)
         else:
-            # 其他类型直接附加在communication_logs根部，带上type
+            # Other types directly append to communication_logs root, with type
             payload_with_type = {"type": comm_type, **payload}
             data["communication_logs"].setdefault("others", []).append(payload_with_type)
         
         try:
             with open(log_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
-            print("已将沟通结果写入日志文件")
+            print("Communication result written to log file")
         except Exception as e:
-            print(f"错误: 写入沟通日志失败: {e}")
+            print(f"Error: Failed to write communication log: {e}")
     
     def _get_llm_model(self, state, use_json_mode=False):
-        """获取LLM模型实例（使用 AgentScope 模型包装器）"""
-        # 从state中获取API密钥
+        """Get LLM model instance (using AgentScope model wrapper)"""
+        # Get API keys from state
         api_keys = {}
         if state and "metadata" in state:
             request = state.get("metadata", {}).get("request")
             if request and hasattr(request, 'api_keys'):
                 api_keys = request.api_keys
         
-        # 如果metadata中没有，尝试从data中获取
+        # If not in metadata, try to get from data
         if not api_keys and state and "data" in state and "api_keys" in state["data"]:
             api_keys = state["data"]["api_keys"]
         
         model_name = state.get("metadata", {}).get("model_name", "gpt-4o-mini")
         model_provider = state.get("metadata", {}).get("model_provider", "OPENAI")
         
-        # 使用 AgentScope 模型包装器
+        # Use AgentScope model wrapper
         llm = get_agentscope_model(model_name, model_provider, api_keys)
         
-        # 存储是否使用JSON模式的标志，供调用时使用
+        # Store flag for whether to use JSON mode, for use when calling
         llm._use_json_mode = use_json_mode
         
         return llm
@@ -172,9 +172,9 @@ class CommunicationManager:
     def decide_communication_strategy(self, manager_signals: Dict[str, Any], 
                                     analyst_signals: Dict[str, Any], 
                                     state) -> CommunicationDecision:
-        """决定交流策略"""
+        """Decide communication strategy"""
         
-        # 格式化分析师信号
+        # Format analyst signals
         signals_summary = {}
         for analyst_id, signal_data in analyst_signals.items():
             if isinstance(signal_data, dict) and 'ticker_signals' in signal_data:
@@ -182,7 +182,7 @@ class CommunicationManager:
             else:
                 signals_summary[analyst_id] = signal_data
         
-        # 加载 prompt
+        # Load prompt
         prompt_data = {
             "analyst_signals": json.dumps(signals_summary, ensure_ascii=False, indent=2),
             "max_chars": self._get_max_chars(state)
@@ -196,56 +196,56 @@ class CommunicationManager:
             {"role": "user", "content": human_prompt}
         ]
         
-        # 获取LLM模型（启用JSON模式）
+        # Get LLM model (enable JSON mode)
         llm = self._get_llm_model(state, use_json_mode=True)
         
-        # 调用模型（使用 AgentScope 方式）
+        # Call model (using AgentScope method)
         response = llm(
             messages=messages,
             temperature=0.7,
             response_format={"type": "json_object"} if llm._use_json_mode else None
         )
         
-        # 使用更健壮的JSON解析方法
+        # Use more robust JSON parsing method
         try:
-            # 首先尝试直接解析
+            # First try direct parsing
             decision_data = json.loads(response["content"])
             return CommunicationDecision(**decision_data)
         except json.JSONDecodeError as e:
-            print(f"警告: 通信决策JSON解析失败: {str(e)}")
-            print(f"响应内容: {response['content'][:200]}...")
+            print(f"Warning: Communication decision JSON parsing failed: {str(e)}")
+            print(f"Response content: {response['content'][:200]}...")
             
-            # 使用备用解析方法
+            # Use fallback parsing method
             parsed_response = self._extract_and_clean_json(response["content"])
             if parsed_response:
-                print("使用备用方法成功解析通信决策JSON")
+                print("Successfully parsed communication decision JSON using fallback method")
                 return CommunicationDecision(**parsed_response)
             else:
-                print("错误: 所有通信决策JSON解析方法都失败，返回默认决策")
-                # 返回默认不通信决策
+                print("Error: All communication decision JSON parsing methods failed, returning default decision")
+                # Return default no-communication decision
                 return CommunicationDecision(
                     should_communicate=False,
                     communication_type="none",
                     target_analysts=[],
-                    discussion_topic="解析失败",
-                    reasoning="LLM响应解析失败，默认不进行通信"
+                    discussion_topic="Parsing failed",
+                    reasoning="LLM response parsing failed, default to no communication"
                 )
     
     def conduct_private_chat(self, manager_id: str, analyst_id: str, 
                            topic: str, analyst_signal: Dict[str, Any], 
                            state, max_rounds: int = 1, streamer=None) -> Dict[str, Any]:
-        """进行私聊"""
-        print(f"开始私聊: {manager_id} <-> {analyst_id}")
-        print(f"话题: {topic}")
+        """Conduct private chat"""
+        print(f"Starting private chat: {manager_id} <-> {analyst_id}")
+        print(f"Topic: {topic}")
         
-        # 输出私聊信息到前端
+        # Output private chat info to frontend
         if streamer:
-            streamer.print("system", f"开始私聊: {manager_id} <-> {analyst_id}\n话题: {topic}")
+            streamer.print("system", f"Starting private chat: {manager_id} <-> {analyst_id}\nTopic: {topic}")
         
-        # 注意：通信记录功能已简化，不再记录start_communication
-        # 如需要可以通过memory.add()直接添加记忆
+        # Note: Communication logging functionality has been simplified, no longer records start_communication
+        # If needed, can directly add memory via memory.add()
         
-        # 开始私聊
+        # Start private chat
         initial_message = f"Regarding {topic}, I would like to discuss your analysis results with you. Your current signal is: {json.dumps(analyst_signal, ensure_ascii=False)}"
         
         chat_id = self.private_chat_system.start_private_chat(
@@ -258,18 +258,18 @@ class CommunicationManager:
         
         max_chars = self._get_max_chars(state)
         for round_num in range(max_rounds):
-            print(f"\n私聊第{round_num + 1}轮:")
+            print(f"\nPrivate chat round {round_num + 1}:")
             
-            # 输出轮次到前端
+            # Output round to frontend
             if streamer:
-                streamer.print("system", f"--- 第 {round_num + 1} 轮对话 ---")
+                streamer.print("system", f"--- Round {round_num + 1} conversation ---")
             
-            # 分析师回应
+            # Analyst response
             analyst_response = self._get_analyst_chat_response(
                 analyst_id, topic, conversation_history, 
                 current_analyst_signal, state, streamer=streamer
             )
-            # # 截断分析师回应
+            # # Truncate analyst response
             # if isinstance(analyst_response, dict) and "response" in analyst_response:
             #     analyst_response["response"] = self._truncate_text(analyst_response["response"], max_chars)
             # pdb.set_trace()
@@ -281,46 +281,46 @@ class CommunicationManager:
             
             print(f"🗣️ {analyst_id}: {analyst_response['response']}")
             
-            # 输出分析师回应到前端
+            # Output analyst response to frontend
             if streamer:
                 response_text = analyst_response.get("response", "")
-                # 限制输出长度
+                # Limit output length
                 max_display_length = 300
                 if len(response_text) > max_display_length:
                     response_text = response_text[:max_display_length] + "..."
                 streamer.print("agent", response_text, role_key=analyst_id)
             
-            # 记录分析师回应到记忆
+            # Record analyst response to memory
             # if analyst_memory and communication_id:
             #     analyst_memory.add_communication_message(
             #         communication_id, analyst_id, analyst_response['response']
             #     )
             
-            # 检查是否有信号调整
+            # Check for signal adjustment
             if analyst_response.get("signal_adjustment") and analyst_response.get("adjusted_signal"):
                 original_signal = current_analyst_signal
                 current_analyst_signal = analyst_response["adjusted_signal"]
-                print(f"信号已调整: {analyst_response['signal_adjustment']}")
+                print(f"Signal adjusted: {analyst_response['signal_adjustment']}")
                 adjustments_made_counter += 1
                 print(analyst_response)
                 
-                # 输出信号调整到前端
+                # Output signal adjustment to frontend
                 if streamer:
-                    # 解析调整前后的信号
+                    # Parse signals before and after adjustment
                     adjusted_signal = analyst_response.get("adjusted_signal", {})
                     
-                    # 处理两种可能的信号格式
+                    # Handle two possible signal formats
                     if isinstance(adjusted_signal, dict):
-                        # 格式1: {ticker: {signal: ..., confidence: ...}}
+                        # Format 1: {ticker: {signal: ..., confidence: ...}}
                         if 'ticker_signals' in adjusted_signal:
-                            # 格式2: {ticker_signals: [{ticker: ..., signal: ..., confidence: ...}]}
+                            # Format 2: {ticker_signals: [{ticker: ..., signal: ..., confidence: ...}]}
                             adjustment_details = []
                             for ticker_signal in adjusted_signal.get('ticker_signals', []):
                                 ticker = ticker_signal.get('ticker', 'N/A')
                                 new_signal = ticker_signal.get('signal', 'N/A')
                                 new_confidence = ticker_signal.get('confidence', 'N/A')
                                 
-                                # 获取原始信号
+                                # Get original signal
                                 original_ticker_signal = {}
                                 if isinstance(original_signal, dict):
                                     if 'ticker_signals' in original_signal:
@@ -340,13 +340,13 @@ class CommunicationManager:
                             
                             if adjustment_details:
                                 streamer.print("agent", 
-                                    f"我调整了信号:\n" + "\n".join(adjustment_details),
+                                    f"I adjusted the signal:\n" + "\n".join(adjustment_details),
                                     role_key=analyst_id
                                 )
                             else:
-                                streamer.print("agent", "我调整了信号", role_key=analyst_id)
+                                streamer.print("agent", "I adjusted the signal", role_key=analyst_id)
                         else:
-                            # 简单的 ticker: {signal, confidence} 格式
+                            # Simple ticker: {signal, confidence} format
                             adjustment_details = []
                             for ticker, signal_data in adjusted_signal.items():
                                 if isinstance(signal_data, dict) and 'signal' in signal_data:
@@ -363,24 +363,24 @@ class CommunicationManager:
                             
                             if adjustment_details:
                                 streamer.print("agent", 
-                                    f"我调整了信号:\n" + "\n".join(adjustment_details),
+                                    f"I adjusted the signal:\n" + "\n".join(adjustment_details),
                                     role_key=analyst_id
                                 )
                             else:
-                                streamer.print("agent", "我调整了信号", role_key=analyst_id)
+                                streamer.print("agent", "I adjusted the signal", role_key=analyst_id)
                     else:
-                        streamer.print("agent", "我调整了信号", role_key=analyst_id)
+                        streamer.print("agent", "I adjusted the signal", role_key=analyst_id)
                 
-                # # 记录信号调整到记忆
+                # # Record signal adjustment to memory
                 # if analyst_memory and communication_id:
                 #     analyst_memory.record_signal_adjustment(
                 #         communication_id, 
                 #         original_signal, 
                 #         current_analyst_signal,
-                #         f"私聊讨论{topic}后的调整"
+                #         f"Adjustment after private chat discussion on {topic}"
                 #     )
             
-            # 管理者回应（如果不是最后一轮）
+            # Manager response (if not last round)
             if round_num < max_rounds - 1:
                 manager_response = self._get_manager_chat_response(
                     manager_id, analyst_id, conversation_history, 
@@ -396,53 +396,53 @@ class CommunicationManager:
                 
                 print(f"🗣️ {manager_id}: {manager_response}")
                 
-                # 输出管理者回应到前端
+                # Output manager response to frontend
                 if streamer:
                     max_display_length = 300
                     manager_display = manager_response if len(manager_response) <= max_display_length else manager_response[:max_display_length] + "..."
                     streamer.print("agent", manager_display, role_key=manager_id)
                 
-                # # 记录管理者回应到记忆
+                # # Record manager response to memory
                 # if analyst_memory and communication_id:
                 #     analyst_memory.add_communication_message(
                 #         communication_id, manager_id, manager_response
                 #     )
         
         # pdb.set_trace()
-        print("私聊结束")
+        print("Private chat ended")
         
-        # 输出私聊结束到前端
+        # Output private chat end to frontend
         if streamer:
-            streamer.print("system", f"私聊结束，共进行 {max_rounds} 轮对话，{adjustments_made_counter} 次信号调整")
+            streamer.print("system", f"Private chat ended, conducted {max_rounds} rounds of conversation, {adjustments_made_counter} signal adjustments")
         
         memory_format = self._convert_private_chat_to_memory_format(
             conversation_history, manager_id, analyst_id, topic, chat_id
         )
 
-        # 将对话历史存储到各参与者的memory中
+        # Store conversation history to each participant's memory
         from src.memory import get_memory
 
-        # 从state获取base_dir（如果存在）
+        # Get base_dir from state (if exists)
         base_dir = state.get("metadata", {}).get("config_name", "mock") if state else "mock"
         
         try:
             memory = get_memory(base_dir)
             memory_content = "\n".join([msg.get("content", "") for msg in memory_format["messages"]])
             
-            # 存储到分析师的memory
+            # Store to analyst's memory
             analyst_metadata = memory_format["metadata"].copy()
             analyst_metadata["stored_in"] = analyst_id
             memory.add(memory_content, analyst_id, analyst_metadata)
-            print(f"✅ 对话历史已存储到 {analyst_id} 的memory")
+            print(f"✅ Conversation history stored to {analyst_id}'s memory")
             
-            # 同时存储到管理者的memory
+            # Also store to manager's memory
             manager_metadata = memory_format["metadata"].copy()
             manager_metadata["stored_in"] = manager_id
             memory.add(memory_content, manager_id, manager_metadata)
-            print(f"✅ 对话历史已存储到 {manager_id} 的memory")
+            print(f"✅ Conversation history stored to {manager_id}'s memory")
             
         except Exception as e:
-            print(f"❌ 存储对话历史失败: {e}")
+            print(f"❌ Failed to store conversation history: {e}")
             import traceback
             traceback.print_exc()
 
@@ -460,31 +460,31 @@ class CommunicationManager:
     def conduct_meeting(self, manager_id: str, analyst_ids: List[str], 
                        topic: str, analyst_signals: Dict[str, Any], 
                        state, max_rounds: int = 2, streamer=None) -> Dict[str, Any]:
-        """进行会议"""
+        """Conduct meeting"""
         meeting_id = str(uuid.uuid4())
-        print(f"开始会议: {meeting_id}")
-        print(f"话题: {topic}")
-        print(f"参与者: {', '.join([manager_id] + analyst_ids)}")
+        print(f"Starting meeting: {meeting_id}")
+        print(f"Topic: {topic}")
+        print(f"Participants: {', '.join([manager_id] + analyst_ids)}")
 
 
-        # 输出会议ID到前端
+        # Output meeting ID to frontend
         if streamer:
             streamer.print("conference_start", title=topic, conferenceId=meeting_id,
                            participants=[manager_id] + analyst_ids)
         
-        # 为每个分析师记录会议开始
-        # 获取 trading_date 作为 analysis_date
-        # 注意：通信记录功能已简化，不再记录start_communication
-        # 如需要可以通过memory.add()直接添加记忆
+        # Record meeting start for each analyst
+        # Get trading_date as analysis_date
+        # Note: Communication logging functionality has been simplified, no longer records start_communication
+        # If needed, can directly add memory via memory.add()
         
-        # 初始化会议信息（只用于日志记录）
-        print(f"会议创建成功 - ID: {meeting_id}")
+        # Initialize meeting info (only for logging)
+        print(f"Meeting created successfully - ID: {meeting_id}")
         
         current_signals = analyst_signals.copy()
         meeting_transcript = []
         adjustments_made_counter = 0
         
-        # 管理者开场
+        # Manager opening
         opening_message = f"Let's discuss {topic}. Please share your viewpoints and analysis results."
         meeting_transcript.append({
             "speaker": manager_id,
@@ -493,32 +493,32 @@ class CommunicationManager:
             "timestamp": datetime.now().isoformat()
         })
         
-        # 输出开场发言到前端
+        # Output opening statement to frontend
         if streamer:
-            streamer.print("agent", f"[开场] {opening_message}", role_key=manager_id)
+            streamer.print("agent", f"[Opening] {opening_message}", role_key=manager_id)
         
         max_chars = self._get_max_chars(state)
         for round_num in range(max_rounds):
-            print(f"\n会议第{round_num + 1}轮发言:")
+            print(f"\nMeeting round {round_num + 1} statements:")
             
-            # 输出轮次到前端
+            # Output round to frontend
             if streamer:
-                streamer.print("system", f"--- 第 {round_num + 1} 轮发言 ---")
+                streamer.print("system", f"--- Round {round_num + 1} statements ---")
             
-            # 调试：打印当前会议记录状态
+            # Debug: print current meeting transcript status
             if round_num > 0:
-                print(f"当前会议记录条数: {len(meeting_transcript)}")
+                print(f"Current meeting transcript entries: {len(meeting_transcript)}")
                 # if meeting_transcript:
-                #     print(f"最后一条记录: {meeting_transcript[-1]}")
+                #     print(f"Last entry: {meeting_transcript[-1]}")
             
-            # 每个分析师发言
+            # Each analyst speaks
             for analyst_id in analyst_ids:
                 analyst_response = self._get_analyst_meeting_response(
                     analyst_id, topic, meeting_transcript, 
                     current_signals.get(analyst_id, {}), 
                     current_signals, state, round_num + 1, streamer=streamer
                 )
-                # # 截断分析师发言
+                # # Truncate analyst statement
                 # if isinstance(analyst_response, dict) and "response" in analyst_response:
                 #     analyst_response["response"] = self._truncate_text(analyst_response["response"], max_chars)
                 
@@ -532,46 +532,46 @@ class CommunicationManager:
                 # print(f"{analyst_id}: {analyst_response['response']}") 
                 print(f"{analyst_id}: {analyst_response}")
                 
-                # 输出分析师发言到前端
+                # Output analyst statement to frontend
                 if streamer:
                     response_text = analyst_response.get("response", "")
-                    # 限制输出长度，避免过长
+                    # Limit output length to avoid too long
                     max_display_length = 300
                     if len(response_text) > max_display_length:
                         response_text = response_text[:max_display_length] + "..."
                     streamer.print("agent", response_text, role_key=analyst_id)
 
-                # 记录发言到分析师记忆
+                # Record statement to analyst memory
                 # analyst_memory = memory_manager.get_analyst_memory(analyst_id)
                 # if analyst_memory and analyst_id in communication_ids:
                 #     analyst_memory.add_communication_message(
                 #         communication_ids[analyst_id], analyst_id, analyst_response['response']
                 #     )
                 
-                # 检查信号调整
+                # Check signal adjustment
                 if analyst_response.get("signal_adjustment") and analyst_response.get("adjusted_signal"):
                     original_signal = current_signals[analyst_id]
                     current_signals[analyst_id] = analyst_response["adjusted_signal"]
-                    print(f"{analyst_id} 调整了信号")
+                    print(f"{analyst_id} adjusted signal")
                     adjustments_made_counter += 1
                     
-                    # 输出信号调整到前端
+                    # Output signal adjustment to frontend
                     if streamer:
-                        # 解析调整前后的信号
+                        # Parse signals before and after adjustment
                         adjusted_signal = analyst_response.get("adjusted_signal", {})
                         
-                        # 处理两种可能的信号格式
+                        # Handle two possible signal formats
                         if isinstance(adjusted_signal, dict):
-                            # 格式1: {ticker: {signal: ..., confidence: ...}}
+                            # Format 1: {ticker: {signal: ..., confidence: ...}}
                             if 'ticker_signals' in adjusted_signal:
-                                # 格式2: {ticker_signals: [{ticker: ..., signal: ..., confidence: ...}]}
+                                # Format 2: {ticker_signals: [{ticker: ..., signal: ..., confidence: ...}]}
                                 adjustment_details = []
                                 for ticker_signal in adjusted_signal.get('ticker_signals', []):
                                     ticker = ticker_signal.get('ticker', 'N/A')
                                     new_signal = ticker_signal.get('signal', 'N/A')
                                     new_confidence = ticker_signal.get('confidence', 'N/A')
                                     
-                                    # 获取原始信号
+                                    # Get original signal
                                     original_ticker_signal = {}
                                     if isinstance(original_signal, dict):
                                         if 'ticker_signals' in original_signal:
@@ -591,13 +591,13 @@ class CommunicationManager:
                                 
                                 if adjustment_details:
                                     streamer.print("agent", 
-                                        f"我调整了信号:\n" + "\n".join(adjustment_details),
+                                        f"I adjusted the signal:\n" + "\n".join(adjustment_details),
                                         role_key=analyst_id
                                     )
                                 else:
-                                    streamer.print("agent", "我调整了信号", role_key=analyst_id)
+                                    streamer.print("agent", "I adjusted the signal", role_key=analyst_id)
                             else:
-                                # 简单的 ticker: {signal, confidence} 格式
+                                # Simple ticker: {signal, confidence} format
                                 adjustment_details = []
                                 for ticker, signal_data in adjusted_signal.items():
                                     if isinstance(signal_data, dict) and 'signal' in signal_data:
@@ -614,26 +614,26 @@ class CommunicationManager:
                                 
                                 if adjustment_details:
                                     streamer.print("agent", 
-                                        f"我调整了信号:\n" + "\n".join(adjustment_details),
+                                        f"I adjusted the signal:\n" + "\n".join(adjustment_details),
                                         role_key=analyst_id
                                     )
                                 else:
-                                    streamer.print("agent", "我调整了信号", role_key=analyst_id)
+                                    streamer.print("agent", "I adjusted the signal", role_key=analyst_id)
                         else:
-                            streamer.print("agent", "我调整了信号", role_key=analyst_id)
+                            streamer.print("agent", "I adjusted the signal", role_key=analyst_id)
                     
-                    # 记录信号调整到记忆
+                    # Record signal adjustment to memory
                     # if analyst_memory and analyst_id in communication_ids:
                     #     analyst_memory.record_signal_adjustment(
                     #         communication_ids[analyst_id],
                     #         original_signal,
                     #         analyst_response["adjusted_signal"],
-                    #         f"会议讨论{topic}后的调整"
+                    #         f"Adjustment after meeting discussion on {topic}"
                     #     )
             
-            # 进入下一轮发言（轮次管理在meeting_transcript中自动处理）
+            # Proceed to next round (round management automatically handled in meeting_transcript)
         
-        # 管理者总结
+        # Manager summary
         summary = self._get_manager_meeting_summary(
             manager_id, meeting_transcript, current_signals, state
         )
@@ -646,57 +646,57 @@ class CommunicationManager:
             "timestamp": datetime.now().isoformat()
         })
         
-        print(f"会议总结: {summary}")
+        print(f"Meeting summary: {summary}")
         
-        # 输出会议总结到前端
+        # Output meeting summary to frontend
         if streamer:
-            streamer.print("system", "--- 会议总结 ---")
-            # 限制总结长度
+            streamer.print("system", "--- Meeting Summary ---")
+            # Limit summary length
             max_summary_length = 400
             summary_display = summary if len(summary) <= max_summary_length else summary[:max_summary_length] + "..."
-            streamer.print("agent", f"[总结] {summary_display}", role_key=manager_id)
+            streamer.print("agent", f"[Summary] {summary_display}", role_key=manager_id)
         
-        print("会议结束")
+        print("Meeting ended")
         streamer.print("conference_end",conference_id=meeting_id)
         
-        # 保存会议记录到各参与者的memory
+        # Save meeting transcript to each participant's memory
         try:
             base_dir = state.get("metadata", {}).get("config_name", "default")
             memory = get_memory(base_dir)
             
-            # 构建会议记录内容
-            memory_content = f"会议记录\n主题: {topic}\n会议ID: {meeting_id}\n\n" + "\n".join([
-                f"[第{entry.get('round', 'N/A')}轮] {entry.get('speaker', '')}: {entry.get('content', '')}" 
+            # Build meeting transcript content
+            memory_content = f"Meeting Transcript\nTopic: {topic}\nMeeting ID: {meeting_id}\n\n" + "\n".join([
+                f"[Round {entry.get('round', 'N/A')}] {entry.get('speaker', '')}: {entry.get('content', '')}" 
                 for entry in meeting_transcript
             ])
             
-            # 构建metadata（确保所有值都是基本类型）
+            # Build metadata (ensure all values are basic types)
             participants_str = ",".join([manager_id] + analyst_ids)
             metadata = {
                 "meeting_id": meeting_id,
                 "topic": topic,
                 "total_rounds": max_rounds,
                 "total_messages": len(meeting_transcript),
-                "participants": participants_str,  # 转换为字符串
+                "participants": participants_str,  # Convert to string
                 "communication_type": "meeting",
                 "manager_id": manager_id
             }
             
-            # 为每个分析师保存会议记录
+            # Save meeting transcript for each analyst
             for analyst_id in analyst_ids:
                 analyst_metadata = metadata.copy()
                 analyst_metadata["stored_in"] = analyst_id
                 memory.add(memory_content, analyst_id, analyst_metadata)
-                print(f"✅ 会议记录已存储到 {analyst_id} 的memory")
+                print(f"✅ Meeting transcript stored to {analyst_id}'s memory")
             
-            # 同时保存到管理者的memory
+            # Also save to manager's memory
             manager_metadata = metadata.copy()
             manager_metadata["stored_in"] = manager_id
             memory.add(memory_content, manager_id, manager_metadata)
-            print(f"✅ 会议记录已存储到 {manager_id} 的memory")
+            print(f"✅ Meeting transcript stored to {manager_id}'s memory")
             
         except Exception as e:
-            print(f"❌ 存储会议记录失败: {e}")
+            print(f"❌ Failed to store meeting transcript: {e}")
             import traceback
             traceback.print_exc()
         # pdb.set_trace()
@@ -713,80 +713,80 @@ class CommunicationManager:
                                  conversation_history: List[Dict], 
                                  current_signal: Dict[str, Any], 
                                  state, streamer=None) -> Dict[str, Any]:
-        """获取分析师在私聊中的回应（两阶段记忆检索）"""
+        """Get analyst's response in private chat (two-stage memory retrieval)"""
         
-        # ========== 第一阶段：让analyst生成记忆查询query ⭐⭐⭐ ==========
+        # ========== Stage 1: Let analyst generate memory query ⭐⭐⭐ ==========
         relevant_memories = ""
         
         try:
-            # 获取base_dir（从state或使用默认值）
+            # Get base_dir (from state or use default)
             base_dir = state.get("metadata", {}).get("config_name", "default")
             print(f"\n{'='*60}")
-            print(f"🔍 [chat_tools] 开始记忆检索")
+            print(f"🔍 [chat_tools] Starting memory retrieval")
             print(f"   analyst_id: {analyst_id}")
             print(f"   base_dir: {base_dir}")
             
             memory = get_memory(base_dir)
-            print(f"   memory实例: {type(memory).__name__}")
+            print(f"   memory instance: {type(memory).__name__}")
             
             tickers = state.get("data", {}).get("tickers", [])
             
-            # 1. 生成记忆查询query
+            # 1. Generate memory query
             memory_query = self._generate_memory_query_for_chat(
                 analyst_id, topic, conversation_history, tickers, state
             )
             print(f"   memory_query: {memory_query[:100]}..." if memory_query else "   memory_query: None")
             
-            # 2. 使用生成的query检索相关记忆
+            # 2. Use generated query to retrieve relevant memories
             if memory_query:
                 try:
-                    # 广播memory搜索操作
+                    # Broadcast memory search operation
                     if streamer:
                         streamer.print(
                             "memory",
-                            f"搜索记忆: {memory_query[:60]}...",
+                            f"Searching memory: {memory_query[:60]}...",
                             agent_id=analyst_id,
                             operation_type="search"
                         )
                     
-                    print(f"   调用 memory.search()...")
+                    print(f"   Calling memory.search()...")
                     search_results = memory.search(
                         query=memory_query,
                         user_id=analyst_id,
                         top_k=1
                     )
-                    print(f"   搜索结果数量: {len(search_results) if search_results else 0}")
+                    print(f"   Search results count: {len(search_results) if search_results else 0}")
                     
-                    # search_results 是一个列表: [{'id': ..., 'content': ..., 'metadata': ...}, ...]
+                    # search_results is a list: [{'id': ..., 'content': ..., 'metadata': ...}, ...]
                     if search_results:
                         relevant_memories = "\n".join([
                             f"- {mem.get('content', '')}" 
                             for mem in search_results
                         ])
-                        print(f"   ✅ {analyst_id} 检索到 {len(search_results)} 条相关记忆")
+                        print(f"   ✅ {analyst_id} retrieved {len(search_results)} relevant memories")
                         print(f"{'='*60}\n")
                         
-                        # 广播搜索成功
+                        # Broadcast search success
                         if streamer:
                             streamer.print(
                                 "memory",
-                                f"找到 {len(search_results)} 条相关记忆",
+                                f"Found {len(search_results)} relevant memories",
                                 agent_id=analyst_id,
                                 operation_type="search_success"
                             )
                         # print(relevant_memories)
                     else:
-                        print(f"   ⚠️ {analyst_id} 未检索到相关记忆")
+                        print(f"   ⚠️ {analyst_id} did not retrieve relevant memories")
                         print(f"{'='*60}\n")
                         if streamer:
                             streamer.print(
                                 "memory",
-                                "未找到相关记忆",
+                                "No relevant memories found",
                                 agent_id=analyst_id,
                                 operation_type="search_empty"
                             )
                 except Exception as e:
-                    print(f"   ❌ {analyst_id} 记忆检索失败: {e}")
+                    print(f"   ❌ {analyst_id} memory retrieval failed: {e}")
                     print(f"{'='*60}\n")
                     import traceback
                     traceback.print_exc()
@@ -794,18 +794,18 @@ class CommunicationManager:
                     if streamer:
                         streamer.print(
                             "memory",
-                            f"记忆检索失败: {str(e)[:50]}",
+                            f"Memory retrieval failed: {str(e)[:50]}",
                             agent_id=analyst_id,
                             operation_type="search_error"
                         )
         except Exception as e:
-            print(f"   ❌ {analyst_id} 记忆系统错误: {e}")
+            print(f"   ❌ {analyst_id} memory system error: {e}")
             print(f"{'='*60}\n")
             import traceback
             traceback.print_exc()
             relevant_memories = ""
         
-        # ========== 第二阶段：基于检索到的记忆生成回应 ⭐⭐⭐ ==========
+        # ========== Stage 2: Generate response based on retrieved memories ⭐⭐⭐ ==========
         prompt_data = {
             "analyst_id": analyst_id,
             "relevant_memories": relevant_memories if relevant_memories else "No relevant past memories found for this topic.",
@@ -823,34 +823,34 @@ class CommunicationManager:
             {"role": "user", "content": human_prompt}
         ]
         
-        # 获取LLM模型（启用JSON模式）
+        # Get LLM model (enable JSON mode)
         llm = self._get_llm_model(state, use_json_mode=True)
         
-        # 调用模型（使用 AgentScope 方式）
+        # Call model (using AgentScope method)
         response = llm(
             messages=messages,
             temperature=0.7,
             response_format={"type": "json_object"} if llm._use_json_mode else None
         )
         
-        # 使用更健壮的JSON解析方法
+        # Use more robust JSON parsing method
         try:
-            # 首先尝试直接解析
+            # First try direct parsing
             return json.loads(response["content"])
         except json.JSONDecodeError as e:
-            print(f"警告: 分析师聊天响应JSON解析失败: {str(e)}")
-            print(f"响应内容: {response['content'][:200]}...")
+            print(f"Warning: Analyst chat response JSON parsing failed: {str(e)}")
+            print(f"Response content: {response['content'][:200]}...")
             
-            # 使用备用解析方法
+            # Use fallback parsing method
             parsed_response = self._extract_and_clean_json(response["content"])
             if parsed_response:
-                print("使用备用方法成功解析分析师聊天响应JSON")
+                print("Successfully parsed analyst chat response JSON using fallback method")
                 return parsed_response
             else:
-                print("错误: 所有分析师聊天响应JSON解析方法都失败")
-                # 返回默认响应
+                print("Error: All analyst chat response JSON parsing methods failed")
+                # Return default response
                 return {
-                    "response": "解析响应失败，使用默认回应",
+                    "response": "Parsing response failed, using default response",
                     "signal_adjustment": False
                 }
     
@@ -858,28 +858,28 @@ class CommunicationManager:
                                         meeting_id: str, topic: str, 
                                         total_rounds: int) -> Dict[str, Any]:
         """
-        将meeting_transcript转换为适合memory系统的格式
+        Convert meeting_transcript to format suitable for memory system
         
         Args:
-            meeting_transcript: 原始会议记录
-            meeting_id: 会议ID  
-            topic: 会议主题
-            total_rounds: 总轮数
+            meeting_transcript: Raw meeting transcript
+            meeting_id: Meeting ID  
+            topic: Meeting topic
+            total_rounds: Total rounds
             
         Returns:
-            转换后的格式，包含messages和metadata
+            Converted format, containing messages and metadata
         """
         messages = []
         
-        # 将每个发言转换为user role的消息格式
+        # Convert each statement to user role message format
         for entry in meeting_transcript:
             speaker = entry["speaker"]
             content = entry["content"]
             
-            # 格式化内容：发言者名称 + 发言内容
+            # Format content: speaker name + statement content
             formatted_content = f"{speaker}: {content}"
             
-            # 所有发言都以user角色存储，便于统一管理
+            # All statements stored as user role for unified management
             message = {
                 "role": "user",
                 "content": formatted_content
@@ -887,7 +887,7 @@ class CommunicationManager:
             
             messages.append(message)
         
-        # 构建metadata
+        # Build metadata
         metadata = {
             "meeting_id": meeting_id,
             "topic": topic,
@@ -906,36 +906,36 @@ class CommunicationManager:
                                             manager_id: str, analyst_id: str,
                                             topic: str, chat_id: str) -> Dict[str, Any]:
         """
-        将私聊对话历史转换为适合memory系统的格式
+        Convert private chat conversation history to format suitable for memory system
         
         Args:
-            conversation_history: 对话历史
-            manager_id: 管理者ID
-            analyst_id: 分析师ID
-            topic: 对话主题
-            chat_id: 对话ID
+            conversation_history: Conversation history
+            manager_id: Manager ID
+            analyst_id: Analyst ID
+            topic: Conversation topic
+            chat_id: Chat ID
             
         Returns:
-            转换后的格式，包含messages和metadata
+            Converted format, containing messages and metadata
         """
         messages = []
         
-        # 添加初始消息（管理者开场）
+        # Add initial message (manager opening)
         initial_message = f"Regarding {topic}, I would like to discuss your analysis results with you."
         messages.append({
             "role": "user",
             "content": f"{manager_id}: {initial_message}"
         })
         
-        # 将每个对话转换为user role的消息格式
+        # Convert each conversation to user role message format
         for entry in conversation_history:
             speaker = entry["speaker"]
             content = entry["content"]
             
-            # 格式化内容：发言者名称 + 发言内容
+            # Format content: speaker name + statement content
             formatted_content = f"{speaker}: {content}"
             
-            # 所有发言都以user角色存储，便于统一管理
+            # All statements stored as user role for unified management
             message = {
                 "role": "user",
                 "content": formatted_content
@@ -943,13 +943,13 @@ class CommunicationManager:
             
             messages.append(message)
         
-        # 构建metadata（注意：向量数据库只支持str, int, float, bool, None类型）
+        # Build metadata (Note: vector database only supports str, int, float, bool, None types)
         metadata = {
             "chat_id": chat_id,
             "topic": topic,
             "total_rounds": len([entry for entry in conversation_history if entry["speaker"] == analyst_id]),
             "total_messages": len(conversation_history) + 1,  # +1 for initial message
-            "participants": f"{manager_id},{analyst_id}",  # 转换为字符串
+            "participants": f"{manager_id},{analyst_id}",  # Convert to string
             "communication_type": "private_chat",
             "manager_id": manager_id,
             "analyst_id": analyst_id
@@ -963,7 +963,7 @@ class CommunicationManager:
                                  conversation_history: List[Dict],
                                  current_signal: Dict[str, Any], 
                                  state) -> str:
-        """获取管理者在私聊中的回应"""
+        """Get manager's response in private chat"""
         
         prompt_data = {
             "conversation_history": self._format_conversation_history(conversation_history),
@@ -979,10 +979,10 @@ class CommunicationManager:
             {"role": "user", "content": human_prompt}
         ]
         
-        # 获取LLM模型
+        # Get LLM model
         llm = self._get_llm_model(state)
         
-        # 调用模型（使用 AgentScope 方式）
+        # Call model (using AgentScope method)
         response = llm(messages=messages, temperature=0.7)
         return response["content"]
     
@@ -991,31 +991,31 @@ class CommunicationManager:
                                     current_signal: Dict[str, Any],
                                     all_signals: Dict[str, Any],
                                     state, round_num: int, streamer=None) -> Dict[str, Any]:
-        """获取分析师在会议中的发言（两阶段记忆检索）"""
+        """Get analyst's statement in meeting (two-stage memory retrieval)"""
         
-        # ========== 第一阶段：让analyst生成记忆查询query ⭐⭐⭐ ==========
+        # ========== Stage 1: Let analyst generate memory query ⭐⭐⭐ ==========
         relevant_memories = ""
         
         try:
-            # 获取base_dir（从state或使用默认值）
+            # Get base_dir (from state or use default)
             base_dir = state.get("metadata", {}).get("config_name", "default")
             memory = get_memory(base_dir)
             
             tickers = state.get("data", {}).get("tickers", [])
             
-            # 1. 生成记忆查询query
+            # 1. Generate memory query
             memory_query = self._generate_memory_query_for_meeting(
                 analyst_id, topic, meeting_transcript, tickers, state
             )
             
-            # 2. 使用生成的query检索相关记忆
+            # 2. Use generated query to retrieve relevant memories
             if memory_query:
                 try:
-                    # 广播memory搜索操作
+                    # Broadcast memory search operation
                     if streamer:
                         streamer.print(
                             "memory",
-                            f"搜索记忆: {memory_query}...",
+                            f"Searching memory: {memory_query}...",
                             agent_id=analyst_id,
                             operation_type="search"
                         )
@@ -1026,47 +1026,47 @@ class CommunicationManager:
                         top_k=1
                     )
                     
-                    # search_results 是一个列表: [{'id': ..., 'content': ..., 'metadata': ...}, ...]
+                    # search_results is a list: [{'id': ..., 'content': ..., 'metadata': ...}, ...]
                     if search_results:
                         relevant_memories = "\n".join([
                             f"- {mem.get('content', '')}" 
                             for mem in search_results
                         ])
-                        print(f"✅ {analyst_id} 在会议中检索到 {len(search_results)} 条相关记忆")
+                        print(f"✅ {analyst_id} retrieved {len(search_results)} relevant memories in meeting")
                         print(relevant_memories)
                         
-                        # 广播搜索成功
+                        # Broadcast search success
                         if streamer:
                             streamer.print(
                                 "memory",
-                                f"找到 {len(search_results)} 条相关记忆",
+                                f"Found {len(search_results)} relevant memories",
                                 agent_id=analyst_id,
                                 operation_type="search_success"
                             )
                     else:
-                        print(f"⚠️ {analyst_id} 在会议中未检索到相关记忆")
+                        print(f"⚠️ {analyst_id} did not retrieve relevant memories in meeting")
                         if streamer:
                             streamer.print(
                                 "memory",
-                                "未找到相关记忆",
+                                "No relevant memories found",
                                 agent_id=analyst_id,
                                 operation_type="search_empty"
                             )
                 except Exception as e:
-                    print(f"⚠️ {analyst_id} 会议记忆检索失败: {e}")
+                    print(f"⚠️ {analyst_id} meeting memory retrieval failed: {e}")
                     relevant_memories = ""
                     if streamer:
                         streamer.print(
                             "memory",
-                            f"记忆检索失败: {str(e)[:50]}",
+                            f"Memory retrieval failed: {str(e)[:50]}",
                             agent_id=analyst_id,
                             operation_type="search_error"
                         )
         except Exception as e:
-            print(f"⚠️ {analyst_id} 记忆系统错误: {e}")
+            print(f"⚠️ {analyst_id} memory system error: {e}")
             relevant_memories = ""
         
-        # ========== 第二阶段：基于检索到的记忆生成发言 ⭐⭐⭐ ==========
+        # ========== Stage 2: Generate statement based on retrieved memories ⭐⭐⭐ ==========
         prompt_data = {
             "analyst_id": analyst_id,
             "relevant_memories": relevant_memories if relevant_memories else "No relevant past memories found for this topic.",
@@ -1085,34 +1085,34 @@ class CommunicationManager:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": human_prompt}
         ]
-        # 获取LLM模型（启用JSON模式）
+        # Get LLM model (enable JSON mode)
         llm = self._get_llm_model(state, use_json_mode=True)
         
-        # 调用模型（使用 AgentScope 方式）
+        # Call model (using AgentScope method)
         response = llm(
             messages=messages,
             temperature=0.7,
             response_format={"type": "json_object"} if llm._use_json_mode else None
         )
         
-        # 使用更健壮的JSON解析方法
+        # Use more robust JSON parsing method
         try:
-            # 首先尝试直接解析
+            # First try direct parsing
             return json.loads(response["content"])
         except json.JSONDecodeError as e:
-            print(f"警告: 分析师会议响应JSON解析失败: {str(e)}")
-            print(f"响应内容: {response['content'][:200]}...")
+            print(f"Warning: Analyst meeting response JSON parsing failed: {str(e)}")
+            print(f"Response content: {response['content'][:200]}...")
             
-            # 使用备用解析方法
+            # Use fallback parsing method
             parsed_response = self._extract_and_clean_json(response["content"])
             if parsed_response:
-                print("使用备用方法成功解析分析师会议响应JSON")
+                print("Successfully parsed analyst meeting response JSON using fallback method")
                 return parsed_response
             else:
-                print("错误: 所有分析师会议响应JSON解析方法都失败")
-                # 返回默认响应
+                print("Error: All analyst meeting response JSON parsing methods failed")
+                # Return default response
                 return {
-                    "response": "解析响应失败，使用默认回应",
+                    "response": "Parsing response failed, using default response",
                     "signal_adjustment": False
                 }
     
@@ -1120,7 +1120,7 @@ class CommunicationManager:
                                    meeting_transcript: List[Dict],
                                    final_signals: Dict[str, Any], 
                                    state) -> str:
-        """获取管理者的会议总结"""
+        """Get manager's meeting summary"""
         
         prompt_data = {
             "meeting_transcript": self._format_meeting_transcript(meeting_transcript),
@@ -1136,25 +1136,25 @@ class CommunicationManager:
             {"role": "user", "content": human_prompt}
         ]
         
-        # 获取LLM模型
+        # Get LLM model
         llm = self._get_llm_model(state)
         
-        # 调用模型（使用 AgentScope 方式）
+        # Call model (using AgentScope method)
         response = llm(messages=messages, temperature=0.7)
         return response["content"]
     
     def _format_conversation_history(self, history: List[Dict]) -> str:
-        """格式化对话历史"""
+        """Format conversation history"""
         formatted = []
         for entry in history:
             formatted.append(f"{entry['speaker']}: {entry['content']}")
         return "\n".join(formatted)
     
     def _format_meeting_transcript(self, transcript: List[Dict]) -> str:
-        """格式化会议记录"""
+        """Format meeting transcript"""
         formatted = []
         for entry in transcript:
-            round_info = f"第{entry['round']}轮" if isinstance(entry['round'], int) else entry['round']
+            round_info = f"Round {entry['round']}" if isinstance(entry['round'], int) else entry['round']
             formatted.append(f"[{round_info}] {entry['speaker']}: {entry['content']}")
         return "\n".join(formatted)
     
@@ -1162,17 +1162,17 @@ class CommunicationManager:
                                        conversation_history: List[Dict],
                                        tickers: List[str], state) -> str:
         """
-        第一阶段：让analyst根据私聊话题和上下文生成记忆查询query
+        Stage 1: Let analyst generate memory query based on private chat topic and context
         
         Args:
-            analyst_id: 分析师ID
-            topic: 私聊话题
-            conversation_history: 对话历史
-            tickers: 股票代码列表
-            state: 系统状态
+            analyst_id: Analyst ID
+            topic: Private chat topic
+            conversation_history: Conversation history
+            tickers: Stock ticker list
+            state: System state
             
         Returns:
-            记忆查询query字符串
+            Memory query string
         """
         prompt_data = {
             "analyst_id": analyst_id,
@@ -1193,28 +1193,28 @@ class CommunicationManager:
             llm = self._get_llm_model(state)
             response = llm(messages=messages, temperature=0.7)
             query = response["content"].strip()
-            print(f"📝 {analyst_id} 生成记忆查询: {query}")
+            print(f"📝 {analyst_id} generated memory query: {query}")
             return query
         except Exception as e:
-            print(f"⚠️ {analyst_id} 生成记忆查询失败: {e}")
-            # 返回默认查询
-            return f"{topic} {' '.join(tickers)} 分析经验"
+            print(f"⚠️ {analyst_id} failed to generate memory query: {e}")
+            # Return default query
+            return f"{topic} {' '.join(tickers)} analysis experience"
     
     def _generate_memory_query_for_meeting(self, analyst_id: str, topic: str,
                                           meeting_transcript: List[Dict],
                                           tickers: List[str], state) -> str:
         """
-        第一阶段：让analyst根据会议话题和上下文生成记忆查询query
+        Stage 1: Let analyst generate memory query based on meeting topic and context
         
         Args:
-            analyst_id: 分析师ID
-            topic: 会议话题
-            meeting_transcript: 会议记录
-            tickers: 股票代码列表
-            state: 系统状态
+            analyst_id: Analyst ID
+            topic: Meeting topic
+            meeting_transcript: Meeting transcript
+            tickers: Stock ticker list
+            state: System state
             
         Returns:
-            记忆查询query字符串
+            Memory query string
         """
         prompt_data = {
             "analyst_id": analyst_id,
@@ -1235,32 +1235,32 @@ class CommunicationManager:
             llm = self._get_llm_model(state)
             response = llm(messages=messages, temperature=0.7)
             query = response["content"].strip()
-            print(f"📝 {analyst_id} 在会议中生成记忆查询: {query}")
+            print(f"📝 {analyst_id} generated memory query in meeting: {query}")
             return query
         except Exception as e:
-            print(f"⚠️ {analyst_id} 会议记忆查询生成失败: {e}")
-            # 返回默认查询
-            return f"{topic} {' '.join(tickers)} 分析经验"
+            print(f"⚠️ {analyst_id} failed to generate meeting memory query: {e}")
+            # Return default query
+            return f"{topic} {' '.join(tickers)} analysis experience"
     
     def _extract_and_clean_json(self, content: str) -> Optional[Dict[str, Any]]:
-        """从响应中提取和清理JSON"""
+        """Extract and clean JSON from response"""
         try:
-            # 移除markdown代码块
+            # Remove markdown code blocks
             content = re.sub(r'```json\s*\n?', '', content)
             content = re.sub(r'\n?\s*```', '', content)
             
-            # 查找JSON部分
+            # Find JSON section
             json_match = re.search(r'\{.*\}', content, re.DOTALL)
             if json_match:
                 json_str = json_match.group()
                 
-                # 移除注释
+                # Remove comments
                 json_str = re.sub(r'//.*', '', json_str)
                 
-                # 尝试解析
+                # Try parsing
                 return json.loads(json_str)
             
-            # 如果找不到完整JSON，尝试提取关键字段
+            # If complete JSON not found, try extracting key fields
             response_match = re.search(r'"response"\s*:\s*"([^"]*)"', content)
             adjustment_match = re.search(r'"signal_adjustment"\s*:\s*(true|false)', content)
             
@@ -1271,10 +1271,10 @@ class CommunicationManager:
                 }
                 
         except Exception as e:
-            print(f"JSON提取过程出错: {str(e)}")
+            print(f"Error in JSON extraction process: {str(e)}")
             
         return None
 
 
-# 创建全局实例
+# Create global instance
 communication_manager = CommunicationManager()

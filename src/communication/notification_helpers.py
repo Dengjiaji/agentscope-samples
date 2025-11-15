@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-通知系统辅助函数
-提供通知决策等功能
+Notification System Helper Functions
+Provides notification decision-making and other functionality
 """
 
 import json
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 def _make_json_safe(obj: Any) -> Any:
-    """将对象递归转换为可JSON序列化的原生类型"""
+    """Recursively convert object to JSON-serializable native types"""
     if obj is None or isinstance(obj, (str, int, float, bool)):
         if isinstance(obj, float):
             if math.isnan(obj) or math.isinf(obj):
@@ -74,7 +74,7 @@ def _make_json_safe(obj: Any) -> Any:
 
 
 def robust_json_parse(text: str) -> Dict[str, Any]:
-    """鲁棒的JSON解析函数"""
+    """Robust JSON parsing function"""
     text = text.strip()
     
     try:
@@ -133,16 +133,16 @@ def robust_json_parse(text: str) -> Dict[str, Any]:
 def should_send_notification(agent_id: str, analysis_result: Dict, 
                            agent_memory, state: AgentState) -> Dict[str, Any]:
     """
-    使用LLM判断是否需要发送通知
+    Use LLM to determine whether to send notification
     
     Args:
         agent_id: Agent ID
-        analysis_result: 分析结果
-        agent_memory: Agent记忆（可以为None）
-        state: Agent状态
+        analysis_result: Analysis result
+        agent_memory: Agent memory (can be None)
+        state: Agent state
         
     Returns:
-        决策字典，包含should_notify, content, urgency, category等字段
+        Decision dictionary containing should_notify, content, urgency, category, etc.
     """
     prompt = f"""
 You are a {agent_id}, having just completed analysis and obtained the following results:
@@ -185,7 +185,7 @@ Important: Reply content must be in pure JSON format, do not add any explanatory
     
     for attempt in range(max_retries):
         try:
-            # 使用 AgentScope 消息格式
+            # Use AgentScope message format
             messages = [{"role": "user", "content": prompt}]
             response = model(messages)
             response_content = response.get("content", "")
