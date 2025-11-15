@@ -1,7 +1,7 @@
 """
-AgentScope 模型包装器
+AgentScope Model Wrapper
 
-提供与 AgentScope 兼容的模型调用接口，同时保持对现有模型提供商的支持
+Provides AgentScope-compatible model calling interface while maintaining support for existing model providers
 """
 import os
 from typing import Dict, Any, List, Optional, Union
@@ -12,7 +12,7 @@ import agentscope
 
 
 class ModelProvider(str, Enum):
-    """支持的 LLM 提供商枚举"""
+    """Supported LLM provider enumeration"""
     ALIBABA = "Alibaba"
     ANTHROPIC = "Anthropic"
     DEEPSEEK = "DeepSeek"
@@ -28,10 +28,10 @@ class ModelProvider(str, Enum):
 
 class ModelWrapper:
     """
-    AgentScope 模型包装器
+    AgentScope Model Wrapper
     
-    提供统一的接口来调用不同的 LLM 模型
-    兼容 AgentScope 的设计模式
+    Provides unified interface to call different LLM models
+    Compatible with AgentScope design patterns
     """
     
     def __init__(
@@ -42,25 +42,25 @@ class ModelWrapper:
         **kwargs
     ):
         """
-        初始化模型包装器
+        Initialize model wrapper
         
         Args:
-            model_name: 模型名称
-            model_provider: 模型提供商
-            api_keys: API 密钥字典
-            **kwargs: 其他配置参数
+            model_name: Model name
+            model_provider: Model provider
+            api_keys: API keys dictionary
+            **kwargs: Other configuration parameters
         """
         self.model_name = model_name
         self.model_provider = ModelProvider(model_provider) if isinstance(model_provider, str) else model_provider
         self.api_keys = api_keys or {}
         self.config = kwargs
         
-        # 初始化底层模型
+        # Initialize underlying model
         self._init_model()
     
     def _init_model(self):
-        """初始化底层模型实例"""
-        # 根据提供商初始化相应的模型
+        """Initialize underlying model instance"""
+        # Initialize corresponding model based on provider
         if self.model_provider == ModelProvider.OPENAI:
             self._init_openai_model()
         elif self.model_provider == ModelProvider.ANTHROPIC:
@@ -78,10 +78,10 @@ class ModelWrapper:
         elif self.model_provider == ModelProvider.GIGACHAT:
             self._init_gigachat_model()
         else:
-            raise ValueError(f"不支持的模型提供商: {self.model_provider}")
+            raise ValueError(f"Unsupported model provider: {self.model_provider}")
     
     def _init_openai_model(self):
-        """初始化 OpenAI 模型"""
+        """Initialize OpenAI model"""
         from openai import OpenAI
         
         api_key = self.api_keys.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
@@ -93,7 +93,7 @@ class ModelWrapper:
         self.client = OpenAI(api_key=api_key, base_url=base_url)
     
     def _init_anthropic_model(self):
-        """初始化 Anthropic 模型"""
+        """Initialize Anthropic model"""
         from anthropic import Anthropic
         
         api_key = self.api_keys.get("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_API_KEY")
@@ -103,7 +103,7 @@ class ModelWrapper:
         self.client = Anthropic(api_key=api_key)
     
     def _init_groq_model(self):
-        """初始化 Groq 模型"""
+        """Initialize Groq model"""
         from groq import Groq
         
         api_key = self.api_keys.get("GROQ_API_KEY") or os.getenv("GROQ_API_KEY")
@@ -113,7 +113,7 @@ class ModelWrapper:
         self.client = Groq(api_key=api_key)
     
     def _init_deepseek_model(self):
-        """初始化 DeepSeek 模型"""
+        """Initialize DeepSeek model"""
         from openai import OpenAI
         
         api_key = self.api_keys.get("DEEPSEEK_API_KEY") or os.getenv("DEEPSEEK_API_KEY")
@@ -126,7 +126,7 @@ class ModelWrapper:
         )
     
     def _init_google_model(self):
-        """初始化 Google 模型"""
+        """Initialize Google model"""
         import google.generativeai as genai
         
         api_key = self.api_keys.get("GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEY")
@@ -137,7 +137,7 @@ class ModelWrapper:
         self.client = genai.GenerativeModel(self.model_name)
     
     def _init_ollama_model(self):
-        """初始化 Ollama 模型"""
+        """Initialize Ollama model"""
         from ollama import Client
         
         ollama_host = os.getenv("OLLAMA_HOST", "localhost")
@@ -146,7 +146,7 @@ class ModelWrapper:
         self.client = Client(host=base_url)
     
     def _init_openrouter_model(self):
-        """初始化 OpenRouter 模型"""
+        """Initialize OpenRouter model"""
         from openai import OpenAI
         
         api_key = self.api_keys.get("OPENROUTER_API_KEY") or os.getenv("OPENROUTER_API_KEY")
@@ -159,12 +159,12 @@ class ModelWrapper:
         )
     
     def _init_gigachat_model(self):
-        """初始化 GigaChat 模型"""
-        # GigaChat 初始化逻辑
+        """Initialize GigaChat model"""
+        # GigaChat initialization logic
         api_key = self.api_keys.get("GIGACHAT_API_KEY") or os.getenv("GIGACHAT_API_KEY")
         if not api_key:
             raise ValueError("GigaChat API key not found")
-        # 这里需要根据 GigaChat 的实际 API 实现
+        # Implementation needed based on GigaChat's actual API
         pass
     
     def __call__(
@@ -175,25 +175,25 @@ class ModelWrapper:
         **kwargs
     ) -> Dict[str, Any]:
         """
-        调用模型生成响应
+        Call model to generate response
         
         Args:
-            messages: 消息列表或单个消息字符串
-            max_tokens: 最大 token 数
-            temperature: 温度参数
-            **kwargs: 其他参数
+            messages: Message list or single message string
+            max_tokens: Maximum token count
+            temperature: Temperature parameter
+            **kwargs: Other parameters
         
         Returns:
-            包含响应内容的字典
+            Dictionary containing response content
         """
-        # 标准化消息格式
+        # Normalize message format
         if isinstance(messages, str):
             messages = [{"role": "user", "content": messages}]
         
-        # 转换 AgentScope 消息格式到 OpenAI 格式
+        # Convert AgentScope message format to OpenAI format
         formatted_messages = self._format_messages(messages)
         
-        # 调用模型
+        # Call model
         if self.model_provider in [ModelProvider.OPENAI, ModelProvider.GROQ, 
                                      ModelProvider.DEEPSEEK, ModelProvider.OPENROUTER]:
             return self._call_openai_compatible(formatted_messages, max_tokens, temperature, **kwargs)
@@ -204,28 +204,28 @@ class ModelWrapper:
         elif self.model_provider == ModelProvider.OLLAMA:
             return self._call_ollama(formatted_messages, max_tokens, temperature, **kwargs)
         else:
-            raise ValueError(f"不支持的模型提供商: {self.model_provider}")
+            raise ValueError(f"Unsupported model provider: {self.model_provider}")
     
     def _format_messages(self, messages: List[Dict[str, Any]]) -> List[Dict[str, str]]:
         """
-        格式化消息为标准格式
+        Format messages to standard format
         
-        AgentScope 格式: {"name": str, "content": str, "role": str}
-        OpenAI 格式: {"role": str, "content": str}
+        AgentScope format: {"name": str, "content": str, "role": str}
+        OpenAI format: {"role": str, "content": str}
         """
         formatted = []
         for msg in messages:
-            # 如果是 AgentScope 格式
+            # If AgentScope format
             if "name" in msg and "role" in msg:
                 formatted.append({
                     "role": msg["role"],
                     "content": msg["content"]
                 })
-            # 如果已经是 OpenAI 格式
+            # If already OpenAI format
             elif "role" in msg and "content" in msg:
                 formatted.append(msg)
             else:
-                # 默认作为用户消息
+                # Default as user message
                 formatted.append({
                     "role": "user",
                     "content": str(msg)
@@ -239,7 +239,7 @@ class ModelWrapper:
         temperature: float,
         **kwargs
     ) -> Dict[str, Any]:
-        """调用 OpenAI 兼容的 API"""
+        """Call OpenAI-compatible API"""
         params = {
             "model": self.model_name,
             "messages": messages,
@@ -249,7 +249,7 @@ class ModelWrapper:
         if max_tokens:
             params["max_tokens"] = max_tokens
         
-        # 添加其他参数
+        # Add other parameters
         if "response_format" in kwargs:
             params["response_format"] = kwargs["response_format"]
         
@@ -271,7 +271,7 @@ class ModelWrapper:
         temperature: float,
         **kwargs
     ) -> Dict[str, Any]:
-        """调用 Anthropic API"""
+        """Call Anthropic API"""
         response = self.client.messages.create(
             model=self.model_name,
             messages=messages,
@@ -298,8 +298,8 @@ class ModelWrapper:
         temperature: float,
         **kwargs
     ) -> Dict[str, Any]:
-        """调用 Google Gemini API"""
-        # Google Gemini 需要特殊的消息格式处理
+        """Call Google Gemini API"""
+        # Google Gemini requires special message format handling
         prompt = "\n".join([f"{msg['role']}: {msg['content']}" for msg in messages])
         
         response = self.client.generate_content(
@@ -325,7 +325,7 @@ class ModelWrapper:
         temperature: float,
         **kwargs
     ) -> Dict[str, Any]:
-        """调用 Ollama API"""
+        """Call Ollama API"""
         response = self.client.chat(
             model=self.model_name,
             messages=messages,
@@ -351,16 +351,16 @@ def get_model(
     **kwargs
 ) -> ModelWrapper:
     """
-    获取模型实例
+    Get model instance
     
     Args:
-        model_name: 模型名称
-        model_provider: 模型提供商
-        api_keys: API 密钥字典
-        **kwargs: 其他配置参数
+        model_name: Model name
+        model_provider: Model provider
+        api_keys: API keys dictionary
+        **kwargs: Other configuration parameters
     
     Returns:
-        AgentScopeModelWrapper 实例
+        AgentScopeModelWrapper instance
     """
     return ModelWrapper(
         model_name=model_name,
