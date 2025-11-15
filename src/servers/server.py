@@ -80,21 +80,26 @@ class Server:
             'strategies': []
         })
         
-        # Initialize real-time price manager (using polling method)
-        api_key = os.getenv('FINNHUB_API_KEY', '')
-        if not api_key:
-            logger.warning("⚠️ FINNHUB_API_KEY not found, real-time price feature will be unavailable")
-            logger.info("   Please set FINNHUB_API_KEY in .env file")
-            logger.info("   Get free API Key: https://finnhub.io/register")
-            self.price_manager = None
+        # ⭐ add lock: disable real-time price update
+        enable_realtime_price = False  
+
+        if enable_realtime_price: 
+            api_key = os.getenv('FINNHUB_API_KEY', '')
+            if not api_key:
+                logger.warning("⚠️ FINNHUB_API_KEY not found, real-time price feature will be unavailable")
+                logger.info("   Please set FINNHUB_API_KEY in .env file")
+                logger.info("   Get free API Key: https://finnhub.io/register")
+                self.price_manager = None
+            else:
+                # Use polling price manager (updates every 60 seconds)
+                self.price_manager = PollingPriceManager(api_key, poll_interval=60)
+                
+                # Add price update callback
+                self.price_manager.add_price_callback(self._on_price_update)
+                
+                logger.info("✅ Price polling manager initialized (interval: 60 seconds)")
         else:
-            # Use polling price manager (updates every 60 seconds)
-            self.price_manager = PollingPriceManager(api_key, poll_interval=60)
-            
-            # Add price update callback
-            self.price_manager.add_price_callback(self._on_price_update)
-            
-            logger.info("✅ Price polling manager initialized (interval: 60 seconds)")
+            self.price_manager = None
         
         # Record initial cash (for calculating returns)
         self.initial_cash = config.initial_cash
