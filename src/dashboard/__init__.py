@@ -1,6 +1,6 @@
 """
-团队仪表盘模块
-提供前端数据生成和管理功能
+Team Dashboard Module
+Provides frontend data generation and management functionality
 """
 
 from .team_dashboard import TeamDashboardGenerator
