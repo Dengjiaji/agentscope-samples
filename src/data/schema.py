@@ -139,19 +139,19 @@ class CompanyFactsResponse(BaseModel):
 
 
 class Position(BaseModel):
-    """持仓信息 - 用于Portfolio模式"""
-    long: int = 0  # 多头持仓数量（股数）
-    short: int = 0  # 空头持仓数量（股数）
-    long_cost_basis: float = 0.0  # 多头持仓平均成本
-    short_cost_basis: float = 0.0  # 空头持仓平均成本
+    """Position information - for Portfolio mode"""
+    long: int = 0  # Long position quantity (shares)
+    short: int = 0  # Short position quantity (shares)
+    long_cost_basis: float = 0.0  # Long position average cost
+    short_cost_basis: float = 0.0  # Short position average cost
 
 
 class Portfolio(BaseModel):
-    """投资组合 - 用于Portfolio模式"""
-    cash: float = 100000.0  # 可用现金
-    positions: dict[str, Position] = {}  # ticker -> Position 映射
-    margin_requirement: float = 0.0  # 保证金要求（0.0表示禁用做空，0.5表示50%保证金）
-    margin_used: float = 0.0  # 已使用的保证金
+    """Portfolio - for Portfolio mode"""
+    cash: float = 100000.0  # Available cash
+    positions: dict[str, Position] = {}  # ticker -> Position mapping
+    margin_requirement: float = 0.0  # Margin requirement (0.0 means shorting disabled, 0.5 means 50% margin)
+    margin_used: float = 0.0  # Margin used
 
 
 class AnalystSignal(BaseModel):
