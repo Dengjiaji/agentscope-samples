@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class MockSimulator:
-    """模拟数据生成器，用于测试前端"""
+    """Mock data generator for testing frontend"""
     
     def __init__(
         self, 
@@ -20,10 +20,10 @@ class MockSimulator:
         self.broadcast = broadcast_callback
         self.initial_cash = initial_cash
         
-        # Mock股票列表
+        # Mock stock list
         self.tickers = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META']
         
-        # 初始价格
+        # Initial prices
         self.prices = {
             'AAPL': 237.50,
             'MSFT': 425.30,
@@ -44,7 +44,7 @@ class MockSimulator:
         ]
     
     def _generate_historical_equity(self, days: int = 30) -> tuple[list, float]:
-        """生成历史equity数据"""
+        """Generate historical equity data"""
         equity_data = []
         start_time = datetime.now() - timedelta(days=days)
         
@@ -61,7 +61,7 @@ class MockSimulator:
         return equity_data, current_value
     
     def _generate_leaderboard(self) -> list:
-        """生成排行榜数据"""
+        """Generate leaderboard data"""
         leaderboard = []
         for idx, agent in enumerate(self.agents, 1):
             leaderboard.append({
@@ -87,7 +87,7 @@ class MockSimulator:
         return leaderboard
     
     def _generate_holdings(self) -> list:
-        """生成持仓数据"""
+        """Generate holdings data"""
         return [
             {
                 'ticker': 'AAPL',
@@ -124,7 +124,7 @@ class MockSimulator:
         ]
     
     def _generate_trades(self, count: int = 20) -> list:
-        """生成交易记录"""
+        """Generate trade records"""
         base_time = datetime.now()
         return [
             {
@@ -140,7 +140,7 @@ class MockSimulator:
         ]
     
     def _generate_stats(self) -> dict:
-        """生成统计数据"""
+        """Generate statistics data"""
         return {
             'winRate': 0.62,
             'hitRate': 0.58,
@@ -152,18 +152,18 @@ class MockSimulator:
         }
     
     def _initialize_state(self):
-        """初始化mock状态"""
-        # 生成历史equity数据
+        """Initialize mock state"""
+        # Generate historical equity data
         equity_data, current_value = self._generate_historical_equity()
         
-        # 更新portfolio状态
+        # Update portfolio state
         self.state_manager.update('status', 'running')
         portfolio = self.state_manager.get('portfolio', {})
         portfolio['equity'] = equity_data
         portfolio['total_value'] = current_value
         self.state_manager.update('portfolio', portfolio)
         
-        # 更新其他状态
+        # Update other state
         self.state_manager.update('leaderboard', self._generate_leaderboard())
         self.state_manager.update('holdings', self._generate_holdings())
         self.state_manager.update('trades', self._generate_trades())
@@ -172,7 +172,7 @@ class MockSimulator:
         return current_value
     
     def _add_historical_messages(self):
-        """添加历史消息"""
+        """Add historical messages"""
         base_time = datetime.now()
         for i in range(10):
             msg_time = base_time - timedelta(minutes=10-i)
@@ -189,56 +189,56 @@ class MockSimulator:
             self.state_manager.add_feed_message(historical_msg)
     
     async def run(self):
-        """运行模拟数据推送"""
-        logger.info("🎭 开始Mock模式 - 模拟数据推送")
+        """Run mock data push"""
+        logger.info("🎭 Starting Mock mode - mock data push")
         
-        # 初始化状态
+        # Initialize state
         current_value = self._initialize_state()
         
-        # 添加历史消息
+        # Add historical messages
         self._add_historical_messages()
         
-        # 发送启动消息
+        # Send startup message
         await self.broadcast({
             'type': 'system',
-            'content': '🎭 Mock模式启动 - 开始模拟数据推送'
+            'content': '🎭 Mock mode started - beginning mock data push'
         })
         
-        # 持续推送更新
+        # Continuously push updates
         iteration = 0
         while True:
             iteration += 1
             
-            # 1. 每秒更新一个随机价格
+            # 1. Update one random price per second
             await self._update_random_price(current_value)
             
-            # 2. 每10秒更新一次equity数据点
+            # 2. Update equity data point every 10 seconds
             if iteration % 10 == 0:
                 current_value = await self._update_equity(current_value)
             
-            # 3. 每10秒更新一次leaderboard
+            # 3. Update leaderboard every 10 seconds
             if iteration % 10 == 0:
                 await self._update_leaderboard()
             
-            # 4. 每30秒发送一条agent消息
+            # 4. Send one agent message every 30 seconds
             if iteration % 30 == 0:
                 await self._send_agent_message()
             
-            # 5. 每4秒模拟一笔新交易
+            # 5. Simulate one new trade every 4 seconds
             if iteration % 4 == 0:
                 await self._create_new_trade()
             
             await asyncio.sleep(1)
     
     async def _update_random_price(self, base_value: float):
-        """更新随机价格"""
+        """Update random price"""
         symbol = random.choice(self.tickers)
         old_price = self.prices[symbol]
         change_pct = random.uniform(-0.5, 0.5)
         new_price = old_price * (1 + change_pct / 100)
         self.prices[symbol] = new_price
         
-        # 更新holdings中的当前价格和P&L
+        # Update current price and P&L in holdings
         holdings = self.state_manager.get('holdings', [])
         for holding in holdings:
             if holding['ticker'] in self.prices:
@@ -246,7 +246,7 @@ class MockSimulator:
                 holding['pl'] = (self.prices[holding['ticker']] - holding['avg']) * holding['qty']
         self.state_manager.update('holdings', holdings)
         
-        # 更新portfolio value
+        # Update portfolio value
         portfolio = self.state_manager.get('portfolio', {})
         current_value = portfolio.get('total_value', base_value)
         new_value = current_value * (1 + change_pct / 100)
@@ -266,7 +266,7 @@ class MockSimulator:
         })
     
     async def _update_equity(self, current_value: float) -> float:
-        """更新equity数据"""
+        """Update equity data"""
         new_equity_point = {
             't': int(datetime.now().timestamp() * 1000),
             'v': current_value
@@ -275,7 +275,7 @@ class MockSimulator:
         equity = portfolio.get('equity', [])
         equity.append(new_equity_point)
         
-        # 保持最近50个点
+        # Keep last 50 points
         if len(equity) > 50:
             equity = equity[-50:]
         portfolio['equity'] = equity
@@ -292,10 +292,10 @@ class MockSimulator:
         return current_value
     
     async def _update_leaderboard(self):
-        """更新排行榜"""
+        """Update leaderboard"""
         leaderboard = self.state_manager.get('leaderboard', [])
         
-        # 随机调整leaderboard
+        # Randomly adjust leaderboard
         for agent in leaderboard:
             agent['returnPct'] += random.uniform(-2, 3)
             agent['accountValue'] = self.initial_cash * (1 + agent['returnPct'] / 100)
@@ -313,7 +313,7 @@ class MockSimulator:
         })
     
     async def _send_agent_message(self):
-        """发送agent消息"""
+        """Send agent message"""
         agent = random.choice(self.agents)
         messages = [
             f"Analyzing {random.choice(self.tickers)} - showing strong momentum",
@@ -333,7 +333,7 @@ class MockSimulator:
         })
     
     async def _create_new_trade(self):
-        """创建新交易"""
+        """Create new trade"""
         trade_ticker = random.choice(self.tickers)
         trade = {
             'id': f't-{datetime.now().timestamp()}',
@@ -345,16 +345,16 @@ class MockSimulator:
             'pnl': random.uniform(-500, 1000)
         }
         
-        # 添加到trades列表开头
+        # Add to beginning of trades list
         trades = self.state_manager.get('trades', [])
         trades.insert(0, trade)
         
-        # 保持最近50笔交易
+        # Keep last 50 trades
         if len(trades) > 50:
             trades = trades[:50]
         self.state_manager.update('trades', trades)
         
-        # 广播新交易
+        # Broadcast new trade
         await self.broadcast({
             'type': 'team_trades',
             'trade': trade,

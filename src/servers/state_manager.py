@@ -1,5 +1,5 @@
 """
-状态管理器 - 管理服务器状态的持久化和历史记录
+State Manager - Manages server state persistence and history
 """
 import json
 import logging
@@ -15,13 +15,13 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class FeedMessage:
-    """统一的Feed消息格式 - 保存原始event"""
+    """Unified Feed message format - saves original event"""
     type: str  # event type
     timestamp: float  # Unix timestamp in milliseconds
     metadata: Dict[str, Any] = field(default_factory=dict)
     
     def to_dict(self) -> Dict[str, Any]:
-        """返回原始event（由前端统一处理）"""
+        """Return original event (processed uniformly by frontend)"""
         return self.metadata
     
     @classmethod
@@ -44,14 +44,14 @@ class FeedMessage:
 
 
 class StateManager:
-    """服务器状态管理器 - 负责状态的持久化和历史记录"""
+    """Server state manager - responsible for state persistence and history"""
     
     def __init__(self, config_name: str, base_dir: Path, max_history: int = 200):
         self.config_name = config_name
         self.base_dir = base_dir
         self.max_history = max_history
         
-        # 初始化状态
+        # Initialize state
         self.state: Dict[str, Any] = {
             'status': 'initializing',
             'current_date': None,
@@ -64,26 +64,26 @@ class StateManager:
             'system_started': datetime.now().isoformat()
         }
         
-        # Feed历史记录（使用FeedMessage对象）
+        # Feed history (using FeedMessage objects)
         self._feed_history: List[FeedMessage] = []
     
     def get_state_file_path(self) -> Path:
-        """获取状态文件路径"""
-        # 统一存储到 logs_and_memory/{config_name}/state/ 目录（位于项目父目录下）
+        """Get state file path"""
+        # Unified storage to logs_and_memory/{config_name}/state/ directory (located in project parent directory)
         state_dir = get_logs_and_memory_dir() / self.config_name / "state"
         state_dir.mkdir(parents=True, exist_ok=True)
-        return state_dir / f"server_state.json"  # 简化文件名
+        return state_dir / f"server_state.json"  # Simplified filename
     
     def update(self, key: str, value: Any):
-        """更新状态"""
+        """Update state"""
         self.state[key] = value
     
     def get(self, key: str, default: Any = None) -> Any:
-        """获取状态"""
+        """Get state"""
         return self.state.get(key, default)
     
     def add_feed_message(self, event: Dict[str, Any]) -> bool:
-        """添加消息到feed历史"""
+        """Add message to feed history"""
         message = FeedMessage.from_event(event)
         if not message:
             return False
@@ -95,51 +95,51 @@ class StateManager:
         return True
     
     def get_feed_history(self) -> List[Dict[str, Any]]:
-        """获取feed历史（转换为前端格式）"""
+        """Get feed history (converted to frontend format)"""
         return [msg.to_dict() for msg in self._feed_history]
     
     def get_full_state(self) -> Dict[str, Any]:
-        """获取完整状态（包括feed历史）"""
+        """Get full state (including feed history)"""
         return {
             **self.state,
             'feed_history': self.get_feed_history()
         }
     
     def save(self):
-        """保存状态到文件"""
+        """Save state to file"""
         try:
             state_file = self.get_state_file_path()
             
-            # 准备要保存的状态
+            # Prepare state to save
             state_to_save = {
                 **self.state,
                 'feed_history': [asdict(msg) for msg in self._feed_history[:self.max_history]],
-                'trades': self.state.get('trades', [])[:100],  # 只保存最近100笔
+                'trades': self.state.get('trades', [])[:100],  # Only save last 100 trades
                 'last_saved': datetime.now().isoformat()
             }
             
             with open(state_file, 'w') as f:
                 json.dump(state_to_save, f, ensure_ascii=False, indent=2, default=str)
             
-            logger.debug(f"✅ 状态已保存到: {state_file}")
+            logger.debug(f"✅ State saved to: {state_file}")
             return True
             
         except Exception as e:
-            logger.error(f"❌ 保存状态失败: {e}")
+            logger.error(f"❌ Failed to save state: {e}")
             return False
     
     def load(self) -> bool:
-        """从文件加载状态"""
+        """Load state from file"""
         try:
             state_file = self.get_state_file_path()
             if not state_file.exists():
-                logger.info("未找到已保存的状态文件")
+                logger.info("No saved state file found")
                 return False
             
             with open(state_file, 'r') as f:
                 saved_state = json.load(f)
             
-            # 恢复feed历史
+            # Restore feed history
             feed_history = saved_state.pop('feed_history', [])
             self._feed_history = []
             for item in feed_history:
@@ -147,29 +147,29 @@ class StateManager:
                     msg = FeedMessage(**item)
                     self._feed_history.append(msg)
                 except Exception as e:
-                    logger.warning(f"跳过无效的历史消息: {e}")
+                    logger.warning(f"Skipping invalid history message: {e}")
             
-            # 恢复其他状态
+            # Restore other state
             for key in ['status', 'current_date', 'portfolio', 'holdings', 'trades', 
                        'stats', 'leaderboard', 'trading_days_total', 'trading_days_completed']:
                 if key in saved_state and saved_state[key] is not None:
                     self.state[key] = saved_state[key]
             
-            logger.info(f"✅ 已从文件恢复状态 (上次保存: {saved_state.get('last_saved', 'unknown')})")
-            logger.info(f"   📝 历史消息: {len(self._feed_history)} 条")
-            logger.info(f"   💼 持仓: {len(self.state.get('holdings', []))} 个")
-            logger.info(f"   📊 交易记录: {len(self.state.get('trades', []))} 笔")
+            logger.info(f"✅ State restored from file (last saved: {saved_state.get('last_saved', 'unknown')})")
+            logger.info(f"   📝 History messages: {len(self._feed_history)} records")
+            logger.info(f"   💼 Holdings: {len(self.state.get('holdings', []))} items")
+            logger.info(f"   📊 Trade records: {len(self.state.get('trades', []))} trades")
             
             return True
             
         except Exception as e:
-            logger.error(f"❌ 加载状态失败: {e}")
+            logger.error(f"❌ Failed to load state: {e}")
             return False
     
     def load_historical_equity(self) -> Dict[str, List]:
-        """加载历史equity数据"""
+        """Load historical equity data"""
         try:
-            # 统一从 logs_and_memory/{config_name}/state/ 读取（位于项目父目录下）
+            # Unified read from logs_and_memory/{config_name}/state/ (located in project parent directory)
             returns_file = get_logs_and_memory_dir() / self.config_name / "state" / "cumulative_returns.json"
             if not returns_file.exists():
                 return {'equity': [], 'baseline': [], 'strategies': []}
@@ -177,7 +177,7 @@ class StateManager:
             with open(returns_file, 'r') as f:
                 data = json.load(f)
             
-            # 转换为前端格式
+            # Convert to frontend format
             equity = []
             for date_str, value in sorted(data.items()):
                 try:
@@ -196,6 +196,6 @@ class StateManager:
             }
             
         except Exception as e:
-            logger.warning(f"加载历史equity数据失败: {e}")
+            logger.warning(f"Failed to load historical equity data: {e}")
             return {'equity': [], 'baseline': [], 'strategies': []}
 

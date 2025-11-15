@@ -26,14 +26,14 @@ class BaseStreamer:
 
     def print(self, type: str="", content: str = "", **kwargs):
         """
-        通用打印接口
-        :param content: 输出内容
-        :param type: 消息类型，可选 system / agent / price / 自定义
+        Generic print interface
+        :param content: Output content
+        :param type: Message type, options: system / agent / price / custom
         """
         if type == "system" or type == "":
             self.system(content)
         elif type == "agent":
-            # 允许 kwargs 里传 role_key
+            # Allow passing role_key in kwargs
             role_key = kwargs.get("role_key", "_default")
             self.agent(role_key, content)
         elif type == "price":
@@ -102,11 +102,11 @@ class WebSocketStreamer(BaseStreamer):
         self._queue.put_nowait(payload)
 
     async def drain(self):
-        # 等待所有已入队的消息发送完毕
+        # Wait for all queued messages to be sent
         await self._queue.join()
 
     async def aclose(self):
-        # 关闭 worker 任务（在连接结束或 server 退出时调用）
+        # Close worker task (called when connection ends or server exits)
         if not self._closed:
             self._closed = True
             self._worker.cancel()
@@ -138,11 +138,11 @@ class MultiStreamer(BaseStreamer):
         self.streamers = list(streamers)
 
     def _fanout(self, fn_name: str, *args, **kwargs):
-        # 统一步进，再把同一个 ts"复制"给子 streamer：
+        # Unified step, then "copy" the same ts to child streamers:
         ts = self._bump()
         for s in self.streamers:
-            # 对齐子 streamer 的 ts（保持时间线有序）
-            s.ts = ts - s.step_ms  # 让子 streamer 下一次 _bump() 等于 ts
+            # Align child streamer's ts (maintain timeline order)
+            s.ts = ts - s.step_ms  # Make child streamer's next _bump() equal to ts
             getattr(s, fn_name)(*args, **kwargs)
 
     def system(self, content: str):
@@ -160,15 +160,15 @@ class MultiStreamer(BaseStreamer):
 
 class BroadcastStreamer(BaseStreamer):
     """
-    线程安全的广播Streamer，用于将消息从同步代码转发到异步广播系统
+    Thread-safe broadcast Streamer, used to forward messages from synchronous code to asynchronous broadcast system
     """
     def __init__(self, broadcast_callback, event_loop, step_ms: int = 900, console_output: bool = True):
         """
         Args:
-            broadcast_callback: 异步回调函数，接收消息字典作为参数
-            event_loop: asyncio事件循环
-            step_ms: 时间步长（毫秒）
-            console_output: 是否同时输出到控制台
+            broadcast_callback: Async callback function, receives message dict as parameter
+            event_loop: asyncio event loop
+            step_ms: Time step (milliseconds)
+            console_output: Whether to also output to console
         """
         super().__init__(step_ms=step_ms)
         self.broadcast_callback = broadcast_callback
@@ -176,21 +176,21 @@ class BroadcastStreamer(BaseStreamer):
         self.console_output = console_output
     
     def _broadcast(self, message: dict):
-        """使用run_coroutine_threadsafe安全地调度异步广播"""
+        """Use run_coroutine_threadsafe to safely schedule async broadcast"""
         if self.loop and self.loop.is_running():
             asyncio.run_coroutine_threadsafe(
                 self.broadcast_callback(message),
                 self.loop
             )
         
-        # 可选的控制台输出
+        # Optional console output
         if self.console_output:
             msg_type = message.get('type', 'unknown')
             content = message.get('content', '')
             print(f"[{msg_type}] {content}")
     
     def _normalize_message(self, event_type: str, content: str, **kwargs) -> dict:
-        """标准化消息格式，处理各种特殊类型"""
+        """Normalize message format, handle various special types"""
         from datetime import datetime
         
         message = {
@@ -201,7 +201,7 @@ class BroadcastStreamer(BaseStreamer):
             **kwargs
         }
         
-        # 特殊处理：conference事件
+        # Special handling: conference events
         if event_type == 'conference_start':
             message['conferenceId'] = kwargs.get('conferenceId') or kwargs.get('conference_id') or f'conf-{message["ts"]}'
             message['title'] = kwargs.get('title', content)
@@ -216,7 +216,7 @@ class BroadcastStreamer(BaseStreamer):
             message['conferenceId'] = kwargs.get('conferenceId') or kwargs.get('conference_id')
         
         elif event_type in ('agent_message', 'agent'):
-            # 统一处理 agent 和 agent_message 类型
+            # Unified handling of agent and agent_message types
             message['type'] = 'agent_message'
             message['agentId'] = kwargs.get('agentId') or kwargs.get('agent_id') or kwargs.get('agent', 'unknown')
             if 'agent_name' in kwargs:
@@ -227,30 +227,30 @@ class BroadcastStreamer(BaseStreamer):
         return message
     
     def system(self, content: str):
-        """系统消息"""
+        """System message"""
         message = self._normalize_message('system', content)
         self._broadcast(message)
     
     def agent(self, role_key: str, content: str):
-        """Agent消息"""
+        """Agent message"""
         agent_id = ROLE_TO_AGENT.get(role_key or "", ROLE_TO_AGENT["_default"])
         message = self._normalize_message('agent_message', content, agentId=agent_id)
         self._broadcast(message)
     
     def price(self, value: float):
-        """价格更新"""
+        """Price update"""
         message = self._normalize_message('price', str(value), price=float(value))
         self._broadcast(message)
     
     def default_print(self, content: str, type: str):
-        """默认打印（通用接口）"""
+        """Default print (generic interface)"""
         message = self._normalize_message(type, content)
         self._broadcast(message)
     
     def print(self, event_type: str = "", content: str = "", **kwargs):
         """
-        通用打印接口（增强版）
-        支持任意事件类型和自定义字段
+        Generic print interface (enhanced version)
+        Supports arbitrary event types and custom fields
         """
         if event_type in ("system", ""):
             self.system(content)
@@ -264,6 +264,6 @@ class BroadcastStreamer(BaseStreamer):
             except ValueError:
                 self.price(0.0)
         else:
-            # 处理所有其他类型的消息
+            # Handle all other message types
             message = self._normalize_message(event_type, content, **kwargs)
             self._broadcast(message)

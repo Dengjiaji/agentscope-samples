@@ -1,9 +1,9 @@
 # src/servers/server.py
 """
-持续运行的WebSocket服务器
-- 从指定日期开始持续运行交易系统
-- 集成实时价格数据
-- 广播状态给所有连接的客户端
+Continuously running WebSocket server
+- Continuously runs trading system from specified date
+- Integrates real-time price data
+- Broadcasts status to all connected clients
 """
 import asyncio
 import json
@@ -40,15 +40,15 @@ logger = logging.getLogger(__name__)
 
 
 class Server:
-    """持续运行的交易系统服务器"""
+    """Continuously running trading system server"""
     
     def __init__(self, config: LiveThinkingFundConfig):
         self.config = config
         self.connected_clients: Set[WebSocketServerProtocol] = set()
         self.lock = asyncio.Lock()
-        self.loop = None  # 事件循环引用，在start时设置
+        self.loop = None  # Event loop reference, set in start method
         
-        # ========== 方案B：Dashboard 文件路径 ⭐⭐⭐ ==========
+        # ========== Solution B: Dashboard file paths ⭐⭐⭐ ==========
         self.dashboard_dir = get_logs_and_memory_dir() / config.config_name / "sandbox_logs" / "team_dashboard"
         self.dashboard_files = {
             'summary': self.dashboard_dir / 'summary.json',
@@ -57,18 +57,18 @@ class Server:
             'trades': self.dashboard_dir / 'trades.json',
             'leaderboard': self.dashboard_dir / 'leaderboard.json'
         }
-        # 记录文件修改时间，用于检测变化
+        # Record file modification times for change detection
         self.dashboard_file_mtimes = {}
-        logger.info(f"✅ Dashboard 文件目录: {self.dashboard_dir}")
+        logger.info(f"✅ Dashboard file directory: {self.dashboard_dir}")
         
-        # 使用StateManager管理状态
+        # Use StateManager to manage state
         self.state_manager = StateManager(
             config_name=config.config_name,
             base_dir=BASE_DIR,
             max_history=200
         )
         
-        # 初始化portfolio状态
+        # Initialize portfolio state
         self.state_manager.update('portfolio', {
             'total_value': config.initial_cash,
             'cash': config.initial_cash,
@@ -80,46 +80,46 @@ class Server:
             'strategies': []
         })
         
-        # 初始化实时价格管理器（使用轮询方式）
+        # Initialize real-time price manager (using polling method)
         api_key = os.getenv('FINNHUB_API_KEY', '')
         if not api_key:
-            logger.warning("⚠️ 未找到 FINNHUB_API_KEY，实时价格功能将不可用")
-            logger.info("   请在 .env 文件中设置 FINNHUB_API_KEY")
-            logger.info("   获取免费 API Key: https://finnhub.io/register")
+            logger.warning("⚠️ FINNHUB_API_KEY not found, real-time price feature will be unavailable")
+            logger.info("   Please set FINNHUB_API_KEY in .env file")
+            logger.info("   Get free API Key: https://finnhub.io/register")
             self.price_manager = None
         else:
-            # 使用轮询式价格管理器（每60秒更新一次）
+            # Use polling price manager (updates every 60 seconds)
             self.price_manager = PollingPriceManager(api_key, poll_interval=60)
             
-            # 添加价格更新回调
+            # Add price update callback
             self.price_manager.add_price_callback(self._on_price_update)
             
-            logger.info("✅ 价格轮询管理器已初始化 (间隔: 60秒)")
+            logger.info("✅ Price polling manager initialized (interval: 60 seconds)")
         
-        # 记录初始资金（用于计算收益率）
+        # Record initial cash (for calculating returns)
         self.initial_cash = config.initial_cash
         
-        # 初始化记忆系统
+        # Initialize memory system
         console_streamer = ConsoleStreamer()
         memory_instance = get_memory(config.config_name)
-        logger.info(f"✅ 记忆系统已初始化")
+        logger.info(f"✅ Memory system initialized")
         
-        # 记忆系统初始化完成（不需要预注册分析师）
-        logger.info("✅ 记忆系统准备就绪")
+        # Memory system initialization complete (no need to pre-register analysts)
+        logger.info("✅ Memory system ready")
         
-        # 初始化交易系统（但不传入streamer，稍后在运行时创建）
+        # Initialize trading system (but don't pass streamer, will create at runtime)
         self.thinking_fund = None
     
     def _on_price_update(self, price_data: Dict[str, Any]):
-        """价格更新回调 - 直接更新 holdings.json 和 stats.json 文件"""
+        """Price update callback - directly updates holdings.json and stats.json files"""
         symbol = price_data['symbol']
         price = price_data['price']
         open_price = price_data.get('open', price)
         
-        # 计算相对开盘价的return
+        # Calculate return relative to open price
         ret = ((price - open_price) / open_price) * 100 if open_price > 0 else 0
         
-        # 更新当前状态（用于价格板显示）
+        # Update current state (for price board display)
         realtime_prices = self.state_manager.get('realtime_prices', {})
         realtime_prices[symbol] = {
             'price': price,
@@ -130,7 +130,7 @@ class Server:
         }
         self.state_manager.update('realtime_prices', realtime_prices)
         
-        # 广播价格更新（用于价格板实时显示）
+        # Broadcast price update (for real-time price board display)
         if self.loop and self.loop.is_running():
             asyncio.run_coroutine_threadsafe(
                 self.broadcast({
@@ -145,52 +145,52 @@ class Server:
                 self.loop
             )
         
-        # 更新 holdings.json 和 stats.json 文件
+        # Update holdings.json and stats.json files
         try:
             self._update_dashboard_files_with_price(symbol, price)
         except Exception as e:
-            logger.error(f"更新 Dashboard 文件失败 ({symbol}): {e}")
+            logger.error(f"Failed to update Dashboard files ({symbol}): {e}")
     
     def _update_dashboard_files_with_price(self, symbol: str, price: float):
-        """更新 holdings.json、stats.json 和 summary.json 文件中的价格和相关计算"""
+        """Update prices and related calculations in holdings.json, stats.json and summary.json files"""
         holdings_file = self.dashboard_files.get('holdings')
         stats_file = self.dashboard_files.get('stats')
         summary_file = self.dashboard_files.get('summary')
         
         if not holdings_file or not holdings_file.exists():
-            logger.warning(f"holdings.json 文件不存在，跳过更新")
+            logger.warning(f"holdings.json file does not exist, skipping update")
             return
         
         if not stats_file or not stats_file.exists():
-            logger.warning(f"stats.json 文件不存在，跳过更新")
+            logger.warning(f"stats.json file does not exist, skipping update")
             return
         
-        # 读取 holdings.json
+        # Read holdings.json
         try:
             with open(holdings_file, 'r', encoding='utf-8') as f:
                 holdings = json.load(f)
         except Exception as e:
-            logger.error(f"读取 holdings.json 失败: {e}")
+            logger.error(f"Failed to read holdings.json: {e}")
             return
         
-        # 读取 stats.json
+        # Read stats.json
         try:
             with open(stats_file, 'r', encoding='utf-8') as f:
                 stats = json.load(f)
         except Exception as e:
-            logger.error(f"读取 stats.json 失败: {e}")
+            logger.error(f"Failed to read stats.json: {e}")
             return
         
-        # 读取 summary.json（如果存在）
+        # Read summary.json (if exists)
         summary = None
         if summary_file and summary_file.exists():
             try:
                 with open(summary_file, 'r', encoding='utf-8') as f:
                     summary = json.load(f)
             except Exception as e:
-                logger.error(f"读取 summary.json 失败: {e}")
+                logger.error(f"Failed to read summary.json: {e}")
         
-        # 更新 holdings 中的价格
+        # Update prices in holdings
         updated = False
         total_value = 0.0
         cash = 0.0
@@ -203,37 +203,37 @@ class Server:
                 cash = holding.get('marketValue', 0)
                 total_value += cash
             elif ticker == symbol:
-                # 更新当前价格
+                # Update current price
                 holding['currentPrice'] = round(price, 2)
                 market_value = quantity * price
                 holding['marketValue'] = round(market_value, 2)
                 total_value += market_value
                 updated = True
             else:
-                # 累加其他持仓的市值
+                # Accumulate market value of other holdings
                 total_value += holding.get('marketValue', 0)
         
-        # 重新计算权重
+        # Recalculate weights
         if total_value > 0:
             for holding in holdings:
                 market_value = holding.get('marketValue', 0)
                 weight = market_value / total_value
                 holding['weight'] = round(weight, 4)
         
-        # 如果有更新，保存 holdings.json
+        # If updated, save holdings.json
         if updated:
             try:
                 with open(holdings_file, 'w', encoding='utf-8') as f:
                     json.dump(holdings, f, indent=2, ensure_ascii=False)
-                logger.debug(f"✅ 已更新 holdings.json: {symbol} = ${price:.2f}")
+                logger.debug(f"✅ Updated holdings.json: {symbol} = ${price:.2f}")
             except Exception as e:
-                logger.error(f"保存 holdings.json 失败: {e}")
+                logger.error(f"Failed to save holdings.json: {e}")
                 return
         
-        # 更新 stats.json
+        # Update stats.json
         total_return = ((total_value - self.initial_cash) / self.initial_cash * 100) if self.initial_cash > 0 else 0.0
         
-        # 更新 tickerWeights
+        # Update tickerWeights
         ticker_weights = {}
         for holding in holdings:
             ticker = holding.get('ticker')
@@ -245,27 +245,27 @@ class Server:
         stats['cashPosition'] = round(cash, 2)
         stats['tickerWeights'] = ticker_weights
         
-        # 保存 stats.json
+        # Save stats.json
         try:
             with open(stats_file, 'w', encoding='utf-8') as f:
                 json.dump(stats, f, indent=2, ensure_ascii=False)
             if updated:
-                logger.debug(f"✅ 已更新 stats.json: 总资产=${total_value:.2f}, 收益率={total_return:.2f}%")
+                logger.debug(f"✅ Updated stats.json: Total assets=${total_value:.2f}, Return={total_return:.2f}%")
         except Exception as e:
-            logger.error(f"保存 stats.json 失败: {e}")
+            logger.error(f"Failed to save stats.json: {e}")
         
-        # 注意：不更新 summary.json 中的 equity 曲线
-        # 原因：
-        # 1. 对于回测模式（正常模式），净值曲线应该由回测系统（TeamDashboardGenerator）在每天结束时更新
-        # 2. 实时价格更新只用于显示当前价格，不应该修改历史净值曲线
-        # 3. equity 曲线的更新应该在回测过程中通过 _update_equity_curve 方法完成，而不是通过价格更新回调
+        # Note: Do not update equity curve in summary.json
+        # Reasons:
+        # 1. For backtest mode (normal mode), equity curve should be updated by backtest system (TeamDashboardGenerator) at end of each day
+        # 2. Real-time price updates are only for displaying current prices, should not modify historical equity curves
+        # 3. Equity curve updates should be completed through _update_equity_curve method during backtest process, not through price update callback
         # 
-        # 如果需要更新 summary.json 中的其他字段（如 balance、pnlPct）用于实时显示，
-        # 可以在这里添加，但不要修改 equity 曲线
+        # If need to update other fields in summary.json (such as balance, pnlPct) for real-time display,
+        # can add here, but do not modify equity curve
     
     async def broadcast(self, message: Dict[str, Any]):
-        """广播消息给所有连接的客户端"""
-        # 保存到历史记录（由StateManager处理）
+        """Broadcast message to all connected clients"""
+        # Save to history (handled by StateManager)
         self.state_manager.add_feed_message(message)
         
         if not self.connected_clients:
@@ -273,7 +273,7 @@ class Server:
         
         message_json = json.dumps(message, ensure_ascii=False, default=str)
         
-        # 并发发送给所有客户端
+        # Concurrently send to all clients
         tasks = []
         async with self.lock:
             for client in self.connected_clients.copy():
@@ -283,25 +283,25 @@ class Server:
             await asyncio.gather(*tasks, return_exceptions=True)
     
     async def _send_to_client(self, client: WebSocketServerProtocol, message: str):
-        """发送消息给单个客户端"""
+        """Send message to single client"""
         try:
             await client.send(message)
         except websockets.ConnectionClosed:
-            # 连接已关闭，从列表中移除
+            # Connection closed, remove from list
             async with self.lock:
                 self.connected_clients.discard(client)
         except Exception as e:
-            logger.error(f"发送消息失败: {e}")
+            logger.error(f"Failed to send message: {e}")
     
     def _load_dashboard_file(self, file_type: str) -> Any:
         """
-        读取 Dashboard JSON 文件
+        Read Dashboard JSON file
         
         Args:
-            file_type: 文件类型 ('summary', 'holdings', 'stats', 'trades', 'leaderboard')
+            file_type: File type ('summary', 'holdings', 'stats', 'trades', 'leaderboard')
             
         Returns:
-            文件内容（字典或列表），如果文件不存在或读取失败返回 None
+            File content (dict or list), returns None if file doesn't exist or read fails
         """
         file_path = self.dashboard_files.get(file_type)
         if not file_path or not file_path.exists():
@@ -311,15 +311,15 @@ class Server:
             with open(file_path, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except Exception as e:
-            logger.error(f"读取 Dashboard 文件失败 ({file_type}): {e}")
+            logger.error(f"Failed to read Dashboard file ({file_type}): {e}")
             return None
     
     def _check_dashboard_files_updated(self) -> Dict[str, bool]:
         """
-        检查哪些 Dashboard 文件被更新了
+        Check which Dashboard files have been updated
         
         Returns:
-            字典，key 为文件类型，value 为是否更新（True/False）
+            Dictionary, key is file type, value is whether updated (True/False)
         """
         updated = {}
         
@@ -338,20 +338,20 @@ class Server:
                 else:
                     updated[file_type] = False
             except Exception as e:
-                logger.error(f"检查文件更新失败 ({file_type}): {e}")
+                logger.error(f"Failed to check file update ({file_type}): {e}")
                 updated[file_type] = False
         
         return updated
     
     async def _broadcast_dashboard_from_files(self):
         """
-        从文件读取 Dashboard 数据并广播
-        仅广播已更新的文件
+        Read Dashboard data from files and broadcast
+        Only broadcast updated files
         """
         updated_files = self._check_dashboard_files_updated()
         timestamp = datetime.now().isoformat()
         
-        # 只广播有更新的文件
+        # Only broadcast files that have been updated
         for file_type, is_updated in updated_files.items():
             if not is_updated:
                 continue
@@ -360,19 +360,19 @@ class Server:
             if data is None:
                 continue
             
-            # 根据文件类型构建消息
+            # Build message based on file type
             if file_type == 'summary':
                 await self.broadcast({
                     'type': 'team_summary',
                     'balance': data.get('balance'),
                     'pnlPct': data.get('pnlPct'),
                     'equity': data.get('equity', []),
-                    'baseline': data.get('baseline', []),  # ⭐ 等权重 baseline
-                    'baseline_vw': data.get('baseline_vw', []),  # ⭐ 价值加权 baseline
-                    'momentum': data.get('momentum', []),  # ⭐ 动量策略
+                    'baseline': data.get('baseline', []),  # ⭐ Equal-weight baseline
+                    'baseline_vw': data.get('baseline_vw', []),  # ⭐ Value-weighted baseline
+                    'momentum': data.get('momentum', []),  # ⭐ Momentum strategy
                     'timestamp': timestamp
                 })
-                logger.info(f"✅ 广播 team_summary (从文件)")
+                logger.info(f"✅ Broadcast team_summary (from file)")
                 
             elif file_type == 'holdings':
                 self.state_manager.update('holdings', data)
@@ -381,7 +381,7 @@ class Server:
                     'data': data,
                     'timestamp': timestamp
                 })
-                logger.info(f"✅ 广播 team_holdings: {len(data)} 个持仓 (从文件)")
+                logger.info(f"✅ Broadcast team_holdings: {len(data)} holdings (from file)")
                 
             elif file_type == 'stats':
                 self.state_manager.update('stats', data)
@@ -390,7 +390,7 @@ class Server:
                     'data': data,
                     'timestamp': timestamp
                 })
-                logger.info(f"✅ 广播 team_stats (从文件)")
+                logger.info(f"✅ Broadcast team_stats (from file)")
                 
             elif file_type == 'trades':
                 self.state_manager.update('trades', data)
@@ -400,7 +400,7 @@ class Server:
                     'data': data,
                     'timestamp': timestamp
                 })
-                logger.info(f"✅ 广播 team_trades: {len(data)} 笔交易 (从文件)")
+                logger.info(f"✅ Broadcast team_trades: {len(data)} trades (from file)")
                 
             elif file_type == 'leaderboard':
                 self.state_manager.update('leaderboard', data)
@@ -409,21 +409,21 @@ class Server:
                     'data': data,
                     'timestamp': timestamp
                 })
-                logger.info(f"✅ 广播 team_leaderboard: {len(data)} 个 Agent (从文件)")
+                logger.info(f"✅ Broadcast team_leaderboard: {len(data)} Agents (from file)")
     
     async def handle_client(self, websocket: WebSocketServerProtocol):
-        """处理客户端连接"""
+        """Handle client connection"""
         client_id = id(websocket)
         
         try:
             async with self.lock:
                 self.connected_clients.add(websocket)
             
-            logger.info(f"✅ 新客户端连接 (总连接数: {len(self.connected_clients)})")
-            # 准备发送给新客户端的初始状态（不修改全局状态）
+            logger.info(f"✅ New client connected (total connections: {len(self.connected_clients)})")
+            # Prepare initial state to send to new client (don't modify global state)
             initial_state = self.state_manager.get_full_state()
             
-            # ========== 方案B：从文件加载 Dashboard 数据 ⭐⭐⭐ ==========
+            # ========== Solution B: Load Dashboard data from files ⭐⭐⭐ ==========
             try:
                 summary_data = self._load_dashboard_file('summary')
                 holdings_data = self._load_dashboard_file('holdings')
@@ -439,18 +439,18 @@ class Server:
                     'leaderboard': leaderboard_data
                 }
                 
-                # 将 summary 数据映射到 portfolio（供前端使用）
+                # Map summary data to portfolio (for frontend use)
                 if summary_data and 'portfolio' in initial_state:
                     initial_state['portfolio'].update({
                         'total_value': summary_data.get('balance'),
                         'pnl_percent': summary_data.get('pnlPct'),
                         'equity': summary_data.get('equity', []),
-                        'baseline': summary_data.get('baseline', []),  # ⭐ 等权重 baseline
-                        'baseline_vw': summary_data.get('baseline_vw', []),  # ⭐ 价值加权 baseline
-                        'momentum': summary_data.get('momentum', [])  # ⭐ 动量策略
+                        'baseline': summary_data.get('baseline', []),  # ⭐ Equal-weight baseline
+                        'baseline_vw': summary_data.get('baseline_vw', []),  # ⭐ Value-weighted baseline
+                        'momentum': summary_data.get('momentum', [])  # ⭐ Momentum strategy
                     })
                 
-                # 更新其他数据
+                # Update other data
                 if holdings_data:
                     initial_state['holdings'] = holdings_data
                 if stats_data:
@@ -460,9 +460,9 @@ class Server:
                 if leaderboard_data:
                     initial_state['leaderboard'] = leaderboard_data
                 
-                logger.info(f"✅ 从文件加载 Dashboard 数据成功")
+                logger.info(f"✅ Successfully loaded Dashboard data from files")
             except Exception as e:
-                logger.error(f"⚠️ 从文件加载 Dashboard 数据失败: {e}")
+                logger.error(f"⚠️ Failed to load Dashboard data from files: {e}")
                 initial_state['dashboard'] = {
                     'summary': None,
                     'holdings': [],
@@ -471,18 +471,18 @@ class Server:
                     'leaderboard': []
                 }
             
-            # 加载历史equity数据并合并到portfolio（仅用于新客户端）
+            # Load historical equity data and merge into portfolio (only for new clients)
             historical_data = self.state_manager.load_historical_equity()
             if historical_data and 'portfolio' in initial_state:
-                # 创建副本以避免修改全局状态
+                # Create copy to avoid modifying global state
                 initial_portfolio = dict(initial_state['portfolio'])
                 
-                # 只有当当前equity数据为空或少于历史数据时才合并
+                # Only merge if current equity data is empty or less than historical data
                 current_equity = initial_portfolio.get('equity', [])
                 historical_equity = historical_data.get('equity', [])
                 
                 if not current_equity or len(current_equity) < len(historical_equity):
-                    # 合并历史数据（优先保留当前数据）
+                    # Merge historical data (prioritize current data)
                     initial_portfolio['equity'] = historical_equity + current_equity
                     if 'baseline' in historical_data:
                         initial_portfolio['baseline'] = historical_data['baseline']
@@ -491,34 +491,34 @@ class Server:
                 
                 initial_state['portfolio'] = initial_portfolio
             
-            # 添加服务器模式标识（回测模式）
+            # Add server mode identifier (backtest mode)
             initial_state['server_mode'] = 'backtest'
             initial_state['market_status'] = {
                 'status': 'backtest',
                 'status_text': 'Backtest Mode'
             }
             
-            # 发送完整状态给新连接的客户端
+            # Send complete state to newly connected client
             await websocket.send(json.dumps({
                 'type': 'initial_state',
                 'state': initial_state
             }, ensure_ascii=False, default=str))
             
-            # 保持连接并接收消息（只读模式，不处理命令）
+            # Keep connection and receive messages (read-only mode, don't process commands)
             try:
                 async for message in websocket:
                     try:
                         data = json.loads(message)
                         msg_type = data.get('type', 'unknown')
                         
-                        # 响应心跳包
+                        # Respond to heartbeat
                         if msg_type == 'ping':
                             await websocket.send(json.dumps({
                                 'type': 'pong',
                                 'timestamp': datetime.now().isoformat()
                             }, ensure_ascii=False, default=str))
                         
-                        # 可以添加一些只读查询功能
+                        # Can add some read-only query functions
                         elif msg_type == 'get_state':
                             await websocket.send(json.dumps({
                                 'type': 'state_response',
@@ -526,38 +526,38 @@ class Server:
                             }, ensure_ascii=False, default=str))
                             
                     except json.JSONDecodeError:
-                        logger.warning("收到非JSON消息")
+                        logger.warning("Received non-JSON message")
                     except Exception as e:
-                        logger.error(f"处理消息异常: {e}")
+                        logger.error(f"Error processing message: {e}")
             except websockets.ConnectionClosed as e:
-                logger.debug(f"连接关闭: code={e.code}")
+                logger.debug(f"Connection closed: code={e.code}")
             except Exception as e:
-                logger.error(f"连接异常: {e}")
+                logger.error(f"Connection error: {e}")
                     
         except ConnectionClosedError as e:
-            # WebSocket 握手失败或连接异常关闭
-            logger.debug(f"WebSocket 连接异常关闭 (可能是浏览器刷新或网络问题)")
+            # WebSocket handshake failed or connection closed abnormally
+            logger.debug(f"WebSocket connection closed abnormally (may be browser refresh or network issue)")
         except websockets.ConnectionClosed:
-            # 正常断开
-            logger.debug("客户端正常断开连接")
+            # Normal disconnect
+            logger.debug("Client disconnected normally")
         except Exception as e:
-            logger.error(f"连接处理异常: {e}")
+            logger.error(f"Connection handling error: {e}")
         finally:
-            # 清理：从连接池中移除
+            # Cleanup: remove from connection pool
             async with self.lock:
                 self.connected_clients.discard(websocket)
-            logger.info(f"客户端断开 (剩余连接: {len(self.connected_clients)})")
+            logger.info(f"Client disconnected (remaining connections: {len(self.connected_clients)})")
     
     async def run_continuous_simulation(self):
-        """持续运行交易模拟"""
-        logger.info("🚀 开始持续运行模式")
+        """Continuously run trading simulation"""
+        logger.info("🚀 Starting continuous running mode")
         
-        # 获取当前事件循环
+        # Get current event loop
         loop = asyncio.get_event_loop()
         
-        # 注册progress handler来捕获agent状态更新
+        # Register progress handler to capture agent status updates
         def progress_handler(agent_name: str, ticker, status: str, analysis, timestamp):
-            """捕获agent进度更新并广播到前端"""
+            """Capture agent progress updates and broadcast to frontend"""
             if loop.is_running():
                 content = status
                 if ticker:
@@ -576,17 +576,17 @@ class Server:
                 #     loop
                 # )
         
-        # 注册handler
+        # Register handler
         progress.register_handler(progress_handler)
         
-        # 创建广播streamer（使用统一的BroadcastStreamer类）
+        # Create broadcast streamer (using unified BroadcastStreamer class)
         broadcast_streamer = BroadcastStreamer(
             broadcast_callback=self.broadcast,
             event_loop=loop,
             console_output=True
         )
         
-        # 初始化交易系统
+        # Initialize trading system
         self.thinking_fund = LiveTradingFund(
             config_name=self.config.config_name,
             streamer=broadcast_streamer,
@@ -595,19 +595,19 @@ class Server:
             margin_requirement=self.config.margin_requirement
         )
         
-        # 订阅实时价格
+        # Subscribe to real-time prices
         if self.price_manager:
             self.price_manager.subscribe(self.config.tickers)
             self.price_manager.start()
-            logger.info(f"✅ 已订阅实时价格: {self.config.tickers}")
+            logger.info(f"✅ Subscribed to real-time prices: {self.config.tickers}")
         
-        # 生成交易日列表
+        # Generate trading day list
         start_date = self.config.start_date or "2025-11-13"
         # end_date = self.config.end_date or datetime.now().strftime("%Y-%m-%d")
         end_date = self.config.end_date or "2025-11-13"
 
         trading_days = self.thinking_fund.generate_trading_dates(start_date, end_date)
-        logger.info(f"📅 计划运行 {len(trading_days)} 个交易日: {start_date} -> {end_date}")
+        logger.info(f"📅 Planning to run {len(trading_days)} trading days: {start_date} -> {end_date}")
         
         self.state_manager.update('status', 'running')
         self.state_manager.update('trading_days_total', len(trading_days))
@@ -615,10 +615,10 @@ class Server:
         
         await self.broadcast({
             'type': 'system',
-            'content': f'系统启动 - 计划运行 {len(trading_days)} 个交易日'
+            'content': f'System started - Planning to run {len(trading_days)} trading days'
         })
         
-        # 逐日运行
+        # Run day by day
         for idx, date in enumerate(trading_days, 1):
             logger.info(f"===== [{idx}/{len(trading_days)}] {date} =====")
             self.state_manager.update('current_date', date)
@@ -631,7 +631,7 @@ class Server:
             })
             
             try:
-                # 在独立线程中运行（避免阻塞）
+                # Run in separate thread (avoid blocking)
                 result = await asyncio.to_thread(
                     self.thinking_fund.run_full_day_simulation,
                     date=date,
@@ -642,29 +642,29 @@ class Server:
                     enable_notifications=not self.config.disable_notifications
                 )
                 
-                # 确保result是字典类型
+                # Ensure result is dict type
                 if not isinstance(result, dict):
                     logger.warning(f"⚠️ Unexpected result type: {type(result)}, value: {result}")
                     result = {}
                 
-                # 更新当前状态和提取portfolio_summary
+                # Update current state and extract portfolio_summary
                 portfolio_summary = None
                 if result.get('pre_market'):
                     signals = result['pre_market']['live_env'].get('pm_signals', {})
                     self.state_manager.update('latest_signals', signals)
                     
-                    # 更新Portfolio持仓（如果是portfolio模式）⭐ 修复bug
+                    # Update Portfolio positions (if portfolio mode) ⭐ Bug fix
                     if self.config.mode == "portfolio":
                         live_env = result['pre_market'].get('live_env', {})
                         portfolio_summary = live_env.get('portfolio_summary', {})
                         updated_portfolio = live_env.get('updated_portfolio', {})
                         
                         if portfolio_summary and updated_portfolio:
-                            # 注意：正常模式（回测模式）不需要portfolio_calculator
-                            # portfolio数据由回测系统（TeamDashboardGenerator）更新，并写入Dashboard文件
-                            # 这里只更新内存中的状态用于前端显示，不进行实时计算
+                            # Note: Normal mode (backtest mode) doesn't need portfolio_calculator
+                            # Portfolio data is updated by backtest system (TeamDashboardGenerator) and written to Dashboard files
+                            # Here only update in-memory state for frontend display, don't do real-time calculation
                             
-                            # 更新portfolio状态（从回测结果中读取）
+                            # Update portfolio state (read from backtest results)
                             portfolio = self.state_manager.get('portfolio', {})
                             portfolio.update({
                                 'total_value': portfolio_summary.get('total_value'),
@@ -673,7 +673,7 @@ class Server:
                             })
                             self.state_manager.update('portfolio', portfolio)
                             
-                            # 更新holdings（转换为前端格式）⭐ 修复bug
+                            # Update holdings (convert to frontend format) ⭐ Bug fix
                             realtime_prices = self.state_manager.get('realtime_prices', {})
                             holdings_list = []
                             positions = updated_portfolio.get('positions', {})
@@ -683,7 +683,7 @@ class Server:
                                     short_qty = position_data.get('short', 0)
                                     net_qty = long_qty - short_qty
                                     
-                                    if net_qty != 0:  # 只显示有持仓的股票
+                                    if net_qty != 0:  # Only show stocks with positions
                                         long_cost = position_data.get('long_cost_basis', 0)
                                         short_cost = position_data.get('short_cost_basis', 0)
                                         avg_price = long_cost if net_qty > 0 else short_cost
@@ -695,11 +695,11 @@ class Server:
                                             'avg': avg_price,
                                             'currentPrice': current_price,
                                             'pl': (current_price - avg_price) * net_qty,
-                                            'weight': 0  # 权重需要另外计算
+                                            'weight': 0  # Weight needs to be calculated separately
                                         })
                             self.state_manager.update('holdings', holdings_list)
                 
-                # 构建简化的result用于广播（避免发送过大的数据）
+                # Build simplified result for broadcast (avoid sending too large data)
                 broadcast_result = {
                     'portfolio_summary': portfolio_summary
                 }
@@ -711,11 +711,11 @@ class Server:
                     'timestamp': datetime.now().isoformat()
                 })
                 
-                # 保存状态（每天结束后）
+                # Save state (after each day ends)
                 self.state_manager.save()
                 
             except Exception as e:
-                logger.error(f"❌ {date} 运行失败: {e}")
+                logger.error(f"❌ {date} run failed: {e}")
                 await self.broadcast({
                     'type': 'day_error',
                     'date': date,
@@ -723,56 +723,56 @@ class Server:
                     'timestamp': datetime.now().isoformat()
                 })
             
-            # 短暂延迟（避免过快）
+            # Brief delay (avoid too fast)
             await asyncio.sleep(1)
         
-        logger.info("✅ 所有交易日运行完成")
+        logger.info("✅ All trading days completed")
         self.state_manager.update('status', 'completed')
         
         await self.broadcast({
             'type': 'system',
-            'content': '所有交易日运行完成'
+            'content': 'All trading days completed'
         })
         
-        # 清理：取消注册progress handler
+        # Cleanup: unregister progress handler
         progress.unregister_handler(progress_handler)
     
     async def _periodic_state_saver(self):
-        """定期保存状态（每5分钟）"""
+        """Periodically save state (every 5 minutes)"""
         while True:
-            await asyncio.sleep(300)  # 5分钟
+            await asyncio.sleep(300)  # 5 minutes
             self.state_manager.save()
     
     async def _periodic_dashboard_monitor(self):
         """
-        定期监控 Dashboard 文件变化并广播（每5秒）
-        方案B的核心：通过文件监控实现数据广播
+        Periodically monitor Dashboard file changes and broadcast (every 5 seconds)
+        Core of Solution B: Implement data broadcast through file monitoring
         """
-        logger.info("🔍 Dashboard 文件监控已启动（每5秒检查一次）")
+        logger.info("🔍 Dashboard file monitor started (checks every 5 seconds)")
         
         while True:
             try:
-                await asyncio.sleep(5)  # 每5秒检查一次
+                await asyncio.sleep(5)  # Check every 5 seconds
                 await self._broadcast_dashboard_from_files()
             except Exception as e:
-                logger.error(f"❌ Dashboard 文件监控异常: {e}")
+                logger.error(f"❌ Dashboard file monitor error: {e}")
     
     async def start(self, host: str = "0.0.0.0", port: int = 8765, mock: bool = False):
-        """启动服务器
+        """Start server
         
         Args:
-            host: 监听地址
-            port: 监听端口
-            mock: 是否使用mock模式（用于测试前端）
+            host: Listen address
+            port: Listen port
+            mock: Whether to use mock mode (for testing frontend)
         """
-        # 保存事件循环引用
+        # Save event loop reference
         self.loop = asyncio.get_event_loop()
         
-        # 加载已保存的状态（如果存在）
+        # Load saved state (if exists)
         if not mock:
             self.state_manager.load()
         
-        # 启动WebSocket服务器（禁用自动ping，由客户端管理心跳）
+        # Start WebSocket server (disable auto ping, client manages heartbeat)
         async with websockets.serve(
             self.handle_client, 
             host, 
@@ -780,18 +780,18 @@ class Server:
             ping_interval=None,
             ping_timeout=None
         ):
-            logger.info(f"🌐 WebSocket服务器已启动: ws://{host}:{port}")
+            logger.info(f"🌐 WebSocket server started: ws://{host}:{port}")
             
-            # 启动定期保存任务
+            # Start periodic save task
             saver_task = asyncio.create_task(self._periodic_state_saver())
             
             dashboard_monitor_task = None
             if not mock:
                 dashboard_monitor_task = asyncio.create_task(self._periodic_dashboard_monitor())
             
-            # 选择运行模式
+            # Choose run mode
             if mock:
-                logger.info("🎭 使用Mock模式")
+                logger.info("🎭 Using Mock mode")
                 mock_simulator = MockSimulator(
                     state_manager=self.state_manager,
                     broadcast_callback=self.broadcast,
@@ -799,57 +799,57 @@ class Server:
                 )
                 simulation_task = asyncio.create_task(mock_simulator.run())
             else:
-                logger.info("🚀 使用真实交易模式")
+                logger.info("🚀 Using real trading mode")
                 simulation_task = asyncio.create_task(self.run_continuous_simulation())
             
-            # 保持运行
+            # Keep running
             try:
                 await simulation_task
-                # 模拟完成后保持服务器运行（继续广播实时价格）
-                await asyncio.Future()  # 永久运行
+                # Keep server running after simulation completes (continue broadcasting real-time prices)
+                await asyncio.Future()  # Run forever
             except KeyboardInterrupt:
-                logger.info("收到中断信号，正在关闭...")
+                logger.info("Received interrupt signal, shutting down...")
             finally:
-                # 最终保存一次状态
+                # Final save state once
                 self.state_manager.save()
-                logger.info("✅ 最终状态已保存")
+                logger.info("✅ Final state saved")
                 
-                # 取消定期保存任务
+                # Cancel periodic save task
                 saver_task.cancel()
                 
                 if dashboard_monitor_task:
                     dashboard_monitor_task.cancel()
-                    logger.info("✅ Dashboard 监控任务已取消")
+                    logger.info("✅ Dashboard monitor task cancelled")
                 
                 if self.price_manager:
                     self.price_manager.stop()
 
 
 async def main():
-    """主函数"""
+    """Main function"""
     import argparse
     
-    # 解析命令行参数
-    parser = argparse.ArgumentParser(description='持续运行的交易系统服务器')
-    parser.add_argument('--mock', action='store_true', help='使用Mock模式（测试前端）')
-    parser.add_argument('--host', default='0.0.0.0', help='监听地址 (默认: 0.0.0.0)')
-    parser.add_argument('--port', type=int, default=8765, help='监听端口 (默认: 8765)')
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Continuously running trading system server')
+    parser.add_argument('--mock', action='store_true', help='Use Mock mode (test frontend)')
+    parser.add_argument('--host', default='0.0.0.0', help='Listen address (default: 0.0.0.0)')
+    parser.add_argument('--port', type=int, default=8765, help='Listen port (default: 8765)')
     args = parser.parse_args()
     
-    # 加载配置
+    # Load config
     config = LiveThinkingFundConfig()
     config.config_name = "mock"
     
-    # 打印配置
-    logger.info("📊 服务器配置:")
-    logger.info(f"   配置名称: {config.config_name}")
-    logger.info(f"   运行模式: {'🎭 MOCK' if args.mock else config.mode.upper()}")
-    logger.info(f"   监控股票: {config.tickers}")
+    # Print config
+    logger.info("📊 Server configuration:")
+    logger.info(f"   Config name: {config.config_name}")
+    logger.info(f"   Run mode: {'🎭 MOCK' if args.mock else config.mode.upper()}")
+    logger.info(f"   Monitored stocks: {config.tickers}")
     if config.mode == "portfolio":
-        logger.info(f"   初始现金: ${config.initial_cash:,.2f}")
-        logger.info(f"   保证金要求: {config.margin_requirement * 100:.1f}%")
+        logger.info(f"   Initial cash: ${config.initial_cash:,.2f}")
+        logger.info(f"   Margin requirement: {config.margin_requirement * 100:.1f}%")
     
-    # 创建并启动服务器
+    # Create and start server
     server = Server(config)
     await server.start(host=args.host, port=args.port, mock=args.mock)
 

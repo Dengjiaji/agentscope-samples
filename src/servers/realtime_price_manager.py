@@ -1,7 +1,7 @@
 # src/servers/realtime_price_manager.py
 """
-实时价格数据管理器 - Finnhub REST API 集成
-使用定时轮询获取分钟级 OHLCV 数据，模拟实时价格更新
+Real-time Price Data Manager - Finnhub REST API Integration
+Uses scheduled polling to fetch minute-level OHLCV data, simulates real-time price updates
 """
 import time
 import logging
@@ -13,98 +13,98 @@ logger = logging.getLogger(__name__)
 
 
 class RealtimePriceManager:
-    """实时价格管理器 - 使用 Finnhub REST API 获取分钟级 OHLCV 数据"""
+    """Real-time price manager - Uses Finnhub REST API to fetch minute-level OHLCV data"""
     
     def __init__(self, api_key: str, poll_interval: int = 60):
         """
-        初始化价格管理器
+        Initialize price manager
         
         Args:
             api_key: Finnhub API Key
-            poll_interval: 轮询间隔（秒），默认60秒
+            poll_interval: Polling interval (seconds), default 60 seconds
         """
         self.api_key = api_key
         self.subscribed_symbols: Set[str] = set()
         self.latest_prices: Dict[str, float] = {}
-        self.latest_ohlcv: Dict[str, Dict] = {}  # 存储完整 OHLCV 数据
+        self.latest_ohlcv: Dict[str, Dict] = {}  # Store complete OHLCV data
         self.price_callbacks: list[Callable] = []
         self.running = False
         self.thread = None
         self.poll_interval = poll_interval
         
-        # 初始化 Finnhub client
+        # Initialize Finnhub client
         try:
             import finnhub
             self.finnhub_client = finnhub.Client(api_key=self.api_key)
-            logger.info("✅ Finnhub 客户端初始化成功")
+            logger.info("✅ Finnhub client initialized successfully")
         except ImportError:
-            logger.error("❌ 未安装 finnhub-python，请运行: pip install finnhub-python")
+            logger.error("❌ finnhub-python not installed, please run: pip install finnhub-python")
             raise
         except Exception as e:
-            logger.error(f"❌ Finnhub 客户端初始化失败: {e}")
+            logger.error(f"❌ Finnhub client initialization failed: {e}")
             raise
     
     def subscribe(self, symbols: list[str]):
-        """订阅股票代码"""
+        """Subscribe to stock symbols"""
         for symbol in symbols:
             if symbol not in self.subscribed_symbols:
                 self.subscribed_symbols.add(symbol)
-                logger.info(f"✅ 订阅价格更新: {symbol}")
+                logger.info(f"✅ Subscribed to price updates: {symbol}")
                 
-                # 如果已经在运行，立即获取一次价格
+                # If already running, immediately fetch price once
                 if self.running:
                     self._fetch_price_for_symbol(symbol)
     
     def unsubscribe(self, symbols: list[str]):
-        """取消订阅股票代码"""
+        """Unsubscribe from stock symbols"""
         for symbol in symbols:
             if symbol in self.subscribed_symbols:
                 self.subscribed_symbols.remove(symbol)
-                logger.info(f"🔕 取消订阅: {symbol}")
+                logger.info(f"🔕 Unsubscribed: {symbol}")
                 
-                # 清理数据
+                # Clean up data
                 self.latest_prices.pop(symbol, None)
                 self.latest_ohlcv.pop(symbol, None)
     
     def add_price_callback(self, callback: Callable):
-        """添加价格更新回调函数"""
+        """Add price update callback function"""
         self.price_callbacks.append(callback)
-        logger.debug(f"添加价格回调，当前共 {len(self.price_callbacks)} 个回调")
+        logger.debug(f"Added price callback, total {len(self.price_callbacks)} callbacks")
     
     def _fetch_price_for_symbol(self, symbol: str):
-        """获取单个股票的最新价格"""
+        """Fetch latest price for a single stock"""
         try:
-            # 获取当前时间和前10分钟的时间范围（确保有数据）
+            # Get current time and 10 minutes ago time range (ensure data availability)
             end_time = datetime.now()
             start_time = end_time - timedelta(minutes=10)
             
             start_timestamp = int(start_time.timestamp())
             end_timestamp = int(end_time.timestamp())
             
-            # 调用 Finnhub API 获取分钟级 OHLCV 数据
+            # Call Finnhub API to get minute-level OHLCV data
             data = self.finnhub_client.stock_candles(
                 symbol, 
-                '1',  # 1分钟 K线
+                '1',  # 1-minute candlestick
                 start_timestamp, 
                 end_timestamp
             )
             
-            # 检查返回数据
+            # Check returned data
             if data and data.get('s') == 'ok':
-                # 确保有数据
+                # Ensure data exists
                 if data.get('c') and len(data['c']) > 0:
-                    # 获取最新的一根 K线
-                    latest_price = data['c'][-1]  # 最新收盘价
+                    # Get latest candlestick
+                    latest_price = data['c'][-1]  # Latest close price
                     latest_open = data['o'][-1]
                     latest_high = data['h'][-1]
                     latest_low = data['l'][-1]
                     latest_volume = data['v'][-1] if data.get('v') else 0
-                    latest_timestamp = data['t'][-1] * 1000  # 转为毫秒
+                    latest_timestamp = data['t'][-1] * 1000  # Convert to milliseconds
                     
-                    # 更新价格缓存
+                    # Update price cache
                     self.latest_prices[symbol] = latest_price
                     
-                    # 存储完整 OHLCV
+                    # Store complete OHLCV
                     self.latest_ohlcv[symbol] = {
                         'open': latest_open,
                         'high': latest_high,
@@ -114,7 +114,7 @@ class RealtimePriceManager:
                         'timestamp': latest_timestamp
                     }
                     
-                    # 触发所有回调
+                    # Trigger all callbacks
                     for callback in self.price_callbacks:
                         try:
                             callback({
@@ -125,113 +125,113 @@ class RealtimePriceManager:
                                 "ohlcv": self.latest_ohlcv[symbol]
                             })
                         except Exception as e:
-                            logger.error(f"价格回调错误 ({symbol}): {e}")
+                            logger.error(f"Price callback error ({symbol}): {e}")
                     
                     logger.info(f"💹 {symbol}: ${latest_price:.2f} (Vol: {latest_volume:,.0f})")
                     return True
                 else:
-                    logger.warning(f"⚠️ {symbol}: API 返回空数据")
+                    logger.warning(f"⚠️ {symbol}: API returned empty data")
                     return False
             elif data and data.get('s') == 'no_data':
-                logger.warning(f"⚠️ {symbol}: 无可用数据（可能市场关闭或股票代码无效）")
+                logger.warning(f"⚠️ {symbol}: No available data (market may be closed or symbol invalid)")
                 return False
             else:
-                logger.warning(f"⚠️ {symbol}: API 返回异常状态: {data.get('s') if data else 'None'}")
+                logger.warning(f"⚠️ {symbol}: API returned abnormal status: {data.get('s') if data else 'None'}")
                 return False
                 
         except Exception as e:
-            logger.error(f"❌ 获取 {symbol} 价格失败: {e}")
+            logger.error(f"❌ Failed to fetch {symbol} price: {e}")
             return False
     
     def _fetch_latest_prices(self):
-        """获取所有订阅股票的最新价格"""
+        """Fetch latest prices for all subscribed stocks"""
         if not self.subscribed_symbols:
-            logger.debug("没有订阅的股票，跳过价格获取")
+            logger.debug("No subscribed stocks, skipping price fetch")
             return
         
-        logger.info(f"📊 开始获取 {len(self.subscribed_symbols)} 只股票的价格...")
+        logger.info(f"📊 Starting to fetch prices for {len(self.subscribed_symbols)} stocks...")
         
         success_count = 0
         for symbol in list(self.subscribed_symbols):
             if self._fetch_price_for_symbol(symbol):
                 success_count += 1
             
-            # 避免 API 限流，每个请求之间稍微延迟
+            # Avoid API rate limiting, slight delay between requests
             time.sleep(0.1)
         
-        logger.info(f"✅ 价格更新完成: {success_count}/{len(self.subscribed_symbols)} 成功")
+        logger.info(f"✅ Price update completed: {success_count}/{len(self.subscribed_symbols)} successful")
     
     def start(self):
-        """启动价格轮询（在独立线程中）"""
+        """Start price polling (in separate thread)"""
         if self.running:
-            logger.warning("实时价格管理器已在运行")
+            logger.warning("Real-time price manager already running")
             return
         
         if not self.subscribed_symbols:
-            logger.warning("⚠️ 没有订阅任何股票，价格管理器将不会获取数据")
+            logger.warning("⚠️ No stocks subscribed, price manager will not fetch data")
         
         self.running = True
         
         def poll_prices():
-            logger.info(f"🚀 价格轮询线程启动（间隔: {self.poll_interval}秒）")
+            logger.info(f"🚀 Price polling thread started (interval: {self.poll_interval}s)")
             
-            # 立即获取一次价格
+            # Immediately fetch prices once
             try:
                 self._fetch_latest_prices()
             except Exception as e:
-                logger.error(f"初始价格获取失败: {e}")
+                logger.error(f"Initial price fetch failed: {e}")
             
-            # 定时轮询
+            # Scheduled polling
             while self.running:
                 try:
                     time.sleep(self.poll_interval)
                     
-                    if self.running:  # 再次检查，避免在 sleep 期间被停止
+                    if self.running:  # Check again, avoid being stopped during sleep
                         self._fetch_latest_prices()
                         
                 except Exception as e:
-                    logger.error(f"价格轮询错误: {e}")
+                    logger.error(f"Price polling error: {e}")
                     if self.running:
-                        time.sleep(5)  # 错误后短暂等待再重试
+                        time.sleep(5)  # Brief wait after error before retry
         
         self.thread = threading.Thread(target=poll_prices, daemon=True)
         self.thread.start()
-        logger.info("🚀 实时价格管理器已启动（OHLCV 轮询模式）")
+        logger.info("🚀 Real-time price manager started (OHLCV polling mode)")
     
     def stop(self):
-        """停止价格轮询"""
+        """Stop price polling"""
         if not self.running:
-            logger.warning("实时价格管理器未在运行")
+            logger.warning("Real-time price manager not running")
             return
         
-        logger.info("🛑 正在停止实时价格管理器...")
+        logger.info("🛑 Stopping real-time price manager...")
         self.running = False
         
-        # 等待线程结束（最多等待 2 秒）
+        # Wait for thread to end (max 2 seconds)
         if self.thread and self.thread.is_alive():
             self.thread.join(timeout=2)
         
-        logger.info("🛑 实时价格管理器已停止")
+        logger.info("🛑 Real-time price manager stopped")
     
     def get_latest_price(self, symbol: str) -> Optional[float]:
-        """获取最新价格"""
+        """Get latest price"""
         return self.latest_prices.get(symbol)
     
     def get_all_latest_prices(self) -> Dict[str, float]:
-        """获取所有最新价格"""
+        """Get all latest prices"""
         return self.latest_prices.copy()
     
     def get_ohlcv(self, symbol: str) -> Optional[Dict]:
-        """获取完整的 OHLCV 数据"""
+        """Get complete OHLCV data"""
         return self.latest_ohlcv.get(symbol)
     
     def get_all_ohlcv(self) -> Dict[str, Dict]:
-        """获取所有股票的 OHLCV 数据"""
+        """Get OHLCV data for all stocks"""
         return self.latest_ohlcv.copy()
 
 
 class RealtimePortfolioCalculator:
-    """实时Portfolio净值计算器"""
+    """Real-time Portfolio net value calculator"""
     
     def __init__(self, price_manager: RealtimePriceManager):
         self.price_manager = price_manager
@@ -240,7 +240,7 @@ class RealtimePortfolioCalculator:
         self.initial_value: float = 0.0
         
     def update_holdings(self, holdings: Dict[str, Dict], cash: float):
-        """更新持仓信息"""
+        """Update holdings information"""
         self.holdings = holdings.copy()
         self.cash = cash
         
@@ -248,7 +248,7 @@ class RealtimePortfolioCalculator:
             self.initial_value = self.calculate_total_value()
     
     def calculate_total_value(self) -> float:
-        """计算Portfolio总价值"""
+        """Calculate Portfolio total value"""
         positions_value = 0.0
         
         for symbol, holding in self.holdings.items():
@@ -257,7 +257,7 @@ class RealtimePortfolioCalculator:
                 quantity = holding.get('quantity', 0)
                 positions_value += latest_price * quantity
             else:
-                # 如果没有实时价格，使用平均成本
+                # If no real-time price, use average cost
                 avg_cost = holding.get('avg_cost', 0)
                 quantity = holding.get('quantity', 0)
                 positions_value += avg_cost * quantity
@@ -265,7 +265,7 @@ class RealtimePortfolioCalculator:
         return positions_value + self.cash
     
     def calculate_pnl(self) -> Dict[str, float]:
-        """计算盈亏"""
+        """Calculate profit and loss"""
         current_value = self.calculate_total_value()
         pnl_dollar = current_value - self.initial_value
         pnl_percent = (pnl_dollar / self.initial_value * 100) if self.initial_value > 0 else 0.0
@@ -279,7 +279,7 @@ class RealtimePortfolioCalculator:
         }
     
     def get_position_details(self) -> list[Dict]:
-        """获取各持仓详情"""
+        """Get details for each position"""
         positions = []
         
         for symbol, holding in self.holdings.items():
