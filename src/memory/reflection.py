@@ -119,12 +119,13 @@ class MemoryReflectionSystem:
         try:
             pm_signals = reflection_data.get('pm_signals', {})
             actual_returns = reflection_data.get('actual_returns', {})
+            real_returns = reflection_data.get('real_returns', {})
             analyst_signals = reflection_data.get('analyst_signals', {})
             tickers = reflection_data.get('tickers', [])
             
             # Generate prompt
             prompt = self._build_central_review_prompt(date, tickers, pm_signals, 
-                                                       analyst_signals, actual_returns)
+                                                       analyst_signals, actual_returns, real_returns)
             
             logger.info(f"🤖 Central Review mode ({date})")
             
@@ -368,12 +369,12 @@ Decision Outcome: {outcome_label}"""
     
     def _build_central_review_prompt(self, date: str, tickers: List[str],
                                     pm_signals: Dict, analyst_signals: Dict, 
-                                    actual_returns: Dict) -> str:
+                                    actual_returns: Dict, real_returns: Dict) -> str:
         """Build Central Review prompt"""
         pm_signals_section = "\n".join([
             f"{ticker}: PM decision {pm_signals.get(ticker, {}).get('signal', 'N/A')} "
             f"(confidence: {pm_signals.get(ticker, {}).get('confidence', 'N/A')}%), "
-            f"actual return: {actual_returns.get(ticker, 0):.2%}"
+            f"signal daily return: {actual_returns.get(ticker, 0):.2%}, stock real daily return: {real_returns.get(ticker, 0):.2%}"
             for ticker in tickers
         ])
         
@@ -382,7 +383,7 @@ Decision Outcome: {outcome_label}"""
             analyst_signals_section += f"\n\n**{analyst}:**"
             for ticker in tickers:
                 if ticker in signals:
-                    analyst_signals_section += f"\n  {ticker}: {signals[ticker]}, actual {actual_returns.get(ticker, 0):.2%}"
+                    analyst_signals_section += f"\n  {ticker}: {signals[ticker]}, signal daily return: {actual_returns.get(ticker, 0):.2%}, stock real daily return: {real_returns.get(ticker, 0):.2%}"
         
         return self.prompt_loader.load_prompt(
             "memory",
@@ -399,6 +400,7 @@ Decision Outcome: {outcome_label}"""
         """Build analyst reflection prompt"""
         my_signals = agent_data.get('my_signals', {})
         actual_returns = agent_data.get('actual_returns', {})
+        real_returns = agent_data.get('real_returns', {})
         pm_decisions = agent_data.get('pm_decisions', {})
         
         signals_data = ""
@@ -419,7 +421,7 @@ Decision Outcome: {outcome_label}"""
 {ticker}: {status_emoji}
   - Your signal: {signal} (confidence: {confidence}%)
   - Your reasoning: {reasoning[:200] if reasoning else 'N/A'}
-  - Actual return: {actual_return:.2%}
+  - Signal daily return: {actual_return:.2%}, stock real daily return: {real_returns.get(ticker, 0):.2%}
   - PM decision: {pm_decisions.get(ticker, {}).get('action', 'N/A')}
 """
         
@@ -441,6 +443,7 @@ Decision Outcome: {outcome_label}"""
         pm_decisions = agent_data.get('my_decisions', {})
         analyst_signals = agent_data.get('analyst_signals', {})
         actual_returns = agent_data.get('actual_returns', {})
+        real_returns = agent_data.get('real_returns', {})
         portfolio_summary = agent_data.get('portfolio_summary', {})
         
         # Build portfolio data
@@ -478,7 +481,7 @@ Decision Outcome: {outcome_label}"""
   - Quantity: {quantity} shares
   - Confidence: {confidence}%
   - Decision reasoning: {reasoning[:200] if reasoning else 'N/A'}
-  - Actual return: {actual_return:.2%}
+  - Signal daily return: {actual_return:.2%}, stock real daily return: {real_returns.get(ticker, 0):.2%}
 """
             
             # Add analyst opinion comparison
@@ -488,9 +491,11 @@ Decision Outcome: {outcome_label}"""
                     analyst_signal = signals[ticker]
                     if isinstance(analyst_signal, dict):
                         signal = analyst_signal.get('signal', 'N/A')
-                        decisions_data += f"    * {analyst_id}: {signal}\n"
+                        actual_return = analyst_signal.get('actual_return', 0)
+                        decisions_data += f"    * {analyst_id}: {signal}, signal daily return: {actual_return:.2%}, stock real daily return: {real_returns.get(ticker, 0):.2%}\n"
                     else:
-                        decisions_data += f"    * {analyst_id}: {analyst_signal}\n"
+                        actual_return = analyst_signal.get('actual_return', 0)
+                        decisions_data += f"    * {analyst_id}: {analyst_signal}, signal daily return: {actual_return:.2%}, stock real daily return: {real_returns.get(ticker, 0):.2%}\n"
         
         return self.prompt_loader.load_prompt(
             "reflection",

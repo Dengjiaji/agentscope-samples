@@ -552,8 +552,80 @@ class LiveTradingServer:
         
         return updated
     
+    async def _broadcast_all_dashboard_files(self):
+        """Broadcast all Dashboard files (regardless of update)"""
+        # 使用virtual time（mock模式下）或真实时间
+        current_time = self._get_current_time_for_data()
+        timestamp = current_time.isoformat()
+        
+        for file_type in self.dashboard_files.keys():
+            data = self._load_dashboard_file(file_type)
+            if data is None:
+                continue
+            
+            await self._broadcast_dashboard_data(file_type, data, timestamp)
+    
+    async def _broadcast_dashboard_data(self, file_type: str, data: Any, timestamp: str):
+        """Broadcast single Dashboard data type"""
+        if file_type == 'summary':
+            await self.broadcast({
+                'type': 'team_summary',
+                'balance': data.get('balance'),
+                'pnlPct': data.get('pnlPct'),
+                'equity': data.get('equity', []),
+                'baseline': data.get('baseline', []),
+                'baseline_vw': data.get('baseline_vw', []),
+                'momentum': data.get('momentum', []),
+                'timestamp': timestamp
+            })
+            logger.info(f"✅ Broadcast team_summary (from file)")
+            
+        elif file_type == 'holdings':
+            # Ensure holdings is an array
+            if isinstance(data, list):
+                self.state_manager.update('holdings', data)
+                await self.broadcast({
+                    'type': 'team_holdings',
+                    'data': data,
+                    'timestamp': timestamp
+                })
+                logger.info(f"✅ Broadcast team_holdings: {len(data)} holdings (from file)")
+            
+        elif file_type == 'stats':
+            if isinstance(data, dict):
+                self.state_manager.update('stats', data)
+                await self.broadcast({
+                    'type': 'team_stats',
+                    'data': data,
+                    'timestamp': timestamp
+                })
+                logger.info(f"✅ Broadcast team_stats (from file)")
+            
+        elif file_type == 'trades':
+            # Ensure trades is an array
+            if isinstance(data, list):
+                self.state_manager.update('trades', data)
+                await self.broadcast({
+                    'type': 'team_trades',
+                    'mode': 'full',
+                    'data': data,
+                    'timestamp': timestamp
+                })
+                logger.info(f"✅ Broadcast team_trades: {len(data)} trades (from file)")
+            
+        elif file_type == 'leaderboard':
+            # Ensure leaderboard is an array
+            if isinstance(data, list):
+                self.state_manager.update('leaderboard', data)
+                await self.broadcast({
+                    'type': 'team_leaderboard',
+                    'data': data,
+                    'timestamp': timestamp
+                })
+                logger.info(f"✅ Broadcast team_leaderboard: {len(data)} agents (from file)")
+    
     async def _broadcast_dashboard_from_files(self):
-        """Read Dashboard data from files and broadcast"""
+        """Read Dashboard data from files and broadcast (only broadcast updated files)"""
         updated_files = self._check_dashboard_files_updated()
         # Use virtual time (in mock mode) or real time
         current_time = self._get_current_time_for_data()
@@ -567,55 +639,8 @@ class LiveTradingServer:
             if data is None:
                 continue
             
-            if file_type == 'summary':
-                await self.broadcast({
-                    'type': 'team_summary',
-                    'balance': data.get('balance'),
-                    'pnlPct': data.get('pnlPct'),
-                    'equity': data.get('equity', []),
-                    'baseline': data.get('baseline', []),
-                    'baseline_vw': data.get('baseline_vw', []),
-                    'momentum': data.get('momentum', []),
-                    'timestamp': timestamp
-                })
-                logger.info(f"✅ Broadcast team_summary (from file)")
-                
-            elif file_type == 'holdings':
-                self.state_manager.update('holdings', data)
-                await self.broadcast({
-                    'type': 'team_holdings',
-                    'data': data,
-                    'timestamp': timestamp
-                })
-                logger.info(f"✅ Broadcast team_holdings: {len(data)} holdings (from file)")
-                
-            elif file_type == 'stats':
-                self.state_manager.update('stats', data)
-                await self.broadcast({
-                    'type': 'team_stats',
-                    'data': data,
-                    'timestamp': timestamp
-                })
-                logger.info(f"✅ Broadcast team_stats (from file)")
-                
-            elif file_type == 'trades':
-                self.state_manager.update('trades', data)
-                await self.broadcast({
-                    'type': 'team_trades',
-                    'mode': 'full',
-                    'data': data,
-                    'timestamp': timestamp
-                })
-                logger.info(f"✅ Broadcast team_trades: {len(data)} trades (from file)")
-                
-            elif file_type == 'leaderboard':
-                self.state_manager.update('leaderboard', data)
-                await self.broadcast({
-                    'type': 'team_leaderboard',
-                    'data': data,
-                    'timestamp': timestamp
-                })
-                logger.info(f"✅ Broadcast team_leaderboard: {len(data)} Agents (from file)")
+            await self._broadcast_dashboard_data(file_type, data, timestamp)
+            
     
     def _is_trading_day(self, date_str: str = None) -> bool:
         """
@@ -861,17 +886,33 @@ class LiveTradingServer:
                         'baseline_vw': summary_data.get('baseline_vw', []),
                         'momentum': summary_data.get('momentum', [])
                     })
-                
-                if holdings_data:
+                # Ensure data is a valid array or dictionary
+                if holdings_data and isinstance(holdings_data, list):
                     initial_state['holdings'] = holdings_data
-                if stats_data:
+                elif not holdings_data:
+                    initial_state['holdings'] = []
+                    
+                if stats_data and isinstance(stats_data, dict):
                     initial_state['stats'] = stats_data
-                if trades_data:
+                elif not stats_data:
+                    initial_state['stats'] = {}
+                    
+                if trades_data and isinstance(trades_data, list):
                     initial_state['trades'] = trades_data
-                if leaderboard_data:
+                elif not trades_data:
+                    initial_state['trades'] = []
+                    
+                if leaderboard_data and isinstance(leaderboard_data, list):
                     initial_state['leaderboard'] = leaderboard_data
+                elif not leaderboard_data:
+                    initial_state['leaderboard'] = []
                 
                 logger.info(f"✅ Successfully loaded Dashboard data from files")
+                
+                # Broadcast all Dashboard data immediately after connection (ensure frontend receives)
+                # Use small delay to ensure initial_state message is sent first
+                await asyncio.sleep(0.1)
+                await self._broadcast_all_dashboard_files()
             except Exception as e:
                 logger.error(f"⚠️ Failed to load Dashboard data from files: {e}")
             
@@ -879,6 +920,7 @@ class LiveTradingServer:
             initial_state['server_mode'] = 'live'
             initial_state['is_mock_mode'] = self.mock_mode
             initial_state['market_status'] = self._get_market_status()
+            
             
             # Send full state
             await websocket.send(json.dumps({
@@ -1360,6 +1402,7 @@ class LiveTradingServer:
             'is_mock_mode': self.mock_mode
         })
         
+        
         # Broadcast market status update separately
         await self.broadcast({
             'type': 'market_status_update',
@@ -1406,6 +1449,7 @@ class LiveTradingServer:
             'market_status': market_status,
             'is_mock_mode': self.mock_mode
         })
+        
         
         # Broadcast market status update separately
         await self.broadcast({
@@ -1489,6 +1533,11 @@ class LiveTradingServer:
     async def _periodic_dashboard_monitor(self):
         """Periodically monitor Dashboard file changes and broadcast (every 5 seconds)"""
         logger.info("🔍 Dashboard file monitor started (checks every 5 seconds)")
+        # Broadcast all Dashboard files immediately on startup (ensure frontend receives initial data)
+        try:
+            await self._broadcast_all_dashboard_files()
+        except Exception as e:
+            logger.error(f"❌ Failed to broadcast Dashboard data on startup: {e}")
         
         while True:
             try:

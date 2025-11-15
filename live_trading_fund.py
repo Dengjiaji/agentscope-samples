@@ -177,8 +177,10 @@ class LiveTradingFund:
         live_env = {
             'pm_signals': {},
             'ana_signals': defaultdict(lambda: defaultdict(str)),  # Automatically create nested dict, default value is empty string
-            'real_returns': defaultdict(float)  # Auto-create, default value is 0.0
+            'real_returns': defaultdict(float) , # Auto-create, default value is 0.0
+            'daily_returns': defaultdict(float)
         }
+
 
         # Extract PM signals
         pm_results = result.get('portfolio_management_results', {})
@@ -222,12 +224,14 @@ class LiveTradingFund:
                     daily_return, real_return, close_price = self.strategy._calculate_stock_daily_return_from_signal(
                         ticker, date, action
                     )
-                    live_env['real_returns'][ticker] = daily_return
+                    live_env['real_returns'][ticker] = real_return
+                    live_env['daily_returns'][ticker] = daily_return
         else:
             # Live mode: Set real_returns to None (unknown)
             for ticker in tickers:
                 if ticker in final_decisions:
                     live_env['real_returns'][ticker] = None
+                    live_env['daily_returns'][ticker] = None
 
         print("[system]", f"{date} Sandbox analysis completed")
 
@@ -255,16 +259,18 @@ class LiveTradingFund:
                         )
                 else:
                     # Backtest mode: Display daily return
-                    daily_ret = live_env['real_returns'].get(ticker, 0) * 100
+                    daily_ret = live_env['daily_returns'].get(ticker, 0) * 100
+                    real_ret = live_env['real_returns'].get(ticker, 0) * 100
+
                     if self.mode == "signal":
                         self.streamer.print("agent", 
-                            f"{ticker}: Final signal {signal}(confidence {confidence}%, daily return {daily_ret:.2f}%) \n{reasoning}",
+                            f"{ticker}: Final signal {signal}(confidence {confidence}%, signal daily return {daily_ret:.2f}%, stock real daily return {real_ret:.2f}%) \n{reasoning}",
                             role_key='portfolio_manager'
                         )
                     elif self.mode == "portfolio":
                         quantity = signal_info.get('quantity', 0)
                         self.streamer.print("agent", 
-                            f"{ticker}: Final signal {action}({quantity} shares, confidence {confidence}%, stock daily return {daily_ret:.2f}%) \n{reasoning}",
+                            f"{ticker}: Final signal {action}({quantity} shares, confidence {confidence}%, stock daily return {daily_ret:.2f}%, stock real daily return {real_ret:.2f}%) \n{reasoning}",
                             role_key='portfolio_manager'
                         )
 
@@ -336,6 +342,7 @@ class LiveTradingFund:
         pm_signals = live_env['pm_signals']
         ana_signals = live_env['ana_signals']
         real_returns = live_env['real_returns']
+        daily_returns = live_env['daily_returns']
 
         # 1. Portfolio Manager signal review (display different info based on mode)
         pm_review_lines = ["Reviewing based on pre-market analysis...", "Portfolio Manager signal review:"]
@@ -387,18 +394,19 @@ class LiveTradingFund:
             # Portfolio mode: Display value changes
             for ticker in tickers:
                 if ticker in real_returns:
-                    daily_ret = real_returns[ticker] * 100
+                    daily_ret = daily_returns[ticker] * 100
+                    real_ret = real_returns[ticker] * 100
                     signal_info = pm_signals.get(ticker, {})
                     action = signal_info.get('action', 'N/A')
                     quantity = signal_info.get('quantity', 0)
                     
                     # Calculate value change (simplified calculation, should actually be based on positions)
                     if quantity > 0 and action in ['long', 'short']:
-                        returns_lines.append(f"  {ticker}: {daily_ret:.2f}% (operation: {action} {quantity} shares)")
+                        returns_lines.append(f"  {ticker}: signal daily return {daily_ret:.2f}%, stock real daily return {real_ret:.2f}% (operation: {action} {quantity} shares)")
                     elif quantity == 0 and action in ['hold']:
-                        returns_lines.append(f"  {ticker}: {daily_ret:.2f}% (operation: {action})")
+                        returns_lines.append(f"  {ticker}: signal daily return {daily_ret:.2f}%, stock real daily return {real_ret:.2f}% (operation: {action})")
                     else:
-                        returns_lines.append(f"  {ticker}: {daily_ret:.2f}% (signal: {signal_info.get('signal', 'N/A')})")
+                        returns_lines.append(f"  {ticker}: signal daily return {daily_ret:.2f}%, stock real daily return {real_ret:.2f}% (signal: {signal_info.get('signal', 'N/A')})")
                 else:
                     returns_lines.append(f"  {ticker}: No return data")
             
@@ -413,7 +421,8 @@ class LiveTradingFund:
             for ticker in tickers:
                 if ticker in real_returns:
                     daily_ret = real_returns[ticker] * 100
-                    returns_lines.append(f"  {ticker}: {daily_ret:.2f}% (signal: {pm_signals.get(ticker, {}).get('signal', 'N/A')})")
+                    real_ret = real_returns[ticker] * 100
+                    returns_lines.append(f"  {ticker}: signal daily return {daily_ret:.2f}%, stock real daily return {real_ret:.2f}% (signal: {pm_signals.get(ticker, {}).get('signal', 'N/A')})")
                 else:
                     returns_lines.append(f"  {ticker}: No return data")
 
@@ -432,13 +441,12 @@ class LiveTradingFund:
 
         # Get review mode
         review_mode = os.getenv('MEMORY_REVIEW_MODE', 'individual_review').lower()
-        
         if review_mode == 'individual_review':
             # New mode: Individual Review
-            return self._run_individual_review_mode(date, tickers, pm_signals, ana_signals, real_returns, live_env)
+            return self._run_individual_review_mode(date, tickers, pm_signals, ana_signals, daily_returns, real_returns, live_env)
         else:
             # Old mode: Central Review
-            return self._run_central_review_mode(date, tickers, pm_signals, ana_signals, real_returns)
+            return self._run_central_review_mode(date, tickers, pm_signals, ana_signals, daily_returns, real_returns)
     
     def _perform_memory_review(
         self,
@@ -496,10 +504,10 @@ class LiveTradingFund:
         review_mode = os.getenv('MEMORY_REVIEW_MODE', 'individual_review').lower()
         
         if review_mode == 'individual_review':
-            result = self._run_individual_review_mode(date, tickers, pm_signals, ana_signals, real_returns, live_env)
+            result = self._run_individual_review_mode(date, tickers, pm_signals, ana_signals, daily_returns, real_returns, live_env)
         else:
-            result = self._run_central_review_mode(date, tickers, pm_signals, ana_signals, real_returns)
-        
+            result = self._run_central_review_mode(date, tickers, pm_signals, ana_signals, daily_returns, real_returns)
+       
         self.streamer.print("system", f"✅ Memory review completed for {date}")
         return result
     
@@ -509,6 +517,7 @@ class LiveTradingFund:
         tickers: List[str],
         pm_signals: Dict,
         ana_signals: Dict,
+        daily_returns: Dict,
         real_returns: Dict
     ) -> Dict[str, Any]:
         """Central Review mode: Unified LLM manages memory"""
@@ -518,7 +527,8 @@ class LiveTradingFund:
             if self.memory_reflection:
                 reflection_data = {
                     'pm_signals': pm_signals,
-                    'actual_returns': real_returns,
+                    'actual_returns': daily_returns,
+                    'real_returns': real_returns,
                     'analyst_signals': ana_signals,
                     'tickers': tickers
                 }
@@ -636,7 +646,8 @@ class LiveTradingFund:
             'type': 'full_review',
             'pre_market_signals': pm_signals,
             'analyst_signals': ana_signals,
-            'actual_returns': real_returns,
+            'actual_returns': daily_returns,
+            'real_returns': real_returns,
             'llm_memory_decision': llm_decision if 'llm_decision' in locals() else None,
             'memory_tool_calls_results': execution_results,
             'timestamp': datetime.now().isoformat()
@@ -648,6 +659,7 @@ class LiveTradingFund:
         tickers: List[str],
         pm_signals: Dict,
         ana_signals: Dict,
+        daily_returns: Dict,
         real_returns: Dict,
         live_env: Dict[str, Any]
     ) -> Dict[str, Any]:
@@ -691,10 +703,12 @@ class LiveTradingFund:
                             'reasoning': reasoning_text
                         }
                 
+                
                 agents_data[analyst_id] = {
                     'agent_id': analyst_id,
                     'my_signals': my_signals,
-                    'actual_returns': real_returns,
+                    'actual_returns': daily_returns,
+                    'real_returns': real_returns,
                     'pm_decisions': pm_signals
                 }
             
@@ -703,7 +717,8 @@ class LiveTradingFund:
                 'agent_id': 'portfolio_manager',
                 'my_decisions': pm_signals,
                 'analyst_signals': ana_signals,
-                'actual_returns': real_returns,
+                'actual_returns': daily_returns,
+                'real_returns': real_returns,
                 'portfolio_summary': portfolio_summary
             }
             
@@ -1210,15 +1225,6 @@ class LiveTradingFund:
         if self.mode == "portfolio":
             results['portfolio_state'] = self.strategy.portfolio_state
 
-        # Update team dashboard data
-        # dashboard_update_stats = self.dashboard_generator.update_from_day_result(
-        #     date=date,
-        #     pre_market_result={'live_env': live_env, 'raw_results': result},
-        #     mode=self.mode
-        # )
-        # self.streamer.print("system", 
-        #     f"Team dashboard updated: {dashboard_update_stats.get('trades_added', 0)} trades added, "
-        #     f"{dashboard_update_stats.get('agents_updated', 0)} agents updated")
 
         self._print_day_summary(results['summary'])
 

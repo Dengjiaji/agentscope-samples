@@ -630,98 +630,90 @@ class Server:
                 'progress': idx / len(trading_days)
             })
             
-            try:
-                # Run in separate thread (avoid blocking)
-                result = await asyncio.to_thread(
-                    self.thinking_fund.run_full_day_simulation,
-                    date=date,
-                    tickers=self.config.tickers,
-                    max_comm_cycles=self.config.max_comm_cycles,
-                    force_run=False,
-                    enable_communications=not self.config.disable_communications,
-                    enable_notifications=not self.config.disable_notifications
-                )
+            # Run in separate thread (avoid blocking)
+            result = await asyncio.to_thread(
+                self.thinking_fund.run_full_day_simulation,
+                date=date,
+                tickers=self.config.tickers,
+                max_comm_cycles=self.config.max_comm_cycles,
+                force_run=False,
+                enable_communications=not self.config.disable_communications,
+                enable_notifications=not self.config.disable_notifications
+            )
+            
+            # Ensure result is dict type
+            if not isinstance(result, dict):
+                logger.warning(f"⚠️ Unexpected result type: {type(result)}, value: {result}")
+                result = {}
+            
+            # Update current state and extract portfolio_summary
+            portfolio_summary = None
+            if result.get('pre_market'):
+                signals = result['pre_market']['live_env'].get('pm_signals', {})
+                self.state_manager.update('latest_signals', signals)
                 
-                # Ensure result is dict type
-                if not isinstance(result, dict):
-                    logger.warning(f"⚠️ Unexpected result type: {type(result)}, value: {result}")
-                    result = {}
-                
-                # Update current state and extract portfolio_summary
-                portfolio_summary = None
-                if result.get('pre_market'):
-                    signals = result['pre_market']['live_env'].get('pm_signals', {})
-                    self.state_manager.update('latest_signals', signals)
+                # Update Portfolio positions (if portfolio mode) ⭐ Bug fix
+                if self.config.mode == "portfolio":
+                    live_env = result['pre_market'].get('live_env', {})
+                    portfolio_summary = live_env.get('portfolio_summary', {})
+                    updated_portfolio = live_env.get('updated_portfolio', {})
                     
-                    # Update Portfolio positions (if portfolio mode) ⭐ Bug fix
-                    if self.config.mode == "portfolio":
-                        live_env = result['pre_market'].get('live_env', {})
-                        portfolio_summary = live_env.get('portfolio_summary', {})
-                        updated_portfolio = live_env.get('updated_portfolio', {})
+                    if portfolio_summary and updated_portfolio:
+                        # Note: Normal mode (backtest mode) doesn't need portfolio_calculator
+                        # Portfolio data is updated by backtest system (TeamDashboardGenerator) and written to Dashboard files
+                        # Here only update in-memory state for frontend display, don't do real-time calculation
                         
-                        if portfolio_summary and updated_portfolio:
-                            # Note: Normal mode (backtest mode) doesn't need portfolio_calculator
-                            # Portfolio data is updated by backtest system (TeamDashboardGenerator) and written to Dashboard files
-                            # Here only update in-memory state for frontend display, don't do real-time calculation
-                            
-                            # Update portfolio state (read from backtest results)
-                            portfolio = self.state_manager.get('portfolio', {})
-                            portfolio.update({
-                                'total_value': portfolio_summary.get('total_value'),
-                                'cash': portfolio_summary.get('cash'),
-                                'pnl_percent': portfolio_summary.get('pnl_percent', 0)
-                            })
-                            self.state_manager.update('portfolio', portfolio)
-                            
-                            # Update holdings (convert to frontend format) ⭐ Bug fix
-                            realtime_prices = self.state_manager.get('realtime_prices', {})
-                            holdings_list = []
-                            positions = updated_portfolio.get('positions', {})
-                            for symbol, position_data in positions.items():
-                                if isinstance(position_data, dict):
-                                    long_qty = position_data.get('long', 0)
-                                    short_qty = position_data.get('short', 0)
-                                    net_qty = long_qty - short_qty
+                        # Update portfolio state (read from backtest results)
+                        portfolio = self.state_manager.get('portfolio', {})
+                        portfolio.update({
+                            'total_value': portfolio_summary.get('total_value'),
+                            'cash': portfolio_summary.get('cash'),
+                            'pnl_percent': portfolio_summary.get('pnl_percent', 0)
+                        })
+                        self.state_manager.update('portfolio', portfolio)
+                        
+                        # Update holdings (convert to frontend format) ⭐ Bug fix
+                        realtime_prices = self.state_manager.get('realtime_prices', {})
+                        holdings_list = []
+                        positions = updated_portfolio.get('positions', {})
+                        for symbol, position_data in positions.items():
+                            if isinstance(position_data, dict):
+                                long_qty = position_data.get('long', 0)
+                                short_qty = position_data.get('short', 0)
+                                net_qty = long_qty - short_qty
+                                
+                                if net_qty != 0:  # Only show stocks with positions
+                                    long_cost = position_data.get('long_cost_basis', 0)
+                                    short_cost = position_data.get('short_cost_basis', 0)
+                                    avg_price = long_cost if net_qty > 0 else short_cost
+                                    current_price = realtime_prices.get(symbol, {}).get('price', avg_price)
                                     
-                                    if net_qty != 0:  # Only show stocks with positions
-                                        long_cost = position_data.get('long_cost_basis', 0)
-                                        short_cost = position_data.get('short_cost_basis', 0)
-                                        avg_price = long_cost if net_qty > 0 else short_cost
-                                        current_price = realtime_prices.get(symbol, {}).get('price', avg_price)
-                                        
-                                        holdings_list.append({
-                                            'ticker': symbol,
-                                            'qty': net_qty,
-                                            'avg': avg_price,
-                                            'currentPrice': current_price,
-                                            'pl': (current_price - avg_price) * net_qty,
-                                            'weight': 0  # Weight needs to be calculated separately
-                                        })
-                            self.state_manager.update('holdings', holdings_list)
+                                    holdings_list.append({
+                                        'ticker': symbol,
+                                        'qty': net_qty,
+                                        'avg': avg_price,
+                                        'currentPrice': current_price,
+                                        'pl': (current_price - avg_price) * net_qty,
+                                        'weight': 0  # Weight needs to be calculated separately
+                                    })
+                        self.state_manager.update('holdings', holdings_list)
+            
+            # Build simplified result for broadcast (avoid sending too large data)
+            broadcast_result = {
+                'portfolio_summary': portfolio_summary
+            }
+            
+            await self.broadcast({
+                'type': 'day_complete',
+                'date': date,
+                'result': broadcast_result,
+                'timestamp': datetime.now().isoformat()
+            })
+            
+            # Save state (after each day ends)
+            self.state_manager.save()
                 
-                # Build simplified result for broadcast (avoid sending too large data)
-                broadcast_result = {
-                    'portfolio_summary': portfolio_summary
-                }
-                
-                await self.broadcast({
-                    'type': 'day_complete',
-                    'date': date,
-                    'result': broadcast_result,
-                    'timestamp': datetime.now().isoformat()
-                })
-                
-                # Save state (after each day ends)
-                self.state_manager.save()
-                
-            except Exception as e:
-                logger.error(f"❌ {date} run failed: {e}")
-                await self.broadcast({
-                    'type': 'day_error',
-                    'date': date,
-                    'error': str(e),
-                    'timestamp': datetime.now().isoformat()
-                })
+            
             
             # Brief delay (avoid too fast)
             await asyncio.sleep(1)
