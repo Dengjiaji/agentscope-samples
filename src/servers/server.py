@@ -175,11 +175,11 @@ class Server:
                 self.loop
             )
         
-        # Update holdings.json and stats.json files
-        try:
-            self._update_dashboard_files_with_price(symbol, price)
-        except Exception as e:
-            logger.error(f"Failed to update Dashboard files ({symbol}): {e}")
+        # # Update holdings.json and stats.json files
+        # try:
+        #     self._update_dashboard_files_with_price(symbol, price)
+        # except Exception as e:
+        #     logger.error(f"Failed to update Dashboard files ({symbol}): {e}")
     
     def _update_dashboard_files_with_price(self, symbol: str, price: float):
         """Update prices and related calculations in holdings.json, stats.json and summary.json files"""
