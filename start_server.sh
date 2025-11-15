@@ -2,9 +2,12 @@
 # 启动持续运行服务器的便捷脚本
 # 
 # 使用方法:
-#   ./start_server.sh              # 正常模式
-#   ./start_server.sh --mock       # Mock模式（测试前端）
-#   ./start_server.sh --clean      # 正常模式，自动清空历史记录
+#   ./start_server.sh                      # 正常模式
+#   ./start_server.sh --mock               # Mock模式（测试前端）
+#   ./start_server.sh --clean              # 正常模式，自动清空历史记录
+#   ./start_server.sh --port 9000          # 指定端口（默认8765）
+#   ./start_server.sh --host 127.0.0.1     # 指定主机（默认0.0.0.0）
+#   ./start_server.sh --port 9000 --mock   # 组合使用多个参数
 
 set -e
 
@@ -17,11 +20,34 @@ LOGS_AND_MEMORY_DIR="$SCRIPT_DIR/../logs_and_memory"
 # 解析参数
 MODE="normal"
 AUTO_CLEAN=false
-if [ "$1" = "--mock" ]; then
-    MODE="mock"
-elif [ "$1" = "--clean" ]; then
-    AUTO_CLEAN=true
-fi
+PORT=""
+HOST=""
+
+# 解析所有参数
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --mock)
+            MODE="mock"
+            shift
+            ;;
+        --clean)
+            AUTO_CLEAN=true
+            shift
+            ;;
+        --port)
+            PORT="$2"
+            shift 2
+            ;;
+        --host)
+            HOST="$2"
+            shift 2
+            ;;
+        *)
+            echo "⚠️  未知参数: $1"
+            shift
+            ;;
+    esac
+done
 
 if [ "$MODE" = "mock" ]; then
     echo "🎭 启动 Mock Mode - 测试模式"
@@ -178,18 +204,33 @@ else
         echo "   历史记录: 继续使用 📚"
     fi
 fi
-echo "   WebSocket端口: 8765"
+# 显示端口和主机配置
+DEFAULT_PORT=8765
+DEFAULT_HOST="0.0.0.0"
+DISPLAY_PORT="${PORT:-$DEFAULT_PORT}"
+DISPLAY_HOST="${HOST:-$DEFAULT_HOST}"
+echo "   WebSocket主机: ${DISPLAY_HOST}"
+echo "   WebSocket端口: ${DISPLAY_PORT}"
 echo ""
 
 # 启动服务器
 echo "🌐 启动服务器..."
-echo "   访问: http://localhost:8765"
+echo "   访问: http://localhost:${DISPLAY_PORT}"
 echo "   按 Ctrl+C 停止服务器"
 echo ""
 
+# 构建启动命令
+PYTHON_CMD="python -u -m src.servers.server"
 if [ "$MODE" = "mock" ]; then
-    python -u -m src.servers.server --mock
-else
-    python -u -m src.servers.server
+    PYTHON_CMD="$PYTHON_CMD --mock"
 fi
+if [ -n "$HOST" ]; then
+    PYTHON_CMD="$PYTHON_CMD --host $HOST"
+fi
+if [ -n "$PORT" ]; then
+    PYTHON_CMD="$PYTHON_CMD --port $PORT"
+fi
+
+# 执行启动命令
+eval $PYTHON_CMD
 
