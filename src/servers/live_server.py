@@ -139,6 +139,9 @@ class LiveTradingServer:
         # Initialize trading system
         self.thinking_fund = None
         
+        # Initialize dashboard files if they don't exist (including leaderboard with model info)
+        self._ensure_dashboard_initialized()
+        
         # Live mode state
         self.current_phase = "backtest"  # backtest, live_analysis, live_monitoring
         self.is_today = False
@@ -150,6 +153,33 @@ class LiveTradingServer:
         
         # Save daily signals and results for updating agent perf the next day
         self.daily_signals = {}  # {date: {'ana_signals': ..., 'pm_signals': ...}}
+    
+    def _ensure_dashboard_initialized(self):
+        """Ensure dashboard files are initialized, including leaderboard with model info"""
+        from src.dashboard.team_dashboard import TeamDashboardGenerator
+        from src.config.agent_model_config import AgentModelRequest
+        
+        # Check if leaderboard file exists
+        if not self.dashboard_files['leaderboard'].exists():
+            logger.info("📊 Initializing dashboard files with agent model configuration...")
+            
+            # Create dashboard generator
+            dashboard_generator = TeamDashboardGenerator(
+                dashboard_dir=self.dashboard_dir,
+                initial_cash=self.initial_cash
+            )
+            
+            # Create a minimal state with agent model configuration from env
+            agent_model_request = AgentModelRequest()  # This loads from env vars
+            initial_state = {
+                'metadata': {
+                    'request': agent_model_request
+                }
+            }
+            
+            # Initialize dashboard with model info
+            dashboard_generator.initialize_empty_dashboard(state=initial_state)
+            logger.info("✅ Dashboard initialized with agent model configuration")
     
     def _on_price_update(self, price_data: Dict[str, Any]):
         """Price update callback - directly update holdings.json and stats.json files"""

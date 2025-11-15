@@ -362,7 +362,7 @@ def get_model(
     Returns:
         AgentScopeModelWrapper instance
     """
-    print(f"Getting model: {model_name} {model_provider}")
+    # print(f"Getting model: {model_name} {model_provider}")
     return ModelWrapper(
         model_name=model_name,
         model_provider=model_provider,

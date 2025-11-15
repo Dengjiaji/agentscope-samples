@@ -1724,8 +1724,74 @@ class TeamDashboardGenerator:
         
         self._save_json(self.leaderboard_file, leaderboard)
     
-    def initialize_empty_dashboard(self):
-        """Initialize empty dashboard data files"""
+    def _generate_initial_leaderboard(self, state: Dict):
+        """
+        Generate initial leaderboard with agent model information only
+        This allows frontend to display model cards even before performance data is available
+        
+        Args:
+            state: State dictionary (must contain metadata.request for agent model config)
+        """
+        leaderboard = []
+        ranking_entries = []
+        team_entries = []
+        
+        # Get all agent IDs from config
+        all_agent_ids = list(self.AGENT_CONFIG.keys())
+        
+        for agent_id in all_agent_ids:
+            # Get agent configuration
+            agent_config = self.AGENT_CONFIG.get(agent_id, {
+                'name': agent_id,
+                'role': agent_id,
+                'avatar': 'default'
+            })
+            
+            # Get model configuration for this agent
+            model_name, model_provider = self._get_agent_model_config(state, agent_id)
+            
+            # Create entry with model info but no performance data
+            entry = {
+                'agentId': agent_id,
+                'name': agent_config['name'],
+                'role': agent_config['role'],
+                'avatar': agent_config['avatar'],
+                'rank': None,  # No rank initially
+                'winRate': None,  # No win rate initially
+                'bull': {
+                    'n': 0,
+                    'win': 0,
+                    'unknown': 0
+                },
+                'bear': {
+                    'n': 0,
+                    'win': 0,
+                    'unknown': 0
+                },
+                'logs': [],
+                'signals': [],
+                'modelName': model_name,  # Agent's model name (available from env/config)
+                'modelProvider': model_provider  # Agent's model provider (available from env/config)
+            }
+            
+            if agent_id in self.TEAM_ROLES:
+                team_entries.append(entry)
+            else:
+                ranking_entries.append(entry)
+        
+        # No sorting needed initially (no win rates)
+        leaderboard = ranking_entries + team_entries
+        
+        self._save_json(self.leaderboard_file, leaderboard)
+        return leaderboard
+    
+    def initialize_empty_dashboard(self, state: Dict = None):
+        """
+        Initialize empty dashboard data files
+        
+        Args:
+            state: Optional state dictionary (if provided, will generate initial leaderboard with model info)
+        """
         # Summary
         self._save_json(self.summary_file, {
             'pnlPct': 0.0,
@@ -1753,22 +1819,29 @@ class TeamDashboardGenerator:
         # Trades
         self._save_json(self.trades_file, [])
         
-        # Leaderboard
-        leaderboard = []
-        for agent_id, config in self.AGENT_CONFIG.items():
-            is_team_role = agent_id in self.TEAM_ROLES
-            leaderboard.append({
-                'agentId': agent_id,
-                'name': config['name'],
-                'role': config['role'],
-                'avatar': config['avatar'],
-                'rank': None if is_team_role else 0,
-                'winRate': 0.0,
-                'bull': {'n': 0, 'win': 0},
-                'bear': {'n': 0, 'win': 0},
-                'logs': []
-            })
-        self._save_json(self.leaderboard_file, leaderboard)
+        # Leaderboard - generate initial leaderboard with model info if state is provided
+        if state:
+            self._generate_initial_leaderboard(state)
+        else:
+            # Fallback: create basic leaderboard without model info
+            leaderboard = []
+            for agent_id, config in self.AGENT_CONFIG.items():
+                is_team_role = agent_id in self.TEAM_ROLES
+                leaderboard.append({
+                    'agentId': agent_id,
+                    'name': config['name'],
+                    'role': config['role'],
+                    'avatar': config['avatar'],
+                    'rank': None if is_team_role else 0,
+                    'winRate': None,
+                    'bull': {'n': 0, 'win': 0, 'unknown': 0},
+                    'bear': {'n': 0, 'win': 0, 'unknown': 0},
+                    'logs': [],
+                    'signals': [],
+                    'modelName': None,
+                    'modelProvider': None
+                })
+            self._save_json(self.leaderboard_file, leaderboard)
         
         print(f"✅ Team dashboard initialized: {self.dashboard_dir}")
 

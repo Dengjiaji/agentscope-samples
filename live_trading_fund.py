@@ -118,7 +118,15 @@ class LiveTradingFund:
         )
         # Initialize empty dashboard (if not exists)
         if not (dashboard_dir / "summary.json").exists():
-            self.dashboard_generator.initialize_empty_dashboard()
+            # Create a minimal state with agent model configuration from env
+            from src.config.agent_model_config import AgentModelRequest
+            agent_model_request = AgentModelRequest()  # This loads from env vars
+            initial_state = {
+                'metadata': {
+                    'request': agent_model_request
+                }
+            }
+            self.dashboard_generator.initialize_empty_dashboard(state=initial_state)
 
     def is_trading_day(self, date: str) -> bool:
         """Check if it's a trading day"""
