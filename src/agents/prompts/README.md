@@ -1,33 +1,33 @@
-# Agent Prompts 目录说明
+# Agent Prompts Directory Documentation
 
-## 📁 目录结构
+## 📁 Directory Structure
 
 ```
 prompts/
-├── analyst/           # 分析师 Agent Prompts
-├── portfolio_manager/ # 投资组合管理 Agent Prompts  
-├── risk_manager/      # 风险管理 Agent Prompts
-├── reflection/        # 自我反思 Prompts
-├── custom/            # 自定义 Agent Prompts
-└── README.md          # 本文档
+├── analyst/           # Analyst Agent Prompts
+├── portfolio_manager/ # Portfolio Management Agent Prompts  
+├── risk_manager/      # Risk Management Agent Prompts
+├── reflection/        # Self-reflection Prompts
+├── custom/            # Custom Agent Prompts
+└── README.md          # This document
 ```
 
-## 🔑 Prompt 格式说明
+## 🔑 Prompt Format Documentation
 
-本项目使用 **PromptLoader** 格式管理所有 prompts。
+This project uses **PromptLoader** format to manage all prompts.
 
-### 变量语法
+### Variable Syntax
 
-使用双大括号 `{{ variable }}` 表示变量占位符。
+Use double curly braces `{{ variable }}` to represent variable placeholders.
 
-**示例**:
+**Example**:
 ```markdown
 You are a professional {{ analyst_persona }} analyzing {{ ticker }}.
 
 Your task is to {{ task_description }}.
 ```
 
-### 加载方式
+### Loading Method
 
 ```python
 from src.agents.prompt_loader import get_prompt_loader
@@ -40,16 +40,16 @@ prompt = loader.load_prompt("analyst", "tool_selection", {
 })
 ```
 
-### 特点
+### Features
 
-- ✅ 自动转义 JSON 代码块中的大括号
-- ✅ 简单的字符串替换，无外部依赖
-- ✅ 适合包含示例 JSON 的 prompts
-- ✅ 统一的变量格式
+- ✅ Automatically escape curly braces in JSON code blocks
+- ✅ Simple string replacement, no external dependencies
+- ✅ Suitable for prompts containing example JSON
+- ✅ Unified variable format
 
-## 📝 JSON 示例处理
+## 📝 JSON Example Handling
 
-当 prompt 中包含 JSON 示例时，使用特殊占位符：
+When prompts contain JSON examples, use special placeholders:
 
 ```markdown
 Output format:
@@ -64,49 +64,49 @@ Output format:
 \`\`\`
 ```
 
-PromptLoader 会自动将这些占位符转换为实际的大括号。
+PromptLoader will automatically convert these placeholders to actual curly braces.
 
-## 🗂️ Prompt 文件组织
+## 🗂️ Prompt File Organization
 
-### 按 Agent 类型分类
+### Organized by Agent Type
 
-每个 Agent 类型都有自己的目录：
+Each Agent type has its own directory:
 
 ```
 analyst/
-├── personas.yaml          # 分析师角色定义
-├── tool_selection.md      # 工具选择 prompt
-├── tool_synthesis.md      # 结果综合 prompt
-└── second_round_*.md      # 第二轮分析 prompts
+├── personas.yaml          # Analyst role definitions
+├── tool_selection.md      # Tool selection prompt
+├── tool_synthesis.md      # Result synthesis prompt
+└── second_round_*.md      # Second round analysis prompts
 
 portfolio_manager/
-├── direction_decision_*.md   # 方向决策 prompts
-└── portfolio_decision_*.md   # 组合决策 prompts
+├── direction_decision_*.md   # Direction decision prompts
+└── portfolio_decision_*.md   # Portfolio decision prompts
 
 reflection/
-├── analyst_reflection_system.md  # 分析师反思 prompt
-└── pm_reflection_system.md       # PM 反思 prompt
+├── analyst_reflection_system.md  # Analyst reflection prompt
+└── pm_reflection_system.md       # PM reflection prompt
 ```
 
-### 命名规范
+### Naming Conventions
 
-- 使用小写字母和下划线
-- 使用 `.md` 扩展名（Markdown 格式）
-- 使用 `.yaml` 扩展名（配置文件）
-- 描述性的文件名，反映 prompt 的用途
+- Use lowercase letters and underscores
+- Use `.md` extension (Markdown format)
+- Use `.yaml` extension (configuration files)
+- Descriptive file names that reflect the prompt's purpose
 
-## 💡 使用示例
+## 💡 Usage Examples
 
-### 示例 1: 加载简单 Prompt
+### Example 1: Loading Simple Prompt
 
-**文件**: `prompts/analyst/tool_selection.md`
+**File**: `prompts/analyst/tool_selection.md`
 ```markdown
 You are {{ analyst_persona }}.
 
 Analyze {{ ticker }} and select appropriate tools.
 ```
 
-**使用**:
+**Usage**:
 ```python
 from src.agents.prompt_loader import get_prompt_loader
 
@@ -120,12 +120,12 @@ prompt = loader.load_prompt(
     }
 )
 print(prompt)
-# 输出: You are Technical Analyst.\n\nAnalyze AAPL and select appropriate tools.
+# Output: You are Technical Analyst.\n\nAnalyze AAPL and select appropriate tools.
 ```
 
-### 示例 2: 包含 JSON 示例的 Prompt
+### Example 2: Prompt with JSON Example
 
-**文件**: `prompts/analyst/output_format.md`
+**File**: `prompts/analyst/output_format.md`
 ```markdown
 Return your analysis in JSON format:
 
@@ -137,135 +137,135 @@ Return your analysis in JSON format:
 \`\`\`
 ```
 
-**使用**:
+**Usage**:
 ```python
 loader = get_prompt_loader()
 prompt = loader.load_prompt("analyst", "output_format")
-# JSON 占位符会自动转换为 { 和 }
+# JSON placeholders will be automatically converted to { and }
 ```
 
-## 🎯 最佳实践
+## 🎯 Best Practices
 
-### 1. 变量命名
+### 1. Variable Naming
 
-使用清晰、描述性的变量名：
+Use clear, descriptive variable names:
 
-✅ **好的命名**:
+✅ **Good naming**:
 ```markdown
 {{ analyst_persona }}
 {{ analysis_objective }}
 {{ ticker_symbol }}
 ```
 
-❌ **不好的命名**:
+❌ **Poor naming**:
 ```markdown
 {{ x }}
 {{ temp }}
 {{ var1 }}
 ```
 
-### 2. Prompt 结构
+### 2. Prompt Structure
 
-保持清晰的结构：
+Maintain clear structure:
 
 ```markdown
-# 角色定义
+# Role Definition
 You are {{ role }}.
 
-# 任务说明
+# Task Description
 Your task is to {{ task }}.
 
-# 输入数据
+# Input Data
 Input: {{ input_data }}
 
-# 输出格式
+# Output Format
 Output format:
 ...
 ```
 
-### 3. 可复用性
+### 3. Reusability
 
-将通用的 prompt 模板化：
+Template common prompts:
 
 ```markdown
-# 通用分析模板
+# General Analysis Template
 Analyst: {{ analyst_type }}
 Ticker: {{ ticker }}
 Date: {{ date }}
 
-# 具体分析内容
+# Specific Analysis Content
 {{ analysis_content }}
 ```
 
-### 4. 文档注释
+### 4. Documentation Comments
 
-在 prompt 文件顶部添加注释说明用途：
+Add comments at the top of prompt files to explain purpose:
 
 ```markdown
 <!--
-Purpose: 分析师工具选择 prompt
+Purpose: Analyst tool selection prompt
 Variables:
-  - analyst_persona: 分析师类型
-  - ticker: 股票代码
-  - market_conditions: 市场条件
+  - analyst_persona: Analyst type
+  - ticker: Stock ticker
+  - market_conditions: Market conditions
 -->
 
 You are a {{ analyst_persona }}...
 ```
 
-## 📚 常见问题
+## 📚 Frequently Asked Questions
 
-### Q: 如何在 prompt 中使用大括号？
+### Q: How to use curly braces in prompts?
 
-**A**: 在普通文本中直接使用 `{` 和 `}` 会被识别为变量。如果需要字面量大括号（如 JSON 示例），使用 `{JSON_OPEN}` 和 `{JSON_CLOSE}` 占位符。
+**A**: Using `{` and `}` directly in regular text will be recognized as variables. If you need literal curly braces (such as JSON examples), use `{JSON_OPEN}` and `{JSON_CLOSE}` placeholders.
 
-### Q: 可以嵌套目录吗？
+### Q: Can I nest directories?
 
-**A**: 可以。PromptLoader 支持多级目录结构，例如 `prompts/analyst/advanced/deep_analysis.md`。
+**A**: Yes. PromptLoader supports multi-level directory structures, for example `prompts/analyst/advanced/deep_analysis.md`.
 
-### Q: 如何处理多语言 prompts？
+### Q: How to handle multilingual prompts?
 
-**A**: 可以创建子目录，如 `prompts/analyst/en/` 和 `prompts/analyst/zh/`，或使用文件后缀 `tool_selection_en.md` 和 `tool_selection_zh.md`。
+**A**: You can create subdirectories, such as `prompts/analyst/en/` and `prompts/analyst/zh/`, or use file suffixes `tool_selection_en.md` and `tool_selection_zh.md`.
 
-### Q: Prompt 文件可以包含什么内容？
+### Q: What content can prompt files contain?
 
-**A**: Prompt 文件是纯文本 Markdown 格式，可以包含：
-- 普通文本
-- 变量占位符 `{{ variable }}`
-- Markdown 格式（标题、列表等）
-- 代码块（包括 JSON 示例）
-- 注释（HTML 注释格式 `<!-- ... -->`）
+**A**: Prompt files are plain text Markdown format and can contain:
+- Plain text
+- Variable placeholders `{{ variable }}`
+- Markdown formatting (headings, lists, etc.)
+- Code blocks (including JSON examples)
+- Comments (HTML comment format `<!-- ... -->`)
 
-## 🔄 更新 Prompts
+## 🔄 Updating Prompts
 
-修改 prompt 文件后，无需重启程序：
+After modifying prompt files, no program restart is needed:
 
-1. 直接编辑 `.md` 文件
-2. 保存文件
-3. 下次调用 `load_prompt()` 时会自动加载最新版本
+1. Directly edit `.md` files
+2. Save the file
+3. The latest version will be automatically loaded on the next call to `load_prompt()`
 
-PromptLoader 每次都会重新读取文件，方便快速迭代和调试。
+PromptLoader re-reads files each time, making it convenient for rapid iteration and debugging.
 
-## 🚀 进阶用法
+## 🚀 Advanced Usage
 
-### 条件内容
+### Conditional Content
 
-虽然 PromptLoader 本身不支持条件逻辑，但可以在 Python 代码中构建：
+Although PromptLoader itself doesn't support conditional logic, you can build it in Python code:
 
 ```python
-# 根据条件选择不同的内容
+# Select different content based on conditions
 if is_detailed:
     analysis_instructions = loader.load_prompt("analyst", "detailed_analysis")
 else:
     analysis_instructions = loader.load_prompt("analyst", "quick_analysis")
 
-# 组合到最终 prompt
+# Combine into final prompt
 final_prompt = loader.load_prompt("analyst", "base_template", {
     "instructions": analysis_instructions
 })
 ```
 
-### 组合多个 Prompts
+### Combining Multiple Prompts
 
 ```python
 role_prompt = loader.load_prompt("analyst", "role_definition", {...})
@@ -277,6 +277,6 @@ combined = f"{role_prompt}\n\n{task_prompt}\n\n{format_prompt}"
 
 ---
 
-**版本**: 1.0  
-**最后更新**: 2025-01-05  
-**维护者**: Trading Intelligence Team
+**Version**: 1.0  
+**Last Updated**: 2025-11-15
+**Maintainer**: Trading Intelligence Team

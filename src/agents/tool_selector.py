@@ -1,7 +1,7 @@
 """
-基于LLM的智能工具选择器
-让分析师通过LLM智能选择和使用分析工具
-使用AgentScope的Toolkit管理工具
+LLM-based intelligent tool selector
+Enables analysts to intelligently select and use analysis tools through LLM
+Uses AgentScope's Toolkit to manage tools
 """
 import os
 import json
@@ -10,7 +10,7 @@ from agentscope.tool import Toolkit
 
 from .prompt_loader import PromptLoader
 
-# 导入所有可用的分析工具
+# Import all available analysis tools
 from src.tools.analysis_tools import (
     analyze_profitability,
     analyze_growth,
@@ -30,9 +30,9 @@ from src.tools.analysis_tools import (
 )
 
 class Toolselector:
-    """基于LLM的智能工具选择器"""
+    """LLM-based intelligent tool selector"""
     
-    # 工具分类映射（用于确定API key）
+    # Tool category mapping (for determining API key)
     TOOL_CATEGORIES = {
         "analyze_profitability": "fundamental",
         "analyze_growth": "fundamental",
@@ -51,7 +51,7 @@ class Toolselector:
         "residual_income_valuation_analysis": "valuation",
     }
     
-    # Persona 名称映射
+    # Persona name mapping
     PERSONA_KEY_MAP = {
         "Fundamental Analyst": "fundamentals_analyst",
         "Technical Analyst": "technical_analyst",
@@ -61,12 +61,12 @@ class Toolselector:
     }
     
     def __init__(self):
-        """初始化工具选择器"""
+        """Initialize tool selector"""
         self.prompt_loader = PromptLoader()
         self.toolkit = Toolkit()
         self.personas_config = self.prompt_loader.load_yaml_config("analyst", "personas")
         
-        # 工具函数映射
+        # Tool function mapping
         self.tool_functions = {
             "analyze_profitability": analyze_profitability,
             "analyze_growth": analyze_growth,
@@ -85,11 +85,11 @@ class Toolselector:
             "residual_income_valuation_analysis": residual_income_valuation_analysis,
         }
         
-        # 注册所有工具（使用原生方法）
+        # Register all tools (using native method)
         self._register_all_tools()
     
     def _register_all_tools(self):
-        """将所有分析工具注册到 Toolkit"""
+        """Register all analysis tools to Toolkit"""
         tools = [
             analyze_profitability, analyze_growth, analyze_financial_health,
             analyze_valuation_ratios, analyze_efficiency_ratios,
@@ -100,31 +100,31 @@ class Toolselector:
         ]
         
         for tool_func in tools:
-            # 直接注册工具函数，AgentScope 会自动解析 docstring
+            # Directly register tool function, AgentScope will automatically parse docstring
             self.toolkit.register_tool_function(tool_func)
     
     def get_toolkit(self) -> Toolkit:
-        """获取Toolkit实例"""
+        """Get Toolkit instance"""
         return self.toolkit
     
     def _get_persona_config(self, analyst_persona: str) -> Dict[str, Any]:
-        """获取 persona 配置"""
+        """Get persona configuration"""
         persona_key = self.PERSONA_KEY_MAP.get(analyst_persona, "comprehensive_analyst")
         return self.personas_config.get(persona_key, {})
     
     def _get_persona_description(self, analyst_persona: str) -> str:
-        """从 YAML 配置获取 persona 描述"""
+        """Get persona description from YAML configuration"""
         return self._get_persona_config(analyst_persona).get("description", "")
     
     async def select_tools_with_llm(self, llm, analyst_persona: str, ticker: str,
                                    market_conditions: Dict[str, Any], 
                                    analysis_objective: str = "Comprehensive investment analysis") -> Dict[str, Any]:
-        """使用 LLM 选择分析工具"""
+        """Use LLM to select analysis tools"""
         try:
-            # 获取 persona 描述
+            # Get persona description
             persona_description = self._get_persona_description(analyst_persona)
             
-            # 从文件加载 prompt
+            # Load prompt from file
             prompt = self.prompt_loader.load_prompt(
                 "analyst",
                 "tool_selection",
@@ -137,16 +137,16 @@ class Toolselector:
                 }
             )
 
-            # 调用 LLM
+            # Call LLM
             messages = [{"role": "user", "content": prompt}]
             response = llm(messages=messages, temperature=0.7)
             response_text = response["content"].strip()
 
-            # 提取 JSON
+            # Extract JSON
             json_text = self._extract_json(response_text)
             selection_result = json.loads(json_text)
             
-            # 验证并返回
+            # Validate and return
             return self._validate_selection(selection_result)
             
         except Exception as e:
@@ -154,7 +154,7 @@ class Toolselector:
             return []
     
     def _extract_json(self, text: str) -> str:
-        """从响应文本中提取 JSON"""
+        """Extract JSON from response text"""
         if "```json" in text:
             start = text.find("```json") + 7
             end = text.find("```", start)
@@ -165,11 +165,11 @@ class Toolselector:
             return text[start:end]
     
     def _validate_selection(self, selection_result: Dict[str, Any]) -> Dict[str, Any]:
-        """验证工具选择结果"""
+        """Validate tool selection result"""
         if "selected_tools" not in selection_result:
             raise ValueError("Missing selected_tools in response")
         
-        # 过滤有效的工具
+        # Filter valid tools
         valid_tools = [
             tool for tool in selection_result["selected_tools"]
             if tool.get("tool_name") in self.tool_functions
@@ -184,7 +184,7 @@ class Toolselector:
 
     
     def _get_api_key(self, tool_name: str) -> str:
-        """根据工具名称获取对应的 API key"""
+        """Get corresponding API key based on tool name"""
         category = self.TOOL_CATEGORIES.get(tool_name)
         
         if category in ["fundamental", "valuation"]:
@@ -201,34 +201,34 @@ class Toolselector:
     
     async def execute_selected_tools(self, selected_tools: List[Dict[str, Any]], 
                                      ticker: str, **kwargs) -> List[Dict[str, Any]]:
-        """执行选中的工具"""
+        """Execute selected tools"""
         tool_results = []
         
         for tool_selection in selected_tools:
             tool_name = tool_selection["tool_name"]
             
-            # 获取工具函数
+            # Get tool function
             tool_func = self.tool_functions.get(tool_name)
             if not tool_func:
                 continue
             
             try:
-                # 准备参数
+                # Prepare parameters
                 tool_kwargs = {
                     "ticker": ticker,
                     "api_key": self._get_api_key(tool_name),
                     "end_date": kwargs.get("end_date"),
                 }
                 
-                # 技术分析和情绪分析需要 start_date
+                # Technical and sentiment analysis require start_date
                 category = self.TOOL_CATEGORIES[tool_name]
                 if category in ["technical", "sentiment"]:
                     tool_kwargs["start_date"] = kwargs.get("start_date")
                 
-                # 直接调用工具函数
+                # Directly call tool function
                 result = tool_func(**tool_kwargs)
                 
-                # 添加元信息
+                # Add metadata
                 result["tool_name"] = tool_name
                 result["selection_reason"] = tool_selection.get("reason", "")
                 tool_results.append(result)
@@ -247,9 +247,9 @@ class Toolselector:
     def synthesize_results_with_llm(self, tool_results: List[Dict[str, Any]], 
                                    selection_result: Dict[str, Any], 
                                    llm, ticker: str, analyst_persona: str) -> Dict[str, Any]:
-        """使用 LLM 综合工具结果"""
+        """Use LLM to synthesize tool results"""
         try:
-            # 准备工具结果摘要
+            # Prepare tool result summaries
             tool_summaries = [
                 {
                     "tool_name": result.get("tool_name", "unknown"),
@@ -262,7 +262,7 @@ class Toolselector:
             
             tool_summaries_json = json.dumps(tool_summaries, indent=2, ensure_ascii=False)
             
-            # 加载 prompt
+            # Load prompt
             prompt = self.prompt_loader.load_prompt(
                 "analyst",
                 "tool_synthesis",
@@ -275,12 +275,12 @@ class Toolselector:
                 }
             )
             
-            # 调用 LLM
+            # Call LLM
             messages = [{"role": "user", "content": prompt}]
             response = llm(messages=messages, temperature=0.7)
             response_text = response["content"].strip()
             
-            # 提取并解析 JSON
+            # Extract and parse JSON
             json_text = self._extract_json(response_text)
             synthesis_result = json.loads(json_text)
             

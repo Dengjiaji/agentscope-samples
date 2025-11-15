@@ -1,6 +1,6 @@
 """
-Risk Manager Agent - 风险管理 Agent
-提供统一的风险评估和仓位管理接口（基于AgentScope）
+Risk Manager Agent - Risk Management Agent
+Provides unified risk assessment and position management interface (based on AgentScope)
 """
 import os
 from typing import Dict, Any, Optional, Literal
@@ -18,35 +18,35 @@ from ..tools.data_tools import get_prices, prices_to_df, get_last_tradeday
 import pdb
 
 class RiskManagerAgent(AgentBase):
-    """风险管理 Agent（基于AgentScope）"""
+    """Risk Management Agent (based on AgentScope)"""
     
     def __init__(self, 
                  agent_id: str = "risk_manager",
                  mode: Literal["basic", "portfolio"] = "basic",
                  config: Optional[Dict[str, Any]] = None):
         """
-        初始化风险管理 Agent
+        Initialize Risk Management Agent
         
         Args:
             agent_id: Agent ID
-            mode: 模式
-                - "basic": 基础风险评估（提供风险等级和评分）
-                - "portfolio": Portfolio模式（计算仓位限制和最大股数）
-            config: 配置字典
+            mode: Mode
+                - "basic": Basic risk assessment (provides risk level and score)
+                - "portfolio": Portfolio mode (calculates position limits and maximum shares)
+            config: Configuration dictionary
         
         Examples:
-            >>> # 基础风险评估
+            >>> # Basic risk assessment
             >>> agent = RiskManagerAgent(mode="basic")
             >>> 
-            >>> # Portfolio 仓位管理
+            >>> # Portfolio position management
             >>> agent = RiskManagerAgent(mode="portfolio")
         """
-        # 初始化AgentBase（不接受参数）
+        # Initialize AgentBase (does not accept parameters)
         super().__init__()
         
-        # 设置name属性
+        # Set name attribute
         self.name = agent_id
-        self.agent_id = agent_id  # 保留agent_id属性以兼容现有代码
+        self.agent_id = agent_id  # Keep agent_id attribute for compatibility with existing code
         self.agent_type = "risk_manager"
         
         self.mode = mode
@@ -55,22 +55,22 @@ class RiskManagerAgent(AgentBase):
         # Prompt loader
         self.prompt_loader = PromptLoader()
         
-        # 加载配置
+        # Load configuration
         if mode == "basic":
             self.risk_config = self._load_or_default_risk_config()
         else:
             self.position_config = self._load_or_default_position_config()
     
     def _load_or_default_risk_config(self) -> Dict[str, Any]:
-        """加载风险等级配置"""
+        """Load risk level configuration"""
         try:
             return self.prompt_loader.load_yaml_config(self.agent_type, "risk_levels")
         except FileNotFoundError:
-            # 返回默认配置
+            # Return default configuration
             return self._get_default_risk_config()
     
     def _load_or_default_position_config(self) -> Dict[str, Any]:
-        """加载仓位限制配置"""
+        """Load position limit configuration"""
         try:
             return self.prompt_loader.load_yaml_config(self.agent_type, "position_limits")
         except FileNotFoundError:
@@ -78,30 +78,30 @@ class RiskManagerAgent(AgentBase):
     
     def execute(self, state: AgentState) -> Dict[str, Any]:
         """
-        执行风险管理逻辑
+        Execute risk management logic
         
         Args:
             state: AgentState
         
         Returns:
-            更新后的状态字典
+            Updated state dictionary
         """
         data = state["data"]
         tickers = data["tickers"]
         api_key = os.getenv("FINNHUB_API_KEY")
         
-        # 计算波动率
+        # Calculate volatility
         volatility_data = {}
         current_prices = {}
         
         for ticker in tickers:
-            progress.update_status(self.agent_id, ticker, "获取价格数据并计算波动率")
+            progress.update_status(self.agent_id, ticker, "Fetching price data and calculating volatility")
             
-            # ⭐ 策略：
-            # 1. 波动率计算：使用历史数据（截止到 T-1 日），避免使用不完整数据
-            # 2. 当前价格：使用 T 日开盘价，反映当日开盘时的实际价格水平
+            # ⭐ Strategy:
+            # 1. Volatility calculation: Use historical data (up to T-1 day) to avoid incomplete data
+            # 2. Current price: Use T-day opening price to reflect actual price level at market open
             
-            # 获取截止到 T-1 日的历史数据用于波动率计算
+            # Get historical data up to T-1 day for volatility calculation
             adjusted_end_date = get_last_tradeday(data["end_date"])
             historical_prices = get_prices(
                 ticker=ticker,
@@ -111,7 +111,7 @@ class RiskManagerAgent(AgentBase):
             )
             
             if not historical_prices:
-                progress.update_status(self.agent_id, ticker, "警告: 未找到历史价格数据")
+                progress.update_status(self.agent_id, ticker, "Warning: Historical price data not found")
                 volatility_data[ticker] = self._get_default_volatility()
                 current_prices[ticker] = 0.0
                 continue
@@ -123,11 +123,11 @@ class RiskManagerAgent(AgentBase):
                 current_prices[ticker] = 0.0
                 continue
             
-            # 计算波动率（基于 T-1 日及之前的历史数据）
+            # Calculate volatility (based on historical data up to and including T-1 day)
             vol_metrics = self._calculate_volatility_metrics(prices_df)
             volatility_data[ticker] = vol_metrics
             
-            # ⭐ 获取 T 日的开盘价作为当前价格
+            # ⭐ Get T-day opening price as current price
             try:
                 today_prices = get_prices(
                     ticker=ticker,
@@ -137,39 +137,39 @@ class RiskManagerAgent(AgentBase):
                 )
                 
                 if today_prices and len(today_prices) > 0:
-                    # 使用 T 日的开盘价
+                    # Use T-day opening price
                     today_df = prices_to_df(today_prices)
                     if not today_df.empty and "open" in today_df.columns:
                         current_price = float(today_df["open"].iloc[0])
                         current_prices[ticker] = current_price
-                        price_type = "开盘"
+                        price_type = "open"
                     else:
-                        # 如果没有开盘价，使用 T-1 日收盘价作为备选
+                        # If no opening price, use T-1 day closing price as fallback
                         current_price = float(prices_df["close"].iloc[-1])
                         current_prices[ticker] = current_price
-                        price_type = "T-1收盘"
+                        price_type = "T-1 close"
                 else:
-                    # 如果获取不到 T 日数据，使用 T-1 日收盘价
+                    # If T-day data unavailable, use T-1 day closing price
                     current_price = float(prices_df["close"].iloc[-1])
                     current_prices[ticker] = current_price
-                    price_type = "T-1收盘(备用)"
+                    price_type = "T-1 close (fallback)"
                     
                 progress.update_status(
                     self.agent_id, 
                     ticker, 
-                    f"价格: ${current_price:.2f}({price_type}), 年化波动率: {vol_metrics['annualized_volatility']:.1%}"
+                    f"Price: ${current_price:.2f} ({price_type}), Annualized volatility: {vol_metrics['annualized_volatility']:.1%}"
                 )
             except Exception as e:
-                # 异常情况使用 T-1 日收盘价
+                # Exception case: use T-1 day closing price
                 current_price = float(prices_df["close"].iloc[-1])
                 current_prices[ticker] = current_price
                 progress.update_status(
                     self.agent_id, 
                     ticker, 
-                    f"价格: ${current_price:.2f}(T-1收盘/异常), 年化波动率: {vol_metrics['annualized_volatility']:.1%}"
+                    f"Price: ${current_price:.2f} (T-1 close/exception), Annualized volatility: {vol_metrics['annualized_volatility']:.1%}"
                 )
         
-        # 根据模式生成风险分析
+        # Generate risk analysis based on mode
         if self.mode == "basic":
             risk_analysis = self._generate_basic_risk_analysis(
                 tickers, volatility_data, current_prices
@@ -179,7 +179,7 @@ class RiskManagerAgent(AgentBase):
                 tickers, volatility_data, current_prices, state
             )
         
-        # 创建消息（使用 AgentScope Msg 格式）
+        # Create message (using AgentScope Msg format)
         message = Msg(
             name=self.name,
             content=json.dumps(risk_analysis),
@@ -187,20 +187,20 @@ class RiskManagerAgent(AgentBase):
             metadata={}
         )
 
-        # 更新状态
+        # Update state
         state["data"]["analyst_signals"][self.agent_id] = risk_analysis
         
-        progress.update_status(self.agent_id, None, "完成")
+        progress.update_status(self.agent_id, None, "Done")
         
         return {
-            "messages": [message.to_dict()],  # 转换为dict
+            "messages": [message.to_dict()],  # Convert to dict
             "data": data,
         }
     
     def _generate_basic_risk_analysis(self, tickers: list[str],
                                      volatility_data: Dict[str, Dict],
                                      current_prices: Dict[str, float]) -> Dict[str, Dict]:
-        """生成基础风险评估"""
+        """Generate basic risk assessment"""
         risk_analysis = {}
         
         for ticker in tickers:
@@ -211,7 +211,7 @@ class RiskManagerAgent(AgentBase):
                     "risk_score": 0,
                     "current_price": float(current_prices.get(ticker, 0.0)),
                     "volatility_info": {},
-                    "risk_assessment": "缺少波动率数据，无法进行风险分析"
+                    "risk_assessment": "Missing volatility data, unable to perform risk analysis"
                 }
                 continue
             
@@ -240,7 +240,7 @@ class RiskManagerAgent(AgentBase):
             progress.update_status(
                 self.agent_id, 
                 ticker, 
-                f"风险等级: {risk_level.upper()}, 风险评分: {risk_score}"
+                f"Risk level: {risk_level.upper()}, Risk score: {risk_score}"
             )
         
         return risk_analysis
@@ -249,18 +249,18 @@ class RiskManagerAgent(AgentBase):
                                          volatility_data: Dict[str, Dict],
                                          current_prices: Dict[str, float],
                                          state: AgentState) -> Dict[str, Dict]:
-        """生成Portfolio风险分析（包含仓位限制）"""
+        """Generate Portfolio risk analysis (includes position limits)"""
         portfolio = state["data"]["portfolio"]
         risk_analysis = {}
         
-        # 计算投资组合总价值
+        # Calculate total portfolio value
         total_value = portfolio.get("cash", 0.0)
         for ticker, position in portfolio.get("positions", {}).items():
             if ticker in current_prices:
                 total_value += position.get("long", 0) * current_prices[ticker]
                 total_value -= position.get("short", 0) * current_prices[ticker]
         
-        progress.update_status(self.agent_id, None, f"投资组合总价值: {total_value:.2f}")
+        progress.update_status(self.agent_id, None, f"Total portfolio value: {total_value:.2f}")
         
         for ticker in tickers:
             vol_data = volatility_data.get(ticker, {})
@@ -271,17 +271,17 @@ class RiskManagerAgent(AgentBase):
                     "remaining_position_limit": 0.0,
                     "current_price": 0.0,
                     "max_shares": 0,
-                    "reasoning": {"error": "缺少价格或波动率数据"}
+                    "reasoning": {"error": "Missing price or volatility data"}
                 }
                 continue
             
-            # 计算波动率调整后的仓位限制
+            # Calculate volatility-adjusted position limit
             annualized_vol = vol_data.get("annualized_volatility", 0.25)
             vol_adjusted_limit = self._calculate_volatility_adjusted_limit(annualized_vol)
             
             position_limit = total_value * vol_adjusted_limit
             
-            # 计算当前持仓
+            # Calculate current position
             position = portfolio.get("positions", {}).get(ticker, {})
             current_position_value = abs(
                 position.get("long", 0) * price - 
@@ -311,7 +311,7 @@ class RiskManagerAgent(AgentBase):
     
     def _calculate_volatility_metrics(self, prices_df: pd.DataFrame, 
                                      lookback_days: int = 60) -> Dict[str, float]:
-        """计算波动率指标"""
+        """Calculate volatility metrics"""
         if len(prices_df) < 2:
             return self._get_default_volatility()
         
@@ -324,7 +324,7 @@ class RiskManagerAgent(AgentBase):
         daily_vol = recent_returns.std()
         annualized_vol = daily_vol * np.sqrt(252)
         
-        # 计算百分位
+        # Calculate percentile
         if len(daily_returns) >= 30:
             rolling_vol = daily_returns.rolling(window=30).std().dropna()
             if len(rolling_vol) > 0:
@@ -344,60 +344,60 @@ class RiskManagerAgent(AgentBase):
     def _calculate_risk_assessment(self, ticker: str, annualized_vol: float,
                                    vol_percentile: float, daily_vol: float,
                                    data_points: int) -> tuple:
-        """计算风险评估"""
-        # 基于波动率的风险等级
+        """Calculate risk assessment"""
+        # Risk level based on volatility
         if annualized_vol < 0.15:
             risk_level = "low"
             base_score = 25
             if vol_percentile < 30:
                 risk_score = base_score - 10
-                assessment = f"低风险股票，年化波动率{annualized_vol:.1%}，当前处于历史低波动率水平"
+                assessment = f"Low risk stock, annualized volatility {annualized_vol:.1%}, currently at historically low volatility level"
             else:
                 risk_score = base_score
-                assessment = f"低风险股票，年化波动率{annualized_vol:.1%}，价格波动相对温和"
+                assessment = f"Low risk stock, annualized volatility {annualized_vol:.1%}, price volatility relatively mild"
         elif annualized_vol < 0.30:
             risk_level = "medium"
             base_score = 50
             if vol_percentile > 70:
                 risk_score = base_score + 15
-                assessment = f"中等风险股票，年化波动率{annualized_vol:.1%}，当前波动率上升"
+                assessment = f"Medium risk stock, annualized volatility {annualized_vol:.1%}, volatility currently rising"
             else:
                 risk_score = base_score
-                assessment = f"中等风险股票，年化波动率{annualized_vol:.1%}，波动处于正常水平"
+                assessment = f"Medium risk stock, annualized volatility {annualized_vol:.1%}, volatility at normal level"
         elif annualized_vol < 0.50:
             risk_level = "high"
             base_score = 75
-            assessment = f"高风险股票，年化波动率{annualized_vol:.1%}，价格波动较大"
+            assessment = f"High risk stock, annualized volatility {annualized_vol:.1%}, significant price volatility"
         else:
             risk_level = "very_high"
             base_score = 90
-            assessment = f"极高风险股票，年化波动率{annualized_vol:.1%}，价格波动极大"
+            assessment = f"Very high risk stock, annualized volatility {annualized_vol:.1%}, extreme price volatility"
         
-        # 数据质量调整
+        # Data quality adjustment
         if data_points < 10:
-            assessment += f"（注意：仅基于{data_points}个数据点）"
+            assessment += f" (Note: Based on only {data_points} data points)"
             base_score = min(base_score + 10, 100)
         
         return risk_level, max(0, min(100, base_score)), assessment
 
     def _calculate_volatility_adjusted_limit(self, annualized_volatility: float) -> float:
-        """计算波动率调整后的仓位限制百分比"""
-        base_limit = 0.35  # 35%基准
+        """Calculate volatility-adjusted position limit percentage"""
+        base_limit = 0.35  # 35% baseline
         
         if annualized_volatility < 0.15:
-            vol_multiplier = 1.3  # 最多45.5% (35% * 1.3)
+            vol_multiplier = 1.3  # Maximum 45.5% (35% * 1.3)
         elif annualized_volatility < 0.30:
             vol_multiplier = 1.1 - (annualized_volatility - 0.15) * 0.8
         elif annualized_volatility < 0.50:
             vol_multiplier = 0.8 - (annualized_volatility - 0.30) * 0.6
         else:
-            vol_multiplier = 0.4  # 最多14% (35% * 0.4)
+            vol_multiplier = 0.4  # Maximum 14% (35% * 0.4)
         
         vol_multiplier = max(0.4, min(1.3, vol_multiplier))
         return base_limit * vol_multiplier
 
     def _get_default_volatility(self) -> Dict[str, float]:
-        """获取默认波动率"""
+        """Get default volatility"""
         return {
             "daily_volatility": 0.05,
             "annualized_volatility": 0.05 * np.sqrt(252),
@@ -406,7 +406,7 @@ class RiskManagerAgent(AgentBase):
         }
     
     def _get_default_risk_config(self) -> Dict[str, Any]:
-        """获取默认风险配置"""
+        """Get default risk configuration"""
         return {
             "volatility_thresholds": {
                 "low": {"max_volatility": 0.15},
@@ -417,7 +417,7 @@ class RiskManagerAgent(AgentBase):
         }
     
     def _get_default_position_config(self) -> Dict[str, Any]:
-        """获取默认仓位配置"""
+        """Get default position configuration"""
         return {
             "base_position_limit": 0.20,
             "volatility_adjustments": {

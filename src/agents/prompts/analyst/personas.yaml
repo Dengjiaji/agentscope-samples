@@ -3,7 +3,7 @@
 
 fundamentals_analyst:
   name: "Fundamental Analyst"
-  chinese_name: "基本面分析师"
+  chinese_name: "Fundamentals Analyst"
   specialty: "Company financial analysis and fundamental research"
   analysis_focus:
     - "Company financial health and profitability"
@@ -30,7 +30,7 @@ fundamentals_analyst:
 
 technical_analyst:
   name: "Technical Analyst"
-  chinese_name: "技术分析师"
+  chinese_name: "Technical Analyst"
   specialty: "Technical analysis and chart research"
   analysis_focus:
     - "Price trends and chart patterns"
@@ -56,7 +56,7 @@ technical_analyst:
 
 sentiment_analyst:
   name: "Sentiment Analyst"
-  chinese_name: "情绪分析师"
+  chinese_name: "Sentiment Analyst"
   specialty: "Market sentiment and investor behavior analysis"
   analysis_focus:
     - "Market participant sentiment changes"
@@ -80,7 +80,7 @@ sentiment_analyst:
 
 valuation_analyst:
   name: "Valuation Analyst"
-  chinese_name: "估值分析师"
+  chinese_name: "Valuation Analyst"
   specialty: "Company valuation and value assessment"
   analysis_focus:
     - "Company intrinsic value calculation"
@@ -106,7 +106,7 @@ valuation_analyst:
 
 comprehensive_analyst:
   name: "Comprehensive Analyst"
-  chinese_name: "综合分析师"
+  chinese_name: "Comprehensive Analyst"
   specialty: "Multi-dimensional comprehensive analysis"
   analysis_focus:
     - "Integrate multiple analytical perspectives"

@@ -1,7 +1,7 @@
 """
-Prompt Loader - 统一管理和加载 Agent Prompts
-支持 Markdown 和 YAML 格式
-使用简单的字符串替换，不依赖 Jinja2
+Prompt Loader - Unified management and loading of Agent Prompts
+Supports Markdown and YAML formats
+Uses simple string replacement, does not depend on Jinja2
 """
 import os
 import yaml
@@ -11,36 +11,36 @@ from typing import Dict, Any, Optional
 
 
 class PromptLoader:
-    """统一的 Prompt 加载器"""
+    """Unified Prompt loader"""
     
     def __init__(self, prompts_dir: Optional[Path] = None):
         """
-        初始化 Prompt 加载器
+        Initialize Prompt loader
         
         Args:
-            prompts_dir: prompts 目录路径，默认为当前文件的 prompts/ 目录
+            prompts_dir: Prompts directory path, defaults to prompts/ directory of current file
         """
         if prompts_dir is None:
             self.prompts_dir = Path(__file__).parent / "prompts"
         else:
             self.prompts_dir = Path(prompts_dir)
         
-        # 缓存已加载的 prompts
+        # Cache loaded prompts
         self._prompt_cache: Dict[str, str] = {}
         self._yaml_cache: Dict[str, Dict] = {}
     
     def load_prompt(self, agent_type: str, prompt_name: str, 
                    variables: Optional[Dict[str, Any]] = None) -> str:
         """
-        加载并渲染 Prompt
+        Load and render Prompt
         
         Args:
-            agent_type: Agent 类型 (analyst, portfolio_manager, risk_manager)
-            prompt_name: Prompt 文件名（不含扩展名）
-            variables: 用于渲染 Prompt 的变量字典
+            agent_type: Agent type (analyst, portfolio_manager, risk_manager)
+            prompt_name: Prompt file name (without extension)
+            variables: Variable dictionary for rendering Prompt
         
         Returns:
-            渲染后的 prompt 字符串
+            Rendered prompt string
         
         Examples:
             >>> loader = PromptLoader()
@@ -49,7 +49,7 @@ class PromptLoader:
         """
         cache_key = f"{agent_type}/{prompt_name}"
         
-        # 尝试从缓存加载
+        # Try to load from cache
         if cache_key not in self._prompt_cache:
             prompt_path = self.prompts_dir / agent_type / f"{prompt_name}.md"
             
@@ -64,33 +64,33 @@ class PromptLoader:
         
         prompt_template = self._prompt_cache[cache_key]
         
-        # 如果提供了变量，使用简单的字符串替换
+        # If variables provided, use simple string replacement
         if variables:
             rendered = self._render_template(prompt_template, variables)
         else:
             rendered = prompt_template
         
-        # 智能转义：转义 JSON 代码块中的大括号
+        # Smart escaping: escape braces in JSON code blocks
         # rendered = self._escape_json_braces(rendered)
         return rendered
     
     def _render_template(self, template: str, variables: Dict[str, Any]) -> str:
         """
-        使用简单的字符串替换渲染模板
-        支持 {{ variable }} 语法（兼容之前的 Jinja2 格式）
+        Render template using simple string replacement
+        Supports {{ variable }} syntax (compatible with previous Jinja2 format)
         
         Args:
-            template: 模板字符串
-            variables: 变量字典
+            template: Template string
+            variables: Variable dictionary
         
         Returns:
-            渲染后的字符串
+            Rendered string
         """
         rendered = template
         
-        # 替换 {{ variable }} 格式
+        # Replace {{ variable }} format
         for key, value in variables.items():
-            # 支持 {{ key }} 和 {{key}} 两种格式
+            # Support both {{ key }} and {{key}} formats
             pattern1 = f"{{{{ {key} }}}}"
             pattern2 = f"{{{{{key}}}}}"
             rendered = rendered.replace(pattern1, str(value))
@@ -100,34 +100,34 @@ class PromptLoader:
     
     def _escape_json_braces(self, text: str) -> str:
         """
-        转义 JSON 代码块中的大括号，将它们视为字面量
+        Escape braces in JSON code blocks, treating them as literals
         
         Args:
-            text: 待处理的文本
+            text: Text to process
         
         Returns:
-            处理后的文本
+            Processed text
         """
         def replace_code_block(match):
             code_content = match.group(1)
-            # 在代码块内转义所有大括号
+            # Escape all braces within code block
             escaped = code_content.replace('{', '{{').replace('}', '}}')
             return f'```json\n{escaped}\n```'
         
-        # 替换所有 JSON 代码块中的大括号
+        # Replace all braces in JSON code blocks
         text = re.sub(r'```json\n(.*?)\n```', replace_code_block, text, flags=re.DOTALL)
         return text
     
     def load_yaml_config(self, agent_type: str, config_name: str) -> Dict[str, Any]:
         """
-        加载 YAML 配置文件
+        Load YAML configuration file
         
         Args:
-            agent_type: Agent 类型
-            config_name: 配置文件名（不含扩展名）
+            agent_type: Agent type
+            config_name: Configuration file name (without extension)
         
         Returns:
-            配置字典
+            Configuration dictionary
         
         Examples:
             >>> loader = PromptLoader()
@@ -147,18 +147,18 @@ class PromptLoader:
         return self._yaml_cache[cache_key]
     
     def clear_cache(self):
-        """清空缓存（用于热重载）"""
+        """Clear cache (for hot reload)"""
         self._prompt_cache.clear()
         self._yaml_cache.clear()
     
     def reload_prompt(self, agent_type: str, prompt_name: str):
-        """重新加载指定的 prompt（强制刷新缓存）"""
+        """Reload specified prompt (force cache refresh)"""
         cache_key = f"{agent_type}/{prompt_name}"
         if cache_key in self._prompt_cache:
             del self._prompt_cache[cache_key]
     
     def reload_config(self, agent_type: str, config_name: str):
-        """重新加载指定的配置（强制刷新缓存）"""
+        """Reload specified configuration (force cache refresh)"""
         cache_key = f"{agent_type}/{config_name}"
         if cache_key in self._yaml_cache:
             del self._yaml_cache[cache_key]

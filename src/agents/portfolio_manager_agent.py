@@ -1,6 +1,6 @@
 """
-Portfolio Manager Agent - 投资组合管理 Agent
-提供统一的投资组合管理接口（基于AgentScope）
+Portfolio Manager Agent - Portfolio Management Agent
+Provides unified portfolio management interface (based on AgentScope)
 """
 from typing import Dict, Any, Optional, Literal, List
 import json
@@ -19,48 +19,48 @@ from ..memory.manager import get_memory
 
 
 class PortfolioDecision(BaseModel):
-    """投资决策模型"""
+    """Investment decision model"""
     action: LiteralType["long", "short", "hold"]
-    quantity: Optional[int] = Field(default=0, description="交易股数（portfolio模式使用）")
-    confidence: float = Field(description="决策置信度，0.0到100.0之间")
-    reasoning: str = Field(description="决策理由")
+    quantity: Optional[int] = Field(default=0, description="Number of shares to trade (used in portfolio mode)")
+    confidence: float = Field(description="Decision confidence, between 0.0 and 100.0")
+    reasoning: str = Field(description="Decision reasoning")
 
 
 class PortfolioManagerOutput(BaseModel):
-    """投资组合管理输出"""
-    decisions: dict[str, PortfolioDecision] = Field(description="ticker到交易决策的映射")
+    """Portfolio management output"""
+    decisions: dict[str, PortfolioDecision] = Field(description="Mapping from ticker to trading decision")
 
 
 class PortfolioManagerAgent(AgentBase):
-    """投资组合管理 Agent（基于AgentScope）"""
+    """Portfolio Management Agent (based on AgentScope)"""
     
     def __init__(self, 
                  agent_id: str = "portfolio_manager",
                  mode: Literal["direction", "portfolio"] = "direction",
                  config: Optional[Dict[str, Any]] = None):
         """
-        初始化投资组合管理 Agent
+        Initialize Portfolio Management Agent
         
         Args:
             agent_id: Agent ID
-            mode: 模式
-                - "direction": 仅决策方向（long/short/hold），不包含具体数量
-                - "portfolio": 包含具体数量决策，考虑当前持仓
-            config: 配置字典
+            mode: Mode
+                - "direction": Only decision direction (long/short/hold), does not include specific quantity
+                - "portfolio": Includes specific quantity decisions, considers current positions
+            config: Configuration dictionary
         
         Examples:
-            >>> # 方向决策模式
+            >>> # Direction decision mode
             >>> agent = PortfolioManagerAgent(mode="direction")
             >>> 
-            >>> # Portfolio 模式（包含数量）
+            >>> # Portfolio mode (includes quantity)
             >>> agent = PortfolioManagerAgent(mode="portfolio")
         """
-        # 初始化AgentBase（不接受参数）
+        # Initialize AgentBase (does not accept parameters)
         super().__init__()
         
-        # 设置name属性
+        # Set name attribute
         self.name = agent_id
-        self.agent_id = agent_id  # 保留agent_id属性以兼容现有代码
+        self.agent_id = agent_id  # Keep agent_id attribute for compatibility with existing code
         self.agent_type = "portfolio_manager"
         
         self.mode = mode
@@ -71,38 +71,38 @@ class PortfolioManagerAgent(AgentBase):
     
     def execute(self, state: AgentState) -> Dict[str, Any]:
         """
-        执行投资组合管理逻辑
+        Execute portfolio management logic
         
         Args:
             state: AgentState
         
         Returns:
-            更新后的状态字典
+            Updated state dictionary
         """
         analyst_signals = state["data"]["analyst_signals"]
         tickers = state["data"]["tickers"]
         
-        # Debug信息
-        print(f"投资组合管理器收到的分析师信号键: {list(analyst_signals.keys())}")
+        # Debug info
+        print(f"Portfolio manager received analyst signal keys: {list(analyst_signals.keys())}")
         
-        # 收集每个ticker的信号
+        # Collect signals for each ticker
         signals_by_ticker = {}
         current_prices = {}
         
         for ticker in tickers:
-            progress.update_status(self.agent_id, ticker, "收集分析师信号")
+            progress.update_status(self.agent_id, ticker, "Collecting analyst signals")
             
             ticker_signals = self._collect_signals_for_ticker(
                 ticker, analyst_signals, current_prices
             )
             signals_by_ticker[ticker] = ticker_signals
             
-            print(f"{ticker} 收集到的信号数量: {len(ticker_signals)}")
+            print(f"{ticker} collected signal count: {len(ticker_signals)}")
         
         state["data"]["current_prices"] = current_prices
-        progress.update_status(self.agent_id, None, "生成投资决策")
+        progress.update_status(self.agent_id, None, "Generating investment decisions")
         
-        # 根据模式生成决策
+        # Generate decisions based on mode
         if self.mode == "direction":
             result = self._generate_direction_decision(
                 tickers, signals_by_ticker, state
@@ -111,7 +111,7 @@ class PortfolioManagerAgent(AgentBase):
             result = self._generate_portfolio_decision(
                 tickers, signals_by_ticker, state
             )
-        # 创建消息（使用 AgentScope Msg 格式）
+        # Create message (using AgentScope Msg format)
         message = Msg(
             name=self.name,
             content=json.dumps({
@@ -126,7 +126,7 @@ class PortfolioManagerAgent(AgentBase):
         progress.update_status(self.agent_id, None, "Done")
         
         return {
-            "messages": [message.to_dict()],  # 转换为dict
+            "messages": [message.to_dict()],  # Convert to dict
             "data": state["data"],
         }
     
@@ -134,21 +134,21 @@ class PortfolioManagerAgent(AgentBase):
                                    analyst_signals: Dict[str, Any],
                                    current_prices: Dict[str, float]) -> Dict[str, Dict]:
         """
-        收集单个ticker的所有分析师信号
+        Collect all analyst signals for a single ticker
         
         Args:
-            ticker: 股票代码
-            analyst_signals: 所有分析师的信号
-            current_prices: 当前价格字典（用于存储）
+            ticker: Stock ticker
+            analyst_signals: Signals from all analysts
+            current_prices: Current price dictionary (for storage)
         
         Returns:
-            该ticker的信号字典
+            Signal dictionary for this ticker
         """
         ticker_signals = {}
         
         for agent, signals in analyst_signals.items():
             if agent.startswith("risk_manager"):
-                # 风险管理agent - 提取风险信息
+                # Risk management agent - extract risk information
                 if ticker in signals:
                     risk_info = signals[ticker]
                     ticker_signals[agent] = {
@@ -159,7 +159,7 @@ class PortfolioManagerAgent(AgentBase):
                     }
                     current_prices[ticker] = risk_info.get("current_price", 0)
             elif ticker in signals:
-                # 第一轮格式 - 分析师信号
+                # First round format - analyst signals
                 if "signal" in signals[ticker] and "confidence" in signals[ticker]:
                     ticker_signals[agent] = {
                         "type": "investment_signal", 
@@ -167,7 +167,7 @@ class PortfolioManagerAgent(AgentBase):
                         "confidence": signals[ticker]["confidence"]
                     }
             elif "ticker_signals" in signals:
-                # 第二轮格式 - 搜索ticker_signals列表
+                # Second round format - search ticker_signals list
                 for ts in signals["ticker_signals"]:
                     if isinstance(ts, dict) and ts.get("ticker") == ticker:
                         ticker_signals[agent] = {
@@ -182,25 +182,25 @@ class PortfolioManagerAgent(AgentBase):
     def _generate_direction_decision(self, tickers: list[str],
                                     signals_by_ticker: dict[str, dict],
                                     state: AgentState) -> PortfolioManagerOutput:
-        """生成方向决策（不包含数量）"""
-        progress.update_status(self.agent_id, None, "检索历史决策经验")
+        """Generate direction decision (does not include quantity)"""
+        progress.update_status(self.agent_id, None, "Retrieving historical decision experiences")
         relevant_memories = self._recall_relevant_memories(tickers, signals_by_ticker, state)
         
 
-        # 获取分析师权重信息
+        # Get analyst weight information
         analyst_weights_info = self._format_analyst_weights(state)
         
         formatted_memories = self._format_memories_for_prompt(relevant_memories)
         
-        # 生成prompt
+        # Generate prompt
         prompt_data = {
             "signals_by_ticker": json.dumps(signals_by_ticker, indent=2),
             "analyst_weights_info": analyst_weights_info,
             "analyst_weights_separator": "\n" if analyst_weights_info else "",
-            "relevant_past_experiences": formatted_memories,  # ⭐ 注入历史经验
+            "relevant_past_experiences": formatted_memories,  # ⭐ Inject historical experience
         }
 
-        # 加载 prompt
+        # Load prompt
         try:
             system_prompt = self.prompt_loader.load_prompt("direction_decision_system", variables=prompt_data)
             human_prompt = self.prompt_loader.load_prompt("direction_decision_human", variables=prompt_data)
@@ -211,19 +211,19 @@ class PortfolioManagerAgent(AgentBase):
         except FileNotFoundError:
             raise "Failed to load prompts. please check prompt file path for : direction_decision_human"
 
-        # 创建默认工厂
+        # Create default factory
         def create_default_output():
             return PortfolioManagerOutput(
                 decisions={
                     ticker: PortfolioDecision(
                         action="hold", 
                         confidence=0.0, 
-                        reasoning="默认决策: hold"
+                        reasoning="Default decision: hold"
                     ) for ticker in tickers
                 }
             )
         
-        progress.update_status(self.agent_id, None, "基于信号和历史经验生成决策")
+        progress.update_status(self.agent_id, None, "Generating decisions based on signals and historical experience")
         
         return tool_call(
             messages=messages,
@@ -236,17 +236,17 @@ class PortfolioManagerAgent(AgentBase):
     def _generate_portfolio_decision(self, tickers: list[str],
                                     signals_by_ticker: dict[str, dict],
                                     state: AgentState) -> PortfolioManagerOutput:
-        """生成Portfolio决策（包含数量）"""
-        progress.update_status(self.agent_id, None, "检索历史决策经验")
+        """Generate Portfolio decision (includes quantity)"""
+        progress.update_status(self.agent_id, None, "Retrieving historical decision experiences")
         relevant_memories = self._recall_relevant_memories(tickers, signals_by_ticker, state)
         
         portfolio = state["data"]["portfolio"]
         current_prices = state["data"]["current_prices"]
         
-        # 计算每个ticker的最大股数
+        # Calculate maximum shares for each ticker
         max_shares = {}
         for ticker in tickers:
-            # 从risk manager获取仓位限制
+            # Get position limit from risk manager
             risk_manager_id = self._get_risk_manager_id()
             risk_data = state["data"]["analyst_signals"].get(risk_manager_id, {}).get(ticker, {})
             
@@ -258,10 +258,10 @@ class PortfolioManagerAgent(AgentBase):
             else:
                 max_shares[ticker] = 0
 
-        # 获取分析师权重
+        # Get analyst weights
         formatted_memories = self._format_memories_for_prompt(relevant_memories)
         
-        # 生成prompt
+        # Generate prompt
         prompt_data = {
             "signals_by_ticker": json.dumps(signals_by_ticker, indent=2, ensure_ascii=False),
             "current_prices": json.dumps(current_prices, indent=2),
@@ -272,11 +272,11 @@ class PortfolioManagerAgent(AgentBase):
             "total_margin_used": f"{portfolio.get('margin_used', 0):.2f}",
             # "analyst_weights_info": analyst_weights_info,
             # "analyst_weights_separator": "\n" if analyst_weights_info else "",
-            "relevant_past_experiences": formatted_memories,  # 注入历史经验
+            "relevant_past_experiences": formatted_memories,  # Inject historical experience
         }
 
 
-        # 加载 prompt
+        # Load prompt
         system_prompt = self.prompt_loader.load_prompt(agent_type=self.agent_type, prompt_name="portfolio_decision_system", variables=prompt_data)
         human_prompt = self.prompt_loader.load_prompt(agent_type=self.agent_type, prompt_name="portfolio_decision_human", variables=prompt_data)
         messages = [
@@ -285,7 +285,7 @@ class PortfolioManagerAgent(AgentBase):
         ]
         # pdb.set_trace()
 
-        # 创建默认工厂
+        # Create default factory
         def create_default_output():
             return PortfolioManagerOutput(
                 decisions={
@@ -293,12 +293,12 @@ class PortfolioManagerAgent(AgentBase):
                         action="hold",
                         quantity=0,
                         confidence=0.0,
-                        reasoning="默认决策: hold"
+                        reasoning="Default decision: hold"
                     ) for ticker in tickers
                 }
             )
         
-        progress.update_status(self.agent_id, None, "基于信号和历史经验生成决策")
+        progress.update_status(self.agent_id, None, "Generating decisions based on signals and historical experience")
         
         # pdb.set_trace()
         return tool_call(
@@ -310,7 +310,7 @@ class PortfolioManagerAgent(AgentBase):
         )
     
     def _get_risk_manager_id(self) -> str:
-        """获取对应的风险管理器ID"""
+        """Get corresponding risk manager ID"""
         if self.agent_id.startswith("portfolio_manager_portfolio_"):
             suffix = self.agent_id.split('_')[-1]
             return f"risk_manager_{suffix}"
@@ -320,27 +320,27 @@ class PortfolioManagerAgent(AgentBase):
             return "risk_manager"
     
     def _format_analyst_weights(self, state: AgentState) -> str:
-        """格式化分析师权重信息"""
+        """Format analyst weight information"""
         analyst_weights = state.get("data", {}).get("analyst_weights", {})
         okr_state = state.get("data", {}).get("okr_state", {})
         
         if not analyst_weights:
             return ""
         
-        info = "分析师表现权重（基于最近的投资信号准确性）:\n"
+        info = "Analyst performance weights (based on recent investment signal accuracy):\n"
         sorted_weights = sorted(analyst_weights.items(), key=lambda x: x[1], reverse=True)
         
         for analyst_id, weight in sorted_weights:
             new_hire_info = ""
             if okr_state and okr_state.get("new_hires", {}).get(analyst_id):
-                new_hire_info = " (新入职分析师)"
+                new_hire_info = " (Newly hired analyst)"
             
             bar_length = int(weight * 20)
             bar = "█" * bar_length + "░" * (20 - bar_length)
             
             info += f"  {analyst_id}: {weight:.3f} {bar}{new_hire_info}\n"
         
-        info += "\n💡 建议: 根据权重级别考虑不同分析师建议的重要性。"
+        info += "\n💡 Suggestion: Consider the importance of different analyst recommendations based on weight levels."
         return info
     
     def _recall_relevant_memories(
@@ -351,59 +351,59 @@ class PortfolioManagerAgent(AgentBase):
         top_k: int = 3
     ) -> Dict[str, List[str]]:
         """
-        步骤1：从memory系统检索相关的历史决策经验（代码层）
+        Step 1: Retrieve relevant historical decision experiences from memory system (code layer)
         
-        为每个ticker检索相关的历史记忆，帮助PM做出更好的决策
+        Retrieve relevant historical memories for each ticker to help PM make better decisions
         
         Args:
-            tickers: 股票代码列表
-            signals_by_ticker: 按ticker分组的分析师信号
-            state: 当前状态
-            top_k: 每个ticker返回的记忆数量
+            tickers: Stock ticker list
+            signals_by_ticker: Analyst signals grouped by ticker
+            state: Current state
+            top_k: Number of memories to return per ticker
             
         Returns:
-            字典，key为ticker，value为相关记忆列表
-            例如: {
+            Dictionary, key is ticker, value is list of relevant memories
+            Example: {
                 'AAPL': [
-                    "2024-01-15: 在相似信号组合下做了long决策，但结果亏损5%...",
-                    "2024-01-20: 当技术指标与基本面冲突时需要更谨慎..."
+                    "2024-01-15: Made long decision under similar signal combination, but resulted in 5% loss...",
+                    "2024-01-20: Need to be more cautious when technical indicators conflict with fundamentals..."
                 ]
             }
         """
         memories_by_ticker = {}
         
         try:
-            # 获取base_dir（从config或使用默认值）
+            # Get base_dir (from config or use default)
             base_dir = self.config.get('base_dir', 'default')
             
-            # 获取memory实例
+            # Get memory instance
             memory = get_memory(base_dir)
             
-            # ⭐ 统一使用 "portfolio_manager" 作为memory的user_id
-            # 无论是direction还是portfolio模式，都使用同一个memory space
-            # 这样可以共享经验，避免记忆分散
+            # ⭐ Uniformly use "portfolio_manager" as memory's user_id
+            # Whether direction or portfolio mode, use the same memory space
+            # This allows sharing experiences and avoids memory fragmentation
             memory_user_id = "portfolio_manager"
             
-            # 为每个ticker生成搜索query并检索记忆
+            # Generate search query for each ticker and retrieve memories
             for ticker in tickers:
-                # 生成搜索query（基于当前信号组合）
+                # Generate search query (based on current signal combination)
                 ticker_signals = signals_by_ticker.get(ticker, {})
                 query = self._generate_memory_query(ticker, ticker_signals)
                 
-                # 从memory系统检索相关记忆
+                # Retrieve relevant memories from memory system
                 try:
-                    # 直接调用memory.search
+                    # Directly call memory.search
                     relevant_memories = memory.search(
                         query=query,
-                        user_id=memory_user_id,  # 统一使用 "portfolio_manager"
+                        user_id=memory_user_id,  # Uniformly use "portfolio_manager"
                         top_k=top_k
                     )
                     
-                    # 格式化记忆为可读字符串
+                    # Format memories as readable strings
                     memory_strings = []
                     for mem in relevant_memories:
                         if isinstance(mem, dict):
-                            # 新API返回 {'id': ..., 'content': ..., 'metadata': ...}
+                            # New API returns {'id': ..., 'content': ..., 'metadata': ...}
                             memory_content = mem.get('content', str(mem))
                             memory_strings.append(memory_content)
                         else:
@@ -412,15 +412,15 @@ class PortfolioManagerAgent(AgentBase):
                     memories_by_ticker[ticker] = memory_strings
                     
                     if memory_strings:
-                        print(f"✅ {ticker}: 检索到 {len(memory_strings)} 条相关历史经验")
+                        print(f"✅ {ticker}: Retrieved {len(memory_strings)} relevant historical experiences")
                     
                 except Exception as e:
-                    print(f"⚠️ {ticker}: Memory检索失败 - {e}")
+                    print(f"⚠️ {ticker}: Memory retrieval failed - {e}")
                     memories_by_ticker[ticker] = []
             
         except Exception as e:
-            print(f"⚠️ Memory系统不可用 - {e}")
-            # 如果memory系统不可用，返回空字典
+            print(f"⚠️ Memory system unavailable - {e}")
+            # If memory system is unavailable, return empty dictionary
             for ticker in tickers:
                 memories_by_ticker[ticker] = []
         
@@ -428,18 +428,18 @@ class PortfolioManagerAgent(AgentBase):
     
     def _generate_memory_query(self, ticker: str, ticker_signals: Dict[str, Dict]) -> str:
         """
-        生成memory搜索query
+        Generate memory search query
         
-        根据当前信号组合生成针对性的搜索query，找到类似情况下的历史决策
+        Generate targeted search query based on current signal combination to find historical decisions under similar circumstances
         
         Args:
-            ticker: 股票代码
-            ticker_signals: 该ticker的分析师信号
+            ticker: Stock ticker
+            ticker_signals: Analyst signals for this ticker
             
         Returns:
-            搜索query字符串
+            Search query string
         """
-        # 提取信号方向和置信度
+        # Extract signal directions and confidence
         signal_directions = []
         high_confidence_signals = []
         
@@ -453,40 +453,40 @@ class PortfolioManagerAgent(AgentBase):
                 if confidence > 70:
                     high_confidence_signals.append(f"{agent_id}:{direction}")
         
-        # 构建query
-        query_parts = [f"{ticker} 投资决策"]
+        # Build query
+        query_parts = [f"{ticker} investment decision"]
         
-        # 添加主要信号方向
+        # Add main signal direction
         if signal_directions:
             bullish_count = signal_directions.count("bullish")
             bearish_count = signal_directions.count("bearish")
             
             if bullish_count > bearish_count:
-                query_parts.append("看多信号")
+                query_parts.append("bullish signals")
             elif bearish_count > bullish_count:
-                query_parts.append("看空信号")
+                query_parts.append("bearish signals")
             else:
-                query_parts.append("信号分歧")
+                query_parts.append("signal divergence")
         
-        # 添加高置信度信号信息
+        # Add high confidence signal information
         if high_confidence_signals:
-            query_parts.append(f"高置信度分析师: {', '.join(high_confidence_signals[:2])}")
+            query_parts.append(f"high confidence analysts: {', '.join(high_confidence_signals[:2])}")
         
         query = " ".join(query_parts)
         return query
     
     def _format_memories_for_prompt(self, memories_by_ticker: Dict[str, List[str]]) -> str:
         """
-        ⭐ 步骤2的辅助方法：格式化记忆为prompt可用的文本
+        ⭐ Helper method for Step 2: Format memories as prompt-ready text
         
         Args:
-            memories_by_ticker: 按ticker分组的记忆
+            memories_by_ticker: Memories grouped by ticker
             
         Returns:
-            格式化后的记忆文本
+            Formatted memory text
         """
         if not memories_by_ticker or not any(memories_by_ticker.values()):
-            return "暂无相关历史经验。"
+            return "No relevant historical experience available."
         
         formatted_lines = []
         
@@ -494,12 +494,12 @@ class PortfolioManagerAgent(AgentBase):
             if not memories:
                 continue
             
-            formatted_lines.append(f"\n**{ticker} 相关历史经验:**")
+            formatted_lines.append(f"\n**{ticker} Relevant Historical Experience:**")
             for i, memory in enumerate(memories, 1):
                 formatted_lines.append(f"  {i}. {memory}")
         
         if not formatted_lines:
-            return "暂无相关历史经验。"
+            return "No relevant historical experience available."
         
         return "\n".join(formatted_lines)
 

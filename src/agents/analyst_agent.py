@@ -1,6 +1,6 @@
 """
-Analyst Agent - 统一的分析师 Agent 实现
-基于 AgentScope AgentBase 实现，使用Toolkit和Msg
+Analyst Agent - Unified Analyst Agent implementation
+Based on AgentScope AgentBase, uses Toolkit and Msg
 """
 import asyncio
 from typing import Dict, Any, Optional, List
@@ -12,7 +12,7 @@ from agentscope.tool import Toolkit
 
 from ..graph.state import AgentState
 from ..utils.progress import progress
-from ..llm.models import get_model  # 使用 AgentScope 模型
+from ..llm.models import get_model  # Use AgentScope model
 from .tool_selector import Toolselector
 from ..tools.data_tools import get_last_tradeday
 from ..config.constants import ANALYST_TYPES
@@ -24,7 +24,7 @@ _prompt_loader = PromptLoader()
 _personas_config = _prompt_loader.load_yaml_config("analyst", "personas")
 
 class AnalystAgent(AgentBase):
-    """分析师 Agent - 使用 LLM 进行智能工具选择和分析（基于AgentScope）"""
+    """Analyst Agent - Uses LLM for intelligent tool selection and analysis (based on AgentScope)"""
     
     def __init__(self, 
                  analyst_type: str,
@@ -32,13 +32,13 @@ class AnalystAgent(AgentBase):
                  description: Optional[str] = None, 
                  config: Optional[Dict[str, Any]] = None):
         """
-        初始化分析师 Agent
+        Initialize Analyst Agent
         
         Args:
-            analyst_type: 分析师类型 (fundamental, technical, sentiment, valuation, comprehensive)
-            agent_id: Agent ID（默认为 "{analyst_type}_analyst_agent"）
-            description: 分析师描述
-            config: 配置字典
+            analyst_type: Analyst type (fundamental, technical, sentiment, valuation, comprehensive)
+            agent_id: Agent ID (defaults to "{analyst_type}_analyst_agent")
+            description: Analyst description
+            config: Configuration dictionary
         """
         if analyst_type not in ANALYST_TYPES:
             raise ValueError(
@@ -49,34 +49,34 @@ class AnalystAgent(AgentBase):
         self.analyst_type_key = analyst_type
         self.analyst_persona = ANALYST_TYPES[analyst_type]["display_name"]
         
-        # 设置默认 agent_id
+        # Set default agent_id
         if agent_id is None:
             agent_id = f"{analyst_type}_analyst_agent"
         
-        # 初始化AgentBase（不接受参数）
+        # Initialize AgentBase (does not accept parameters)
         super().__init__()
         
-        # 设置name属性
+        # Set name attribute
         self.name = agent_id
         
-        self.description = description or f"{self.analyst_persona} - 使用LLM智能选择分析工具"
+        self.description = description or f"{self.analyst_persona} - Uses LLM for intelligent analysis tool selection"
         self.config = config or {}
         
-        # 使用LLM工具选择器（内部使用Toolkit）
+        # Use LLM tool selector (internally uses Toolkit)
         self.tool_selector = Toolselector()
-        self.toolkit = self.tool_selector.get_toolkit()  # 获取Toolkit实例
+        self.toolkit = self.tool_selector.get_toolkit()  # Get Toolkit instance
     
     def execute(self, state: AgentState) -> Dict[str, Any]:
         """
-        执行分析师逻辑（同步入口，内部调用异步）
+        Execute analyst logic (synchronous entry point, internally calls async)
         
         Args:
             state: AgentState
         
         Returns:
-            更新后的状态字典
+            Updated state dictionary
         """
-        # 在当前线程中创建新的事件循环进行异步分析
+        # Create new event loop in current thread for async analysis
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
@@ -89,20 +89,20 @@ class AnalystAgent(AgentBase):
     
     async def _execute_async(self, state: AgentState) -> Dict[str, Any]:
         """
-        异步执行分析师逻辑
+        Asynchronously execute analyst logic
         
         Args:
             state: AgentState
         
         Returns:
-            更新后的状态字典
+            Updated state dictionary
         """
         data = state["data"]
         tickers = data["tickers"]
         start_date = data.get("start_date")
         end_date = data["end_date"]
         
-        # 获取 LLM
+        # Get LLM
         llm = None
         try:
             llm = get_model(
@@ -111,25 +111,25 @@ class AnalystAgent(AgentBase):
                 api_keys=state['data']['api_keys']
             )
         except Exception as e:
-            print(f"警告: 无法获取 LLM 模型: {e}")
+            print(f"Warning: Unable to get LLM model: {e}")
         
-        # 执行分析
+        # Execute analysis
         analysis_results = {}
         
         for ticker in tickers:
             progress.update_status(
-                self.name,  # 使用 self.name 而不是 self.agent_id
+                self.name,  # Use self.name instead of self.agent_id
                 ticker, 
-                f"开始 {self.analyst_persona} 智能分析"
+                f"Starting {self.analyst_persona} intelligent analysis"
             )
             
-            # 生成分析目标
+            # Generate analysis objective
             analysis_objective = (
-                f"作为专业的{self.analyst_persona}，对股票 {ticker} "
-                f"进行全面深入的投资分析"
+                f"As a professional {self.analyst_persona}, conduct comprehensive and in-depth investment analysis "
+                f"for stock {ticker}"
             )
             
-            # 异步分析ticker
+            # Asynchronously analyze ticker
             result = await self._analyze_ticker(
                 ticker, end_date, state, start_date, llm, analysis_objective
             )
@@ -138,11 +138,11 @@ class AnalystAgent(AgentBase):
             progress.update_status(
                 self.name, 
                 ticker, 
-                "完成",
+                "Done",
                 analysis=json.dumps(result, indent=2, default=str)
             )
         
-        # 创建消息（使用 AgentScope Msg 格式）
+        # Create message (using AgentScope Msg format)
         message = Msg(
             name=self.name,
             content=json.dumps(analysis_results, default=str),
@@ -150,17 +150,17 @@ class AnalystAgent(AgentBase):
             metadata={"analyst_type": self.analyst_type_key}
         )
         
-        # 更新状态
+        # Update state
         state["data"]["analyst_signals"][self.name] = analysis_results
         
         progress.update_status(
             self.name, 
             None, 
-            f"所有 {self.analyst_persona} 分析完成"
+            f"All {self.analyst_persona} analysis completed"
         )
         
         return {
-            "messages": [message.to_dict()],  # 转换为dict
+            "messages": [message.to_dict()],  # Convert to dict
             "data": data,
         }
     
@@ -168,31 +168,31 @@ class AnalystAgent(AgentBase):
                             start_date: Optional[str], llm, 
                             analysis_objective: str) -> Dict[str, Any]:
         """
-        分析单个 ticker
+        Analyze a single ticker
         
         Args:
-            ticker: 股票代码
-            end_date: 结束日期
-            state: State对象 (包含API keys等信息)
-            start_date: 开始日期
-            llm: LLM 模型
-            analysis_objective: 分析目标
+            ticker: Stock ticker
+            end_date: End date
+            state: State object (contains API keys and other information)
+            start_date: Start date
+            llm: LLM model
+            analysis_objective: Analysis objective
         
         Returns:
-            分析结果字典
+            Analysis result dictionary
         """
         progress.update_status(
             self.name, 
             ticker, 
-            "开始智能工具选择"
+            "Starting intelligent tool selection"
         )
         
-        # ⭐ 将 end_date 调整为上一个交易日
-        # 这样分析时不包含当日未收盘的数据，避免数据不完整的问题
+        # ⭐ Adjust end_date to previous trading day
+        # This ensures analysis doesn't include incomplete same-day data
         adjusted_end_date = get_last_tradeday(end_date)
-        # print(f"📅 分析师 {self.agent_id} - 原始日期: {end_date}, 分析截止日期（上一个交易日）: {adjusted_end_date}")
+        # print(f"📅 Analyst {self.agent_id} - Original date: {end_date}, Analysis end date (previous trading day): {adjusted_end_date}")
         
-        # 1. 生成市场条件
+        # 1. Generate market conditions
         market_conditions = {
             "analysis_date": end_date,
             "volatility_regime": "normal",
@@ -200,7 +200,7 @@ class AnalystAgent(AgentBase):
             "market_sentiment": "neutral"
         }
         
-        # 2. 使用LLM选择工具
+        # 2. Use LLM to select tools
         selection_result = await self.tool_selector.select_tools_with_llm(
             llm, self.analyst_persona, ticker, market_conditions, analysis_objective
         )
@@ -208,26 +208,26 @@ class AnalystAgent(AgentBase):
         progress.update_status(
             self.name, 
             ticker, 
-            f"已选择 {selection_result['tool_count']} 个工具"
+            f"Selected {selection_result['tool_count']} tools"
         )
 
 
-        # print(f"{self.name} \n\n-  LLM 工具选择结果:\n\n {selection_result}")
+        # print(f"{self.name} \n\n- LLM tool selection result:\n\n {selection_result}")
         
-        # 3. 执行选定的工具 - 使用AgentScope Toolkit
+        # 3. Execute selected tools - using AgentScope Toolkit
         tool_results = await self.tool_selector.execute_selected_tools(
             selection_result["selected_tools"],
             ticker=ticker,
-            state=state,  # 传递state,让工具自己获取需要的API key
+            state=state,  # Pass state so tools can get required API keys themselves
             start_date=start_date,
-            end_date=adjusted_end_date  # 使用调整后的日期
+            end_date=adjusted_end_date  # Use adjusted date
         )
         
-        # 4. 使用LLM综合判断工具结果
+        # 4. Use LLM to synthesize tool results
         progress.update_status(
             self.name, 
             ticker, 
-            "LLM综合分析信号"
+            "LLM synthesizing signals"
         )
 
 
@@ -239,9 +239,9 @@ class AnalystAgent(AgentBase):
             self.analyst_persona
         )
 
-        # print(f"-  {self.name} 调用输出结果:\n\n {combined_result}")
+        # print(f"- {self.name} call output result:\n\n {combined_result}")
         
-        # 5. 构建最终结果
+        # 5. Build final result
         analysis_result = {
             "signal": combined_result["signal"],
             "confidence": combined_result["confidence"],
@@ -269,7 +269,7 @@ class AnalystAgent(AgentBase):
             }
         }
         
-        progress.update_status(self.name, ticker, "分析完成")
+        progress.update_status(self.name, ticker, "Analysis completed")
         
         return analysis_result
 
@@ -284,7 +284,7 @@ def run_second_round_llm_analysis(
     notifications: List[Dict[str, Any]],
     state: AgentState
 ) -> SecondRoundAnalysis:
-    """运行第二轮LLM分析"""
+    """Run second round LLM analysis"""
     
     if agent_id not in _personas_config:
         raise ValueError(f"Unknown analyst ID: {agent_id}")
@@ -293,7 +293,7 @@ def run_second_round_llm_analysis(
     
     analysis_focus_str = "\n".join([f"- {focus}" for focus in persona['analysis_focus']])
     
-    # 格式化通知信息
+    # Format notification information
     notifications_str = ""
     if notifications:
         notifications_str = "\n".join([
@@ -303,7 +303,7 @@ def run_second_round_llm_analysis(
     else:
         notifications_str = "No notifications from other analysts yet"
     
-    # 生成分ticker的报告
+    # Generate per-ticker reports
     ticker_reports = []
     for i, ticker in enumerate(tickers, 1):
         ticker_first_round = {}
@@ -373,7 +373,7 @@ Analysis Tools Selection and Reasoning:
 
 
 def format_second_round_result_for_state(analysis: SecondRoundAnalysis) -> Dict[str, Any]:
-    """将第二轮分析结果格式化为适合存储在AgentState中的格式"""
+    """Format second round analysis result for storage in AgentState"""
     return {
         "analyst_id": analysis.analyst_id,
         "analyst_name": analysis.analyst_name,
