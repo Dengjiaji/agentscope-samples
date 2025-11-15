@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-# logs_and_memory 目录放在项目父目录下
+# logs_and_memory directory is placed in the project parent directory
 LOGS_AND_MEMORY_DIR = PROJECT_ROOT.parent / "logs_and_memory"
 CONFIG_NAME = None
 BASE_CONFIG_DIR = PROJECT_ROOT
@@ -11,7 +11,7 @@ MEMORY_DATA_DIR = None
 SANDBOX_LOGS_DIR = None
 
 def get_logs_and_memory_dir() -> Path:
-    """获取 logs_and_memory 目录路径（位于项目父目录下）"""
+    """Get logs_and_memory directory path (located in project parent directory)"""
     return LOGS_AND_MEMORY_DIR
 
 def get_directory_config(config_name: str):

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-环境变量配置加载器
-支持从 .env 文件加载配置参数，并提供默认值
+Environment Variable Configuration Loader
+Supports loading configuration parameters from .env file and provides default values
 """
 
 import os
@@ -13,41 +13,41 @@ from dataclasses import dataclass, field
 
 def load_env_file(env_file_path: str = None) -> Dict[str, str]:
     """
-    加载 .env 文件
+    Load .env file
     
     Args:
-        env_file_path: .env 文件路径，如果为None则在项目根目录查找
+        env_file_path: .env file path, if None then search in project root directory
     
     Returns:
-        环境变量字典
+        Environment variable dictionary
     """
     env_vars = {}
     
-    # 确定 .env 文件路径
+    # Determine .env file path
     if env_file_path is None:
-        # 在项目根目录查找
+        # Search in project root directory
         project_root = Path(__file__).parent.parent.parent
         env_file_path = project_root / ".env"
     else:
         env_file_path = Path(env_file_path)
     
-    # 如果文件存在则加载
+    # Load if file exists
     if env_file_path.exists():
         try:
             with open(env_file_path, 'r', encoding='utf-8') as f:
                 for line in f:
                     line = line.strip()
-                    # 跳过空行和注释行
+                    # Skip empty lines and comment lines
                     if not line or line.startswith('#'):
                         continue
                     
-                    # 解析键值对
+                    # Parse key-value pairs
                     if '=' in line:
                         key, value = line.split('=', 1)
                         key = key.strip()
                         value = value.strip()
                         
-                        # 移除引号
+                        # Remove quotes
                         if value.startswith('"') and value.endswith('"'):
                             value = value[1:-1]
                         elif value.startswith("'") and value.endswith("'"):
@@ -55,25 +55,25 @@ def load_env_file(env_file_path: str = None) -> Dict[str, str]:
                         
                         env_vars[key] = value
         except Exception as e:
-            print(f"⚠️ 加载 .env 文件失败: {e}")
+            print(f"⚠️ Failed to load .env file: {e}")
     
     return env_vars
 
 
 def get_env_value(key: str, default: Any = None, value_type: type = str, env_vars: Dict[str, str] = None) -> Any:
     """
-    获取环境变量值，支持类型转换
+    Get environment variable value with type conversion support
     
     Args:
-        key: 环境变量名
-        default: 默认值
-        value_type: 期望的数据类型
-        env_vars: 环境变量字典，如果为None则从系统环境变量获取
+        key: Environment variable name
+        default: Default value
+        value_type: Expected data type
+        env_vars: Environment variable dictionary, if None then get from system environment variables
     
     Returns:
-        转换后的值
+        Converted value
     """
-    # 优先从传入的env_vars获取，再从系统环境变量获取
+    # Priority: get from passed env_vars, then from system environment variables
     if env_vars is not None:
         value = env_vars.get(key)
     else:
@@ -82,7 +82,7 @@ def get_env_value(key: str, default: Any = None, value_type: type = str, env_var
     if value is None or value == '':
         return default
     
-    # 类型转换
+    # Type conversion
     try:
         if value_type == bool:
             return value.lower() in ('true', '1', 'yes', 'on')
@@ -91,45 +91,45 @@ def get_env_value(key: str, default: Any = None, value_type: type = str, env_var
         elif value_type == float:
             return float(value)
         elif value_type == list:
-            # 假设是逗号分隔的字符串
+            # Assume comma-separated string
             return [item.strip() for item in value.split(',') if item.strip()]
         else:
             return value
     except (ValueError, TypeError):
-        print(f"⚠️ 环境变量 {key} 的值 '{value}' 无法转换为 {value_type.__name__}，使用默认值")
+        print(f"⚠️ Environment variable {key} value '{value}' cannot be converted to {value_type.__name__}, using default value")
         return default
 
 
 class MultiDayConfig:
-    """多日策略配置类"""
+    """Multi-day strategy configuration class"""
     
     def __init__(self, env_file_path: str = None):
-        """初始化配置"""
+        """Initialize configuration"""
         self.env_vars = load_env_file(env_file_path)
         self.load_config()
     
     def load_config(self):
-        """加载配置参数"""
-        # 基础配置
+        """Load configuration parameters"""
+        # Basic configuration
         self.tickers = get_env_value('TICKERS', default=[], value_type=list, env_vars=self.env_vars)
         self.output_dir = get_env_value('OUTPUT_DIR', default='./analysis_results_logs', env_vars=self.env_vars)
         self.verbose = get_env_value('VERBOSE', default=False, value_type=bool, env_vars=self.env_vars)
         
-        # 运行模式配置
+        # Run mode configuration
         self.mode = get_env_value('MODE', default='signal', env_vars=self.env_vars)
         if self.mode not in ['signal', 'portfolio']:
-            print(f"⚠️ 无效的运行模式: {self.mode}，使用默认值 'signal'")
+            print(f"⚠️ Invalid run mode: {self.mode}, using default value 'signal'")
             self.mode = 'signal'
         
-        # Portfolio模式配置
+        # Portfolio mode configuration
         self.initial_cash = get_env_value('INITIAL_CASH', default=100000.0, value_type=float, env_vars=self.env_vars)
         self.margin_requirement = get_env_value('MARGIN_REQUIREMENT', default=0.0, value_type=float, env_vars=self.env_vars)
         
-        # 日期配置
+        # Date configuration
         self.start_date = get_env_value('START_DATE', default=None, env_vars=self.env_vars)
         self.end_date = get_env_value('END_DATE', default=None, env_vars=self.env_vars)
         
-        # 功能开关
+        # Feature switches
         self.disable_communications = get_env_value('DISABLE_COMMUNICATIONS', default=False, value_type=bool, env_vars=self.env_vars)
         self.disable_notifications = get_env_value('DISABLE_NOTIFICATIONS', default=False, value_type=bool, env_vars=self.env_vars)
         self.disable_data_prefetch = get_env_value('DISABLE_DATA_PREFETCH', default=False, value_type=bool, env_vars=self.env_vars)
@@ -137,10 +137,10 @@ class MultiDayConfig:
         self.show_reasoning = get_env_value('SHOW_REASONING', default=False, value_type=bool, env_vars=self.env_vars)
         self.dry_run = get_env_value('DRY_RUN', default=False, value_type=bool, env_vars=self.env_vars)
         
-        # 数值配置
+        # Numeric configuration
         self.max_comm_cycles = get_env_value('MAX_COMM_CYCLES', default=3, value_type=int, env_vars=self.env_vars)
         
-        # 如果未设置日期，使用默认值
+        # Use default values if dates are not set
         if not self.end_date:
             self.end_date = datetime.now().strftime("%Y-%m-%d")
         
@@ -149,7 +149,7 @@ class MultiDayConfig:
             self.start_date = (end_date_obj - timedelta(days=30)).strftime("%Y-%m-%d")
     
     def override_with_args(self, args):
-        """用命令行参数覆盖环境变量配置"""
+        """Override environment variable configuration with command line arguments"""
         if hasattr(args, 'tickers') and args.tickers:
             self.tickers = [ticker.strip().upper() for ticker in args.tickers.split(",") if ticker.strip()]
         
@@ -157,7 +157,7 @@ class MultiDayConfig:
             if args.mode in ['signal', 'portfolio']:
                 self.mode = args.mode
             else:
-                print(f"⚠️ 无效的运行模式: {args.mode}，保持当前值 '{self.mode}'")
+                print(f"⚠️ Invalid run mode: {args.mode}, keeping current value '{self.mode}'")
         
         if hasattr(args, 'initial_cash') and args.initial_cash:
             self.initial_cash = args.initial_cash
@@ -200,7 +200,7 @@ class MultiDayConfig:
 
 
 class LiveTradingConfig:
-    """Live交易系统配置类"""
+    """Live trading system configuration class"""
     
     tickers: list[str] = field(default_factory=list)
     start_date: str | None = None
@@ -213,31 +213,31 @@ class LiveTradingConfig:
     disable_notifications: bool = False
     
     def __init__(self, env_file_path: str = None):
-        """初始化配置"""
+        """Initialize configuration"""
         self.env_vars = load_env_file(env_file_path)
         self.load_config()
     
     def load_config(self):
-        """加载配置参数"""
-        # 基础配置
+        """Load configuration parameters"""
+        # Basic configuration
         self.tickers = get_env_value('TICKERS', default=[], value_type=list, env_vars=self.env_vars)
         self.base_dir = get_env_value('LIVE_BASE_DIR', default=None, env_vars=self.env_vars)
         
-        # 日期配置
+        # Date configuration
         self.backfill_start_date = get_env_value('BACKFILL_START_DATE', default='2025-01-01', env_vars=self.env_vars)
         self.target_date = get_env_value('TARGET_DATE', default=None, env_vars=self.env_vars)
         
-        # 功能开关
+        # Feature switches
         self.force_run = get_env_value('FORCE_RUN', default=False, value_type=bool, env_vars=self.env_vars)
         
-        # 数值配置
+        # Numeric configuration
         self.max_comm_cycles = get_env_value('LIVE_MAX_COMM_CYCLES', default=2, value_type=int, env_vars=self.env_vars)
 
         self.disable_communications = get_env_value('DISABLE_COMMUNICATIONS', default=False, value_type=bool, env_vars=self.env_vars)
         self.disable_notifications = get_env_value('DISABLE_NOTIFICATIONS', default=False, value_type=bool, env_vars=self.env_vars)
     
     def override_with_args(self, args):
-        """用命令行参数覆盖环境变量配置"""
+        """Override environment variable configuration with command line arguments"""
         if hasattr(args, 'tickers') and args.tickers:
             self.tickers = [ticker.strip().upper() for ticker in args.tickers.split(",") if ticker.strip()]
         
@@ -258,7 +258,7 @@ class LiveTradingConfig:
 
 
 class LiveThinkingFundConfig:
-    """Live交易系统配置类"""
+    """Live trading system configuration class"""
     
     tickers: list[str] = field(default_factory=list)
     start_date: str | None = None
@@ -271,39 +271,39 @@ class LiveThinkingFundConfig:
     disable_notifications: bool = False
     
     def __init__(self, env_file_path: str = None):
-        """初始化配置"""
+        """Initialize configuration"""
         self.env_vars = load_env_file(env_file_path)
         self.load_config()
     
     def load_config(self):
-        """加载配置参数"""
-        # 基础配置
+        """Load configuration parameters"""
+        # Basic configuration
         self.tickers = get_env_value('TICKERS', default=[], value_type=list, env_vars=self.env_vars)
         self.base_dir = get_env_value('LIVE_BASE_DIR', default=None, env_vars=self.env_vars)
         
-        # 运行模式配置（新增）
+        # Run mode configuration (new)
         self.mode = get_env_value('MODE', default='signal', env_vars=self.env_vars)
         if self.mode not in ['signal', 'portfolio']:
-            print(f"⚠️ 无效的运行模式: {self.mode}，使用默认值 'signal'")
+            print(f"⚠️ Invalid run mode: {self.mode}, using default value 'signal'")
             self.mode = 'signal'
         
-        # Portfolio模式配置（新增）
+        # Portfolio mode configuration (new)
         self.initial_cash = get_env_value('INITIAL_CASH', default=100000.0, value_type=float, env_vars=self.env_vars)
         self.margin_requirement = get_env_value('MARGIN_REQUIREMENT', default=0.0, value_type=float, env_vars=self.env_vars)
         
-        # 日期配置
-        # 功能开关
+        # Date configuration
+        # Feature switches
         self.force_run = get_env_value('FORCE_RUN', default=False, value_type=bool, env_vars=self.env_vars)
         self.pause_before_trade = get_env_value('PAUSE_BEFORE_TRADE', default=False, value_type=bool, env_vars=self.env_vars)
         
-        # 数值配置
+        # Numeric configuration
         self.max_comm_cycles = get_env_value('LIVE_MAX_COMM_CYCLES', default=2, value_type=int, env_vars=self.env_vars)
 
         self.disable_communications = get_env_value('DISABLE_COMMUNICATIONS', default=False, value_type=bool, env_vars=self.env_vars)
         self.disable_notifications = get_env_value('DISABLE_NOTIFICATIONS', default=False, value_type=bool, env_vars=self.env_vars)
     
     def override_with_args(self, args):
-        """用命令行参数覆盖环境变量配置"""
+        """Override environment variable configuration with command line arguments"""
         if hasattr(args, 'tickers') and args.tickers:
             self.tickers = [ticker.strip().upper() for ticker in args.tickers.split(",") if ticker.strip()]
         
@@ -325,7 +325,7 @@ class LiveThinkingFundConfig:
         if hasattr(args, 'config_name') and args.config_name:
             self.config_name = args.config_name
         
-        # Portfolio模式参数覆盖（新增）
+        # Portfolio mode parameter override (new)
         if hasattr(args, 'mode') and args.mode:
             self.mode = args.mode
         
@@ -341,15 +341,15 @@ class LiveThinkingFundConfig:
 if __name__ == "__main__":
    
     
-    # 测试配置加载
-    print("\n测试多日策略配置:")
+    # Test configuration loading
+    print("\nTesting multi-day strategy configuration:")
     multi_config = MultiDayConfig()
-    print(f"  默认股票: {multi_config.tickers}")
-    print(f"  输出目录: {multi_config.output_dir}")
-    print(f"  最大沟通轮数: {multi_config.max_comm_cycles}")
+    print(f"  Default stocks: {multi_config.tickers}")
+    print(f"  Output directory: {multi_config.output_dir}")
+    print(f"  Max communication cycles: {multi_config.max_comm_cycles}")
     
-    print("\n测试Live交易配置:")
+    print("\nTesting Live trading configuration:")
     live_config = LiveTradingConfig()
-    print(f"  默认股票: {live_config.tickers}")
-    print(f"  回填开始日期: {live_config.backfill_start_date}")
-    print(f"  最大沟通轮数: {live_config.max_comm_cycles}")
+    print(f"  Default stocks: {live_config.tickers}")
+    print(f"  Backfill start date: {live_config.backfill_start_date}")
+    print(f"  Max communication cycles: {live_config.max_comm_cycles}")
