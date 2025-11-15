@@ -158,7 +158,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
           {agent.modelName && (
             <div style={{
               padding: '8px 12px',
-              background: modelInfo.bgColor,
+              background: '#ffffff',
               border: `2px solid ${modelInfo.color}`,
               minWidth: 140,
               position: 'relative',
@@ -176,11 +176,30 @@ export default function AgentCard({ agent, onClose, isClosing }) {
                 Model
               </div>
               <div style={{
-                fontSize: 28,
-                lineHeight: 1,
-                marginBottom: 2
+                height: 40,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 4
               }}>
-                {modelInfo.icon}
+                {modelInfo.logoPath ? (
+                  <img 
+                    src={modelInfo.logoPath}
+                    alt={modelInfo.provider}
+                    style={{
+                      maxHeight: '100%',
+                      maxWidth: '100%',
+                      objectFit: 'contain'
+                    }}
+                  />
+                ) : (
+                  <div style={{
+                    fontSize: 28,
+                    lineHeight: 1
+                  }}>
+                    🤖
+                  </div>
+                )}
               </div>
               <div style={{
                 fontSize: 11,

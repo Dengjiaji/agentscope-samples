@@ -8,12 +8,12 @@
  * Get model icon and styling based on model name
  * @param {string} modelName - The model name (e.g., "qwen-plus", "gpt-4o")
  * @param {string} modelProvider - The model provider (e.g., "OPENAI", "ANTHROPIC")
- * @returns {object} Icon configuration { icon, color, bgColor, label, provider }
+ * @returns {object} Icon configuration { logoPath, color, bgColor, label, provider }
  */
 export function getModelIcon(modelName, modelProvider) {
   if (!modelName) {
     return {
-      icon: '🤖',
+      logoPath: null,
       color: '#666666',
       bgColor: '#f5f5f5',
       label: 'Default',
@@ -27,7 +27,7 @@ export function getModelIcon(modelName, modelProvider) {
   // GLM Models (智谱AI)
   if (name.includes('glm')) {
     return {
-      icon: '🌟',
+      logoPath: '/assets/llm_model_logos/Zhipu AI.png',
       color: '#4A90E2',
       bgColor: '#E3F2FD',
       label: 'GLM-4.6',
@@ -38,7 +38,7 @@ export function getModelIcon(modelName, modelProvider) {
   // Qwen Models (阿里云/通义千问)
   if (name.includes('qwen')) {
     return {
-      icon: '🔷',
+      logoPath: '/assets/llm_model_logos/Alibaba.jpeg',
       color: '#FF6A00',
       bgColor: '#FFF3E0',
       label: name.includes('max') ? 'Qwen-Max' : name.includes('plus') ? 'Qwen-Plus' : 'Qwen',
@@ -49,7 +49,7 @@ export function getModelIcon(modelName, modelProvider) {
   // DeepSeek Models
   if (name.includes('deepseek')) {
     return {
-      icon: '🔍',
+      logoPath: '/assets/llm_model_logos/DeepSeek.png',
       color: '#1976D2',
       bgColor: '#E3F2FD',
       label: 'DeepSeek-V3',
@@ -60,7 +60,7 @@ export function getModelIcon(modelName, modelProvider) {
   // Moonshot/Kimi Models (月之暗面)
   if (name.includes('moonshot') || name.includes('kimi')) {
     return {
-      icon: '🌙',
+      logoPath: '/assets/llm_model_logos/Moonshot.jpeg',
       color: '#7B68EE',
       bgColor: '#F3E5F5',
       label: 'Kimi-K2',
@@ -71,7 +71,7 @@ export function getModelIcon(modelName, modelProvider) {
   // OpenAI Models (fallback for non-specific models)
   if (provider === 'OPENAI' || name.includes('gpt')) {
     return {
-      icon: '⚡',
+      logoPath: '/assets/llm_model_logos/OpenAI.png',
       color: '#10A37F',
       bgColor: '#E8F5E9',
       label: name.includes('4') ? 'GPT-4' : name.includes('3.5') ? 'GPT-3.5' : 'OpenAI',
@@ -82,7 +82,7 @@ export function getModelIcon(modelName, modelProvider) {
   // Anthropic Claude Models
   if (provider === 'ANTHROPIC' || name.includes('claude')) {
     return {
-      icon: '🤖',
+      logoPath: '/assets/llm_model_logos/Anthropic.png',
       color: '#D97706',
       bgColor: '#FEF3C7',
       label: 'Claude',
@@ -93,7 +93,7 @@ export function getModelIcon(modelName, modelProvider) {
   // Google Gemini Models
   if (provider === 'GOOGLE' || name.includes('gemini')) {
     return {
-      icon: '🔷',
+      logoPath: '/assets/llm_model_logos/Google.jpeg',
       color: '#4285F4',
       bgColor: '#E8F0FE',
       label: 'Gemini',
@@ -104,7 +104,7 @@ export function getModelIcon(modelName, modelProvider) {
   // Groq Models
   if (provider === 'GROQ') {
     return {
-      icon: '⚙️',
+      logoPath: '/assets/llm_model_logos/Groq.png',
       color: '#DC2626',
       bgColor: '#FEE2E2',
       label: 'Groq',
@@ -115,7 +115,7 @@ export function getModelIcon(modelName, modelProvider) {
   // Ollama Models
   if (provider === 'OLLAMA') {
     return {
-      icon: '🦙',
+      logoPath: '/assets/llm_model_logos/Ollama.png',
       color: '#000000',
       bgColor: '#F5F5F5',
       label: 'Ollama',
@@ -126,7 +126,7 @@ export function getModelIcon(modelName, modelProvider) {
   // OpenRouter Models
   if (provider === 'OPENROUTER') {
     return {
-      icon: '🔀',
+      logoPath: null,
       color: '#8B5CF6',
       bgColor: '#F5F3FF',
       label: 'OpenRouter',
@@ -137,7 +137,7 @@ export function getModelIcon(modelName, modelProvider) {
   // GigaChat Models
   if (provider === 'GIGACHAT') {
     return {
-      icon: '💬',
+      logoPath: null,
       color: '#9333EA',
       bgColor: '#FAF5FF',
       label: 'GigaChat',
@@ -147,7 +147,7 @@ export function getModelIcon(modelName, modelProvider) {
 
   // Default fallback
   return {
-    icon: '🤖',
+    logoPath: null,
     color: '#666666',
     bgColor: '#f5f5f5',
     label: modelName.substring(0, 15),
