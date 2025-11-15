@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Long-term Memory Base Interface
-参考 AgentScope 设计，提供统一的记忆接口
+Reference AgentScope design, provides unified memory interface
 """
 
 from abc import ABC, abstractmethod
@@ -9,90 +9,90 @@ from typing import Dict, List, Any, Optional
 
 
 class LongTermMemory(ABC):
-    """长期记忆抽象基类"""
+    """Long-term memory abstract base class"""
     
     @abstractmethod
     def add(self, content: str, user_id: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """
-        添加记忆
+        Add memory
         
         Args:
-            content: 记忆内容
-            user_id: 用户/分析师ID
-            metadata: 元数据
+            content: Memory content
+            user_id: User/analyst ID
+            metadata: Metadata
             
         Returns:
-            记忆ID
+            Memory ID
         """
         pass
     
     @abstractmethod
     def search(self, query: str, user_id: str, top_k: int = 5) -> List[Dict[str, Any]]:
         """
-        搜索记忆
+        Search memory
         
         Args:
-            query: 搜索查询
-            user_id: 用户/分析师ID
-            top_k: 返回结果数量
+            query: Search query
+            user_id: User/analyst ID
+            top_k: Number of results to return
             
         Returns:
-            搜索结果列表
+            Search result list
         """
         pass
     
     @abstractmethod
     def update(self, memory_id: str, content: str, user_id: str) -> bool:
         """
-        更新记忆
+        Update memory
         
         Args:
-            memory_id: 记忆ID
-            content: 新内容
-            user_id: 用户/分析师ID
+            memory_id: Memory ID
+            content: New content
+            user_id: User/analyst ID
             
         Returns:
-            是否成功
+            Whether successful
         """
         pass
     
     @abstractmethod
     def delete(self, memory_id: str, user_id: str) -> bool:
         """
-        删除记忆
+        Delete memory
         
         Args:
-            memory_id: 记忆ID
-            user_id: 用户/分析师ID
+            memory_id: Memory ID
+            user_id: User/analyst ID
             
         Returns:
-            是否成功
+            Whether successful
         """
         pass
     
     @abstractmethod
     def get_all(self, user_id: str) -> List[Dict[str, Any]]:
         """
-        获取用户的所有记忆
+        Get all memories for a user
         
         Args:
-            user_id: 用户/分析师ID
+            user_id: User/analyst ID
             
         Returns:
-            记忆列表
+            Memory list
         """
         pass
     
     @abstractmethod
     def delete_all(self, user_id: str) -> bool:
         """
-        删除用户的所有记忆
+        Delete all memories for a user
         
         Args:
-            user_id: 用户/分析师ID
+            user_id: User/analyst ID
             
         Returns:
-            是否成功
+            Whether successful
         """
         pass
 

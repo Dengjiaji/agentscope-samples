@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Memory System - 极简长期记忆系统
+Memory System - Minimalist long-term memory system
 """
 
 from .base import LongTermMemory

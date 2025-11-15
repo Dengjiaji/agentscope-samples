@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Mem0 Long-term Memory Implementation
-直接使用mem0，无adapter层
+Directly uses mem0, no adapter layer
 """
 
 import os
@@ -17,18 +17,18 @@ logger = logging.getLogger(__name__)
 
 
 class Mem0Memory(LongTermMemory):
-    """Mem0长期记忆实现"""
+    """Mem0 long-term memory implementation"""
     
     def __init__(self, base_dir: str):
         """
-        初始化Mem0记忆
+        Initialize Mem0 memory
         
         Args:
-            base_dir: 存储基础目录（config_name）
+            base_dir: Storage base directory (config_name)
         """
         self.base_dir = str(get_logs_and_memory_dir() / base_dir)
         
-        # Mem0配置
+        # Mem0 configuration
         config = {
             "history_db_path": os.path.join(self.base_dir, "memory_data", "history.db"),
             "vector_store": {
@@ -57,17 +57,17 @@ class Mem0Memory(LongTermMemory):
             }
         }
         
-        # 确保目录存在
+        # Ensure directories exist
         os.makedirs(os.path.dirname(config["history_db_path"]), exist_ok=True)
         os.makedirs(config["vector_store"]["config"]["path"], exist_ok=True)
         
-        # 创建共享Memory实例
+        # Create shared Memory instance
         self.memory = Memory.from_config(config)
-        logger.info(f"Mem0记忆已初始化: {self.base_dir}")
+        logger.info(f"Mem0 memory initialized: {self.base_dir}")
     
     def add(self, content: str, user_id: str, metadata: Optional[Dict[str, Any]] = None) -> str:
-        """添加记忆"""
-        logger.debug(f"➕ [Mem0Memory] 添加记忆: user_id={user_id}, content_len={len(content)}")
+        """Add memory"""
+        logger.debug(f"➕ [Mem0Memory] Adding memory: user_id={user_id}, content_len={len(content)}")
         
         result = self.memory.add(
             messages=[{"role": "user", "content": content}],
@@ -75,56 +75,56 @@ class Mem0Memory(LongTermMemory):
             metadata=metadata or {}
         )
         
-        logger.debug(f"   add结果: {result}")
+        logger.debug(f"   add result: {result}")
         
-        # 提取memory_id
+        # Extract memory_id
         if result and 'results' in result and len(result['results']) > 0:
             memory_id = result['results'][0].get('id', '')
-            logger.debug(f"   ✅ 记忆已添加，memory_id={memory_id}")
+            logger.debug(f"   ✅ Memory added, memory_id={memory_id}")
             return memory_id
         
-        logger.warning(f"   ⚠️ 添加记忆失败或未返回ID")
+        logger.warning(f"   ⚠️ Failed to add memory or no ID returned")
         return ''
     
     def search(self, query: str, user_id: str, top_k: int = 5) -> List[Dict[str, Any]]:
-        """搜索记忆"""
-        logger.debug(f"🔍 [Mem0Memory] 搜索记忆: user_id={user_id}, query={query[:100]}...")
+        """Search memory"""
+        logger.debug(f"🔍 [Mem0Memory] Searching memory: user_id={user_id}, query={query[:100]}...")
         
         results = self.memory.search(query=query, user_id=user_id, limit=top_k)
         
-        logger.debug(f"   原始结果类型: {type(results)}")
-        logger.debug(f"   原始结果长度: {len(results) if isinstance(results, list) else 'N/A'}")
+        logger.debug(f"   Raw result type: {type(results)}")
+        logger.debug(f"   Raw result length: {len(results) if isinstance(results, list) else 'N/A'}")
         
-        # 标准化返回格式
+        # Standardize return format
         if isinstance(results, list):
             formatted = [{'id': r.get('id'), 'content': r.get('memory'), 'metadata': r.get('metadata', {})} 
                     for r in results]
-            logger.debug(f"   格式化后结果: {len(formatted)} 条")
+            logger.debug(f"   Formatted result: {len(formatted)} records")
             return formatted
         
-        logger.warning(f"   ⚠️ 结果格式异常，返回空列表")
+        logger.warning(f"   ⚠️ Result format abnormal, returning empty list")
         return []
     
     def update(self, memory_id: str, content: str, user_id: str) -> bool:
-        """更新记忆"""
+        """Update memory"""
         try:
             self.memory.update(memory_id=memory_id, data=content)
             return True
         except Exception as e:
-            logger.error(f"更新记忆失败: {e}")
+            logger.error(f"Failed to update memory: {e}")
             return False
     
     def delete(self, memory_id: str, user_id: str) -> bool:
-        """删除记忆"""
+        """Delete memory"""
         try:
             self.memory.delete(memory_id=memory_id)
             return True
         except Exception as e:
-            logger.error(f"删除记忆失败: {e}")
+            logger.error(f"Failed to delete memory: {e}")
             return False
     
     def get_all(self, user_id: str) -> List[Dict[str, Any]]:
-        """获取所有记忆"""
+        """Get all memories"""
         results = self.memory.get_all(user_id=user_id)
         
         if isinstance(results, list):
@@ -133,12 +133,12 @@ class Mem0Memory(LongTermMemory):
         return []
     
     def delete_all(self, user_id: str) -> bool:
-        """删除所有记忆"""
+        """Delete all memories"""
         try:
             self.memory.delete_all(user_id=user_id)
-            logger.info(f"已清空用户 {user_id} 的所有记忆")
+            logger.info(f"Cleared all memories for user {user_id}")
             return True
         except Exception as e:
-            logger.error(f"清空记忆失败: {e}")
+            logger.error(f"Failed to clear memories: {e}")
             return False
 

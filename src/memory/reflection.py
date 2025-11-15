@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Memory Reflection System - 统一的记忆复盘系统
-支持两种模式：
-- central_review: 统一LLM处理所有agent的记忆
-- individual_review: 每个agent独立处理自己的记忆
+Memory Reflection System - Unified Memory Reflection System
+Supports two modes:
+- central_review: Unified LLM processes all agent memories
+- individual_review: Each agent independently processes its own memories
 """
 
 import os
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class MemoryOperationLogger:
-    """记忆操作日志记录器"""
+    """Memory operation logger"""
     
     def __init__(self, base_dir: str):
         self.log_dir = get_logs_and_memory_dir() / base_dir / "memory_operations"
@@ -34,7 +34,7 @@ class MemoryOperationLogger:
     def log_operation(self, agent_id: str, operation_type: str, tool_name: str, 
                      args: Dict[str, Any], result: Dict[str, Any], 
                      context: Optional[Dict[str, Any]] = None):
-        """记录记忆操作"""
+        """Log memory operation"""
         log_entry = {
             'timestamp': datetime.now().isoformat(),
             'agent_id': agent_id,
@@ -49,26 +49,26 @@ class MemoryOperationLogger:
             with open(self.log_file, 'a', encoding='utf-8') as f:
                 f.write(json.dumps(log_entry, ensure_ascii=False) + '\n')
         except Exception as e:
-            logger.error(f"记录日志失败: {e}")
+            logger.error(f"Failed to log: {e}")
 
 
 class MemoryReflectionSystem:
-    """统一的记忆复盘系统"""
+    """Unified memory reflection system"""
     
     def __init__(self, base_dir: str = "mock", streamer=None):
         """
-        初始化复盘系统
+        Initialize reflection system
         
         Args:
-            base_dir: 基础目录（config_name）
-            streamer: 消息广播器
+            base_dir: Base directory (config_name)
+            streamer: Message broadcaster
         """
         self.base_dir = base_dir
         self.streamer = streamer
         self.logger_system = MemoryOperationLogger(base_dir)
         self.prompt_loader = PromptLoader()
         
-        # 初始化LLM
+        # Initialize LLM
         model_name = os.getenv('MEMORY_LLM_MODEL', 'gpt-4o-mini')
         model_provider_str = os.getenv('MEMORY_LLM_PROVIDER', 'OPENAI')
         model_provider = getattr(ModelProvider, model_provider_str, ModelProvider.OPENAI)
@@ -79,35 +79,35 @@ class MemoryReflectionSystem:
         elif model_provider == ModelProvider.ANTHROPIC:
             api_keys['ANTHROPIC_API_KEY'] = os.getenv('ANTHROPIC_API_KEY')
         
-        # 创建记忆管理工具包和memory实例
+        # Create memory management toolkit and memory instance
         from src.tools.memory_tools import create_memory_toolkit, _set_base_dir, set_memory_tools_streamer
         from src.memory import get_memory
         
-        _set_base_dir(base_dir)  # 设置base_dir供memory_tools使用
+        _set_base_dir(base_dir)  # Set base_dir for memory_tools to use
         self.toolkit = create_memory_toolkit()
-        self.memory = get_memory(base_dir)  # 获取memory实例供直接操作
+        self.memory = get_memory(base_dir)  # Get memory instance for direct operations
         
-        # 设置streamer
+        # Set streamer
         if self.streamer:
             set_memory_tools_streamer(self.streamer)
         
         self.llm = get_model(model_name, model_provider, api_keys)
         self.llm_available = True
         
-        logger.info(f"记忆复盘系统已初始化（{model_provider_str}: {model_name}）")
+        logger.info(f"Memory reflection system initialized ({model_provider_str}: {model_name})")
     
     def perform_reflection(self, date: str, reflection_data: Dict[str, Any], 
                           mode: str = "individual_review") -> Dict[str, Any]:
         """
-        执行记忆复盘
+        Perform memory reflection
         
         Args:
-            date: 交易日期
-            reflection_data: 复盘数据
-            mode: 模式 ('central_review' 或 'individual_review')
+            date: Trading date
+            reflection_data: Reflection data
+            mode: Mode ('central_review' or 'individual_review')
             
         Returns:
-            复盘结果
+            Reflection result
         """
         if mode == "central_review":
             return self._central_review(date, reflection_data)
@@ -115,36 +115,36 @@ class MemoryReflectionSystem:
             return self._individual_review(date, reflection_data)
     
     def _central_review(self, date: str, reflection_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Central Review模式：统一LLM处理所有agent的记忆"""
+        """Central Review mode: Unified LLM processes all agent memories"""
         try:
             pm_signals = reflection_data.get('pm_signals', {})
             actual_returns = reflection_data.get('actual_returns', {})
             analyst_signals = reflection_data.get('analyst_signals', {})
             tickers = reflection_data.get('tickers', [])
             
-            # 生成prompt
+            # Generate prompt
             prompt = self._build_central_review_prompt(date, tickers, pm_signals, 
                                                        analyst_signals, actual_returns)
             
-            logger.info(f"🤖 Central Review模式 ({date})")
+            logger.info(f"🤖 Central Review mode ({date})")
             
-            # 调用LLM
+            # Call LLM
             messages = [{"role": "user", "content": prompt}]
             response = self.llm(messages, temperature=0.7)
             response_content = response.get("content", "") if isinstance(response, dict) else str(response)
             
-            # 解析响应
+            # Parse response
             decision_data = self._parse_json_response(response_content)
             reasoning = decision_data.get("reflection_summary", "")
             need_tool = decision_data.get("need_tool", False)
             
-            # 执行工具调用
+            # Execute tool calls
             execution_results = []
             if need_tool and "selected_tool" in decision_data:
                 execution_results = self._execute_tools(decision_data["selected_tool"], 
                                                        "central_review", date)
             
-            logger.info(f"📝 复盘总结: {reasoning[:200]}...")
+            logger.info(f"📝 Reflection summary: {reasoning[:200]}...")
             
             return {
                 'status': 'success',
@@ -156,7 +156,7 @@ class MemoryReflectionSystem:
             }
             
         except Exception as e:
-            logger.error(f"❌ Central Review失败: {e}", exc_info=True)
+            logger.error(f"❌ Central Review failed: {e}", exc_info=True)
             return {
                 'status': 'failed',
                 'mode': 'central_review',
@@ -165,10 +165,10 @@ class MemoryReflectionSystem:
             }
     
     def _individual_review(self, date: str, reflection_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Individual Review模式：每个agent独立处理"""
+        """Individual Review mode: Each agent independently processes"""
         all_results = []
         
-        # 获取所有需要复盘的agents
+        # Get all agents that need reflection
         agents_data = reflection_data.get('agents_data', {})
         
         for agent_id, agent_data in agents_data.items():
@@ -176,7 +176,7 @@ class MemoryReflectionSystem:
                 result = self._agent_self_reflection(agent_id, date, agent_data)
                 all_results.append(result)
             except Exception as e:
-                logger.error(f"❌ {agent_id} 复盘失败: {e}")
+                logger.error(f"❌ {agent_id} reflection failed: {e}")
                 all_results.append({
                     'status': 'failed',
                     'agent_id': agent_id,
@@ -193,48 +193,48 @@ class MemoryReflectionSystem:
     
     def _agent_self_reflection(self, agent_id: str, date: str, 
                                agent_data: Dict[str, Any]) -> Dict[str, Any]:
-        """单个agent的自我复盘"""
+        """Single agent's self-reflection"""
         agent_role = ROLE_TO_AGENT.get(agent_id, agent_id)
         
-        # 如果是PM，先记录每日决策
+        # If PM, first record daily decisions
         daily_record_result = None
         if agent_id == 'portfolio_manager':
             daily_record_result = self._record_pm_daily_decisions(agent_id, date, agent_data)
             if daily_record_result.get('status') == 'success':
-                logger.info(f"📝 已记录 {daily_record_result.get('count', 0)} 条PM每日决策")
+                logger.info(f"📝 Recorded {daily_record_result.get('count', 0)} PM daily decisions")
         
-        # 生成prompt
+        # Generate prompt
         if agent_id == 'portfolio_manager':
             prompt = self._build_pm_reflection_prompt(agent_role, date, agent_data)
         else:
             prompt = self._build_analyst_reflection_prompt(agent_role, date, agent_data)
         
-        logger.info(f"🔍 {agent_role} 自我复盘 ({date})")
+        logger.info(f"🔍 {agent_role} self-reflection ({date})")
         
-        # 调用LLM
+        # Call LLM
         messages = [{"role": "user", "content": prompt}]
         response = self.llm(messages, temperature=0.7)
         response_content = response.get("content", "") if isinstance(response, dict) else str(response)
         
-        # 解析响应
+        # Parse response
         decision_data = self._parse_json_response(response_content)
         reflection_summary = decision_data.get("reflection_summary", response_content)
         need_tool = decision_data.get("need_tool", False)
         
-        # 执行工具调用
+        # Execute tool calls
         memory_operations = []
         if need_tool and "selected_tool" in decision_data:
             tool_selection = decision_data["selected_tool"]
             
-            # 验证analyst_id
+            # Verify analyst_id
             if tool_selection.get('parameters', {}).get('analyst_id') == agent_id:
                 memory_operations = self._execute_tools([tool_selection], agent_id, date)
             else:
-                logger.warning(f"⚠️ {agent_role} 试图操作其他Agent的记忆，已阻止")
+                logger.warning(f"⚠️ {agent_role} attempted to operate on another Agent's memory, blocked")
         else:
-            logger.info(f"💭 {agent_role} 决定无需记忆工具操作")
+            logger.info(f"💭 {agent_role} decided no memory tool operations needed")
         
-        logger.info(f"📝 {agent_role} 复盘完成")
+        logger.info(f"📝 {agent_role} reflection completed")
         
         result = {
             'status': 'success',
@@ -245,7 +245,7 @@ class MemoryReflectionSystem:
             'memory_operations': memory_operations
         }
         
-        # 如果有每日决策记录结果，也包含进来
+        # If there's a daily record result, include it
         if daily_record_result:
             result['daily_record_result'] = daily_record_result
         
@@ -253,7 +253,7 @@ class MemoryReflectionSystem:
     
     def _record_pm_daily_decisions(self, agent_id: str, date: str, 
                                    agent_data: Dict[str, Any]) -> Dict[str, Any]:
-        """记录PM每日决策到memory"""
+        """Record PM daily decisions to memory"""
         try:
             pm_decisions = agent_data.get('my_decisions', {})
             actual_returns = agent_data.get('actual_returns', {})
@@ -267,7 +267,7 @@ class MemoryReflectionSystem:
                 pm_reasoning = decision_data.get('reasoning', '')
                 actual_return = actual_returns.get(ticker, 0)
                 
-                # 构建分析师信号汇总
+                # Build analyst signal summary
                 analyst_summary = []
                 for analyst_id, signals in analyst_signals.items():
                     if ticker in signals:
@@ -279,23 +279,23 @@ class MemoryReflectionSystem:
                         else:
                             analyst_summary.append(f"{analyst_id}: {signal_data}")
                 
-                analyst_info = "; ".join(analyst_summary) if analyst_summary else "无分析师信号"
+                analyst_info = "; ".join(analyst_summary) if analyst_summary else "No analyst signals"
                 
-                # 判断决策结果
+                # Evaluate decision outcome
                 decision_outcome = self._evaluate_decision(pm_action, actual_return)
-                outcome_label = "✅ 正确" if decision_outcome else "❌ 错误"
+                outcome_label = "✅ Correct" if decision_outcome else "❌ Incorrect"
                 
-                # 构建记录内容
+                # Build record content
                 if not isinstance(pm_reasoning, str):
                     pm_reasoning = str(pm_reasoning) if pm_reasoning else ''
                 
-                content = f"""日期: {date}
-股票: {ticker}
-PM决策: {pm_action} (数量: {pm_quantity}, 置信度: {pm_confidence}%)
-决策理由: {pm_reasoning[:300] if pm_reasoning else 'N/A'}
-分析师意见: {analyst_info}
-实际收益: {actual_return:+.2%}
-决策结果: {outcome_label}"""
+                content = f"""Date: {date}
+Stock: {ticker}
+PM Decision: {pm_action} (Quantity: {pm_quantity}, Confidence: {pm_confidence}%)
+Decision Reasoning: {pm_reasoning[:300] if pm_reasoning else 'N/A'}
+Analyst Opinions: {analyst_info}
+Actual Return: {actual_return:+.2%}
+Decision Outcome: {outcome_label}"""
                 
                 metadata = {
                     "type": "daily_decision",
@@ -307,20 +307,20 @@ PM决策: {pm_action} (数量: {pm_quantity}, 置信度: {pm_confidence}%)
                     "outcome": "correct" if decision_outcome else "incorrect"
                 }
                 
-                # 添加到memory
+                # Add to memory
                 memory_id = self.memory.add(content, agent_id, metadata)
                 if memory_id:
                     memories_added += 1
             
-            logger.info(f"  ✅ 记录了 {memories_added} 条PM每日决策")
+            logger.info(f"  ✅ Recorded {memories_added} PM daily decisions")
             return {'status': 'success', 'count': memories_added}
             
         except Exception as e:
-            logger.error(f"⚠️ 记录PM决策失败: {e}")
+            logger.error(f"⚠️ Failed to record PM decisions: {e}")
             return {'status': 'failed', 'error': str(e)}
     
     def _execute_tools(self, tool_selections, agent_id: str, date: str) -> List[Dict[str, Any]]:
-        """执行工具调用"""
+        """Execute tool calls"""
         if not isinstance(tool_selections, list):
             tool_selections = [tool_selections]
         
@@ -330,7 +330,7 @@ PM决策: {pm_action} (数量: {pm_quantity}, 置信度: {pm_confidence}%)
             tool_reason = tool_selection.get("reason", "")
             tool_params = tool_selection.get("parameters", {})
             
-            logger.info(f"🛠️ 调用工具: {tool_name}")
+            logger.info(f"🛠️ Calling tool: {tool_name}")
             
             try:
                 if tool_name in self.toolkit.tools:
@@ -346,7 +346,7 @@ PM决策: {pm_action} (数量: {pm_quantity}, 置信度: {pm_confidence}%)
                     'result': result
                 })
                 
-                # 记录日志
+                # Log operation
                 self.logger_system.log_operation(
                     agent_id=agent_id,
                     operation_type='reflection',
@@ -356,9 +356,9 @@ PM决策: {pm_action} (数量: {pm_quantity}, 置信度: {pm_confidence}%)
                     context={'date': date}
                 )
                 
-                logger.info(f"  ✅ 工具执行完成")
+                logger.info(f"  ✅ Tool execution completed")
             except Exception as e:
-                logger.error(f"  ❌ 工具执行失败: {e}")
+                logger.error(f"  ❌ Tool execution failed: {e}")
                 results.append({
                     'tool_name': tool_name,
                     'error': str(e)
@@ -369,11 +369,11 @@ PM决策: {pm_action} (数量: {pm_quantity}, 置信度: {pm_confidence}%)
     def _build_central_review_prompt(self, date: str, tickers: List[str],
                                     pm_signals: Dict, analyst_signals: Dict, 
                                     actual_returns: Dict) -> str:
-        """构建Central Review的prompt"""
+        """Build Central Review prompt"""
         pm_signals_section = "\n".join([
-            f"{ticker}: PM决策 {pm_signals.get(ticker, {}).get('signal', 'N/A')} "
-            f"(置信度: {pm_signals.get(ticker, {}).get('confidence', 'N/A')}%), "
-            f"实际收益: {actual_returns.get(ticker, 0):.2%}"
+            f"{ticker}: PM decision {pm_signals.get(ticker, {}).get('signal', 'N/A')} "
+            f"(confidence: {pm_signals.get(ticker, {}).get('confidence', 'N/A')}%), "
+            f"actual return: {actual_returns.get(ticker, 0):.2%}"
             for ticker in tickers
         ])
         
@@ -382,7 +382,7 @@ PM决策: {pm_action} (数量: {pm_quantity}, 置信度: {pm_confidence}%)
             analyst_signals_section += f"\n\n**{analyst}:**"
             for ticker in tickers:
                 if ticker in signals:
-                    analyst_signals_section += f"\n  {ticker}: {signals[ticker]}, 实际 {actual_returns.get(ticker, 0):.2%}"
+                    analyst_signals_section += f"\n  {ticker}: {signals[ticker]}, actual {actual_returns.get(ticker, 0):.2%}"
         
         return self.prompt_loader.load_prompt(
             "memory",
@@ -396,7 +396,7 @@ PM决策: {pm_action} (数量: {pm_quantity}, 置信度: {pm_confidence}%)
     
     def _build_analyst_reflection_prompt(self, agent_role: str, date: str, 
                                         agent_data: Dict) -> str:
-        """构建分析师reflection的prompt"""
+        """Build analyst reflection prompt"""
         my_signals = agent_data.get('my_signals', {})
         actual_returns = agent_data.get('actual_returns', {})
         pm_decisions = agent_data.get('pm_decisions', {})
@@ -408,7 +408,7 @@ PM决策: {pm_action} (数量: {pm_quantity}, 置信度: {pm_confidence}%)
             confidence = signal_data.get('confidence', 'N/A')
             reasoning = signal_data.get('reasoning', '')
             
-            # 确保reasoning是字符串
+            # Ensure reasoning is a string
             if not isinstance(reasoning, str):
                 reasoning = str(reasoning) if reasoning else ''
             
@@ -417,10 +417,10 @@ PM决策: {pm_action} (数量: {pm_quantity}, 置信度: {pm_confidence}%)
             
             signals_data += f"""
 {ticker}: {status_emoji}
-  - 你的信号: {signal} (置信度: {confidence}%)
-  - 你的理由: {reasoning[:200] if reasoning else 'N/A'}
-  - 实际收益: {actual_return:.2%}
-  - PM决策: {pm_decisions.get(ticker, {}).get('action', 'N/A')}
+  - Your signal: {signal} (confidence: {confidence}%)
+  - Your reasoning: {reasoning[:200] if reasoning else 'N/A'}
+  - Actual return: {actual_return:.2%}
+  - PM decision: {pm_decisions.get(ticker, {}).get('action', 'N/A')}
 """
         
         return self.prompt_loader.load_prompt(
@@ -437,13 +437,13 @@ PM决策: {pm_action} (数量: {pm_quantity}, 置信度: {pm_confidence}%)
     
     def _build_pm_reflection_prompt(self, agent_role: str, date: str, 
                                    agent_data: Dict) -> str:
-        """构建PM reflection的prompt"""
+        """Build PM reflection prompt"""
         pm_decisions = agent_data.get('my_decisions', {})
         analyst_signals = agent_data.get('analyst_signals', {})
         actual_returns = agent_data.get('actual_returns', {})
         portfolio_summary = agent_data.get('portfolio_summary', {})
         
-        # 构建portfolio数据
+        # Build portfolio data
         portfolio_data = ""
         if portfolio_summary:
             total_value = portfolio_summary.get('total_value', 0)
@@ -451,12 +451,12 @@ PM决策: {pm_action} (数量: {pm_quantity}, 置信度: {pm_confidence}%)
             cash = portfolio_summary.get('cash', 0)
             
             portfolio_data = f"""
-- 总资产: ${total_value:,.2f}
-- 收益率: {pnl_percent:+.2f}%
-- 现金: ${cash:,.2f}
+- Total assets: ${total_value:,.2f}
+- Return: {pnl_percent:+.2f}%
+- Cash: ${cash:,.2f}
 """
         
-        # 构建决策数据
+        # Build decision data
         decisions_data = ""
         for ticker, decision_data in pm_decisions.items():
             actual_return = actual_returns.get(ticker, 0)
@@ -465,7 +465,7 @@ PM决策: {pm_action} (数量: {pm_quantity}, 置信度: {pm_confidence}%)
             confidence = decision_data.get('confidence', 'N/A')
             reasoning = decision_data.get('reasoning', '')
             
-            # 确保reasoning是字符串
+            # Ensure reasoning is a string
             if not isinstance(reasoning, str):
                 reasoning = str(reasoning) if reasoning else ''
             
@@ -474,15 +474,15 @@ PM决策: {pm_action} (数量: {pm_quantity}, 置信度: {pm_confidence}%)
             
             decisions_data += f"""
 {ticker}: {status_emoji}
-  - 你的决策: {action}
-  - 数量: {quantity} 股
-  - 置信度: {confidence}%
-  - 决策理由: {reasoning[:200] if reasoning else 'N/A'}
-  - 实际收益: {actual_return:.2%}
+  - Your decision: {action}
+  - Quantity: {quantity} shares
+  - Confidence: {confidence}%
+  - Decision reasoning: {reasoning[:200] if reasoning else 'N/A'}
+  - Actual return: {actual_return:.2%}
 """
             
-            # 添加分析师意见对比
-            decisions_data += "  - 分析师意见:\n"
+            # Add analyst opinion comparison
+            decisions_data += "  - Analyst opinions:\n"
             for analyst_id, signals in analyst_signals.items():
                 if ticker in signals:
                     analyst_signal = signals[ticker]
@@ -504,7 +504,7 @@ PM决策: {pm_action} (数量: {pm_quantity}, 置信度: {pm_confidence}%)
         )
     
     def _evaluate_prediction(self, signal: str, actual_return: float) -> bool:
-        """评估预测是否正确"""
+        """Evaluate if prediction is correct"""
         threshold = 0.005
         signal_lower = (signal or '').lower()
         
@@ -517,11 +517,11 @@ PM决策: {pm_action} (数量: {pm_quantity}, 置信度: {pm_confidence}%)
         return False
     
     def _evaluate_decision(self, action: str, actual_return: float) -> bool:
-        """评估决策是否正确"""
+        """Evaluate if decision is correct"""
         return self._evaluate_prediction(action, actual_return)
     
     def _parse_json_response(self, response_content: str) -> dict:
-        """解析JSON响应"""
+        """Parse JSON response"""
         try:
             json_start = response_content.find("{")
             json_end = response_content.rfind("}") + 1
@@ -530,7 +530,7 @@ PM决策: {pm_action} (数量: {pm_quantity}, 置信度: {pm_confidence}%)
                 return json.loads(json_str)
             return json.loads(response_content)
         except json.JSONDecodeError as e:
-            logger.warning(f"JSON解析失败: {e}")
+            logger.warning(f"JSON parsing failed: {e}")
             return {
                 "reflection_summary": response_content,
                 "need_tool": False
@@ -538,6 +538,6 @@ PM决策: {pm_action} (数量: {pm_quantity}, 置信度: {pm_confidence}%)
 
 
 def create_reflection_system(base_dir: str = "mock", streamer=None) -> MemoryReflectionSystem:
-    """创建记忆复盘系统"""
+    """Create memory reflection system"""
     return MemoryReflectionSystem(base_dir, streamer)
 
