@@ -85,7 +85,7 @@ function ConferenceMessage({ message }) {
     content = String(content);
   }
   
-  const needsTruncation = content.length > 800;
+  const needsTruncation = content.length > 10000;
   const MAX_EXPANDED_LENGTH = 10000;
   
   let displayContent = content;
@@ -130,7 +130,7 @@ function MemoryItem({ memory }) {
     content = String(content);
   }
   
-  const needsTruncation = content.length > 200;
+  const needsTruncation = content.length > 1000;
   const MAX_EXPANDED_LENGTH = 1000;
   
   let displayContent = content;
@@ -192,8 +192,8 @@ function MessageItem({ message }) {
     content = String(content);
   }
   
-  const needsTruncation = content.length > 200;
-  const MAX_EXPANDED_LENGTH = 1000;
+  const needsTruncation = content.length > 8000;
+  const MAX_EXPANDED_LENGTH = 8000;
   
   let displayContent = content;
   if (!expanded && needsTruncation) {
