@@ -298,7 +298,7 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
               const top = Math.round((pos.y - 150) * scale);
               
               // Truncate long text
-              const maxLength = 80;
+              const maxLength = 100;
               const displayText = bubble.text.length > maxLength 
                 ? bubble.text.substring(0, maxLength) + '...' 
                 : bubble.text;
