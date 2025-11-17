@@ -78,7 +78,7 @@ export default function GlobalStyles() {
       }
       
       .header-link:hover {
-        color: #1366A1;
+        color: #615CED;
         background: #f5f5f5;
       }
       
@@ -90,7 +90,7 @@ export default function GlobalStyles() {
       
       .header-link:hover .link-arrow {
         transform: translateY(-2px);
-        color: #1366A1;
+        color: #615CED;
       }
       
       .header-tabs {
@@ -127,7 +127,7 @@ export default function GlobalStyles() {
       }
       
       .header-tab:focus {
-        background: #1366A1;
+        background: #615CED;
         color: #ffffff;
         outline: none;
       }
@@ -510,8 +510,8 @@ export default function GlobalStyles() {
       
       .agent-rank-medal {
         position: absolute;
-        top: -4px;
-        right: -4px;
+        top: -8px;
+        right: -32px;
         font-size: 16px;
         line-height: 1;
         filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
@@ -1122,7 +1122,7 @@ export default function GlobalStyles() {
         font-weight: 700;
         letter-spacing: 1px;
         font-size: 9px;
-        border-right: 1px solid #1366A1;
+        border-right: 1px solid #615CED;
         text-transform: uppercase;
         position: sticky;
         top: 0;

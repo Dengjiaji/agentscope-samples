@@ -16,6 +16,7 @@ import AgentFeed from './components/AgentFeed';
 import StockLogo from './components/StockLogo';
 import StatisticsView from './components/StatisticsView';
 import PerformanceView from './components/PerformanceView';
+import AboutModal from './components/AboutModal';
 
 // Utils
 import { formatNumber, formatTickerPrice, calculateDuration } from './utils/formatters';
@@ -33,6 +34,7 @@ export default function LiveTradingApp() {
   const [currentDate, setCurrentDate] = useState(null);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [now, setNow] = useState(() => new Date());
+  const [showAboutModal, setShowAboutModal] = useState(false);
   
   // View toggle: 'room' | 'chart' | 'statistics'
   const [currentView, setCurrentView] = useState('chart'); // Start with chart, then animate to room
@@ -944,7 +946,13 @@ export default function LiveTradingApp() {
       {/* Header */}
       <div className="header">
         <div className="header-title">
-          <span>TRADING INTELLIGENCE</span>
+          <span 
+            className="header-link"
+            onClick={() => setShowAboutModal(true)}
+            style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: '3px' }}
+          >
+            TRADING INTELLIGENCE
+          </span>
           <span style={{
             width: '2px',
             height: '16px',
@@ -1277,6 +1285,9 @@ export default function LiveTradingApp() {
           </div>
         </div>
       </>
+      
+      {/* About Modal */}
+      {showAboutModal && <AboutModal onClose={() => setShowAboutModal(false)} />}
     </div>
   );
 }
