@@ -366,35 +366,32 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
     events.forEach((event, index) => {
       const delay = event.timestamp;
       
-      // Show bubble - use agentId as key so new messages replace old ones
+      // Show bubble
       const showTimeout = setTimeout(() => {
-        // Use agentId as key so new messages from same agent replace old bubbles
-        const bubbleKey = event.agent_id;
+        const bubbleId = `replay_${event.agent_id}_${index}`;
         
-        setReplayBubbles(prev => {
-          // Remove any existing bubble for this agent before adding new one
-          const newBubbles = { ...prev };
-          // Find and remove old bubbles for this agent
-          Object.keys(newBubbles).forEach(key => {
-            if (newBubbles[key].agentId === event.agent_id) {
-              delete newBubbles[key];
-            }
-          });
-          
-          // Add new bubble
-          newBubbles[bubbleKey] = {
-            id: bubbleKey,
+        setReplayBubbles(prev => ({
+          ...prev,
+          [bubbleId]: {
+            id: bubbleId,
             agentId: event.agent_id,
             agentName: event.agent_name,
             text: event.text,
             timestamp: Date.now(),
             phase: event.phase
-          };
-          
-          return newBubbles;
-        });
+          }
+        }));
         
-        // No automatic removal - bubble stays until replaced by new message
+        // Remove bubble after 5 seconds
+        const hideTimeout = setTimeout(() => {
+          setReplayBubbles(prev => {
+            const newBubbles = { ...prev };
+            delete newBubbles[bubbleId];
+            return newBubbles;
+          });
+        }, 5000);
+        
+        replayTimeoutsRef.current.push(hideTimeout);
       }, delay);
       
       replayTimeoutsRef.current.push(showTimeout);

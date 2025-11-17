@@ -109,7 +109,7 @@ export default function AboutModal({ onClose }) {
       github: "github.com/agentscope-ai/agentscope-samples"
     },
     zh: {
-      intro: "EvoTraders 正在探索一个核心问题：",
+      intro: "Trading Intelligence 正在探索一个核心问题：",
       question: "如果不是让模型彼此竞争，而是像一支高效协作的团队一样进行实时交易，会发生什么？",
       trying: "我们正在尝试的是：",
       
@@ -125,7 +125,7 @@ export default function AboutModal({ onClose }) {
       point3: "系统从实时行情中学习，并给予即时决策，不是纸上谈兵，而是面对市场的真实波动。",
       
       opensource: "我们已经在github上完全开源。",
-      opensourceSub: "EvoTraders 基于 AgentScope 搭建，并使用其中的 ReMe 作为记忆管理核心。",
+      opensourceSub: "Trading Intelligence 基于 AgentScope 搭建，并使用其中的 ReMe 作为记忆管理核心。",
       findMore: "你可以在此找到完整项目与示例：",
       
       github: "github.com/agentscope-ai/agentscope-samples"
@@ -193,7 +193,7 @@ export default function AboutModal({ onClose }) {
               style={{ padding: '4px 8px', borderRadius: '3px', cursor: 'pointer' }}
               onClick={handleClose}
             >
-              EvoTraders
+              TRADING INTELLIGENCE
             </span>
             <span style={{
               width: '2px',

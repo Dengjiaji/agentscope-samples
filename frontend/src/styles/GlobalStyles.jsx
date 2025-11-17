@@ -1,7 +1,7 @@
 import React from 'react';
 
 /**
- * Global CSS Styles for the Trading Intelligence Platform
+ * Global CSS Styles for the EvoTraders Platform
  * Terminal-inspired, minimal, monochrome design
  */
 export default function GlobalStyles() {
