@@ -62,6 +62,9 @@ export default function GlobalStyles() {
         display: flex;
         align-items: center;
         gap: 16px;
+        flex: 0 1 auto;
+        min-width: 0;
+        flex-wrap: wrap;
       }
       
       .header-link {

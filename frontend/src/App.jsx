@@ -964,7 +964,7 @@ export default function LiveTradingApp() {
       
       {/* Header */}
       <div className="header">
-        <div className="header-title">
+        <div className="header-title" style={{ flex: '0 1 auto', minWidth: 0 }}>
           <span 
             className="header-link"
             onClick={() => setShowAboutModal(true)}
