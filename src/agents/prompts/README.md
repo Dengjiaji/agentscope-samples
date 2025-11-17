@@ -279,4 +279,4 @@ combined = f"{role_prompt}\n\n{task_prompt}\n\n{format_prompt}"
 
 **Version**: 1.0  
 **Last Updated**: 2025-11-15
-**Maintainer**: Trading Intelligence Team
+**Maintainer**: EvoTraders Team

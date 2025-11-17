@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 
 // Configuration and constants
-import { AGENTS, INITIAL_TICKERS, BUBBLE_LIFETIME_MS } from './config/constants';
+import { AGENTS, INITIAL_TICKERS } from './config/constants';
 
 // Services
 import { ReadOnlyClient } from './services/websocket';
@@ -164,11 +164,26 @@ export default function LiveTradingApp() {
   }, []);
   
   // Helper to check if bubble should still be visible
-  const bubbleFor = (id) => {
-    const b = bubbles[id];
-    if (!b) return null;
-    if (Date.now() - b.ts > BUBBLE_LIFETIME_MS) return null;
-    return b;
+  // Bubbles now persist until replaced by a new message from the same agent
+  // Can search by agentId or agentName
+  const bubbleFor = (idOrName) => {
+    // First try direct lookup by id
+    let b = bubbles[idOrName];
+    if (b) {
+      // No time-based expiration - bubble stays until replaced by new message
+      return b;
+    }
+    
+    // If not found, search by agentName
+    const agent = AGENTS.find(a => a.name === idOrName || a.id === idOrName);
+    if (agent) {
+      b = bubbles[agent.id];
+      if (b) {
+        return b;
+      }
+    }
+    
+    return null;
   };
   
   // Auto-connect to server on mount
@@ -970,7 +985,7 @@ export default function LiveTradingApp() {
             onClick={() => setShowAboutModal(true)}
             style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: '3px' }}
           >
-            TRADING INTELLIGENCE
+            EvoTraders
           </span>
           <span style={{
             width: '2px',

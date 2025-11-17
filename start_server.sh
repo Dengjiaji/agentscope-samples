@@ -52,7 +52,7 @@ done
 if [ "$MODE" = "mock" ]; then
     echo "🎭 启动 Mock Mode - 测试模式"
 else
-    echo "🚀 启动 Live Trading Intelligence System - Continuous Server"
+    echo "🚀 启动 Live EvoTraders System - Continuous Server"
 fi
 echo "=================================================="
 
