@@ -834,26 +834,45 @@ export default function GlobalStyles() {
       }
       
       .feed-header {
-        padding: 20px;
-        background: #ffffff;
+        padding: 20px 20px 12px;
+        background: transparent;
         width: 100%;
         max-width: none;
         position: relative;
-        border-bottom: 2px solid #000000;
+        text-align: center;
       }
       
       .feed-title {
-        font-size: 14px;
-        font-weight: bold;
-        letter-spacing: -0.01em;
-        margin: 0;
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        line-height: 0.9;
+        margin: 0 0 12px 0;
         color: #000000;
         text-transform: uppercase;
+        font-family: 'IBM Plex Mono', monospace;
         position: relative;
         display: inline-block;
       }
       
-
+      .feed-title::after {
+        content: '';
+        position: absolute;
+        left: 50%;
+        bottom: -12px;
+        transform: translateX(-50%);
+        width: 60%;
+        height: 1px;
+        background: #cccccc;
+      }
+      
+      .feed-subtitle {
+        font-size: 10px;
+        color: #666666;
+        font-family: 'IBM Plex Mono', monospace;
+        margin-top: 16px;
+        line-height: 1.4;
+      }
       
       .feed-content {
         flex: 1;

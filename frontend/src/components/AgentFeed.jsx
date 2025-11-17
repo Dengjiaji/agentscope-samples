@@ -12,6 +12,9 @@ export default function AgentFeed({ feed, conferences }) {
     <div className="agent-feed">
       <div className="feed-header">
         <h3 className="feed-title">Agent Feed</h3>
+        <p className="feed-subtitle">
+          Watch agents execute and interact in real-time. Review historical conferences and events.
+        </p>
       </div>
       
       <div className="feed-content">
