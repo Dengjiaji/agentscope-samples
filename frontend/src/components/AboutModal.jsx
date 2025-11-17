@@ -109,22 +109,19 @@ export default function AboutModal({ onClose }) {
       github: "github.com/agentscope-ai/agentscope-samples"
     },
     zh: {
-      intro: "Trading Intelligence 正在探索一个核心问题：",
-      question: "如果不是让模型彼此竞争，而是像一支高效协作的团队一样进行实时交易，会发生什么？",
-      trying: "我们正在尝试的是：",
+      intro: "如果不是让模型彼此竞争，而是像一支高效协作的团队一样进行实时交易，会发生什么？",
+      question: "我们希望Agents不再单打独斗，而是「组团」进入实时金融市场——这一十分困难且充满噪声的环境。",
       
       title1: "✦ 多智能体的技能互补",
       point1: "不同模型、不同角色的智能体像真实的金融团队一样协作，各自承担数据分析、策略生成、风险控制等职责。",
-      point1Sub: "在复杂环境中，合作胜过孤立。",
       
       title2: "✦ 能够持续进化的智能体系统",
-      point2: "依托「记忆」模块，每个智能体都能跨回合保留经验，不断学习、反思与调整。",
-      point2Sub: "在长期实时交易中，它们会形成自己的方法论，而不是一次性推理的偶然产物。",
+      point2: "依托「记忆」模块，每个智能体都能跨回合保留经验，不断学习、反思与调整。我们希望能看到在长期实时交易中，Agent形成自己的独特方法论，而不是一次性偶然的推理。",
       
-      title3: "✦ 实时参与市场的 AI 团队",
-      point3: "系统从实时行情中学习，并给予即时决策，不是纸上谈兵，而是面对市场的真实波动。",
+      title3: "✦ 实时参与市场的 AI Agents",
+      point3: "Agents从实时行情中学习，并给予即时决策；不是纸上谈兵，而是面对市场的真实波动。",
       
-      opensource: "我们已经在github上完全开源。",
+      opensource: "我们已经在github上开源。",
       opensourceSub: "Trading Intelligence 基于 AgentScope 搭建，并使用其中的 ReMe 作为记忆管理核心。",
       findMore: "你可以在此找到完整项目与示例：",
       
