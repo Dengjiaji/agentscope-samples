@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ASSETS, SCENE_NATIVE, AGENT_SEATS, AGENTS, ASSET_BASE_URL } from '../config/constants';
 import AgentCard from './AgentCard';
+import { getModelIcon } from '../utils/modelIcons';
 
 /**
  * Custom hook to load an image
@@ -273,6 +274,8 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
         {AGENTS.map(agent => {
           const rank = getAgentRank(agent.id);
           const medal = rank ? getRankMedal(rank) : null;
+          const agentData = getAgentData(agent.id);
+          const modelInfo = getModelIcon(agentData?.modelName, agentData?.modelProvider);
           
           return (
             <div 
@@ -293,6 +296,27 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
                   <span className="agent-rank-medal">
                     {medal}
                   </span>
+                )}
+                {modelInfo.logoPath && (
+                  <img 
+                    src={modelInfo.logoPath}
+                    alt={modelInfo.provider}
+                    className="agent-model-badge"
+                    style={{
+                      position: 'absolute',
+                      top: -12,
+                      right: -12,
+                      width: 25,
+                      height: 25,
+                      borderRadius: '50%',
+                      border: '2px solid #ffffff',
+                      background: '#ffffff',
+                      objectFit: 'contain',
+                      padding: 2,
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                      pointerEvents: 'none'
+                    }}
+                  />
                 )}
               </div>
               <span className="agent-name">{agent.name}</span>
