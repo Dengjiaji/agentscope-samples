@@ -85,6 +85,9 @@ export default function LiveTradingApp() {
   const lastVirtualTimeRef = useRef(null);
   const virtualTimeOffsetRef = useRef(0);
   
+  // Replay callback ref
+  const replayCallbackRef = useRef(null);
+  
   // Set default chart tab based on market status
   useEffect(() => {
     if (marketStatus && marketStatus.status) {
@@ -344,6 +347,34 @@ export default function LiveTradingApp() {
       };
       
       const handlers = {
+        // Replay data response
+        replay_data_response: (e) => {
+          console.log('[Replay] Received data response');
+          if (replayCallbackRef.current) {
+            replayCallbackRef.current(e.data, null);
+          }
+        },
+        
+        // Error response (including replay errors and fast forward errors)
+        error: (e) => {
+          console.error('[Error]', e.message);
+          
+          // Handle replay errors
+          if (replayCallbackRef.current) {
+            replayCallbackRef.current(null, e.message);
+          }
+          
+          // Handle fast forward errors
+          if (e.message && e.message.includes('fast forward')) {
+            console.warn(`⚠️ ${e.message}`);
+            handlePushEvent({
+              type: 'system',
+              content: `⚠️ ${e.message}`,
+              timestamp: Date.now()
+            });
+          }
+        },
+        
         // Connection events
         system: (e) => {
           console.log('[System]', e.content);
@@ -863,18 +894,6 @@ export default function LiveTradingApp() {
         fast_forward_success: (e) => {
           console.log(`✅ ${e.message}`);
         },
-        
-        // 快进错误响应
-        error: (e) => {
-          if (e.message && e.message.includes('fast forward')) {
-            console.warn(`⚠️ ${e.message}`);
-            handlePushEvent({
-              type: 'system',
-              content: `⚠️ ${e.message}`,
-              timestamp: Date.now()
-            });
-          }
-        }
       };
       
       // Call handler or do nothing
@@ -1218,6 +1237,10 @@ export default function LiveTradingApp() {
                       bubbleFor={bubbleFor} 
                       leaderboard={leaderboard}
                       marketStatus={marketStatus}
+                      wsClient={clientRef.current}
+                      onReplayRequest={(callback) => {
+                        replayCallbackRef.current = callback;
+                      }}
                     />
                   </div>
                   

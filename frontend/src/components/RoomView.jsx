@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { ASSETS, SCENE_NATIVE, AGENT_SEATS, AGENTS, ASSET_BASE_URL } from '../config/constants';
 import AgentCard from './AgentCard';
 import { getModelIcon } from '../utils/modelIcons';
@@ -45,14 +45,36 @@ function getRankMedal(rank) {
  * Room View Component
  * Displays the conference room with agents, speech bubbles, and agent cards
  * Supports click and hover (1.5s) to show agent performance cards
+ * Supports replay mode for reviewing past trading day decisions
  */
-export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus }) {
+export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus, wsClient, onReplayRequest }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   
-  // Select background image based on market status
+  // Agent selection and hover state
+  const [selectedAgent, setSelectedAgent] = useState(null);
+  const [hoveredAgent, setHoveredAgent] = useState(null);
+  const [isClosing, setIsClosing] = useState(false);
+  const hoverTimerRef = useRef(null);
+  const closeTimerRef = useRef(null);
+  
+  // Replay state (must be defined before using in useMemo)
+  const [isReplaying, setIsReplaying] = useState(false);
+  const [replayData, setReplayData] = useState(null);
+  const [replayBubbles, setReplayBubbles] = useState({});
+  const [isLoadingReplay, setIsLoadingReplay] = useState(false);
+  const replayTimerRef = useRef(null);
+  const replayTimeoutsRef = useRef([]);
+  const replayCallbackRef = useRef(null);
+  
+  // Select background image based on market status and replay state
   const roomBgSrc = useMemo(() => {
     const status = marketStatus?.status;
+    
+    // During replay, always use light background with roles
+    if (isReplaying) {
+      return ASSETS.roomBg; // full_room_with_roles_tech_style.png
+    }
     
     // Check if market is closed (handle both 'close' and 'closed')
     if (marketStatus && (status === 'close' || status === 'closed')) {
@@ -61,19 +83,12 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
     
     // Default to light background (market open or no status)
     return ASSETS.roomBg; // full_room_with_roles_tech_style.png
-  }, [marketStatus?.status]);
+  }, [marketStatus?.status, isReplaying]);
   
   const bgImg = useImage(roomBgSrc);
   
   // Calculate scale to fit canvas in container (80% of available space)
   const [scale, setScale] = useState(0.8);
-  
-  // Agent selection and hover state
-  const [selectedAgent, setSelectedAgent] = useState(null);
-  const [hoveredAgent, setHoveredAgent] = useState(null);
-  const [isClosing, setIsClosing] = useState(false);
-  const hoverTimerRef = useRef(null);
-  const closeTimerRef = useRef(null);
   
   useEffect(() => {
     const updateScale = () => {
@@ -264,8 +279,168 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
       if (closeTimerRef.current) {
         clearTimeout(closeTimerRef.current);
       }
+      // Clean up replay timers
+      if (replayTimerRef.current) {
+        clearTimeout(replayTimerRef.current);
+      }
+      replayTimeoutsRef.current.forEach(timeoutId => clearTimeout(timeoutId));
+      replayTimeoutsRef.current = [];
     };
   }, []);
+  
+  // Determine if replay button should be shown (only when market is closed)
+  const showReplayButton = useMemo(() => {
+    const status = marketStatus?.status;
+    return (status === 'close' || status === 'closed') && !isReplaying;
+  }, [marketStatus?.status, isReplaying]);
+  
+  // Request replay data from server
+  const handleReplayClick = useCallback(() => {
+    if (!wsClient || isLoadingReplay) return;
+    
+    try {
+      setIsLoadingReplay(true);
+      
+      // Store callback for when data is received
+      replayCallbackRef.current = (data, error) => {
+        if (error) {
+          console.error('❌ Replay error:', error);
+          alert(`Replay loading failed: ${error}`);
+          setIsLoadingReplay(false);
+          replayCallbackRef.current = null;
+        } else if (data) {
+          console.log('📦 Received replay data:', data);
+          setReplayData(data);
+          startReplay(data);
+          setIsLoadingReplay(false);
+          replayCallbackRef.current = null;
+        }
+      };
+      
+      // Notify parent to handle replay request
+      if (onReplayRequest) {
+        onReplayRequest(replayCallbackRef.current);
+      }
+      
+      // Send request via wsClient
+      const success = wsClient.send({
+        type: 'get_replay_data'
+      });
+      
+      if (success) {
+        console.log('📤 Sent replay data request');
+      } else {
+        console.error('Failed to send replay request');
+        setIsLoadingReplay(false);
+        replayCallbackRef.current = null;
+        alert('Failed to send replay request');
+      }
+      
+    } catch (error) {
+      console.error('Replay request failed:', error);
+      alert('Replay request failed');
+      setIsLoadingReplay(false);
+      replayCallbackRef.current = null;
+    }
+  }, [wsClient, isLoadingReplay, onReplayRequest]);
+  
+  // Start replay with data
+  const startReplay = useCallback((data) => {
+    if (!data || !data.events || data.events.length === 0) {
+      alert('没有可回放的数据');
+      return;
+    }
+    
+    console.log(`🎬 Starting replay for ${data.date} with ${data.event_count} events`);
+    
+    setIsReplaying(true);
+    setReplayBubbles({});
+    
+    // Clear any existing timeouts
+    replayTimeoutsRef.current.forEach(timeoutId => clearTimeout(timeoutId));
+    replayTimeoutsRef.current = [];
+    
+    // Schedule all events
+    const events = data.events;
+    
+    events.forEach((event, index) => {
+      const delay = event.timestamp;
+      
+      // Show bubble
+      const showTimeout = setTimeout(() => {
+        const bubbleId = `replay_${event.agent_id}_${index}`;
+        
+        setReplayBubbles(prev => ({
+          ...prev,
+          [bubbleId]: {
+            id: bubbleId,
+            agentId: event.agent_id,
+            agentName: event.agent_name,
+            text: event.text,
+            timestamp: Date.now(),
+            phase: event.phase
+          }
+        }));
+        
+        // Remove bubble after 5 seconds
+        const hideTimeout = setTimeout(() => {
+          setReplayBubbles(prev => {
+            const newBubbles = { ...prev };
+            delete newBubbles[bubbleId];
+            return newBubbles;
+          });
+        }, 5000);
+        
+        replayTimeoutsRef.current.push(hideTimeout);
+      }, delay);
+      
+      replayTimeoutsRef.current.push(showTimeout);
+    });
+    
+    // End replay after all events complete
+    const totalDuration = data.total_duration + 6000; // Add 6 seconds buffer
+    const endTimeout = setTimeout(() => {
+      console.log('✅ Replay completed');
+      setIsReplaying(false);
+      setReplayBubbles({});
+      replayTimeoutsRef.current = [];
+    }, totalDuration);
+    
+    replayTimeoutsRef.current.push(endTimeout);
+    
+  }, []);
+  
+  // Stop replay
+  const stopReplay = useCallback(() => {
+    console.log('⏹️ Stopping replay');
+    
+    // Clear all timeouts
+    replayTimeoutsRef.current.forEach(timeoutId => clearTimeout(timeoutId));
+    replayTimeoutsRef.current = [];
+    
+    if (replayTimerRef.current) {
+      clearTimeout(replayTimerRef.current);
+      replayTimerRef.current = null;
+    }
+    
+    setIsReplaying(false);
+    setReplayBubbles({});
+  }, []);
+  
+  // Get bubble for specific agent (supports both live and replay mode)
+  const getBubbleForAgent = useCallback((agentName) => {
+    if (isReplaying) {
+      // Find replay bubble for this agent
+      const bubble = Object.values(replayBubbles).find(b => {
+        const agent = AGENTS.find(a => a.id === b.agentId);
+        return agent && agent.name === agentName;
+      });
+      return bubble || null;
+    } else {
+      // Use normal bubbleFor function
+      return bubbleFor(agentName);
+    }
+  }, [isReplaying, replayBubbles, bubbleFor]);
   
   return (
     <div className="room-view">
@@ -338,7 +513,7 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
             
             {/* Speech Bubbles */}
             {AGENTS.map((agent, idx) => {
-              const bubble = bubbleFor(agent.name);
+              const bubble = getBubbleForAgent(agent.name);
               if (!bubble) return null;
               
               const pos = AGENT_SEATS[idx];
@@ -381,6 +556,36 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
               onClose={handleClose}
             />
           </>
+        )}
+        
+        {/* Replay Button - Only shown when market is closed and not replaying */}
+        {showReplayButton && (
+          <div className="replay-button-container">
+            <button 
+              className="replay-button"
+              onClick={handleReplayClick}
+              disabled={isLoadingReplay}
+              title="Replay latest trading day decisions"
+            >
+              <span className="replay-icon">{isLoadingReplay ? '⏳' : '⏮'}</span>
+              <span>{isLoadingReplay ? 'LOADING...' : 'REPLAY'}</span>
+            </button>
+          </div>
+        )}
+        
+        {/* Replay Indicator - Shown during replay */}
+        {isReplaying && (
+          <div className="replay-indicator">
+            <span className="replay-status">
+              ▶ REPLAYING {replayData?.date}
+            </span>
+            <button 
+              className="stop-replay-button"
+              onClick={stopReplay}
+            >
+              ■ STOP
+            </button>
+          </div>
         )}
       </div>
     </div>

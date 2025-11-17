@@ -641,6 +641,121 @@ export default function GlobalStyles() {
         letter-spacing: 0.5px;
       }
       
+      /* Replay Button Container */
+      .replay-button-container {
+        position: absolute;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 100;
+      }
+      
+      .replay-button {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        background: #000000;
+        color: #ffffff;
+        border: 1px solid #000000;
+        border-radius: 0;
+        font-size: 11px;
+        font-weight: 700;
+        font-family: 'IBM Plex Mono', monospace;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        box-shadow: 3px 3px 0 0 rgba(0, 0, 0, 0.2);
+        transition: all 0.2s ease;
+      }
+      
+      .replay-button:hover:not(:disabled) {
+        background: #333333;
+        transform: translate(-1px, -1px);
+        box-shadow: 4px 4px 0 0 rgba(0, 0, 0, 0.3);
+      }
+      
+      .replay-button:active:not(:disabled) {
+        transform: translate(1px, 1px);
+        box-shadow: 2px 2px 0 0 rgba(0, 0, 0, 0.2);
+      }
+      
+      .replay-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      
+      .replay-icon {
+        font-size: 14px;
+        animation: replayIconPulse 2s ease-in-out infinite;
+      }
+      
+      @keyframes replayIconPulse {
+        0%, 100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.7;
+        }
+      }
+      
+      /* Replay Indicator */
+      .replay-indicator {
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 16px;
+        background: #000000;
+        border: 1px solid #000000;
+        border-radius: 0;
+        z-index: 200;
+        box-shadow: 3px 3px 0 0 rgba(0, 0, 0, 0.2);
+      }
+      
+      .replay-status {
+        color: #ffffff;
+        font-size: 11px;
+        font-weight: 700;
+        font-family: 'IBM Plex Mono', monospace;
+        letter-spacing: 0.5px;
+        animation: replayStatusBlink 1.5s ease-in-out infinite;
+      }
+      
+      @keyframes replayStatusBlink {
+        0%, 100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.6;
+        }
+      }
+      
+      .stop-replay-button {
+        padding: 4px 10px;
+        background: #ffffff;
+        color: #000000;
+        border: 1px solid #000000;
+        border-radius: 0;
+        font-size: 10px;
+        font-weight: 700;
+        font-family: 'IBM Plex Mono', monospace;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      
+      .stop-replay-button:hover {
+        background: #000000;
+        color: #ffffff;
+      }
+      
+      .stop-replay-button:active {
+        transform: translate(1px, 1px);
+      }
+      
       /* View Toggle Button */
       .view-toggle-btn {
         position: absolute;

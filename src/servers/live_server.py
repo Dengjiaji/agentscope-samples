@@ -670,7 +670,359 @@ class LiveTradingServer:
                 continue
             
             await self._broadcast_dashboard_data(file_type, data, timestamp)
+    
+    def _get_latest_sandbox_log(self) -> Dict[str, Any]:
+        """
+        Read the most recent trading day's sandbox log for replay
+        
+        Returns:
+            Dictionary containing replay data in the format:
+            {
+                'date': '2025-11-13',
+                'events': [
+                    {
+                        'agent_id': 'technical_analyst',
+                        'agent_name': 'Technical Analyst',
+                        'text': '...',
+                        'phase': 'pre_market',
+                        'timestamp': 0  # Relative timestamp (milliseconds)
+                    },
+                    ...
+                ]
+            }
+        """
+        from src.config.constants import ANALYST_TYPES
+        
+        sandbox_dir = self.dashboard_dir.parent  # sandbox_logs directory
+        
+        # Find all sandbox_day_*.json files
+        sandbox_files = sorted(sandbox_dir.glob('sandbox_day_*.json'), reverse=True)
+        
+        if not sandbox_files:
+            raise FileNotFoundError("No sandbox log files found")
+        
+        # Read the latest file
+        latest_file = sandbox_files[0]
+        logger.info(f"📂 Loading replay data from: {latest_file.name}")
+        
+        with open(latest_file, 'r', encoding='utf-8') as f:
+            log_data = json.load(f)
+        
+        # Extract date (from filename: sandbox_day_2025_11_13.json)
+        date_match = latest_file.stem.replace('sandbox_day_', '').replace('_', '-')
+        
+        # Parse and convert to replay event sequence
+        events = []
+        timestamp = 0  # Relative timestamp (milliseconds)
+        
+        # Agent ID to name mapping
+        agent_names = {
+            'fundamentals_analyst': 'Fundamentals Analyst',
+            'technical_analyst': 'Technical Analyst',
+            'sentiment_analyst': 'Sentiment Analyst',
+            'valuation_analyst': 'Valuation Analyst',
+            'portfolio_manager': 'Portfolio Manager',
+            'system': 'System'
+        }
+        
+        # 1. Pre-market phase events
+        if 'pre_market' in log_data and log_data['pre_market'].get('status') == 'success':
+            pre_market = log_data['pre_market']
+            details = pre_market.get('details', {})
             
+            # System message: Opening
+            events.append({
+                'agent_id': 'system',
+                'agent_name': 'System',
+                'text': f"===== Pre-Market Analysis ({date_match}) =====\nStarting analysis...",
+                'phase': 'pre_market',
+                'timestamp': timestamp
+            })
+            timestamp += 2000
+            
+            # ==== 1.1 First Round Analysis Results ====
+            first_round_results = details.get('first_round_results', {})
+            
+            if first_round_results:
+                events.append({
+                    'agent_id': 'system',
+                    'agent_name': 'System',
+                    'text': "📋 PHASE 1: Initial Analysis",
+                    'phase': 'pre_market',
+                    'timestamp': timestamp
+                })
+                timestamp += 1500
+                
+                for agent_id, result_data in first_round_results.items():
+                    agent_name = agent_names.get(agent_id, agent_id)
+                    analysis_result = result_data.get('analysis_result', {})
+                    
+                    # Extract ticker signals
+                    if 'ticker_signals' in analysis_result:
+                        for ticker_signal in analysis_result['ticker_signals']:
+                            ticker = ticker_signal.get('ticker', '')
+                            signal = ticker_signal.get('signal', '')
+                            confidence = ticker_signal.get('confidence', 0)
+                            reasoning = ticker_signal.get('reasoning', '')
+                            
+                            display_reasoning = reasoning[:120] + '...' if len(reasoning) > 120 else reasoning
+                            text = f"[Initial] {ticker}: {signal.upper()} ({confidence}%)\n💭 {display_reasoning}"
+                            
+                            events.append({
+                                'agent_id': agent_id,
+                                'agent_name': agent_name,
+                                'text': text,
+                                'phase': 'first_round',
+                                'timestamp': timestamp,
+                                'ticker': ticker
+                            })
+                            timestamp += 2500
+                    else:
+                        # Dictionary format organized by ticker
+                        for ticker, ticker_data in analysis_result.items():
+                            if isinstance(ticker_data, dict) and 'signal' in ticker_data:
+                                signal = ticker_data.get('signal', '')
+                                confidence = ticker_data.get('confidence', 0)
+                                reasoning = ticker_data.get('reasoning', '')
+                                
+                                display_reasoning = reasoning[:120] + '...' if len(reasoning) > 120 else reasoning
+                                text = f"[Initial] {ticker}: {signal.upper()} ({confidence}%)\n💭 {display_reasoning}"
+                                
+                                events.append({
+                                    'agent_id': agent_id,
+                                    'agent_name': agent_name,
+                                    'text': text,
+                                    'phase': 'first_round',
+                                    'timestamp': timestamp,
+                                    'ticker': ticker
+                                })
+                                timestamp += 2500
+            
+            # ==== 1.2 Notification Messages ====
+            # Extract notifications from first_round_results
+            for agent_id, result_data in first_round_results.items():
+                if result_data.get('notification_sent'):
+                    notification_decision = result_data.get('notification_decision', {})
+                    notification_content = notification_decision.get('content', '')
+                    notification_type = notification_decision.get('type', '')
+                    if notification_content:
+                        agent_name = agent_names.get(agent_id, agent_id)
+                        
+                        events.append({
+                            'agent_id': agent_id,
+                            'agent_name': agent_name,
+                            'text': f"🔔 NOTIFICATION\n{notification_type}\n{notification_content[:200]}...",
+                            'phase': 'notification',
+                            'timestamp': timestamp
+                        })
+                        timestamp += 3000
+            
+            # ==== 1.3 Risk Analysis ====
+            risk_analysis_results = details.get('risk_analysis_results', {})
+            if risk_analysis_results and risk_analysis_results.get('status') == 'success':
+                events.append({
+                    'agent_id': 'system',
+                    'agent_name': 'System',
+                    'text': "⚠️ PHASE 2: Risk Analysis & Position Limits",
+                    'phase': 'risk_analysis',
+                    'timestamp': timestamp
+                })
+                timestamp += 1500
+                
+                analysis_result = risk_analysis_results.get('analysis_result', {})
+                for ticker, risk_data in analysis_result.items():
+                    max_shares = risk_data.get('max_shares', 0)
+                    current_price = risk_data.get('current_price', 0)
+                    remaining_limit = risk_data.get('remaining_position_limit', 0)
+                    
+                    volatility_metrics = risk_data.get('volatility_metrics', {})
+                    annualized_vol = volatility_metrics.get('annualized_volatility', 0)
+                    vol_percentile = volatility_metrics.get('volatility_percentile', 0)
+                    
+                    reasoning = risk_data.get('reasoning', {})
+                    position_limit_pct = reasoning.get('base_position_limit_pct', 0)
+                    
+                    text = f"⚠️ Risk Assessment for {ticker}\n"
+                    text += f"Max Shares: {max_shares} @ ${current_price:.2f}\n"
+                    text += f"Position Limit: {position_limit_pct*100:.1f}% (${remaining_limit:.2f})\n"
+                    text += f"Volatility: {annualized_vol*100:.1f}% (Percentile: {vol_percentile:.0f}%)"
+                    
+                    events.append({
+                        'agent_id': 'risk_manager',
+                        'agent_name': 'Risk Manager',
+                        'text': text,
+                        'phase': 'risk_analysis',
+                        'timestamp': timestamp,
+                        'ticker': ticker
+                    })
+                    timestamp += 2500
+  
+            # ==== 1.4 PM Communication ====
+            communication_logs = details.get('communication_logs', {})
+            
+            if communication_logs:
+                events.append({
+                    'agent_id': 'system',
+                    'agent_name': 'System',
+                    'text': "💬 PHASE 3: Portfolio Manager Communication",
+                    'phase': 'communication',
+                    'timestamp': timestamp
+                })
+                timestamp += 1500
+                
+                # Extract meeting records
+                meeting_list = communication_logs.get('meetings', [])
+                for meeting in meeting_list:
+                    meeting_id = meeting.get('meeting_id', '')
+                    topic = meeting.get('topic', '')
+                    transcript = meeting['result'].get('transcript', [])
+                    
+                    # Add meeting start message
+                    events.append({
+                        'agent_id': 'portfolio_manager',
+                        'agent_name': 'Portfolio Manager',
+                        'text': f"📞 Meeting Started\nTopic: {topic}",
+                        'phase': 'communication',
+                        'timestamp': timestamp
+                    })
+                    timestamp += 2000
+                    
+                    # Add conversation content
+                    for entry in transcript[:]:  # Limit to first 10 entries
+                        speaker = entry.get('speaker', '')
+                        content = entry.get('content', '')
+                        round_num = entry.get('round', '')
+                        
+                        # Determine speaker
+                        if speaker == 'portfolio_manager':
+                            speaker_id = 'portfolio_manager'
+                            speaker_name = 'Portfolio Manager'
+                        else:
+                            speaker_id = speaker
+                            speaker_name = agent_names.get(speaker, speaker)
+                        
+                        display_content = content[:200] + '...' if len(content) > 200 else content
+                        
+                        events.append({
+                            'agent_id': speaker_id,
+                            'agent_name': speaker_name,
+                            'text': f"[Meeting Round {round_num}] {display_content}",
+                            'phase': 'communication',
+                            'timestamp': timestamp
+                        })
+                        timestamp += 2500
+            
+            # ==== 1.5 Final Analyst Results ====
+            final_analyst_results = details.get('final_analyst_results', {})
+            
+            if final_analyst_results:
+                events.append({
+                    'agent_id': 'system',
+                    'agent_name': 'System',
+                    'text': "📊 PHASE 4: Final Analysis (Post-Communication)",
+                    'phase': 'final_analysis',
+                    'timestamp': timestamp
+                })
+                timestamp += 1500
+            
+            for agent_id, result_data in final_analyst_results.items():
+                agent_name = agent_names.get(agent_id, agent_id)
+                analysis_result = result_data.get('analysis_result', {})
+                
+                # Extract analysis for each ticker
+                if 'ticker_signals' in analysis_result:
+                    # Format 1: ticker_signals array
+                    for ticker_signal in analysis_result['ticker_signals']:
+                        ticker = ticker_signal.get('ticker', '')
+                        signal = ticker_signal.get('signal', '')
+                        confidence = ticker_signal.get('confidence', 0)
+                        reasoning = ticker_signal.get('reasoning', '')
+                        
+                        # Truncate long reasoning text
+                        display_reasoning = reasoning[:120] + '...' if len(reasoning) > 120 else reasoning
+                        text = f"[Final] {ticker}: {signal.upper()} ({confidence}%)\n💭 {display_reasoning}"
+                        
+                        events.append({
+                            'agent_id': agent_id,
+                            'agent_name': agent_name,
+                            'text': text,
+                            'phase': 'pre_market',
+                            'timestamp': timestamp,
+                            'ticker': ticker
+                        })
+                        timestamp += 3000  # 3 seconds interval between each analysis
+                else:
+                    # Format 2: Dictionary organized by ticker
+                    for ticker, ticker_data in analysis_result.items():
+                        if isinstance(ticker_data, dict) and 'signal' in ticker_data:
+                            signal = ticker_data.get('signal', '')
+                            confidence = ticker_data.get('confidence', 0)
+                            reasoning = ticker_data.get('reasoning', '')
+                            
+                            display_reasoning = reasoning[:120] + '...' if len(reasoning) > 120 else reasoning
+                            text = f"[Final] {ticker}: {signal.upper()} ({confidence}%)\n💭 {display_reasoning}"
+                            
+                            events.append({
+                                'agent_id': agent_id,
+                                'agent_name': agent_name,
+                                'text': text,
+                                'phase': 'pre_market',
+                                'timestamp': timestamp,
+                                'ticker': ticker
+                            })
+                            timestamp += 3000
+            
+            # Portfolio Manager decisions
+            pm_results = details.get('portfolio_management_results', {})
+            final_decisions = pm_results.get('final_decisions', {})
+            
+            if final_decisions:
+                events.append({
+                    'agent_id': 'system',
+                    'agent_name': 'System',
+                    'text': "🎯 PHASE 5: Portfolio Manager Final Decisions",
+                    'phase': 'final_decision',
+                    'timestamp': timestamp
+                })
+                timestamp += 2000
+                
+                for ticker, decision in final_decisions.items():
+                    action = decision.get('action', 'hold')
+                    quantity = decision.get('quantity', 0)
+                    confidence = decision.get('confidence', 0)
+                    reasoning = decision.get('reasoning', '')
+                    
+                    display_reasoning = reasoning[:150] + '...' if len(reasoning) > 150 else reasoning
+                    text = f"💼 {ticker}: {action.upper()} ({quantity} shares, {confidence}%)\n💭 {display_reasoning}"
+                    
+                    events.append({
+                        'agent_id': 'portfolio_manager',
+                        'agent_name': 'Portfolio Manager',
+                        'text': text,
+                        'phase': 'pre_market',
+                        'timestamp': timestamp,
+                        'ticker': ticker
+                    })
+                    timestamp += 3000
+            
+            # Completion message
+            events.append({
+                'agent_id': 'system',
+                'agent_name': 'System',
+                'text': f"✅ Pre-Market Analysis Complete! Generated {len(final_decisions)} trading signals",
+                'phase': 'complete',
+                'timestamp': timestamp
+            })
+            timestamp += 2000
+        
+        logger.info(f"✅ Prepared {len(events)} replay events for {date_match}")
+        
+        return {
+            'date': date_match,
+            'events': events,
+            'total_duration': timestamp,
+            'event_count': len(events)
+        }
     
     def _is_trading_day(self, date_str: str = None) -> bool:
         """
@@ -1021,6 +1373,30 @@ class LiveTradingServer:
                                         'type': 'error',
                                         'message': f'Time fast forward failed: {str(e)}'
                                     }, ensure_ascii=False, default=str))
+                        
+                        elif msg_type == 'get_replay_data':
+                            # Get replay data (latest trading day's sandbox log)
+                            try:
+                                replay_data = self._get_latest_sandbox_log()
+                                await websocket.send(json.dumps({
+                                    'type': 'replay_data_response',
+                                    'data': replay_data
+                                }, ensure_ascii=False, default=str))
+                                logger.info(f"✅ Sent replay data for date: {replay_data.get('date', 'unknown')}")
+                            except FileNotFoundError as e:
+                                logger.warning(f"⚠️ No replay data found: {e}")
+                                await websocket.send(json.dumps({
+                                    'type': 'error',
+                                    'message': 'No replay data found'
+                                }, ensure_ascii=False, default=str))
+                            except Exception as e:
+                                logger.error(f"❌ Failed to get replay data: {e}")
+                                import traceback
+                                traceback.print_exc()
+                                await websocket.send(json.dumps({
+                                    'type': 'error',
+                                    'message': f'Failed to load replay data: {str(e)}'
+                                }, ensure_ascii=False, default=str))
                             
                     except json.JSONDecodeError:
                         logger.warning("Received non-JSON message")

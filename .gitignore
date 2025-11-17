@@ -42,6 +42,10 @@ Thumbs.db
 
 # graph
 *.png
+# Exception: Allow LLM model logos
+!frontend/public/assets/llm_model_logos/*.png
+!frontend/public/assets/llm_model_logos/*.jpeg
+!frontend/public/assets/llm_model_logos/*.jpg
 
 # Txt files
 *.txt
