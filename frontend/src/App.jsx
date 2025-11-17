@@ -1008,6 +1008,17 @@ export default function LiveTradingApp() {
             </svg>
             agentscope-samples <span className="link-arrow">↗</span>
           </a>
+          <span style={{
+            width: '2px',
+            height: '16px',
+            background: '#666',
+            margin: '0 16px',
+            display: 'inline-block',
+            verticalAlign: 'middle'
+          }} />
+          <a href="https://1mycell.github.io/" className="header-link">
+            Contact Us <span className="link-arrow">↗</span>
+          </a>
         </div>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginLeft: 'auto' }}>
