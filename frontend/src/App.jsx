@@ -970,7 +970,7 @@ export default function LiveTradingApp() {
             onClick={() => setShowAboutModal(true)}
             style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: '3px' }}
           >
-            TRADING INTELLIGENCE
+            EvoTraders
           </span>
           <span style={{
             width: '2px',
