@@ -16,14 +16,17 @@ export default function GlobalStyles() {
         max-width: none;
       }
       body {
-        font-family: 'Courier New', Courier, monospace;
+        font-family: 'IBM Plex Mono', monospace;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.01em;
         background: #f5f5f5;
         color: #000000;
-        font-size: 13px;
+        font-size: 11px;
         line-height: 1.5;
       }
       
-      /* Import Inter font for agent names */
+      /* Import fonts */
+      @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap');
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
       
       /* Layout */
@@ -45,20 +48,49 @@ export default function GlobalStyles() {
         display: flex;
         align-items: stretch;
         flex-shrink: 0;
-        font-family: 'Courier New', Courier, monospace;
+        font-family: 'IBM Plex Mono', monospace;
         width: 100%;
         max-width: none;
       }
       
       .header-title {
-        padding: 14px 20px;
-        font-size: 13px;
-        font-weight: 700;
-        letter-spacing: 1px;
+        padding: 18px 20px;
+        font-size: 15px;
+        font-weight: bold;
+        letter-spacing: -0.01em;
         color: #000000;
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 16px;
+      }
+      
+      .header-link {
+        font-size: 13px;
+        font-weight: 600;
+        color: #333333;
+        text-decoration: none;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 8px;
+        border-radius: 3px;
+      }
+      
+      .header-link:hover {
+        color: #000000;
+        background: #f5f5f5;
+      }
+      
+      .link-arrow {
+        font-size: 12px;
+        color: #666666;
+        transition: transform 0.2s;
+      }
+      
+      .header-link:hover .link-arrow {
+        transform: translateY(-2px);
+        color: #000000;
       }
       
       .header-tabs {
@@ -101,16 +133,51 @@ export default function GlobalStyles() {
       }
       
       .header-status {
-        padding: 14px 20px;
+        padding: 18px 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 6px;
+        font-size: 13px;
+        color: #666666;
+      }
+      
+      .last-update-text {
+        font-size: 11px;
+        color: #333333;
+        font-family: 'IBM Plex Mono', monospace;
+        font-weight: 600;
+      }
+      
+      .market-status-indicator {
         display: flex;
         align-items: center;
-        gap: 16px;
-        font-size: 11px;
-        color: #666666;
+        gap: 10px;
+        padding: 6px 14px;
+        border-radius: 6px;
+        border: 1px solid;
+        transition: all 0.2s;
+      }
+      
+      .market-status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        box-shadow: 0 0 4px rgba(255, 255, 255, 0.3);
+      }
+      
+      .market-status-text {
+        font-size: 13px;
+        font-weight: 600;
+        color: #FFFFFF;
+        font-family: 'IBM Plex Mono', monospace;
+        letter-spacing: 0.5px;
       }
       
       .status-indicator {
         font-weight: 700;
+        font-size: 13px;
       }
       
       .status-indicator.live { 
@@ -355,9 +422,12 @@ export default function GlobalStyles() {
         align-items: center;
         gap: 16px;
         padding: 12px 20px;
+        border-top: 1px solid #e0e0e0;
         border-bottom: 1px solid #e0e0e0;
         background: #ffffff;
         flex-wrap: wrap;
+        position: relative;
+        z-index: 1000;
       }
       
       .agent-indicator {
@@ -367,6 +437,7 @@ export default function GlobalStyles() {
         gap: 6px;
         transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
         position: relative;
+        cursor: pointer;
       }
       
       .agent-indicator.speaking {
@@ -425,6 +496,42 @@ export default function GlobalStyles() {
       
       .agent-indicator.speaking .agent-name {
         color: #000000;
+      }
+      
+      .agent-rank-medal {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        font-size: 16px;
+        line-height: 1;
+        filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+        z-index: 10;
+      }
+      
+      .agent-hint-text {
+        position: absolute;
+        bottom: -20px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 11px;
+        color: #000000;
+        font-family: 'IBM Plex Mono', monospace;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+        opacity: 0.7;
+      }
+      
+      .agent-card-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 999;
+      }
+      
+      .room-scene-wrapper {
+        position: relative;
       }
       
       @keyframes pulse {
@@ -488,7 +595,7 @@ export default function GlobalStyles() {
         padding: 8px 10px;
         border: 2px solid #000000;
         box-shadow: 3px 3px 0 0 rgba(0, 0, 0, 0.2);
-        font-family: 'Courier New', monospace;
+        font-family: 'IBM Plex Mono', monospace;
         line-height: 1.4;
         animation: bubbleAppear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
       }
@@ -579,6 +686,47 @@ export default function GlobalStyles() {
         width: 100%;
         height: 100%;
         overflow: hidden;
+        padding-top: 40px;
+      }
+      
+      /* View Navigation Bar */
+      .view-nav-bar {
+        position: absolute;
+        top: 4px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 100;
+        display: flex;
+        gap: 0;
+        background: #ffffff;
+      }
+      
+      .view-nav-btn {
+        padding: 4px 14px;
+        background: #ffffff;
+        color: #000000;
+        border: none;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      
+      .view-nav-btn:hover:not(.active) {
+        background: #f5f5f5;
+      }
+      
+      .view-nav-btn.active {
+        background: #000000;
+        color: #ffffff;
+      }
+      
+      .view-nav-btn:focus {
+        outline: none;
       }
       
       /* Three-view slider (Room / Chart / Statistics) */
@@ -682,9 +830,9 @@ export default function GlobalStyles() {
       }
       
       .feed-title {
-        font-size: 12px;
-        font-weight: 700;
-        letter-spacing: 3px;
+        font-size: 14px;
+        font-weight: bold;
+        letter-spacing: -0.01em;
         margin: 0;
         color: #000000;
         text-transform: uppercase;
@@ -736,7 +884,7 @@ export default function GlobalStyles() {
         margin-left: auto;
         font-size: 10px;
         color: #999999;
-        font-family: 'Courier New', monospace;
+        font-family: 'IBM Plex Mono', monospace;
       }
       
       .feed-live-badge {
@@ -758,7 +906,7 @@ export default function GlobalStyles() {
         line-height: 1.6;
         color: #333333;
         word-wrap: break-word;
-        font-family: 'Courier New', monospace;
+        font-family: 'IBM Plex Mono', monospace;
         white-space: pre-wrap;
       }
       
@@ -792,7 +940,7 @@ export default function GlobalStyles() {
       }
       
       .conf-message-content {
-        font-family: 'Courier New', monospace;
+        font-family: 'IBM Plex Mono', monospace;
         font-size: 12px;
         color: #333333;
         flex: 1;
@@ -804,7 +952,7 @@ export default function GlobalStyles() {
         padding: 0;
         border: none;
         background: none;
-        font-family: 'Courier New', monospace;
+        font-family: 'IBM Plex Mono', monospace;
         font-size: 10px;
         font-weight: 600;
         color: #666666;
@@ -827,7 +975,7 @@ export default function GlobalStyles() {
         padding: 0;
         border: none;
         background: none;
-        font-family: 'Courier New', monospace;
+        font-family: 'IBM Plex Mono', monospace;
         font-size: 10px;
         font-weight: 600;
         color: #666666;
@@ -874,8 +1022,8 @@ export default function GlobalStyles() {
       
       .section-title {
         font-size: 16px;
-        font-weight: 700;
-        letter-spacing: 2px;
+        font-weight: bold;
+        letter-spacing: -0.01em;
         margin: 0;
         color: #000000;
         text-transform: uppercase;
@@ -1091,8 +1239,8 @@ export default function GlobalStyles() {
         font-size: 10px;
         font-weight: 700;
         color: #666666;
-        letter-spacing: 0.5px;
-        font-family: 'Courier New', monospace;
+        letter-spacing: -0.01em;
+        font-family: 'IBM Plex Mono', monospace;
       }
       
       /* Scrollbar */

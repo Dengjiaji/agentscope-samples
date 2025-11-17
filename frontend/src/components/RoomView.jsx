@@ -72,6 +72,7 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
   const [hoveredAgent, setHoveredAgent] = useState(null);
   const [isClosing, setIsClosing] = useState(false);
   const hoverTimerRef = useRef(null);
+  const closeTimerRef = useRef(null);
   
   useEffect(() => {
     const updateScale = () => {
@@ -188,6 +189,13 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
   
   // Handle agent click
   const handleAgentClick = (agentId) => {
+    // Cancel any closing animation
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+    setIsClosing(false);
+    
     const agentData = getAgentData(agentId);
     if (agentData) {
       setSelectedAgent(agentData);
@@ -200,14 +208,30 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
     // Clear any existing timer
     if (hoverTimerRef.current) {
       clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
     }
-    // Set new timer for 1.5 seconds
-    hoverTimerRef.current = setTimeout(() => {
-      const agentData = getAgentData(agentId);
-      if (agentData) {
+    // Cancel any closing animation
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+    setIsClosing(false);
+    
+    // If there's already a selected agent, switch immediately
+    // Otherwise, show after a short delay (0ms = immediate)
+    const agentData = getAgentData(agentId);
+    if (agentData) {
+      if (selectedAgent) {
+        // Already have a card open, switch immediately
         setSelectedAgent(agentData);
+      } else {
+        // No card open, show after delay (currently 0ms = immediate)
+        hoverTimerRef.current = setTimeout(() => {
+          setSelectedAgent(agentData);
+          hoverTimerRef.current = null;
+        }, 0);
       }
-    }, 1500);
+    }
   };
   
   const handleAgentMouseLeave = () => {
@@ -223,9 +247,10 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
   const handleClose = () => {
     setIsClosing(true);
     // Wait for animation to complete before removing
-    setTimeout(() => {
+    closeTimerRef.current = setTimeout(() => {
       setSelectedAgent(null);
       setIsClosing(false);
+      closeTimerRef.current = null;
     }, 200); // Match the slideUp animation duration
   };
   
@@ -235,11 +260,14 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
       if (hoverTimerRef.current) {
         clearTimeout(hoverTimerRef.current);
       }
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
     };
   }, []);
   
   return (
-    <div className="room-view" style={{ position: 'relative' }}>
+    <div className="room-view">
       {/* Agents Indicator Bar */}
       <div className="room-agents-indicator">
         {AGENTS.map(agent => {
@@ -253,7 +281,6 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
               onClick={() => handleAgentClick(agent.id)}
               onMouseEnter={() => handleAgentMouseEnter(agent.id)}
               onMouseLeave={handleAgentMouseLeave}
-              style={{ cursor: 'pointer', position: 'relative' }}
             >
               <div className="agent-avatar-wrapper">
                 <img 
@@ -263,15 +290,7 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
                 />
                 <span className="agent-indicator-dot"></span>
                 {medal && (
-                  <span style={{
-                    position: 'absolute',
-                    top: -4,
-                    right: -4,
-                    fontSize: 16,
-                    lineHeight: 1,
-                    filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))',
-                    zIndex: 10
-                  }}>
+                  <span className="agent-rank-medal">
                     {medal}
                   </span>
                 )}
@@ -280,12 +299,17 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
             </div>
           );
         })}
+        
+        {/* Hint Text */}
+        <div className="agent-hint-text">
+          Click avatar to view details
+        </div>
       </div>
       
       {/* Room Canvas */}
       <div className="room-canvas-container" ref={containerRef}>
         <div className="room-scene">
-          <div style={{ position: 'relative', width: Math.round(SCENE_NATIVE.width * scale), height: Math.round(SCENE_NATIVE.height * scale) }}>
+          <div className="room-scene-wrapper" style={{ width: Math.round(SCENE_NATIVE.width * scale), height: Math.round(SCENE_NATIVE.height * scale) }}>
             <canvas ref={canvasRef} className="room-canvas" />
             
             {/* Speech Bubbles */}
@@ -322,14 +346,7 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
           <>
             {/* Transparent overlay to close card */}
             <div 
-              style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                zIndex: 999
-              }}
+              className="agent-card-overlay"
               onClick={handleClose}
             />
             
