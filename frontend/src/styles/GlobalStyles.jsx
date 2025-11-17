@@ -1307,16 +1307,48 @@ export default function GlobalStyles() {
       
       /* Responsive */
       @media (max-width: 900px) {
+        .app {
+          height: auto;
+          min-height: 100vh;
+        }
+        
+        .main-container {
+          flex-direction: column;
+          overflow-y: auto;
+          overflow-x: hidden;
+          height: auto;
+          flex: 1;
+        }
+        
         .resizer {
           display: none;
         }
         
-        .right-panel {
-          display: none;
+        .left-panel {
+          width: 100% !important;
+          min-width: 100%;
+          height: 100vh;
+          min-height: 600px;
+          flex: 0 0 auto;
+          border-bottom: 2px solid #000000;
         }
         
-        .left-panel {
+        .right-panel {
+          width: 100% !important;
           min-width: 100%;
+          height: auto;
+          min-height: 50vh;
+          flex: 0 0 auto;
+          overflow-y: visible;
+        }
+        
+        .agent-feed {
+          height: auto;
+          overflow-y: visible;
+        }
+        
+        .feed-content {
+          overflow-y: visible;
         }
       }
       
