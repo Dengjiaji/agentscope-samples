@@ -78,7 +78,7 @@ export default function GlobalStyles() {
       }
       
       .header-link:hover {
-        color: #000000;
+        color: #1366A1;
         background: #f5f5f5;
       }
       
@@ -90,7 +90,7 @@ export default function GlobalStyles() {
       
       .header-link:hover .link-arrow {
         transform: translateY(-2px);
-        color: #000000;
+        color: #1366A1;
       }
       
       .header-tabs {
@@ -122,12 +122,12 @@ export default function GlobalStyles() {
       }
       
       .header-tab.active {
-        background: #000000;
+        background: #19367A;
         color: #ffffff;
       }
       
       .header-tab:focus {
-        background: #000000;
+        background: #1366A1;
         color: #ffffff;
         outline: none;
       }
@@ -157,6 +157,16 @@ export default function GlobalStyles() {
         border-radius: 6px;
         border: 1px solid;
         transition: all 0.2s;
+      }
+      
+      .market-status-indicator.live {
+        background: linear-gradient(135deg, #23CD32 0%, #00380C 100%);
+        border-color: #23CD32;
+      }
+      
+      .market-status-indicator.disconnected {
+        background: linear-gradient(135deg, #FE2E50 0%, #00000E 100%);
+        border-color: #FE2E50;
       }
       
       .market-status-dot {
@@ -699,6 +709,9 @@ export default function GlobalStyles() {
         display: flex;
         gap: 0;
         background: #ffffff;
+        border: 1px solid #000000;
+        border-radius: 10px;
+        overflow: hidden;
       }
       
       .view-nav-btn {
@@ -1083,14 +1096,14 @@ export default function GlobalStyles() {
       }
       
       .data-table thead th {
-        background: #000000;
+        background: #19367A;
         color: #ffffff;
         padding: 10px 12px;
         text-align: left;
         font-weight: 700;
         letter-spacing: 1px;
         font-size: 9px;
-        border-right: 1px solid #333333;
+        border-right: 1px solid #1366A1;
         text-transform: uppercase;
         position: sticky;
         top: 0;
