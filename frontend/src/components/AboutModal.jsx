@@ -96,13 +96,13 @@ export default function AboutModal({ onClose }) {
       questionEnd: "?",
       
       point1Highlight: "✦ Complementary skills",
-      point1: " across multiple agents—data analysis, strategy generation, risk management—working together like a real trading desk.",
+      point1: " - across multiple agents—data analysis, strategy generation, risk management—working together like a real trading desk, exchanging information through notifications and meetings.",
       
       point2Highlight: "✦ An agent system that continually evolves",
-      point2: "—with memory modules that retain experience, learn, reflect, and develop their own methodology over time.",
+      point2: " — with memory modules that retain experience, learn from market feedback, reflect, and develop their own methodology over time.",
       
       point3Highlight: "✦ AI teams interacting with live markets",
-      point3: "—learning from real-time data and making immediate decisions, not just theoretical simulations.",
+      point3: " — learning from real-time data and making immediate decisions, not just theoretical simulations.",
       
       opensource: "Everything is fully open-source. Built on AgentScope, using ReMe for memory management.",
       
@@ -114,11 +114,11 @@ export default function AboutModal({ onClose }) {
       trying: "我们正在尝试的是：",
       
       title1: "✦ 多智能体的技能互补",
-      point1: "不同模型、不同角色的智能体像真实的金融团队一样协作，各自承担数据分析、策略生成、风险控制等职责。",
+      point1: "不同模型、不同角色的智能体像真实的金融团队一样协作，各自承担多源数据分析、策略生成、风险控制等职责，并通过通知和会议等机制进行交流。",
       point1Sub: "在复杂环境中，合作胜过孤立。",
       
       title2: "✦ 能够持续进化的智能体系统",
-      point2: "依托「记忆」模块，每个智能体都能跨回合保留经验，不断学习、反思与调整。",
+      point2: "依托「记忆」模块，每个智能体都能跨回合保留经验，接收交易结果反馈，不断学习、反思与调整。",
       point2Sub: "在长期实时交易中，它们会形成自己的方法论，而不是一次性推理的偶然产物。",
       
       title3: "✦ 实时参与市场的 AI 团队",
