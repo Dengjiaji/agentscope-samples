@@ -280,6 +280,16 @@ export default function AgentCard({ agent, onClose, isClosing }) {
               }}>
                 {bullWins + bearWins}Win / {evaluatedTotal}Eval  
               </div>
+              <div style={{
+                fontSize: 8,
+                color: '#888888',
+                marginTop: 4,
+                fontStyle: 'italic',
+                lineHeight: 1.2,
+                whiteSpace: 'pre-line'
+              }}>
+                Eval: total evaluated bull & bear signals.{'\n'}Win Rate = correct signals / total evaluated signals
+              </div>
             </div>
           )}
           
