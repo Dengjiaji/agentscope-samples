@@ -254,7 +254,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
                 fontSize: 9,
                 color: '#555555'
               }}>
-                {bullWins + bearWins}Win / {evaluatedTotal}Eval / {totalSignals}Total
+                {bullWins + bearWins}Win / {evaluatedTotal}Eval  
               </div>
             </div>
           )}
