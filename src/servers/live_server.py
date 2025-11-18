@@ -831,7 +831,6 @@ class LiveTradingServer:
                 
                 analysis_result = risk_analysis_results.get('analysis_result', {})
                 for ticker, risk_data in analysis_result.items():
-                    max_shares = risk_data.get('max_shares', 0)
                     current_price = risk_data.get('current_price', 0)
                     remaining_limit = risk_data.get('remaining_position_limit', 0)
                     
@@ -843,7 +842,6 @@ class LiveTradingServer:
                     position_limit_pct = reasoning.get('base_position_limit_pct', 0)
                     
                     text = f"⚠️ Risk Assessment for {ticker}\n"
-                    text += f"Max Shares: {max_shares} @ ${current_price:.2f}\n"
                     text += f"Position Limit: {position_limit_pct*100:.1f}% (${remaining_limit:.2f})\n"
                     text += f"Volatility: {annualized_vol*100:.1f}% (Percentile: {vol_percentile:.0f}%)"
                     

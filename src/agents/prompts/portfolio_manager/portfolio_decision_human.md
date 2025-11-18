@@ -6,9 +6,6 @@ Below are signals categorized by ticker:
 Current prices:
 {{current_prices}}
 
-Maximum shares allowed to purchase:
-{{max_shares}}
-
 Portfolio cash: {{portfolio_cash}}
 Current positions: {{portfolio_positions}}
 Current margin requirement: {{margin_requirement}}

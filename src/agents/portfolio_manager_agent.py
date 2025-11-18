@@ -244,7 +244,6 @@ class PortfolioManagerAgent(AgentBase):
         current_prices = state["data"]["current_prices"]
         
         # Calculate maximum shares for each ticker
-        max_shares = {}
         for ticker in tickers:
             # Get position limit from risk manager
             risk_manager_id = self._get_risk_manager_id()
@@ -253,10 +252,7 @@ class PortfolioManagerAgent(AgentBase):
             remaining_limit = risk_data.get("remaining_position_limit", 0)
             price = current_prices.get(ticker, 0)
             
-            if price > 0:
-                max_shares[ticker] = int(remaining_limit / price)
-            else:
-                max_shares[ticker] = 0
+            
 
         # Get analyst weights
         formatted_memories = self._format_memories_for_prompt(relevant_memories)
@@ -265,7 +261,6 @@ class PortfolioManagerAgent(AgentBase):
         prompt_data = {
             "signals_by_ticker": json.dumps(signals_by_ticker, indent=2, ensure_ascii=False),
             "current_prices": json.dumps(current_prices, indent=2),
-            "max_shares": json.dumps(max_shares, indent=2),
             "portfolio_cash": f"{portfolio.get('cash', 0):.2f}",
             "portfolio_positions": json.dumps(portfolio.get("positions", {}), indent=2),
             "margin_requirement": f"{portfolio.get('margin_requirement', 0):.2f}",

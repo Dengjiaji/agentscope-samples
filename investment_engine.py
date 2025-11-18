@@ -703,7 +703,6 @@ class InvestmentEngine:
                     else:
                         # Portfolio mode
                         current_price = risk_data.get("current_price", 0)
-                        max_shares = risk_data.get("max_shares", 0)
                         vol_metrics = risk_data.get("volatility_metrics", {})
                         annualized_vol = vol_metrics.get("annualized_volatility", 0)
                         reasoning = risk_data.get("reasoning", {})
@@ -713,7 +712,6 @@ class InvestmentEngine:
                             self.streamer.print("agent", 
                                 f"{ticker}: \n"
                                 f"  Price ${current_price:.2f}\n"
-                                f"  Max Shares {max_shares}\n"
                                 f"  Volatility {annualized_vol:.1%}\n"
                                 f"  Position Limit {position_limit_pct:.1%}\n",
                                 role_key="risk_manager"

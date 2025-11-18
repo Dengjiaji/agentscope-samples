@@ -11,7 +11,6 @@ Trading Rules:
   * Indicates bullish: Buy shares to establish or increase long positions
   * quantity represents the number of shares to buy (incremental)
   * Example: Currently holding 32 long shares, quantity=50 → Buy 50 shares → Final holding 82 long shares
-  * quantity must ≤ max_shares for that ticker
 
 - For short direction (short):
   * Indicates bearish: Sell long positions or establish short positions
@@ -28,7 +27,6 @@ Trading Rules:
   * quantity should be 0
   * Keep current positions unchanged
 
-- max_shares values have been pre-calculated to comply with position limits
 - You can see current positions in portfolio_positions, please decide the quantity to add or reduce based on this
 
 **CRITICAL: Budget Management Requirements**
@@ -56,7 +54,6 @@ Available Actions:
 
 Input Information:
 - signals_by_ticker: Dictionary of ticker → signals
-- max_shares: Maximum shares allowed for each ticker
 - portfolio_cash: Current cash in the portfolio
 - portfolio_positions: Current positions (including long and short)
 - current_prices: Current price of each ticker

@@ -270,7 +270,6 @@ class RiskManagerAgent(AgentBase):
                 risk_analysis[ticker] = {
                     "remaining_position_limit": 0.0,
                     "current_price": 0.0,
-                    "max_shares": 0,
                     "reasoning": {"error": "Missing price or volatility data"}
                 }
                 continue
@@ -290,12 +289,10 @@ class RiskManagerAgent(AgentBase):
             
             remaining_limit = position_limit - current_position_value
             max_position_size = min(remaining_limit, portfolio.get("cash", 0))
-            max_shares = int(max_position_size / price) if price > 0 else 0
             
             risk_analysis[ticker] = {
                 "remaining_position_limit": float(max_position_size),
                 "current_price": float(price),
-                "max_shares": int(max_shares),
                 "volatility_metrics": vol_data,
                 "reasoning": {
                     "portfolio_value": float(total_value),
