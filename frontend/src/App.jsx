@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 
 // Configuration and constants
-import { AGENTS, INITIAL_TICKERS, BUBBLE_LIFETIME_MS } from './config/constants';
+import { AGENTS, INITIAL_TICKERS } from './config/constants';
 
 // Services
 import { ReadOnlyClient } from './services/websocket';
@@ -164,11 +164,26 @@ export default function LiveTradingApp() {
   }, []);
   
   // Helper to check if bubble should still be visible
-  const bubbleFor = (id) => {
-    const b = bubbles[id];
-    if (!b) return null;
-    if (Date.now() - b.ts > BUBBLE_LIFETIME_MS) return null;
-    return b;
+  // Bubbles persist until replaced by ANY new message (cross-role)
+  // When any agent sends a new message, all previous bubbles are cleared
+  // Can search by agentId or agentName
+  const bubbleFor = (idOrName) => {
+    // First try direct lookup by id
+    let b = bubbles[idOrName];
+    if (b) {
+      return b;
+    }
+    
+    // If not found, search by agentName
+    const agent = AGENTS.find(a => a.name === idOrName || a.id === idOrName);
+    if (agent) {
+      b = bubbles[agent.id];
+      if (b) {
+        return b;
+      }
+    }
+    
+    return null;
   };
   
   // Auto-connect to server on mount
@@ -715,14 +730,14 @@ export default function LiveTradingApp() {
           };
           
           // Update bubbles for room view
-          setBubbles(prev => ({
-            ...prev,
+          // Clear all previous bubbles and show only the new message (cross-role behavior)
+          setBubbles({
             [e.agentId]: {
               text: e.content,
               ts: Date.now(),
               agentName: agent?.name || e.agentName || e.agentId
             }
-          }));
+          });
           
           setConferences(prev => {
             if (prev.active) {

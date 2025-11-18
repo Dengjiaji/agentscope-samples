@@ -637,7 +637,7 @@ class Server:
             logger.info(f"✅ Subscribed to real-time prices: {self.config.tickers}")
         
         # Generate trading day list
-        start_date = self.config.start_date or "2025-11-12"
+        start_date = self.config.start_date or "2025-11-06"
         # end_date = self.config.end_date or datetime.now().strftime("%Y-%m-%d")
         end_date = self.config.end_date or "2025-11-12"
 
