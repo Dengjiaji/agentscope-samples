@@ -220,7 +220,7 @@ echo "   按 Ctrl+C 停止服务器"
 echo ""
 
 # 构建启动命令
-PYTHON_CMD="python -u -m src.servers.server"
+PYTHON_CMD="python -u -m backend.servers.server"
 if [ "$MODE" = "mock" ]; then
     PYTHON_CMD="$PYTHON_CMD --mock"
 fi

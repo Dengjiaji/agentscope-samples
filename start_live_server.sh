@@ -335,7 +335,7 @@ echo "   按 Ctrl+C 停止服务器"
 echo ""
 
 # 构建命令
-CMD="python -u src/servers/live_server.py"
+CMD="python -u backend/servers/live_server.py"
 CMD="$CMD --config-name $CONFIG_NAME"
 CMD="$CMD --host $HOST"
 CMD="$CMD --port $PORT"
