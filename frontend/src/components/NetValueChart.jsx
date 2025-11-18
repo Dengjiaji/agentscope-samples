@@ -119,6 +119,15 @@ function filterStrategyDataForLive(strategyData, equity, sessionStartTime) {
 export default function NetValueChart({ equity, baseline, baseline_vw, momentum, strategies, chartTab = 'all', virtualTime = null }) {
   const [activePoint, setActivePoint] = useState(null);
   const [stableYRange, setStableYRange] = useState(null);
+  const [legendTooltip, setLegendTooltip] = useState(null);
+  
+  // Legend descriptions
+  const legendDescriptions = {
+    'EvoTraders': 'EvoTraders is our agents investment strategy',
+    'Buy & Hold (EW)': 'Equal Weight: Can be viewed as an equal-weighted index of all invested stocks',
+    'Buy & Hold (VW)': 'Value Weighted: Can be viewed as a market-cap weighted index of all invested stocks',
+    'Momentum': 'Momentum Strategy: Buy stocks that have performed well in the past',
+  };
   
   // Filter equity data based on chartTab
   const filteredEquity = useMemo(() => {
@@ -549,6 +558,96 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
       </g>
     );
   };
+  
+  const CustomLegend = ({ payload }) => {
+    if (!payload || payload.length === 0) return null;
+    
+    return (
+      <div style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '16px',
+        padding: '10px 0',
+        position: 'relative',
+        fontFamily: '"Courier New", monospace',
+        fontSize: '11px',
+        fontWeight: 700,
+        justifyContent: 'center'
+      }}>
+        {payload.map((entry, index) => {
+          const description = legendDescriptions[entry.value] || '';
+          const isActive = legendTooltip === entry.value;
+          
+          return (
+            <div
+              key={index}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                position: 'relative',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                backgroundColor: isActive ? '#f0f0f0' : 'transparent',
+                transition: 'background-color 0.2s',
+                userSelect: 'none'
+              }}
+              onMouseEnter={() => setLegendTooltip(entry.value)}
+              onMouseLeave={() => setLegendTooltip(null)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setLegendTooltip(isActive ? null : entry.value);
+              }}
+            >
+              <div
+                style={{
+                  width: '14px',
+                  height: '3px',
+                  backgroundColor: entry.color,
+                  border: 'none'
+                }}
+              />
+              <span
+                style={{
+                  fontFamily: '"Courier New", monospace',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  color: '#000000'
+                }}
+              >
+                {entry.value}
+              </span>
+              {isActive && description && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '100%',
+                    left: 0,
+                    marginBottom: '8px',
+                    padding: '8px 12px',
+                    background: '#000000',
+                    color: '#ffffff',
+                    fontSize: '10px',
+                    fontFamily: '"Courier New", monospace',
+                    whiteSpace: 'normal',
+                    maxWidth: '300px',
+                    zIndex: 1000,
+                    borderRadius: '4px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                    pointerEvents: 'none',
+                    lineHeight: 1.4
+                  }}
+                >
+                  {description}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -572,18 +671,14 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
         />
         <Tooltip content={<CustomTooltip />} />
         <Legend 
-          wrapperStyle={{
-            fontFamily: '"Courier New", monospace',
-            fontSize: '11px',
-            fontWeight: 700
-          }}
+          content={<CustomLegend />}
         />
         
         {/* Portfolio line */}
         <Line 
           type="linear" 
           dataKey="portfolio" 
-          name="Portfolio"
+          name="EvoTraders"
           stroke="#00C853" 
           strokeWidth={2.5}
           dot={(props) => <CustomDot {...props} dataKey="portfolio" />}
