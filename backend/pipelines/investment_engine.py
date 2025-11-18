@@ -353,8 +353,7 @@ class InvestmentEngine:
                 
                 filtered_analysis_result = filter_analysis_result(analysis_result)
                 
-                with open('/Users/wy/Downloads/Project/IA_space/filtered_analysis_result.json', 'w', encoding='utf-8') as f:
-                    json.dump(filtered_analysis_result, f, ensure_ascii=False, indent=2, default=str)
+               
                 memory.add(
                     user_id=agent_id,
                     content=f"[{analysis_date}] Analysis completed - {', '.join(ticker_signals) if ticker_signals else 'no signals'}"
