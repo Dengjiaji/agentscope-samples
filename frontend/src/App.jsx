@@ -1036,7 +1036,7 @@ export default function LiveTradingApp() {
           </a>
         </div>
         
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginLeft: 'auto' }}>
+        <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: 24, marginLeft: 'auto', flexWrap: 'wrap', minWidth: 0 }}>
           {/* Mock Mode Indicator */}
           {virtualTime && (
             <div style={{

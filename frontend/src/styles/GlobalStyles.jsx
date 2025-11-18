@@ -51,6 +51,7 @@ export default function GlobalStyles() {
         font-family: 'IBM Plex Mono', monospace;
         width: 100%;
         max-width: none;
+        flex-wrap: wrap;
       }
       
       .header-title {
@@ -65,6 +66,34 @@ export default function GlobalStyles() {
         flex: 0 1 auto;
         min-width: 0;
         flex-wrap: wrap;
+      }
+      
+      /* Align header links when wrapped */
+      @media (max-width: 1200px) {
+        .header-title {
+          justify-content: center;
+          width: 100%;
+          gap: 12px;
+        }
+        
+        .header-title > span[style*="width: 2px"] {
+          margin: 0 8px !important;
+        }
+      }
+      
+      /* Header right section - responsive wrapping */
+      .header-right {
+        flex: 0 1 auto;
+      }
+      
+      /* Ensure header-right section takes full width when wrapped */
+      @media (max-width: 1200px) {
+        .header-right {
+          width: 100%;
+          margin-left: 0 !important;
+          padding: 0 20px 10px 20px;
+          justify-content: center;
+        }
       }
       
       .header-link {
