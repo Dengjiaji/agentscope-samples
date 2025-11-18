@@ -290,6 +290,7 @@ class InvestmentEngine:
 
 
     def _run_second_round_llm_analysis(
+        self,
         agent_id: str,
         tickers: List[str], 
         first_round_analysis: Dict[str, Any],
@@ -357,26 +358,13 @@ class InvestmentEngine:
         messages = [{"role":"system", "content":system_prompt},
             {"role":"user", "content":human_prompt}]
         
-        def create_default_analysis():
-            return SecondRoundAnalysis(
-                analyst_id=agent_id,
-                analyst_name=persona['name'],
-                ticker_signals=[
-                    TickerSignal(
-                        ticker=ticker,
-                        signal="neutral", 
-                        confidence=50,
-                        reasoning="LLM analysis failed, maintaining neutral stance"
-                    ) for ticker in tickers
-                ]
-            )
+       
         
         result = tool_call(
             messages=messages,
             pydantic_model=SecondRoundAnalysis,
             agent_name=agent_id,  # Use agent_id directly for correct model config
-            state=state,
-            default_factory=create_default_analysis
+            state=state
         )
         
         result.analyst_id = agent_id
@@ -385,7 +373,7 @@ class InvestmentEngine:
         return result
 
 
-    def _format_second_round_result_for_state(analysis: SecondRoundAnalysis) -> Dict[str, Any]:
+    def _format_second_round_result_for_state(self,analysis: SecondRoundAnalysis) -> Dict[str, Any]:
         """Format second round analysis result for storage in AgentState"""
         return {
             "analyst_id": analysis.analyst_id,
@@ -400,149 +388,140 @@ class InvestmentEngine:
         agent_name = agent_info['name']
         agent = agent_info['agent']
         
-        try:
-            # Get agent's notification memory
-            agent_memory = notification_system.get_agent_memory(agent_id)
+        # Get agent's notification memory
+        agent_memory = notification_system.get_agent_memory(agent_id)
+        
+        # Execute analyst
+        result = agent.execute(state)
+        
+        # Get analysis result
+        analysis_result = state['data']['analyst_signals'].get(agent_id, {})
+        print(f"{agent_name}: {analysis_result}")
+        if analysis_result:
+            # Write analysis result to agent memory
+
+            analysis_date = state["metadata"].get("trading_date") or state["data"].get("end_date")
+            ticker_signals = []
+
+            for ticker, signal_data in analysis_result.items():
+                if isinstance(signal_data, dict) and 'signal' in signal_data:
+                    ticker_signals.append(f"{ticker}: {signal_data['signal']} (confidence: {signal_data.get('confidence', 'N/A')}%)")
+
+                    # tools_details = "\n".join([f"{key}: {value}" for key, value in signal_data.get("tool_impact_analysis", {}).items()])
+                    message = (
+                        f"{ticker}: {signal_data['signal']} (confidence: {signal_data.get('confidence', 'N/A')}%)\n"
+                        f"Analysis of {ticker}:\n"
+                        f"{signal_data.get('reasoning', 'N/A')}\n"
+                        # f"details_evidence_from_tools:\n{tools_details}"
+                    )
+                    self.streamer.print("agent", message, role_key=agent_id)
+            from backend.memory import get_memory
+            base_dir = state.get("metadata", {}).get("config_name", "mock") if state else "mock"
+            memory = get_memory(base_dir=base_dir)
             
-            # Execute analyst
-            result = agent.execute(state)
+            # Filter analysis_result before storing in memory
+            def filter_analysis_result(result: dict) -> dict:
+                """Filter analysis_result: remove tool_selection and filter tool_results"""
+                filtered = {}
+                for ticker, ticker_data in result.items():
+                    if isinstance(ticker_data, dict):
+                        filtered_ticker_data = {k: v for k, v in ticker_data.items() if k != "tool_selection"}
+                        
+                        # Filter tool_analysis.tool_results
+                        if "tool_analysis" in filtered_ticker_data and isinstance(filtered_ticker_data["tool_analysis"], dict):
+                            tool_analysis = filtered_ticker_data["tool_analysis"].copy()
+                            if "tool_results" in tool_analysis and isinstance(tool_analysis["tool_results"], list):
+                                # Keep only specified fields in each tool_result
+                                filtered_tool_results = []
+                                for tool_result in tool_analysis["tool_results"]:
+                                    if isinstance(tool_result, dict):
+                                        filtered_tool_result = {
+                                            k: v for k, v in tool_result.items() 
+                                            if k in ["signal", "reasoning", "tool_name", "details", "selection_reason"]
+                                        }
+                                        filtered_tool_results.append(filtered_tool_result)
+                                tool_analysis["tool_results"] = filtered_tool_results
+                            filtered_ticker_data["tool_analysis"] = tool_analysis
+                        
+                        filtered[ticker] = filtered_ticker_data
+                    else:
+                        filtered[ticker] = ticker_data
+                return filtered
             
-            # Get analysis result
-            analysis_result = state['data']['analyst_signals'].get(agent_id, {})
-            print(f"{agent_name}: {analysis_result}")
-            if analysis_result:
-                # Write analysis result to agent memory
-
-                analysis_date = state["metadata"].get("trading_date") or state["data"].get("end_date")
-                ticker_signals = []
-
-                for ticker, signal_data in analysis_result.items():
-                    if isinstance(signal_data, dict) and 'signal' in signal_data:
-                        ticker_signals.append(f"{ticker}: {signal_data['signal']} (confidence: {signal_data.get('confidence', 'N/A')}%)")
-
-                        # tools_details = "\n".join([f"{key}: {value}" for key, value in signal_data.get("tool_impact_analysis", {}).items()])
-                        message = (
-                            f"{ticker}: {signal_data['signal']} (confidence: {signal_data.get('confidence', 'N/A')}%)\n"
-                            f"Analysis of {ticker}:\n"
-                            f"{signal_data.get('reasoning', 'N/A')}\n"
-                            # f"details_evidence_from_tools:\n{tools_details}"
-                        )
-                        self.streamer.print("agent", message, role_key=agent_id)
-                from backend.memory import get_memory
-                base_dir = state.get("metadata", {}).get("config_name", "mock") if state else "mock"
-                memory = get_memory(base_dir=base_dir)
-                
-                # Filter analysis_result before storing in memory
-                def filter_analysis_result(result: dict) -> dict:
-                    """Filter analysis_result: remove tool_selection and filter tool_results"""
-                    filtered = {}
-                    for ticker, ticker_data in result.items():
-                        if isinstance(ticker_data, dict):
-                            filtered_ticker_data = {k: v for k, v in ticker_data.items() if k != "tool_selection"}
-                            
-                            # Filter tool_analysis.tool_results
-                            if "tool_analysis" in filtered_ticker_data and isinstance(filtered_ticker_data["tool_analysis"], dict):
-                                tool_analysis = filtered_ticker_data["tool_analysis"].copy()
-                                if "tool_results" in tool_analysis and isinstance(tool_analysis["tool_results"], list):
-                                    # Keep only specified fields in each tool_result
-                                    filtered_tool_results = []
-                                    for tool_result in tool_analysis["tool_results"]:
-                                        if isinstance(tool_result, dict):
-                                            filtered_tool_result = {
-                                                k: v for k, v in tool_result.items() 
-                                                if k in ["signal", "reasoning", "tool_name", "details", "selection_reason"]
-                                            }
-                                            filtered_tool_results.append(filtered_tool_result)
-                                    tool_analysis["tool_results"] = filtered_tool_results
-                                filtered_ticker_data["tool_analysis"] = tool_analysis
-                            
-                            filtered[ticker] = filtered_ticker_data
-                        else:
-                            filtered[ticker] = ticker_data
-                    return filtered
-                
-                filtered_analysis_result = filter_analysis_result(analysis_result)
-                
-               
-                memory.add(
-                    user_id=agent_id,
-                    content=f"[{analysis_date}] Analysis completed - {', '.join(ticker_signals) if ticker_signals else 'no signals'}"
-                            f"\nDetails: {filtered_analysis_result}",
-                    metadata={"type": "analysis_result", "date": analysis_date}
+            filtered_analysis_result = filter_analysis_result(analysis_result)
+            
+            
+            memory.add(
+                user_id=agent_id,
+                content=f"[{analysis_date}] Analysis completed - {', '.join(ticker_signals) if ticker_signals else 'no signals'}"
+                        f"\nDetails: {filtered_analysis_result}",
+                metadata={"type": "analysis_result", "date": analysis_date}
+            )
+            
+            # Determine whether to send notification (optional)
+            notifications_enabled = state["metadata"].get("notifications_enabled", True)
+            if notifications_enabled:
+                notification_decision = should_send_notification(
+                    agent_id=agent_id,
+                    analysis_result=analysis_result,
+                    agent_memory=agent_memory,
+                    state=state
                 )
                 
-                # Determine whether to send notification (optional)
-                notifications_enabled = state["metadata"].get("notifications_enabled", True)
-                if notifications_enabled:
-                    notification_decision = should_send_notification(
-                        agent_id=agent_id,
-                        analysis_result=analysis_result,
-                        agent_memory=agent_memory,
-                        state=state
-                    )
+                # Handle notification decision (with thread lock)
+                if notification_decision.get("should_notify", False):
+                    # Get trading_date as backtest_date
+                    backtest_date = state.get("metadata", {}).get("trading_date") or state.get("data", {}).get("end_date")
                     
-                    # Handle notification decision (with thread lock)
-                    if notification_decision.get("should_notify", False):
-                        # Get trading_date as backtest_date
-                        backtest_date = state.get("metadata", {}).get("trading_date") or state.get("data", {}).get("end_date")
-                        
-                        # Use thread lock to protect notification system's global state
-                        with self._notification_lock:
-                            notification_id = notification_system.broadcast_notification(
-                                sender_agent=agent_id,
-                                content=notification_decision["content"],
-                                urgency=notification_decision.get("urgency", "medium"),
-                                category=notification_decision.get("category", "general"),
-                                backtest_date=backtest_date
-                            )
-                        
-                        # Broadcast notification to all agents' memory
-                        notification_content = f"[Notification] From {agent_id}: {notification_decision['content']}"
-                        all_agent_ids = list(self.core_analysts.keys()) + ["portfolio_manager"]
-                        for recipient_id in all_agent_ids:
-                            memory.add(
-                                user_id=recipient_id,
-                                content=f"[{backtest_date}] {notification_content}",
-                                metadata={
-                                    "type": "notification",
-                                    "sender": agent_id,
-                                    "urgency": notification_decision.get("urgency", "medium"),
-                                    "date": backtest_date
-                                }
-                            )
-                        
-                        if self.streamer:
-                            self.streamer.print("agent", 
-                                f"📢 {notification_decision['content']} [Level of urgency: {notification_decision.get('urgency', 'medium')}]",
-                                role_key=agent_id
-                            )
-                else:
-                    notification_decision = {"should_notify": False, "reason": "Notification mechanism disabled"}
-                
-                return {
-                    "agent_id": agent_id,
-                    "agent_name": agent_name,
-                    "analysis_result": analysis_result,
-                    "notification_sent": notification_decision.get("should_notify", False),
-                    "notification_decision": notification_decision,
-                    "status": "success"
-                }
+                    # Use thread lock to protect notification system's global state
+                    with self._notification_lock:
+                        notification_id = notification_system.broadcast_notification(
+                            sender_agent=agent_id,
+                            content=notification_decision["content"],
+                            urgency=notification_decision.get("urgency", "medium"),
+                            category=notification_decision.get("category", "general"),
+                            backtest_date=backtest_date
+                        )
+                    
+                    # Broadcast notification to all agents' memory
+                    notification_content = f"[Notification] From {agent_id}: {notification_decision['content']}"
+                    all_agent_ids = list(self.core_analysts.keys()) + ["portfolio_manager"]
+                    for recipient_id in all_agent_ids:
+                        memory.add(
+                            user_id=recipient_id,
+                            content=f"[{backtest_date}] {notification_content}",
+                            metadata={
+                                "type": "notification",
+                                "sender": agent_id,
+                                "urgency": notification_decision.get("urgency", "medium"),
+                                "date": backtest_date
+                            }
+                        )
+                    
+                    if self.streamer:
+                        self.streamer.print("agent", 
+                            f"📢 {notification_decision['content']} [Level of urgency: {notification_decision.get('urgency', 'medium')}]",
+                            role_key=agent_id
+                        )
             else:
-                return {
-                    "agent_id": agent_id,
-                    "agent_name": agent_name,
-                    "status": "no_result"
-                }
-                
-        except Exception as e:
-            print(f"Error: {agent_name} execution failed: {str(e)}")
-            traceback.print_exc()
+                notification_decision = {"should_notify": False, "reason": "Notification mechanism disabled"}
+            
             return {
                 "agent_id": agent_id,
                 "agent_name": agent_name,
-                "error": str(e),
-                "status": "error"
+                "analysis_result": analysis_result,
+                "notification_sent": notification_decision.get("should_notify", False),
+                "notification_decision": notification_decision,
+                "status": "success"
             }
+        else:
+            return {
+                "agent_id": agent_id,
+                "agent_name": agent_name,
+                "status": "no_result"
+            }
+                
+       
     
     def _run_analysts_parallel(self, state: AgentState) -> Dict[str, Any]:
         """Execute all analysts in parallel"""
@@ -664,21 +643,13 @@ class InvestmentEngine:
             for future in concurrent.futures.as_completed(future_to_agent):
                 agent_id = future_to_agent[future]
                 
-                try:
-                    result = future.result()
-                    second_round_results[agent_id] = result
+                result = future.result()
+                second_round_results[agent_id] = result
+                
+                # Merge analysis results into main state
+                if result.get("status") == "success" and "analysis_result" in result:
+                    state["data"]["analyst_signals"][agent_id] = result["analysis_result"]
                     
-                    # Merge analysis results into main state
-                    if result.get("status") == "success" and "analysis_result" in result:
-                        state["data"]["analyst_signals"][agent_id] = result["analysis_result"]
-                    
-                except Exception as e:
-                    second_round_results[agent_id] = {
-                        "agent_id": agent_id,
-                        "agent_name": self.core_analysts[agent_id]['name'],
-                        "error": str(e),
-                        "status": "error"
-                    }
         
         end_time = datetime.now()
         execution_time = (end_time - start_time).total_seconds()
@@ -703,72 +674,47 @@ class InvestmentEngine:
         """Run single analyst's second round LLM analysis"""
         agent_name = agent_info['name']
         
-        try:
-            # Extract required data
-            tickers = state["data"]["tickers"]
+        # Extract required data
+        tickers = state["data"]["tickers"]
+        
+        # Get first round analysis result
+        first_round_analysis = first_round_report.get("analyst_signals", {}).get(agent_id, {})
+        
+        # Get overall summary
+        overall_summary = first_round_report.get("summary", {})
+        
+        # Get notification information
+        notifications = []
+        notification_activity = first_round_report.get("notification_activity", {})
+        if "recent_notifications" in notification_activity:
+            notifications = notification_activity["recent_notifications"]
+        
+        # Run LLM analysis
+        llm_analysis = self._run_second_round_llm_analysis(
+            agent_id=agent_id,
+            tickers=tickers,
+            first_round_analysis=first_round_analysis,
+            overall_summary=overall_summary,
+            notifications=notifications,
+            state=state
+        )
+        
+        # Format result
+        analysis_result = self._format_second_round_result_for_state(llm_analysis)
+        # Store in state
+        state["data"]["analyst_signals"][f"{agent_id}_round2"] = analysis_result
+        
+        return {
+            "agent_id": agent_id,
+            "agent_name": agent_name,
+            "analysis_result": analysis_result,
+            "llm_analysis": llm_analysis,
+            "round": 2,
+            "status": "success"
+        }
             
-            # Get first round analysis result
-            first_round_analysis = first_round_report.get("analyst_signals", {}).get(agent_id, {})
+       
             
-            # Get overall summary
-            overall_summary = first_round_report.get("summary", {})
-            
-            # Get notification information
-            notifications = []
-            notification_activity = first_round_report.get("notification_activity", {})
-            if "recent_notifications" in notification_activity:
-                notifications = notification_activity["recent_notifications"]
-            
-            # Run LLM analysis
-            llm_analysis = self._run_second_round_llm_analysis(
-                agent_id=agent_id,
-                tickers=tickers,
-                first_round_analysis=first_round_analysis,
-                overall_summary=overall_summary,
-                notifications=notifications,
-                state=state
-            )
-            
-            # Format result
-            analysis_result = self._format_second_round_result_for_state(llm_analysis)
-            
-            # Store in state
-            state["data"]["analyst_signals"][f"{agent_id}_round2"] = analysis_result
-            
-            return {
-                "agent_id": agent_id,
-                "agent_name": agent_name,
-                "analysis_result": analysis_result,
-                "llm_analysis": llm_analysis,
-                "round": 2,
-                "status": "success"
-            }
-            
-        except Exception as e:
-            # Create fallback result
-            fallback_result = {
-                "analyst_id": agent_id,
-                "analyst_name": agent_name,
-                "ticker_signals": [
-                    {
-                        "ticker": ticker,
-                        "signal": "neutral",
-                        "confidence": 50,
-                        "reasoning": f"Unable to complete analysis due to error: {str(e)}"
-                    } for ticker in state["data"]["tickers"]
-                ],
-                "timestamp": datetime.now().isoformat(),
-                "analysis_type": "second_round_llm_failed"
-            }
-            
-            return {
-                "agent_id": agent_id,
-                "agent_name": agent_name,
-                "analysis_result": fallback_result,
-                "error": str(e),
-                "round": 2,
-                "status": "error"
-            }
     
     def _run_risk_management_analysis(self, state: AgentState, mode: str = "signal") -> Dict[str, Any]:
         """
