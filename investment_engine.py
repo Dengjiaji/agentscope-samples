@@ -14,6 +14,7 @@ from typing import Dict, List, Any, Optional
 import concurrent.futures
 from copy import deepcopy
 import threading
+import pdb
 
 # Add project path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -320,10 +321,44 @@ class InvestmentEngine:
                 from src.memory import get_memory
                 base_dir = state.get("metadata", {}).get("config_name", "mock") if state else "mock"
                 memory = get_memory(base_dir=base_dir)
+                
+                # Filter analysis_result before storing in memory
+                def filter_analysis_result(result: dict) -> dict:
+                    """Filter analysis_result: remove tool_selection and filter tool_results"""
+                    filtered = {}
+                    for ticker, ticker_data in result.items():
+                        if isinstance(ticker_data, dict):
+                            filtered_ticker_data = {k: v for k, v in ticker_data.items() if k != "tool_selection"}
+                            
+                            # Filter tool_analysis.tool_results
+                            if "tool_analysis" in filtered_ticker_data and isinstance(filtered_ticker_data["tool_analysis"], dict):
+                                tool_analysis = filtered_ticker_data["tool_analysis"].copy()
+                                if "tool_results" in tool_analysis and isinstance(tool_analysis["tool_results"], list):
+                                    # Keep only specified fields in each tool_result
+                                    filtered_tool_results = []
+                                    for tool_result in tool_analysis["tool_results"]:
+                                        if isinstance(tool_result, dict):
+                                            filtered_tool_result = {
+                                                k: v for k, v in tool_result.items() 
+                                                if k in ["signal", "reasoning", "tool_name", "details", "selection_reason"]
+                                            }
+                                            filtered_tool_results.append(filtered_tool_result)
+                                    tool_analysis["tool_results"] = filtered_tool_results
+                                filtered_ticker_data["tool_analysis"] = tool_analysis
+                            
+                            filtered[ticker] = filtered_ticker_data
+                        else:
+                            filtered[ticker] = ticker_data
+                    return filtered
+                
+                filtered_analysis_result = filter_analysis_result(analysis_result)
+                
+                with open('/Users/wy/Downloads/Project/IA_space/filtered_analysis_result.json', 'w', encoding='utf-8') as f:
+                    json.dump(filtered_analysis_result, f, ensure_ascii=False, indent=2, default=str)
                 memory.add(
                     user_id=agent_id,
                     content=f"[{analysis_date}] Analysis completed - {', '.join(ticker_signals) if ticker_signals else 'no signals'}"
-                            f"\nDetails: {analysis_result}",
+                            f"\nDetails: {filtered_analysis_result}",
                     metadata={"type": "analysis_result", "date": analysis_date}
                 )
                 
