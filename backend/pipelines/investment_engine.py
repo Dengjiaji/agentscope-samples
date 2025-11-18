@@ -29,12 +29,9 @@ from backend.config.agent_model_config import AgentModelRequest
 # Import notification system
 from backend.communication.notification_system import notification_system
 from backend.communication import should_send_notification
-
-# Import second round LLM analysis
-from backend.agents.analyst_agent import (
-    run_second_round_llm_analysis,
-    format_second_round_result_for_state,
-)
+from backend.utils.tool_call import tool_call
+from backend.data.second_round_signals import SecondRoundAnalysis, TickerSignal
+from agentscope.tool import Toolkit
 
 # Import risk manager and portfolio manager - new architecture
 from backend.agents.risk_manager_agent import RiskManagerAgent
@@ -48,6 +45,12 @@ from backend.communication.chat_tools import (
 
 # Import logging configuration
 from backend.utils.logging import setup_logging
+
+from backend.agents.prompt_loader import PromptLoader
+
+_prompt_loader = PromptLoader()
+_personas_config = _prompt_loader.load_yaml_config("analyst", "personas")
+
 
 # Setup quiet mode logging (disable HTTP request details)
 setup_logging(
@@ -284,7 +287,114 @@ class InvestmentEngine:
             "date_range": {"start": start_date, "end": end_date},
             "updated_portfolio": state["data"].get("portfolio")  # Return updated portfolio state
         }
-    
+
+
+    def _run_second_round_llm_analysis(
+        agent_id: str,
+        tickers: List[str], 
+        first_round_analysis: Dict[str, Any],
+        overall_summary: Dict[str, Any],
+        notifications: List[Dict[str, Any]],
+        state: AgentState
+    ) -> SecondRoundAnalysis:
+        """Run second round LLM analysis"""
+        
+        if agent_id not in _personas_config:
+            raise ValueError(f"Unknown analyst ID: {agent_id}")
+        
+        persona = _personas_config[agent_id]
+        
+        analysis_focus_str = "\n".join([f"- {focus}" for focus in persona['analysis_focus']])
+        
+        # Format notification information
+        notifications_str = ""
+        if notifications:
+            notifications_str = "\n".join([
+                f"- {notif.get('sender', 'Unknown')}: {notif.get('content', '')}"
+                for notif in notifications
+            ])
+        else:
+            notifications_str = "No notifications from other analysts yet"
+        
+        # Generate per-ticker reports
+        ticker_reports = []
+        for i, ticker in enumerate(tickers, 1):
+            ticker_first_round = {}
+            if isinstance(first_round_analysis, dict):
+                if 'ticker_signals' in first_round_analysis:
+                    for signal in first_round_analysis['ticker_signals']:
+                        if signal.get('ticker') == ticker:
+                            ticker_first_round = signal
+                            break
+                else:
+                    ticker_first_round = first_round_analysis.get(ticker, {})
+            
+            ticker_report = f"""## Stock {i}: {ticker}
+
+    ### Your First Round Analysis for {ticker}
+
+    Analysis Result and Thought Process:
+    {json.dumps(ticker_first_round['tool_analysis']['synthesis_details'], ensure_ascii=False, indent=2)}
+    Analysis Tools Selection and Reasoning:
+    {json.dumps(ticker_first_round['tool_selection'], ensure_ascii=False, indent=2)}
+
+    """
+            ticker_reports.append(ticker_report)
+        
+        variables = {
+            "analyst_name": persona['name'],
+            "specialty": persona['specialty'],
+            "analysis_focus": analysis_focus_str,
+            "decision_style": persona['decision_style'],
+            "risk_preference": persona['risk_preference'],
+            "ticker_reports": "\n".join(ticker_reports),
+            "notifications": notifications_str,
+            "agent_id": agent_id
+        }
+        
+        system_prompt = _prompt_loader.load_prompt("analyst", "second_round_system", variables)
+        human_prompt = _prompt_loader.load_prompt("analyst", "second_round_human", variables)
+        messages = [{"role":"system", "content":system_prompt},
+            {"role":"user", "content":human_prompt}]
+        
+        def create_default_analysis():
+            return SecondRoundAnalysis(
+                analyst_id=agent_id,
+                analyst_name=persona['name'],
+                ticker_signals=[
+                    TickerSignal(
+                        ticker=ticker,
+                        signal="neutral", 
+                        confidence=50,
+                        reasoning="LLM analysis failed, maintaining neutral stance"
+                    ) for ticker in tickers
+                ]
+            )
+        
+        result = tool_call(
+            messages=messages,
+            pydantic_model=SecondRoundAnalysis,
+            agent_name=agent_id,  # Use agent_id directly for correct model config
+            state=state,
+            default_factory=create_default_analysis
+        )
+        
+        result.analyst_id = agent_id
+        result.analyst_name = persona['name']
+        
+        return result
+
+
+    def _format_second_round_result_for_state(analysis: SecondRoundAnalysis) -> Dict[str, Any]:
+        """Format second round analysis result for storage in AgentState"""
+        return {
+            "analyst_id": analysis.analyst_id,
+            "analyst_name": analysis.analyst_name,
+            "ticker_signals": [signal.model_dump() for signal in analysis.ticker_signals],
+            "timestamp": analysis.timestamp.isoformat(),
+            "analysis_type": "second_round_llm"
+        }
+
     def _run_analyst_with_notifications(self, agent_id: str, agent_info: Dict, state: AgentState) -> Dict[str, Any]:
         """Run single analyst and handle notification logic"""
         agent_name = agent_info['name']
@@ -610,7 +720,7 @@ class InvestmentEngine:
                 notifications = notification_activity["recent_notifications"]
             
             # Run LLM analysis
-            llm_analysis = run_second_round_llm_analysis(
+            llm_analysis = self._run_second_round_llm_analysis(
                 agent_id=agent_id,
                 tickers=tickers,
                 first_round_analysis=first_round_analysis,
@@ -620,7 +730,7 @@ class InvestmentEngine:
             )
             
             # Format result
-            analysis_result = format_second_round_result_for_state(llm_analysis)
+            analysis_result = self._format_second_round_result_for_state(llm_analysis)
             
             # Store in state
             state["data"]["analyst_signals"][f"{agent_id}_round2"] = analysis_result

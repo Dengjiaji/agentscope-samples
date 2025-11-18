@@ -8,7 +8,6 @@ import json
 
 from agentscope.agent import AgentBase
 from agentscope.message import Msg
-from agentscope.tool import Toolkit
 
 from ..graph.state import AgentState
 from ..utils.progress import progress
@@ -16,8 +15,6 @@ from ..llm.models import get_model  # Use AgentScope model
 from .tool_selector import Toolselector
 from ..tools.data_tools import get_last_tradeday
 from ..config.constants import ANALYST_TYPES
-from ..utils.tool_call import tool_call
-from ..data.second_round_signals import SecondRoundAnalysis, TickerSignal
 from .prompt_loader import PromptLoader
 
 _prompt_loader = PromptLoader()
@@ -273,110 +270,3 @@ class AnalystAgent(AgentBase):
         return analysis_result
 
 
-
-
-def run_second_round_llm_analysis(
-    agent_id: str,
-    tickers: List[str], 
-    first_round_analysis: Dict[str, Any],
-    overall_summary: Dict[str, Any],
-    notifications: List[Dict[str, Any]],
-    state: AgentState
-) -> SecondRoundAnalysis:
-    """Run second round LLM analysis"""
-    
-    if agent_id not in _personas_config:
-        raise ValueError(f"Unknown analyst ID: {agent_id}")
-    
-    persona = _personas_config[agent_id]
-    
-    analysis_focus_str = "\n".join([f"- {focus}" for focus in persona['analysis_focus']])
-    
-    # Format notification information
-    notifications_str = ""
-    if notifications:
-        notifications_str = "\n".join([
-            f"- {notif.get('sender', 'Unknown')}: {notif.get('content', '')}"
-            for notif in notifications
-        ])
-    else:
-        notifications_str = "No notifications from other analysts yet"
-    
-    # Generate per-ticker reports
-    ticker_reports = []
-    for i, ticker in enumerate(tickers, 1):
-        ticker_first_round = {}
-        if isinstance(first_round_analysis, dict):
-            if 'ticker_signals' in first_round_analysis:
-                for signal in first_round_analysis['ticker_signals']:
-                    if signal.get('ticker') == ticker:
-                        ticker_first_round = signal
-                        break
-            else:
-                ticker_first_round = first_round_analysis.get(ticker, {})
-        
-        ticker_report = f"""## Stock {i}: {ticker}
-
-### Your First Round Analysis for {ticker}
-
-Analysis Result and Thought Process:
-{json.dumps(ticker_first_round['tool_analysis']['synthesis_details'], ensure_ascii=False, indent=2)}
-Analysis Tools Selection and Reasoning:
-{json.dumps(ticker_first_round['tool_selection'], ensure_ascii=False, indent=2)}
-
-"""
-        ticker_reports.append(ticker_report)
-    
-    variables = {
-        "analyst_name": persona['name'],
-        "specialty": persona['specialty'],
-        "analysis_focus": analysis_focus_str,
-        "decision_style": persona['decision_style'],
-        "risk_preference": persona['risk_preference'],
-        "ticker_reports": "\n".join(ticker_reports),
-        "notifications": notifications_str,
-        "agent_id": agent_id
-    }
-    
-    system_prompt = _prompt_loader.load_prompt("analyst", "second_round_system", variables)
-    human_prompt = _prompt_loader.load_prompt("analyst", "second_round_human", variables)
-    messages = [{"role":"system", "content":system_prompt},
-        {"role":"user", "content":human_prompt}]
-    
-    def create_default_analysis():
-        return SecondRoundAnalysis(
-            analyst_id=agent_id,
-            analyst_name=persona['name'],
-            ticker_signals=[
-                TickerSignal(
-                    ticker=ticker,
-                    signal="neutral", 
-                    confidence=50,
-                    reasoning="LLM analysis failed, maintaining neutral stance"
-                ) for ticker in tickers
-            ]
-        )
-    
-    result = tool_call(
-        messages=messages,
-        pydantic_model=SecondRoundAnalysis,
-        agent_name=agent_id,  # Use agent_id directly for correct model config
-        state=state,
-        default_factory=create_default_analysis
-    )
-    
-    result.analyst_id = agent_id
-    result.analyst_name = persona['name']
-    
-    return result
-
-
-def format_second_round_result_for_state(analysis: SecondRoundAnalysis) -> Dict[str, Any]:
-    """Format second round analysis result for storage in AgentState"""
-    return {
-        "analyst_id": analysis.analyst_id,
-        "analyst_name": analysis.analyst_name,
-        "ticker_signals": [signal.model_dump() for signal in analysis.ticker_signals],
-        "timestamp": analysis.timestamp.isoformat(),
-        "analysis_type": "second_round_llm"
-    }
