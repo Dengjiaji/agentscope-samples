@@ -154,6 +154,30 @@ export default function AgentCard({ agent, onClose, isClosing }) {
             </div>
           )}
           
+          {/* Portfolio Manager Note */}
+          {isPortfolioManager && (
+            <div style={{
+              padding: '8px 12px',
+              background: '#E8F5E9',
+              border: '2px solid #66BB6A',
+              minWidth: 220,
+              maxWidth: 280,
+              display: 'flex',
+              alignItems: 'center'
+            }}>
+              <div style={{
+                fontSize: 12,
+                color: '#2E7D32',
+                fontStyle: 'italic',
+                lineHeight: 1.5,
+                whiteSpace: 'normal',
+                wordWrap: 'break-word'
+              }}>
+                ⓘ Portfolio Manager provides the team's final signal, synthesizing all analyst recommendations, and does not participate in ranking.
+              </div>
+            </div>
+          )}
+          
           {/* Model Info Card */}
           {agent.modelName && (
             <div style={{
