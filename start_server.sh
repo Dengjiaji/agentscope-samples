@@ -78,11 +78,11 @@ if [ "$MODE" = "normal" ]; then
     echo "📊 检查历史数据更新..."
     
     # 检查是否需要更新数据
-    if python -m src.data.ret_data_updater --help &> /dev/null; then
+    if python -m backend.data.ret_data_updater --help &> /dev/null; then
         echo "🔄 正在更新历史数据..."
         
         # 使用 || true 确保即使更新失败也继续运行
-        python -m src.data.ret_data_updater || {
+        python -m backend.data.ret_data_updater || {
             echo "⚠️  历史数据更新失败（可能是周末或假期），但将继续启动服务器"
             echo "💡 提示: 系统将使用现有历史数据运行"
         }

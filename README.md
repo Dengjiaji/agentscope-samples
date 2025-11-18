@@ -177,7 +177,7 @@ cp env.template .env
 ./start_server.sh
 
 # 或手动启动
-python src/servers/server.py
+python backend/servers/server.py
 ```
 
 **实时模式**（用于盘中实时更新）：

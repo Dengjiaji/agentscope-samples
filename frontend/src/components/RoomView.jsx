@@ -13,7 +13,7 @@ function useImage(src) {
       setImg(null);
       return;
     }
-    // Reset image state when src changes
+    // Reset image state when backend changes
     setImg(null);
     const image = new Image();
     image.src = src;
@@ -22,7 +22,7 @@ function useImage(src) {
       console.error(`Failed to load image: ${src}`);
       setImg(null);
     };
-    // Cleanup: cancel loading if src changes
+    // Cleanup: cancel loading if backend changes
     return () => {
       image.onload = null;
       image.onerror = null;
