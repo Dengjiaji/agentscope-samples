@@ -914,6 +914,36 @@ export default function GlobalStyles() {
         transform: translateX(-66.666%);
       }
       
+      /* Four-view slider (Rules / Room / Chart / Statistics) */
+      .view-slider-four {
+        position: absolute;
+        top: 40px;
+        width: 400%;
+        height: calc(100% - 40px);
+        display: flex;
+        transition: transform 1.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      
+      .view-slider-four.normal-speed {
+        transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      
+      .view-slider-four.show-rules {
+        transform: translateX(0);
+      }
+      
+      .view-slider-four.show-room {
+        transform: translateX(-25%);
+      }
+      
+      .view-slider-four.show-chart {
+        transform: translateX(-50%);
+      }
+      
+      .view-slider-four.show-statistics {
+        transform: translateX(-75%);
+      }
+      
       .view-panel {
         flex: 0 0 33.333%;
         width: 33.333%;
@@ -921,6 +951,12 @@ export default function GlobalStyles() {
         display: flex;
         flex-direction: column;
         overflow: hidden;
+      }
+      
+      /* View panel for four-view slider */
+      .view-slider-four .view-panel {
+        flex: 0 0 25%;
+        width: 25%;
       }
       
       /* Chart Tabs - Floating inside chart */
@@ -1175,17 +1211,17 @@ export default function GlobalStyles() {
       .leaderboard-page, .performance-page {
         flex: 1;
         overflow-y: auto;
-        padding: 24px;
+        padding: 16px 24px 24px;
         background: #f5f5f5;
         width: 100%;
         max-width: none;
       }
       
       .section {
-        margin-bottom: 32px;
+        margin-bottom: 20px;
         background: #ffffff;
         border: 1px solid #000000;
-        padding: 20px;
+        padding: 16px;
         width: 100%;
         max-width: none;
       }

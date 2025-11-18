@@ -17,6 +17,7 @@ import StockLogo from './components/StockLogo';
 import StatisticsView from './components/StatisticsView';
 import PerformanceView from './components/PerformanceView';
 import AboutModal from './components/AboutModal';
+import RulesView from './components/RulesView';
 
 // Utils
 import { formatNumber, formatTickerPrice, calculateDuration } from './utils/formatters';
@@ -36,7 +37,7 @@ export default function LiveTradingApp() {
   const [now, setNow] = useState(() => new Date());
   const [showAboutModal, setShowAboutModal] = useState(false);
   
-  // View toggle: 'room' | 'chart' | 'statistics'
+  // View toggle: 'rules' | 'room' | 'chart' | 'statistics'
   const [currentView, setCurrentView] = useState('chart'); // Start with chart, then animate to room
   const [isInitialAnimating, setIsInitialAnimating] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(new Date());
@@ -1241,6 +1242,13 @@ export default function LiveTradingApp() {
               <div className="view-container">
                 <div className="view-nav-bar">
                   <button
+                    className={`view-nav-btn ${currentView === 'rules' ? 'active' : ''}`}
+                    onClick={() => setCurrentView('rules')}
+                  >
+                    Rules
+                  </button>
+                  
+                  <button
                     className={`view-nav-btn ${currentView === 'room' ? 'active' : ''}`}
                     onClick={() => setCurrentView('room')}
                   >
@@ -1262,8 +1270,13 @@ export default function LiveTradingApp() {
                   </button>
                 </div>
                 
-                {/* Slider container with three views */}
-                <div className={`view-slider-three ${currentView === 'room' ? 'show-room' : currentView === 'statistics' ? 'show-statistics' : 'show-chart'} ${!isInitialAnimating ? 'normal-speed' : ''}`}>
+                {/* Slider container with four views */}
+                <div className={`view-slider-four ${currentView === 'rules' ? 'show-rules' : currentView === 'room' ? 'show-room' : currentView === 'statistics' ? 'show-statistics' : 'show-chart'} ${!isInitialAnimating ? 'normal-speed' : ''}`}>
+                  {/* Rules View Panel */}
+                  <div className="view-panel">
+                    <RulesView />
+                  </div>
+                  
                   {/* Room View Panel */}
                   <div className="view-panel">
                     <RoomView 

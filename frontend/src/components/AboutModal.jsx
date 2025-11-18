@@ -190,7 +190,7 @@ export default function AboutModal({ onClose }) {
               style={{ padding: '4px 8px', borderRadius: '3px', cursor: 'pointer' }}
               onClick={handleClose}
             >
-              EvoTraders <span className="link-arrow">↘</span>
+              EvoTraders <span className="link-arrow">↙</span>
             </span>
             <span style={{
               width: '2px',
