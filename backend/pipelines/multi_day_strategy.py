@@ -581,8 +581,8 @@ class MultiDayStrategy:
             target_date = date.date()
         
         # Use relative path to get data file
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        data_path = os.path.join(current_dir, 'backend', 'data', 'ret_data', f'{ticker}.csv')
+        current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        data_path = os.path.join(current_dir, 'data', 'ret_data', f'{ticker}.csv')
         
         prices_df = pd.read_csv(data_path)
         

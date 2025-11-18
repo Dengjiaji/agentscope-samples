@@ -373,7 +373,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
                   const dateB = b.date || '';
                   return dateB.localeCompare(dateA);
                 })
-                .slice(0, 15)
+                .slice(0, 35)
                 .map((signal, idx) => {
                 const signalType = signal.signal.toLowerCase();
                 const isBull = signalType.includes('bull') || signalType === 'long';
@@ -440,6 +440,36 @@ export default function AgentCard({ agent, onClose, isClosing }) {
                   </div>
                 );
               })}
+              {/* Info card explaining signal display */}
+              <div style={{
+                fontSize: 9,
+                fontFamily: '"Courier New", monospace',
+                padding: '6px 8px',
+                background: '#E3F2FD',
+                border: '1px solid #90CAF9',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 2,
+                minWidth: 70,
+                textAlign: 'center'
+              }}>
+                <div style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: '#1976D2'
+                }}>
+                  ⓘ Info
+                </div>
+                <div style={{
+                  fontSize: 8,
+                  color: '#1976D2',
+                  lineHeight: 1.2
+                }}>
+                  Showing recent 5 trading days (1 week) signals only
+                </div>
+              </div>
             </div>
           )}
         </div>
