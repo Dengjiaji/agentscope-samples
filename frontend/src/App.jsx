@@ -985,7 +985,7 @@ export default function LiveTradingApp() {
             onClick={() => setShowAboutModal(true)}
             style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: '3px' }}
           >
-            EvoTraders
+            EvoTraders <span className="link-arrow">↗</span>
           </span>
           <span style={{
             width: '2px',
