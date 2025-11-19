@@ -44,7 +44,7 @@ from backend.communication.chat_tools import (
 )
 
 # Import logging configuration
-from backend.utils.logging import setup_logging
+from backend.utils.logger_config import setup_logging
 
 from backend.agents.prompt_loader import PromptLoader
 
@@ -218,7 +218,7 @@ class InvestmentEngine:
             state=state,
             mode=mode
         )
-        
+        results['pre_portfolio_state'] = portfolio_state
         return results
     
     def run_full_analysis_with_communications(

@@ -187,7 +187,8 @@ class LiveTradingFund:
             'ana_signals': defaultdict(lambda: defaultdict(str)),  # Automatically create nested dict, default value is empty string
             'real_returns': defaultdict(float) , # Auto-create, default value is 0.0
             'daily_returns': defaultdict(float),
-            'state': result.get('state')  # Add state for memory reflection
+            'state': result.get('state') , # Add state for memory reflection
+            'pre_portfolio_state': result.get('pre_portfolio_state')
         }
 
 
