@@ -7,7 +7,7 @@ from typing import Dict, Any, Optional, Literal
 import json
 import numpy as np
 import pandas as pd
-
+import dotenv
 from agentscope.agent import AgentBase
 from agentscope.message import Msg
 from .prompt_loader import PromptLoader
@@ -16,6 +16,8 @@ from ..graph.state import AgentState
 from ..utils.progress import progress
 from ..tools.data_tools import get_prices, prices_to_df, get_last_tradeday
 import pdb
+
+dotenv.load_dotenv()
 
 class RiskManagerAgent(AgentBase):
     """Risk Management Agent (based on AgentScope)"""
@@ -126,48 +128,27 @@ class RiskManagerAgent(AgentBase):
             # Calculate volatility (based on historical data up to and including T-1 day)
             vol_metrics = self._calculate_volatility_metrics(prices_df)
             volatility_data[ticker] = vol_metrics
-            
             # ⭐ Get T-day opening price as current price
-            try:
-                today_prices = get_prices(
-                    ticker=ticker,
-                    start_date=data["end_date"],
-                    end_date=data["end_date"],
-                    api_key=api_key,
-                )
+            today_prices = get_prices(
+                ticker=ticker,
+                start_date=data["end_date"],
+                end_date=data["end_date"],
+                api_key=api_key,
+            )
+            
+            # Use T-day closing price
+            today_df = prices_to_df(today_prices)
+            current_price = float(today_df["close"].iloc[0])
+            current_prices[ticker] = current_price
+            price_type = "T-1 close"
+           
                 
-                if today_prices and len(today_prices) > 0:
-                    # Use T-day opening price
-                    today_df = prices_to_df(today_prices)
-                    if not today_df.empty and "open" in today_df.columns:
-                        current_price = float(today_df["open"].iloc[0])
-                        current_prices[ticker] = current_price
-                        price_type = "open"
-                    else:
-                        # If no opening price, use T-1 day closing price as fallback
-                        current_price = float(prices_df["close"].iloc[-1])
-                        current_prices[ticker] = current_price
-                        price_type = "T-1 close"
-                else:
-                    # If T-day data unavailable, use T-1 day closing price
-                    current_price = float(prices_df["close"].iloc[-1])
-                    current_prices[ticker] = current_price
-                    price_type = "T-1 close (fallback)"
-                    
-                progress.update_status(
-                    self.agent_id, 
-                    ticker, 
-                    f"Price: ${current_price:.2f} ({price_type}), Annualized volatility: {vol_metrics['annualized_volatility']:.1%}"
-                )
-            except Exception as e:
-                # Exception case: use T-1 day closing price
-                current_price = float(prices_df["close"].iloc[-1])
-                current_prices[ticker] = current_price
-                progress.update_status(
-                    self.agent_id, 
-                    ticker, 
-                    f"Price: ${current_price:.2f} (T-1 close/exception), Annualized volatility: {vol_metrics['annualized_volatility']:.1%}"
-                )
+            progress.update_status(
+                self.agent_id, 
+                ticker, 
+                f"Price: ${current_price:.2f} ({price_type}), Annualized volatility: {vol_metrics['annualized_volatility']:.1%}"
+            )
+          
         
         # Generate risk analysis based on mode
         if self.mode == "basic":

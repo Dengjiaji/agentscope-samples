@@ -154,7 +154,7 @@ def get_prices(
         
         # Convert dates to timestamps
         start_timestamp = int(datetime.datetime.strptime(start_date, "%Y-%m-%d").timestamp())
-        end_timestamp = int(datetime.datetime.strptime(end_date, "%Y-%m-%d")+datetime.timedelta(days=1).timestamp())
+        end_timestamp = int((datetime.datetime.strptime(end_date, "%Y-%m-%d")+datetime.timedelta(days=1)).timestamp())
         
         # Fetch candle data from Finnhub
         candles = client.stock_candles(ticker, 'D', start_timestamp, end_timestamp)
@@ -529,7 +529,6 @@ def get_company_news(
         # Finnhub API: company_news(symbol, _from, to)
         # Convert date format if needed
         from_date = start_date if start_date else (datetime.datetime.strptime(end_date, "%Y-%m-%d") - datetime.timedelta(days=30)).strftime("%Y-%m-%d")
-        
         try:
             news_data = client.company_news(ticker, _from=from_date, to=end_date)
             
@@ -539,11 +538,12 @@ def get_company_news(
                     company_news = CompanyNews(
                         ticker=ticker,
                         title=news_item.get('headline', ''),
-                        author=None,  # Finnhub doesn't provide author
+                        related=news_item.get('related', ''),  # Finnhub doesn't provide author
                         source=news_item.get('source', ''),
-                        date=datetime.datetime.fromtimestamp(news_item.get('datetime', 0)).strftime("%Y-%m-%d") if news_item.get('datetime') else None,
+                        date=datetime.datetime.utcfromtimestamp(news_item.get('datetime', 0)).strftime("%Y-%m-%d") if news_item.get('datetime') else None,
                         url=news_item.get('url', ''),
-                        sentiment=None  # Could be added later if needed
+                        summary=news_item.get('summary', ''),
+                        category=news_item.get('category', ''),
                     )
                     all_news.append(company_news)
         except Exception as e:
