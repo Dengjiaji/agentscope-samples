@@ -248,7 +248,8 @@ class MultiDayStrategy:
         date: str,
         enable_communications: bool = True,
         enable_notifications: bool = True,
-        max_comm_cycles: int = 2
+        max_comm_cycles: int = 2,
+        analyst_stats: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Run single day analysis
@@ -259,6 +260,7 @@ class MultiDayStrategy:
             enable_communications: Whether to enable communications
             enable_notifications: Whether to enable notifications
             max_comm_cycles: Maximum communication cycles
+            analyst_stats: Historical analyst performance statistics from dashboard
             
         Returns:
             Single day analysis result
@@ -282,7 +284,8 @@ class MultiDayStrategy:
             enable_notifications=enable_notifications,
             max_comm_cycles=max_comm_cycles,
             initial_cash=self.initial_cash,
-            margin_requirement=self.margin_requirement
+            margin_requirement=self.margin_requirement,
+            analyst_stats=analyst_stats
         )
         
         # Update portfolio state

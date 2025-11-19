@@ -190,6 +190,11 @@ class InvestmentEngine:
         state["metadata"]["trading_date"] = date
         state["metadata"]["mode"] = mode
         
+        # Add analyst performance stats if available
+        analyst_stats = kwargs.get('analyst_stats', None)
+        if analyst_stats:
+            state["data"]["analyst_stats"] = analyst_stats
+        
         # Portfolio mode: initialize or inject portfolio state
         if mode == "portfolio":
             if portfolio_state:

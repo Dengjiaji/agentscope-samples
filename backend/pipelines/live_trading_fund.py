@@ -172,13 +172,46 @@ class LiveTradingFund:
             f"Time point: {self.PRE_MARKET}\n"
             f"Analysis targets: {', '.join(tickers)}")
 
+        # Get analyst performance stats from dashboard (already calculated)
+        analyst_stats = None
+        if self.dashboard_generator:
+            dashboard_state = self.dashboard_generator._load_internal_state()
+            agent_performance = dashboard_state.get('agent_performance', {})
+            
+            analyst_stats = {}
+            for agent_id, perf in agent_performance.items():
+                bull_count = perf.get('bull_count', 0)
+                bull_win = perf.get('bull_win', 0)
+                bull_unknown = perf.get('bull_unknown', 0)
+                bear_count = perf.get('bear_count', 0)
+                bear_win = perf.get('bear_win', 0)
+                bear_unknown = perf.get('bear_unknown', 0)
+                
+                evaluated_bull = max(bull_count - bull_unknown, 0)
+                evaluated_bear = max(bear_count - bear_unknown, 0)
+                total_count = bull_count + bear_count
+                total_win = bull_win + bear_win
+                evaluated_total = evaluated_bull + evaluated_bear
+                win_rate = (total_win / evaluated_total) if evaluated_total > 0 else None
+                
+                analyst_stats[agent_id] = {
+                    'win_rate': win_rate,
+                    'total_predictions': total_count,
+                    'correct_predictions': total_win,
+                    'bull': {'count': bull_count, 'win': bull_win, 'unknown': bull_unknown},
+                    'bear': {'count': bear_count, 'win': bear_win, 'unknown': bear_unknown}
+                }
+            print(f"✓ Loaded analyst performance stats for {len(analyst_stats)} analysts")
+        
+
         # Run single day analysis (inject portfolio state)
         result = self.strategy.run_single_day(
             tickers=tickers,
             date=date,
             enable_communications=enable_communications,
             enable_notifications=enable_notifications,
-            max_comm_cycles=max_comm_cycles
+            max_comm_cycles=max_comm_cycles,
+            analyst_stats=analyst_stats
         )
 
         # Use defaultdict to simplify initialization

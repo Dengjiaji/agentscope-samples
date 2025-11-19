@@ -5,7 +5,7 @@ Provides unified portfolio management interface (based on AgentScope)
 from typing import Dict, Any, Optional, Literal, List
 import json
 import pdb
-
+import os
 from agentscope.agent import AgentBase
 from agentscope.message import Msg
 
@@ -257,6 +257,9 @@ class PortfolioManagerAgent(AgentBase):
         # Get analyst weights
         formatted_memories = self._format_memories_for_prompt(relevant_memories)
         
+        # Format analyst performance stats
+        analyst_performance_info = self._format_analyst_performance(state)
+        
         # Generate prompt
         prompt_data = {
             "signals_by_ticker": json.dumps(signals_by_ticker, indent=2, ensure_ascii=False),
@@ -265,8 +268,8 @@ class PortfolioManagerAgent(AgentBase):
             "portfolio_positions": json.dumps(portfolio.get("positions", {}), indent=2),
             "margin_requirement": f"{portfolio.get('margin_requirement', 0):.2f}",
             "total_margin_used": f"{portfolio.get('margin_used', 0):.2f}",
-            # "analyst_weights_info": analyst_weights_info,
-            # "analyst_weights_separator": "\n" if analyst_weights_info else "",
+            "analyst_performance_info": analyst_performance_info,
+            "analyst_performance_separator": "\n" if analyst_performance_info else "",
             "relevant_past_experiences": formatted_memories,  # Inject historical experience
         }
 
@@ -274,6 +277,7 @@ class PortfolioManagerAgent(AgentBase):
         # Load prompt
         system_prompt = self.prompt_loader.load_prompt(agent_type=self.agent_type, prompt_name="portfolio_decision_system", variables=prompt_data)
         human_prompt = self.prompt_loader.load_prompt(agent_type=self.agent_type, prompt_name="portfolio_decision_human", variables=prompt_data)
+
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": human_prompt}
@@ -292,7 +296,21 @@ class PortfolioManagerAgent(AgentBase):
                     ) for ticker in tickers
                 }
             )
-        
+        # 保存到文件
+        save_dir = "/Users/wy/Downloads/Project/IA_space/reviews/pm_decisions/"
+        os.makedirs(save_dir, exist_ok=True)
+
+        filename = f"pm_decision_system_prompt_{state['metadata']['trading_date']}.txt"
+        filepath = os.path.join(save_dir, filename)
+
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(system_prompt)
+        filename = f"pm_decision_human_prompt_{state['metadata']['trading_date']}.txt"
+        filepath = os.path.join(save_dir, filename)
+
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(human_prompt)
+        print(f"✅ Decision saved to: {filepath}")
         progress.update_status(self.agent_id, None, "Generating decisions based on signals and historical experience")
         
         # pdb.set_trace()
@@ -336,6 +354,48 @@ class PortfolioManagerAgent(AgentBase):
             info += f"  {analyst_id}: {weight:.3f} {bar}{new_hire_info}\n"
         
         info += "\n💡 Suggestion: Consider the importance of different analyst recommendations based on weight levels."
+        return info
+    
+    def _format_analyst_performance(self, state: AgentState) -> str:
+        """Format analyst historical performance information"""
+        analyst_stats = state.get("data", {}).get("analyst_stats", {})
+        
+        if not analyst_stats:
+            return ""
+        
+        info = "Analyst Historical Performance (Win Rates & Track Record):\n"
+        
+        # Sort by win rate (highest first)
+        sorted_analysts = sorted(
+            analyst_stats.items(),
+            key=lambda x: x[1].get('win_rate', 0) if x[1].get('win_rate') is not None else 0,
+            reverse=True
+        )
+        
+        for analyst_id, stats in sorted_analysts:
+            win_rate = stats.get('win_rate')
+            total_predictions = stats.get('total_predictions', 0)
+            correct_predictions = stats.get('correct_predictions', 0)
+            
+            if win_rate is not None:
+                win_rate_pct = win_rate * 100
+                bar_length = int(win_rate * 20)
+                bar = "█" * bar_length + "░" * (20 - bar_length)
+                
+                # Get bull/bear breakdown
+                bull_info = stats.get('bull', {})
+                bear_info = stats.get('bear', {})
+                bull_count = bull_info.get('count', 0)
+                bull_win = bull_info.get('win', 0)
+                bear_count = bear_info.get('count', 0)
+                bear_win = bear_info.get('win', 0)
+                
+                info += f"\n  {analyst_id}:\n"
+                info += f"    Win Rate: {win_rate_pct:.1f}% {bar} ({correct_predictions}/{total_predictions} correct)\n"
+                info += f"    Bullish: {bull_win}/{bull_count} correct | Bearish: {bear_win}/{bear_count} correct\n"
+            else:
+                info += f"\n  {analyst_id}: No historical data yet\n"
+        
         return info
     
     def _recall_relevant_memories(

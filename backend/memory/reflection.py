@@ -289,70 +289,65 @@ class MemoryReflectionSystem:
     def _record_pm_daily_decisions(self, agent_id: str, date: str, 
                                    agent_data: Dict[str, Any]) -> Dict[str, Any]:
         """Record PM daily decisions to memory"""
-        try:
-            pm_decisions = agent_data.get('my_decisions', {})
-            actual_returns = agent_data.get('actual_returns', {})
-            analyst_signals = agent_data.get('analyst_signals', {})
+        pm_decisions = agent_data.get('my_decisions', {})
+        real_returns = agent_data.get('real_returns', {})
+        analyst_signals = agent_data.get('analyst_signals', {})
+        
+        memories_added = 0
+        for ticker, decision_data in pm_decisions.items():
+            pm_action = decision_data.get('action', 'N/A')
+            pm_quantity = decision_data.get('quantity', 0)
+            pm_confidence = decision_data.get('confidence', 'N/A')
+            pm_reasoning = decision_data.get('reasoning', '')
+            real_return = real_returns.get(ticker, 0)
             
-            memories_added = 0
-            for ticker, decision_data in pm_decisions.items():
-                pm_action = decision_data.get('action', 'N/A')
-                pm_quantity = decision_data.get('quantity', 0)
-                pm_confidence = decision_data.get('confidence', 'N/A')
-                pm_reasoning = decision_data.get('reasoning', '')
-                actual_return = actual_returns.get(ticker, 0)
-                
-                # Build analyst signal summary
-                analyst_summary = []
-                for analyst_id, signals in analyst_signals.items():
-                    if ticker in signals:
-                        signal_data = signals[ticker]
-                        if isinstance(signal_data, dict):
-                            signal = signal_data.get('signal', signal_data)
-                            confidence = signal_data.get('confidence', 'N/A')
-                            analyst_summary.append(f"{analyst_id}: {signal} (confidence: {confidence})")
-                        else:
-                            analyst_summary.append(f"{analyst_id}: {signal_data}")
-                
-                analyst_info = "; ".join(analyst_summary) if analyst_summary else "No analyst signals"
-                
-                # Evaluate decision outcome
-                decision_outcome = self._evaluate_decision(pm_action, actual_return)
-                outcome_label = "✅ Correct" if decision_outcome else "❌ Incorrect"
-                
-                # Build record content
-                if not isinstance(pm_reasoning, str):
-                    pm_reasoning = str(pm_reasoning) if pm_reasoning else ''
-                
-                content = f"""Date: {date}
+            # Build analyst signal summary
+            analyst_summary = []
+            for analyst_id, signals in analyst_signals.items():
+                if ticker in signals:
+                    signal_data = signals[ticker]
+                    if isinstance(signal_data, dict):
+                        signal = signal_data.get('signal', signal_data)
+                        confidence = signal_data.get('confidence', 'N/A')
+                        analyst_summary.append(f"{analyst_id}: {signal} (confidence: {confidence})")
+                    else:
+                        analyst_summary.append(f"{analyst_id}: {signal_data}")
+            
+            analyst_info = "; ".join(analyst_summary) if analyst_summary else "No analyst signals"
+            
+            # Evaluate decision outcome
+            # decision_outcome = self._evaluate_decision(pm_action, real_return)
+            # outcome_label = "✅ Correct" if decision_outcome else "❌ Incorrect"
+            
+            # Build record content
+            if not isinstance(pm_reasoning, str):
+                pm_reasoning = str(pm_reasoning) if pm_reasoning else ''
+            
+            content = f"""Date: {date}
 Stock: {ticker}
 PM Decision: {pm_action} (Quantity: {pm_quantity}, Confidence: {pm_confidence}%)
-Decision Reasoning: {pm_reasoning[:300] if pm_reasoning else 'N/A'}
+Decision Reasoning: {pm_reasoning if pm_reasoning else 'N/A'}
 Analyst Opinions: {analyst_info}
-Actual Return: {actual_return:+.2%}
-Decision Outcome: {outcome_label}"""
-                
-                metadata = {
-                    "type": "daily_decision",
-                    "date": date,
-                    "ticker": ticker,
-                    "action": pm_action,
-                    "confidence": pm_confidence,
-                    "actual_return": actual_return,
-                    "outcome": "correct" if decision_outcome else "incorrect"
-                }
-                
-                # Add to memory
-                memory_id = self.memory.add(content, agent_id, metadata)
-                if memory_id:
-                    memories_added += 1
+Stock Real Return: {real_return:+.2%}"""
+            print(content)
             
-            logger.info(f"  ✅ Recorded {memories_added} PM daily decisions")
-            return {'status': 'success', 'count': memories_added}
+            metadata = {
+                "type": "daily_decision",
+                "date": date,
+                "ticker": ticker,
+                "action": pm_action,
+                "confidence": pm_confidence
+            }
             
-        except Exception as e:
-            logger.error(f"⚠️ Failed to record PM decisions: {e}")
-            return {'status': 'failed', 'error': str(e)}
+            # Add to memory
+            memory_id = self.memory.add(content, agent_id, metadata)
+            if memory_id:
+                memories_added += 1
+        
+        logger.info(f"  ✅ Recorded {memories_added} PM daily decisions")
+        return {'status': 'success', 'count': memories_added}
+            
+       
     
     def _execute_tools(self, tool_selections, agent_id: str, date: str) -> List[Dict[str, Any]]:
         """Execute tool calls"""
@@ -487,7 +482,6 @@ Decision Outcome: {outcome_label}"""
         # Build analyst historical performance data
         analyst_performance_data = ""
         if analyst_stats:
-            analyst_performance_data = "\n## Analyst Team Historical Performance\n\n"
             
             # Sort by win rate (descending)
             sorted_analysts = sorted(
@@ -540,7 +534,7 @@ Decision Outcome: {outcome_label}"""
   - Your decision: {action}
   - Quantity: {quantity} shares
   - Confidence: {confidence}%
-  - Decision reasoning: {reasoning[:200] if reasoning else 'N/A'}
+  - Decision reasoning: {reasoning if reasoning else 'N/A'}
   - Stock real daily return: {real_returns.get(ticker, 0):.2%}
 """
             

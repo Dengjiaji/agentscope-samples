@@ -10,6 +10,7 @@ Portfolio cash: {{portfolio_cash}}
 Current positions: {{portfolio_positions}}
 Current margin requirement: {{margin_requirement}}
 Total margin used: {{total_margin_used}}
+{{analyst_performance_separator}}{{analyst_performance_info}}
 
 Relevant historical experiences:
 {{relevant_past_experiences}}
