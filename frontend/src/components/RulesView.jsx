@@ -159,7 +159,7 @@ export default function RulesView() {
       decisionDesc: "Portfolio Manager aggregates all information and makes the final team trading decision. The original trading signals from analysts are only used for individual-level ranking.",
       
       reflectionTitle: "Learning & Evolution",
-      reflectionDesc: "Agents reflect on daily performance, summarize insights, and store them in ",
+      reflectionDesc: "Agents reflect on daily investment performance, summarize insights, and store them in ",
       remeLink: "ReMe",
       reflectionDesc2: " memory framework for continuous improvement.",
       
