@@ -296,21 +296,7 @@ class PortfolioManagerAgent(AgentBase):
                     ) for ticker in tickers
                 }
             )
-        # 保存到文件
-        save_dir = "/Users/wy/Downloads/Project/IA_space/reviews/pm_decisions/"
-        os.makedirs(save_dir, exist_ok=True)
-
-        filename = f"pm_decision_system_prompt_{state['metadata']['trading_date']}.txt"
-        filepath = os.path.join(save_dir, filename)
-
-        with open(filepath, 'w', encoding='utf-8') as f:
-            f.write(system_prompt)
-        filename = f"pm_decision_human_prompt_{state['metadata']['trading_date']}.txt"
-        filepath = os.path.join(save_dir, filename)
-
-        with open(filepath, 'w', encoding='utf-8') as f:
-            f.write(human_prompt)
-        print(f"✅ Decision saved to: {filepath}")
+        
         progress.update_status(self.agent_id, None, "Generating decisions based on signals and historical experience")
         
         # pdb.set_trace()

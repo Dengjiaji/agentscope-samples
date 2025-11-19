@@ -594,17 +594,7 @@ Stock Real Return: {real_return:+.2%}"""
             }
         )
 
-        # 保存到文件
-        save_dir = Path("/Users/wy/Downloads/Project/IA_space/reviews/pm_reflections/")
-        save_dir.mkdir(parents=True, exist_ok=True)
-
-        filename = f"pm_reflection_{date}.txt"
-        filepath = save_dir / filename
-
-        with open(filepath, 'w', encoding='utf-8') as f:
-            f.write(prompt)
-
-        print(f"✅ Review saved to: {filepath}")
+     
         return prompt
     
     def _evaluate_prediction(self, signal: str, actual_return: float) -> bool:
