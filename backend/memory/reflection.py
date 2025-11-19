@@ -17,7 +17,7 @@ from backend.llm.models import get_model, ModelProvider
 from backend.agents.prompt_loader import PromptLoader
 from backend.config.constants import ROLE_TO_AGENT
 from backend.config.path_config import get_logs_and_memory_dir
-
+import pdb
 logger = logging.getLogger(__name__)
 
 
@@ -244,6 +244,7 @@ class MemoryReflectionSystem:
         # Generate prompt
         if agent_id == 'portfolio_manager':
             prompt = self._build_pm_reflection_prompt(agent_role, date, agent_data)
+            # pdb.set_trace()
         else:
             prompt = self._build_analyst_reflection_prompt(agent_role, date, agent_data)
         
@@ -414,7 +415,7 @@ Decision Outcome: {outcome_label}"""
         pm_signals_section = "\n".join([
             f"{ticker}: PM decision {pm_signals.get(ticker, {}).get('signal', 'N/A')} "
             f"(confidence: {pm_signals.get(ticker, {}).get('confidence', 'N/A')}%), "
-            f"signal daily return: {actual_returns.get(ticker, 0):.2%}, stock real daily return: {real_returns.get(ticker, 0):.2%}"
+            f"Stock real daily return: {real_returns.get(ticker, 0):.2%}"
             for ticker in tickers
         ])
         
@@ -423,7 +424,7 @@ Decision Outcome: {outcome_label}"""
             analyst_signals_section += f"\n\n**{analyst}:**"
             for ticker in tickers:
                 if ticker in signals:
-                    analyst_signals_section += f"\n  {ticker}: {signals[ticker]}, signal daily return: {actual_returns.get(ticker, 0):.2%}, stock real daily return: {real_returns.get(ticker, 0):.2%}"
+                    analyst_signals_section += f"\n  {ticker}: {signals[ticker]}, Stock real daily return: {real_returns.get(ticker, 0):.2%}"
         
         return self.prompt_loader.load_prompt(
             "memory",
@@ -461,7 +462,7 @@ Decision Outcome: {outcome_label}"""
 {ticker}: {status_emoji}
   - Your signal: {signal} (confidence: {confidence}%)
   - Your reasoning: {reasoning[:200] if reasoning else 'N/A'}
-  - Signal daily return: {actual_return:.2%}, stock real daily return: {real_returns.get(ticker, 0):.2%}
+  - Stock real daily return: {real_returns.get(ticker, 0):.2%}
   - PM decision: {pm_decisions.get(ticker, {}).get('action', 'N/A')}
 """
         
@@ -521,7 +522,7 @@ Decision Outcome: {outcome_label}"""
   - Quantity: {quantity} shares
   - Confidence: {confidence}%
   - Decision reasoning: {reasoning[:200] if reasoning else 'N/A'}
-  - Signal daily return: {actual_return:.2%}, stock real daily return: {real_returns.get(ticker, 0):.2%}
+  - Stock real daily return: {real_returns.get(ticker, 0):.2%}
 """
             
             # Add analyst opinion comparison
@@ -532,10 +533,10 @@ Decision Outcome: {outcome_label}"""
                     if isinstance(analyst_signal, dict):
                         signal = analyst_signal.get('signal', 'N/A')
                         actual_return = analyst_signal.get('actual_return', 0)
-                        decisions_data += f"    * {analyst_id}: {signal}, signal daily return: {actual_return:.2%}, stock real daily return: {real_returns.get(ticker, 0):.2%}\n"
+                        decisions_data += f"    * {analyst_id}: {signal}, Stock real daily return: {real_returns.get(ticker, 0):.2%}\n"
                     else:
                         actual_return = analyst_signal.get('actual_return', 0)
-                        decisions_data += f"    * {analyst_id}: {analyst_signal}, signal daily return: {actual_return:.2%}, stock real daily return: {real_returns.get(ticker, 0):.2%}\n"
+                        decisions_data += f"    * {analyst_id}: {analyst_signal}, Stock real daily return: {real_returns.get(ticker, 0):.2%}\n"
         
         return self.prompt_loader.load_prompt(
             "reflection",
