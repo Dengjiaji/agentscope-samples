@@ -274,13 +274,13 @@ class LiveTradingFund:
 
                     if self.mode == "signal":
                         self.streamer.print("agent", 
-                            f"{ticker}: Final signal {signal}(confidence {confidence}%, signal daily return {daily_ret:.2f}%, stock real daily return {real_ret:.2f}%) \n{reasoning}",
+                            f"{ticker}: Final signal {signal}(confidence {confidence}%, stock real daily return {real_ret:.2f}%) \n{reasoning}",
                             role_key='portfolio_manager'
                         )
                     elif self.mode == "portfolio":
                         quantity = signal_info.get('quantity', 0)
                         self.streamer.print("agent", 
-                            f"{ticker}: Final signal {action}({quantity} shares, confidence {confidence}%, stock daily return {daily_ret:.2f}%, stock real daily return {real_ret:.2f}%) \n{reasoning}",
+                            f"{ticker}: Final signal {action}({quantity} shares, confidence {confidence}%, stock real daily return {real_ret:.2f}%) \n{reasoning}",
                             role_key='portfolio_manager'
                         )
 
@@ -412,11 +412,11 @@ class LiveTradingFund:
                     
                     # Calculate value change (simplified calculation, should actually be based on positions)
                     if quantity > 0 and action in ['long', 'short']:
-                        returns_lines.append(f"  {ticker}: signal daily return {daily_ret:.2f}%, stock real daily return {real_ret:.2f}% (operation: {action} {quantity} shares)")
+                        returns_lines.append(f"  {ticker}: stock real daily return {real_ret:.2f}% (operation: {action} {quantity} shares)")
                     elif quantity == 0 and action in ['hold']:
-                        returns_lines.append(f"  {ticker}: signal daily return {daily_ret:.2f}%, stock real daily return {real_ret:.2f}% (operation: {action})")
+                        returns_lines.append(f"  {ticker}: stock real daily return {real_ret:.2f}% (operation: {action})")
                     else:
-                        returns_lines.append(f"  {ticker}: signal daily return {daily_ret:.2f}%, stock real daily return {real_ret:.2f}% (signal: {signal_info.get('signal', 'N/A')})")
+                        returns_lines.append(f"  {ticker}: stock real daily return {real_ret:.2f}% (signal: {signal_info.get('signal', 'N/A')})")
                 else:
                     returns_lines.append(f"  {ticker}: No return data")
             
@@ -432,7 +432,7 @@ class LiveTradingFund:
                 if ticker in real_returns:
                     daily_ret = real_returns[ticker] * 100
                     real_ret = real_returns[ticker] * 100
-                    returns_lines.append(f"  {ticker}: signal daily return {daily_ret:.2f}%, stock real daily return {real_ret:.2f}% (signal: {pm_signals.get(ticker, {}).get('signal', 'N/A')})")
+                    returns_lines.append(f"  {ticker}: stock real daily return {real_ret:.2f}% (signal: {pm_signals.get(ticker, {}).get('signal', 'N/A')})")
                 else:
                     returns_lines.append(f"  {ticker}: No return data")
 
@@ -735,9 +735,9 @@ class LiveTradingFund:
                 'analyst_signals': ana_signals,
                 'actual_returns': daily_returns,
                 'real_returns': real_returns,
-                'portfolio_summary': portfolio_summary
+                'live_env': live_env
             }
-            
+            # pdb.set_trace()
             # ========== 3. Execute unified review ==========
             if self.memory_reflection:
                 result = self.memory_reflection.perform_reflection(

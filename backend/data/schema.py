@@ -100,13 +100,14 @@ class InsiderTradeResponse(BaseModel):
 
 
 class CompanyNews(BaseModel):
+    category:str | None = None
     ticker: str
     title: str
-    author: str | None = None
+    related: str | None = None
     source: str
     date: str | None = None
     url: str
-    sentiment: str | None = None
+    summary: str | None = None
 
 
 class CompanyNewsResponse(BaseModel):

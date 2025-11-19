@@ -210,16 +210,9 @@ class MemoryReflectionSystem:
         agents_data = reflection_data.get('agents_data', {})
         
         for agent_id, agent_data in agents_data.items():
-            try:
-                result = self._agent_self_reflection(agent_id, date, agent_data, state)
-                all_results.append(result)
-            except Exception as e:
-                logger.error(f"❌ {agent_id} reflection failed: {e}")
-                all_results.append({
-                    'status': 'failed',
-                    'agent_id': agent_id,
-                    'error': str(e)
-                })
+            result = self._agent_self_reflection(agent_id, date, agent_data, state)
+            all_results.append(result)
+            
         
         return {
             'status': 'success',
@@ -537,17 +530,41 @@ Decision Outcome: {outcome_label}"""
                     else:
                         actual_return = analyst_signal.get('actual_return', 0)
                         decisions_data += f"    * {analyst_id}: {analyst_signal}, Stock real daily return: {real_returns.get(ticker, 0):.2%}\n"
-        
-        return self.prompt_loader.load_prompt(
+        live_env = agent_data['live_env']
+        pre_portfolio_state = live_env['pre_portfolio_state']
+        updated_portfolio_state = live_env['updated_portfolio']
+        executed_trades = live_env['executed_trades']
+        failed_trades = live_env['failed_trades']
+        decisions_data += f"""
+- Pre portfolio state: {pre_portfolio_state}
+- Updated portfolio state: {updated_portfolio_state}
+- Today Executed trades: {executed_trades}
+- Today Failed trades: {failed_trades}
+"""
+
+
+        prompt =  self.prompt_loader.load_prompt(
             "reflection",
             "pm_reflection_system",
             {
                 "date": date,
                 "portfolio_data": portfolio_data,
                 "decisions_data": decisions_data,
-                "context_data": ""
             }
         )
+
+        # 保存到文件
+        save_dir = Path("/Users/wy/Downloads/Project/IA_space/reviews/pm_reflections/")
+        save_dir.mkdir(parents=True, exist_ok=True)
+
+        filename = f"pm_reflection_{date}.txt"
+        filepath = save_dir / filename
+
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(prompt)
+
+        print(f"✅ Review saved to: {filepath}")
+        return prompt
     
     def _evaluate_prediction(self, signal: str, actual_return: float) -> bool:
         """Evaluate if prediction is correct"""

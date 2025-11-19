@@ -724,75 +724,67 @@ class InvestmentEngine:
             state: Current state
             mode: Running mode ("signal" or "portfolio")
         """
-        try:
-            # Select appropriate Risk Manager based on mode
-            agent_id = "risk_manager"
-            if mode == "portfolio":
-                risk_agent = RiskManagerAgent(agent_id=agent_id, mode="portfolio")
-            else:
-                risk_agent = RiskManagerAgent(agent_id=agent_id, mode="basic")
+        # Select appropriate Risk Manager based on mode
+        agent_id = "risk_manager"
+        if mode == "portfolio":
+            risk_agent = RiskManagerAgent(agent_id=agent_id, mode="portfolio")
+        else:
+            risk_agent = RiskManagerAgent(agent_id=agent_id, mode="basic")
+        
+        risk_result = risk_agent.execute(state)
+        risk_analysis = state["data"]["analyst_signals"].get(agent_id, {})
+        
+        if risk_analysis:
+            # Display risk analysis for each ticker
+            for ticker, risk_data in risk_analysis.items():
+                # Determine if it's signal mode or portfolio mode
+                if "risk_level" in risk_data:
+                    # Signal mode
+                    risk_level = risk_data.get("risk_level", "unknown")
+                    risk_score = risk_data.get("risk_score", 0)
+                    annualized_vol = risk_data.get("volatility_info", {}).get("annualized_volatility", 0)
+                    risk_assessment = risk_data.get("risk_assessment", "")
+                    
+                    if self.streamer:
+                        self.streamer.print("agent", 
+                            f"{ticker}: \n"
+                            f"  Risk Level {risk_level.upper()}\n"
+                            f"  Risk Score {risk_score}/100\n"
+                            f"  Annualized Volatility {annualized_vol:.1%}\n"
+                            f"  {risk_assessment}",
+                            role_key="risk_manager"
+                        )
+                else:
+                    # Portfolio mode
+                    current_price = risk_data.get("current_price", 0)
+                    vol_metrics = risk_data.get("volatility_metrics", {})
+                    annualized_vol = vol_metrics.get("annualized_volatility", 0)
+                    reasoning = risk_data.get("reasoning", {})
+                    position_limit_pct = reasoning.get("base_position_limit_pct", 0)
+                    
+                    if self.streamer:
+                        self.streamer.print("agent", 
+                            f"{ticker}: \n"
+                            f"  Price ${current_price:.2f}\n"
+                            f"  Volatility {annualized_vol:.1%}\n"
+                            f"  Position Limit {position_limit_pct:.1%}\n",
+                            role_key="risk_manager"
+                        )
             
-            risk_result = risk_agent.execute(state)
-            risk_analysis = state["data"]["analyst_signals"].get(agent_id, {})
-            
-            if risk_analysis:
-                # Display risk analysis for each ticker
-                for ticker, risk_data in risk_analysis.items():
-                    # Determine if it's signal mode or portfolio mode
-                    if "risk_level" in risk_data:
-                        # Signal mode
-                        risk_level = risk_data.get("risk_level", "unknown")
-                        risk_score = risk_data.get("risk_score", 0)
-                        annualized_vol = risk_data.get("volatility_info", {}).get("annualized_volatility", 0)
-                        risk_assessment = risk_data.get("risk_assessment", "")
-                        
-                        if self.streamer:
-                            self.streamer.print("agent", 
-                                f"{ticker}: \n"
-                                f"  Risk Level {risk_level.upper()}\n"
-                                f"  Risk Score {risk_score}/100\n"
-                                f"  Annualized Volatility {annualized_vol:.1%}\n"
-                                f"  {risk_assessment}",
-                                role_key="risk_manager"
-                            )
-                    else:
-                        # Portfolio mode
-                        current_price = risk_data.get("current_price", 0)
-                        vol_metrics = risk_data.get("volatility_metrics", {})
-                        annualized_vol = vol_metrics.get("annualized_volatility", 0)
-                        reasoning = risk_data.get("reasoning", {})
-                        position_limit_pct = reasoning.get("base_position_limit_pct", 0)
-                        
-                        if self.streamer:
-                            self.streamer.print("agent", 
-                                f"{ticker}: \n"
-                                f"  Price ${current_price:.2f}\n"
-                                f"  Volatility {annualized_vol:.1%}\n"
-                                f"  Position Limit {position_limit_pct:.1%}\n",
-                                role_key="risk_manager"
-                            )
-                
-                return {
-                    "agent_id": "risk_manager",
-                    "agent_name": "Risk Manager",
-                    "analysis_result": risk_analysis,
-                    "status": "success"
-                }
-            else:
-                return {
-                    "agent_id": "risk_manager",
-                    "agent_name": "Risk Manager",
-                    "status": "no_result"
-                }
-                
-        except Exception as e:
-            traceback.print_exc()
             return {
                 "agent_id": "risk_manager",
                 "agent_name": "Risk Manager",
-                "error": str(e),
-                "status": "error"
+                "analysis_result": risk_analysis,
+                "status": "success"
             }
+        else:
+            return {
+                "agent_id": "risk_manager",
+                "agent_name": "Risk Manager",
+                "status": "no_result"
+            }
+                
+        
     
     def _run_portfolio_management_with_communications(
         self,
