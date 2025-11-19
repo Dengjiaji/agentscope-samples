@@ -154,13 +154,13 @@ def get_prices(
         
         # Convert dates to timestamps
         start_timestamp = int(datetime.datetime.strptime(start_date, "%Y-%m-%d").timestamp())
-        end_timestamp = int(datetime.datetime.strptime(end_date, "%Y-%m-%d").timestamp())
+        end_timestamp = int(datetime.datetime.strptime(end_date, "%Y-%m-%d")+datetime.timedelta(days=1).timestamp())
         
         # Fetch candle data from Finnhub
         candles = client.stock_candles(ticker, 'D', start_timestamp, end_timestamp)
-        # Check response status
-        if candles.get('s') != 'ok':
-            raise Exception(f"Error fetching data from Finnhub: {ticker} - {candles}")
+        # # Check response status
+        # if candles.get('s') != 'ok':
+        #     raise Exception(f"Error fetching data from Finnhub: {ticker} - {candles}")
         
         # Convert to Price objects
         for i in range(len(candles['t'])):
