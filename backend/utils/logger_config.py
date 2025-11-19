@@ -85,3 +85,4 @@ def enable_memory_debug():
     logging.getLogger('backend.memory.reflection').setLevel(logging.DEBUG)
     logging.getLogger('backend.tools.memory_tools').setLevel(logging.DEBUG)
     print("✅ Memory system debug logging enabled")
+

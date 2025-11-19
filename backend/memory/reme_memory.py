@@ -11,7 +11,8 @@ from typing import Dict, List, Any, Optional
 from pathlib import Path
 
 from .base import LongTermMemory
-
+import chromadb
+from chromadb.config import Settings
 from flowllm.storage.vector_store import ChromaVectorStore
 from flowllm.embedding_model import OpenAICompatibleEmbeddingModel
 from flowllm.schema.vector_node import VectorNode
@@ -73,7 +74,14 @@ class ReMeMemory(LongTermMemory):
                 store_dir=self.store_dir,
                 batch_size=1024
             )
-        
+            
+            # If SQLite3 file already exists, use PersistentClient to connect directly
+            # Clear collections cache to avoid using old client connections
+            ReMeMemory._global_vector_store.collections.clear()
+            ReMeMemory._global_vector_store._client = chromadb.PersistentClient(
+                path=self.store_dir,
+                settings=Settings(anonymized_telemetry=False)
+            )
         # Assign vector_store first to ensure subsequent methods can access it
         self.vector_store = ReMeMemory._global_vector_store
         
@@ -85,20 +93,42 @@ class ReMeMemory(LongTermMemory):
         logger.info(f"ReMe memory initialized (base_dir={base_dir})")
     
     def _load_all_existing_workspaces(self):
-        """Load all existing workspace memories"""
-        jsonl_files = list(Path(self.store_dir).glob("*.jsonl"))
+        """Load all existing workspace memories
         
+        If SQLite3 database exists, workspaces are already available.
+        Only load from JSONL files if they exist and workspace is not in SQLite3.
+        """
+        # Check if SQLite3 database exists
+        sqlite_file = Path(self.store_dir) / "chroma.sqlite3"
+        if sqlite_file.exists():
+            # SQLite3 exists, try to list all collections (workspaces)
+            try:
+                all_collections = self.vector_store._client.list_collections()
+                logger.info(f"Found {len(all_collections)} workspaces in SQLite3 database")
+                for collection in all_collections:
+                    node_count = collection.count()
+                    print(f"✓ Workspace in SQLite3: {collection.name} ({node_count} memories)")
+                    
+            except Exception as e:
+                print(f"Failed to list collections from SQLite3: {e}")
+        
+        # Check if there are JSONL files that need to be imported (as backup recovery)
+        jsonl_files = list(Path(self.store_dir).glob("*.jsonl"))
         if jsonl_files:
-            logger.info(f"Found {len(jsonl_files)} workspace files, loading...")
+            print(f"Found {len(jsonl_files)} JSONL files, checking if import needed...")
             
         for jsonl_file in jsonl_files:
             workspace_id = jsonl_file.stem
+            # Only import from JSONL if workspace is not in SQLite3
             if not self.vector_store.exist_workspace(workspace_id):
                 try:
+                    print(f"Importing workspace from JSONL: {workspace_id}")
                     self.vector_store.load_workspace(workspace_id, path=self.store_dir)
-                    logger.debug(f"✓ Loaded workspace: {workspace_id}")
+                    print(f"✓ Loaded workspace from JSONL: {workspace_id}")
                 except Exception as e:
-                    logger.warning(f"✗ Failed to load {workspace_id}: {e}")
+                    print(f"✗ Failed to load {workspace_id} from JSONL: {e}")
+            else:
+                print(f"✓ Workspace {workspace_id} already exists in SQLite3, skipping JSONL import")
     
     
     def _get_workspace_id(self, user_id: str) -> str:
@@ -188,7 +218,7 @@ class ReMeMemory(LongTermMemory):
             
             # Batch insert all nodes
             self.vector_store.insert(nodes, workspace_id)
-            self.vector_store.dump_workspace(workspace_id, path=self.store_dir)
+            # self.vector_store.dump_workspace(workspace_id, path=self.store_dir)
             
             logger.debug(f"   ✅ Memory added (split into {len(chunks)} records), first node_id={first_node_id}")
             logger.debug(f"   Save path: {self.store_dir}/{workspace_id}.jsonl")
@@ -206,7 +236,7 @@ class ReMeMemory(LongTermMemory):
             )
             
             self.vector_store.insert([node], workspace_id)
-            self.vector_store.dump_workspace(workspace_id, path=self.store_dir)
+            # self.vector_store.dump_workspace(workspace_id, path=self.store_dir)
             
             logger.debug(f"   ✅ Memory added, node_id={node_id}")
             logger.debug(f"   Save path: {self.store_dir}/{workspace_id}.jsonl")
@@ -330,7 +360,7 @@ class ReMeMemory(LongTermMemory):
                 
                 self.vector_store.insert([node], workspace_id)
             
-            self.vector_store.dump_workspace(workspace_id, path=self.store_dir)
+            # self.vector_store.dump_workspace(workspace_id, path=self.store_dir)
             
             return True
         except Exception as e:
@@ -343,7 +373,7 @@ class ReMeMemory(LongTermMemory):
             self._ensure_workspace(user_id)
             workspace_id = self._get_workspace_id(user_id)
             self.vector_store.delete([memory_id], workspace_id)
-            self.vector_store.dump_workspace(workspace_id, path=self.store_dir)
+            # self.vector_store.dump_workspace(workspace_id, path=self.store_dir)
             return True
         except Exception as e:
             logger.error(f"Failed to delete memory: {e}")
@@ -383,7 +413,7 @@ class ReMeMemory(LongTermMemory):
             
             if node_ids:
                 self.vector_store.delete(node_ids, workspace_id)
-                self.vector_store.dump_workspace(workspace_id, path=self.store_dir)
+                # self.vector_store.dump_workspace(workspace_id, path=self.store_dir)
                 logger.info(f"Cleared {len(node_ids)} memories for user {user_id} (workspace {workspace_id})")
             
             return True

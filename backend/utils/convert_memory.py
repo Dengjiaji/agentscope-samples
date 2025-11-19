@@ -19,7 +19,6 @@ from flowllm.storage.vector_store import ChromaVectorStore
 from flowllm.embedding_model import OpenAICompatibleEmbeddingModel
 from backend.config.path_config import get_logs_and_memory_dir
 
-
 def migrate_jsonl_to_sqlite(config_name: str = "mock"):
     """从 JSONL 迁移到 SQLite"""
     
