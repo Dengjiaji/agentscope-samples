@@ -729,14 +729,46 @@ class LiveTradingFund:
                 }
             
             # ========== 2. PM data ==========
+            # 获取 dashboard state 中的历史胜率数据
+            dashboard_state = self.dashboard_generator._load_internal_state()
+            agent_performance = dashboard_state.get('agent_performance', {})
+
+            # 格式化为简洁的统计数据（只提取关键信息）
+            analyst_stats = {}
+            for agent_id, perf in agent_performance.items():
+                bull_count = perf.get('bull_count', 0)
+                bull_win = perf.get('bull_win', 0)
+                bull_unknown = perf.get('bull_unknown', 0)
+                bear_count = perf.get('bear_count', 0)
+                bear_win = perf.get('bear_win', 0)
+                bear_unknown = perf.get('bear_unknown', 0)
+                
+                # 计算胜率（与前端逻辑一致）
+                evaluated_bull = max(bull_count - bull_unknown, 0)
+                evaluated_bear = max(bear_count - bear_unknown, 0)
+                total_count = bull_count + bear_count
+                total_win = bull_win + bear_win
+                evaluated_total = evaluated_bull + evaluated_bear
+                win_rate = (total_win / evaluated_total) if evaluated_total > 0 else None
+                
+                analyst_stats[agent_id] = {
+                    'win_rate': win_rate,
+                    'total_predictions': total_count,
+                    'correct_predictions': total_win,
+                    'bull': {'count': bull_count, 'win': bull_win, 'unknown': bull_unknown},
+                    'bear': {'count': bear_count, 'win': bear_win, 'unknown': bear_unknown}
+                }
+
             agents_data['portfolio_manager'] = {
                 'agent_id': 'portfolio_manager',
                 'my_decisions': pm_signals,
                 'analyst_signals': ana_signals,
                 'actual_returns': daily_returns,
                 'real_returns': real_returns,
-                'live_env': live_env
+                'live_env': live_env,
+                'analyst_stats': analyst_stats  
             }
+            
             # pdb.set_trace()
             # ========== 3. Execute unified review ==========
             if self.memory_reflection:

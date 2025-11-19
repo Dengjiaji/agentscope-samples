@@ -479,20 +479,46 @@ Decision Outcome: {outcome_label}"""
         actual_returns = agent_data.get('actual_returns', {})
         real_returns = agent_data.get('real_returns', {})
         portfolio_summary = agent_data.get('portfolio_summary', {})
-        
+        analyst_stats = agent_data.get('analyst_stats', {})  # ⭐ 获取历史统计
+
         # Build portfolio data
         portfolio_data = ""
-        if portfolio_summary:
-            total_value = portfolio_summary.get('total_value', 0)
-            pnl_percent = portfolio_summary.get('pnl_percent', 0)
-            cash = portfolio_summary.get('cash', 0)
-            
-            portfolio_data = f"""
-- Total assets: ${total_value:,.2f}
-- Return: {pnl_percent:+.2f}%
-- Cash: ${cash:,.2f}
-"""
         
+        # Build analyst historical performance data
+        analyst_performance_data = ""
+        if analyst_stats:
+            analyst_performance_data = "\n## Analyst Team Historical Performance\n\n"
+            
+            # Sort by win rate (descending)
+            sorted_analysts = sorted(
+                analyst_stats.items(),
+                key=lambda x: (x[1]['win_rate'] is not None, x[1]['win_rate'] or 0),
+                reverse=True
+            )
+            
+            for analyst_id, stats in sorted_analysts:
+                win_rate = stats.get('win_rate')
+                total = stats.get('total_predictions', 0)
+                correct = stats.get('correct_predictions', 0)
+                bull_stats = stats.get('bull', {})
+                bear_stats = stats.get('bear', {})
+                
+                # Skip if no data
+                if win_rate is None or total == 0:
+                    continue
+                
+                # Get display name
+                from backend.config.constants import ANALYST_TYPES
+                display_name = ANALYST_TYPES.get(analyst_id, {}).get('display_name', analyst_id)
+                
+               
+                
+                analyst_performance_data += f"""
+    {display_name} ({analyst_id})
+    - Historical Win Rate: {win_rate:.1%} ({correct}/{total} correct)
+    - Bull Signals: {bull_stats.get('win', 0)}/{bull_stats.get('count', 0)} correct
+    - Bear Signals: {bear_stats.get('win', 0)}/{bear_stats.get('count', 0)} correct
+    """
         # Build decision data
         decisions_data = ""
         for ticker, decision_data in pm_decisions.items():
@@ -506,11 +532,11 @@ Decision Outcome: {outcome_label}"""
             if not isinstance(reasoning, str):
                 reasoning = str(reasoning) if reasoning else ''
             
-            is_correct = self._evaluate_decision(action, actual_return)
-            status_emoji = "✅" if is_correct else "❌"
+            # is_correct = self._evaluate_decision(action, actual_return)
+            # status_emoji = "✅" if is_correct else "❌"
             
             decisions_data += f"""
-{ticker}: {status_emoji}
+{ticker}: 
   - Your decision: {action}
   - Quantity: {quantity} shares
   - Confidence: {confidence}%
@@ -533,13 +559,33 @@ Decision Outcome: {outcome_label}"""
         live_env = agent_data['live_env']
         pre_portfolio_state = live_env['pre_portfolio_state']
         updated_portfolio_state = live_env['updated_portfolio']
+        
+        # Filter out timestamp from trades
         executed_trades = live_env['executed_trades']
         failed_trades = live_env['failed_trades']
-        decisions_data += f"""
+        
+        # Remove timestamp field from each trade
+        executed_trades_filtered = []
+        for trade in executed_trades:
+            if isinstance(trade, dict):
+                filtered_trade = {k: v for k, v in trade.items() if k != 'timestamp'}
+                executed_trades_filtered.append(filtered_trade)
+            else:
+                executed_trades_filtered.append(trade)
+        
+        failed_trades_filtered = []
+        for trade in failed_trades:
+            if isinstance(trade, dict):
+                filtered_trade = {k: v for k, v in trade.items() if k != 'timestamp'}
+                failed_trades_filtered.append(filtered_trade)
+            else:
+                failed_trades_filtered.append(trade)
+        
+        portfolio_data = f"""
 - Pre portfolio state: {pre_portfolio_state}
 - Updated portfolio state: {updated_portfolio_state}
-- Today Executed trades: {executed_trades}
-- Today Failed trades: {failed_trades}
+- Today Executed trades: {executed_trades_filtered}
+- Today Failed trades: {failed_trades_filtered}
 """
 
 
@@ -550,6 +596,7 @@ Decision Outcome: {outcome_label}"""
                 "date": date,
                 "portfolio_data": portfolio_data,
                 "decisions_data": decisions_data,
+                "analyst_performance_data": analyst_performance_data,
             }
         )
 
