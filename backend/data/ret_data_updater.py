@@ -19,6 +19,17 @@ import logging
 from typing import List, Optional, Dict
 from dotenv import load_dotenv
 
+# Try importing US trading calendar packages
+try:
+    import pandas_market_calendars as mcal
+except ImportError:
+    mcal = None
+
+try:
+    import exchange_calendars as xcals
+except ImportError:
+    xcals = None
+
 # Add project root directory to path
 BASE_DIR = Path(__file__).resolve().parents[2]
 if str(BASE_DIR) not in sys.path:
@@ -71,6 +82,37 @@ class DataUpdater:
         except ImportError:
             logger.error("❌ finnhub-python package not installed, please run: pip install finnhub-python")
             raise
+    
+    def get_trading_dates(self, start_date: str, end_date: str) -> List[str]:
+        """
+        Get US stock market trading date sequence (same as main program)
+        
+        Args:
+            start_date: Start date (YYYY-MM-DD)
+            end_date: End date (YYYY-MM-DD)
+            
+        Returns:
+            List of trading dates
+        """
+        try:
+            # Priority: use pandas_market_calendars
+            if mcal is not None:
+                nyse = mcal.get_calendar('NYSE')
+                trading_dates = nyse.valid_days(start_date=start_date, end_date=end_date)
+                return [date.strftime("%Y-%m-%d") for date in trading_dates]
+            
+            # Alternative: use exchange_calendars
+            elif xcals is not None:
+                nyse = xcals.get_calendar('XNYS')  # NYSE ISO code
+                trading_dates = nyse.sessions_in_range(start_date, end_date)
+                return [date.strftime("%Y-%m-%d") for date in trading_dates]
+                
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to get US trading calendar, falling back to simple business days: {e}")
+       
+        # Fallback to simple business day method
+        date_range = pd.date_range(start_date, end_date, freq="B")
+        return [date.strftime("%Y-%m-%d") for date in date_range]
     
     def get_last_date_from_csv(self, ticker: str) -> Optional[datetime]:
         """
@@ -204,6 +246,9 @@ class DataUpdater:
                 combined = new_data
                 logger.info(f"📊 {ticker} new file: {len(combined)} records")
             
+            # Fill missing dates (for trading days)
+            combined = self._fill_missing_dates(ticker, combined)
+            
             # Save to CSV
             combined.to_csv(csv_path, index=False)
             logger.info(f"💾 {ticker} data saved to: {csv_path}")
@@ -212,6 +257,70 @@ class DataUpdater:
         except Exception as e:
             logger.error(f"❌ Failed to save {ticker} data: {e}")
             return False
+    
+    def _fill_missing_dates(self, ticker: str, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Fill missing trading dates with forward fill method
+        
+        Args:
+            ticker: Stock ticker
+            df: DataFrame with time column
+            
+        Returns:
+            DataFrame with filled dates
+        """
+        if df.empty or 'time' not in df.columns:
+            return df
+        
+        try:
+            # Convert time to datetime
+            df['time'] = pd.to_datetime(df['time'])
+            
+            # Get date range
+            start_date = df['time'].min().strftime('%Y-%m-%d')
+            end_date = df['time'].max().strftime('%Y-%m-%d')
+            
+            # Get all trading dates using the same method as main program
+            all_trading_dates_str = self.get_trading_dates(start_date, end_date)
+            all_trading_dates = pd.to_datetime(all_trading_dates_str)
+            
+            # Find missing dates
+            existing_dates = set(df['time'].dt.date)
+            missing_dates = [d for d in all_trading_dates if d.date() not in existing_dates]
+            
+            if missing_dates:
+                logger.warning(f"⚠️ {ticker} found {len(missing_dates)} missing trading days: {[str(d.date()) for d in missing_dates[:5]]}")
+                
+                # Set time as index for reindexing
+                df = df.set_index('time')
+                
+                # Reindex to include all trading days
+                df = df.reindex(all_trading_dates)
+                
+                # Forward fill prices (use previous day's close as current day's prices)
+                df['close'] = df['close'].ffill()
+                df['open'] = df['open'].fillna(df['close'])
+                df['high'] = df['high'].fillna(df['close'])
+                df['low'] = df['low'].fillna(df['close'])
+                df['volume'] = df['volume'].fillna(0)
+                
+                # Recalculate returns
+                df['ret'] = df['close'].pct_change().shift(-1)
+                
+                # Reset index
+                df = df.reset_index()
+                df = df.rename(columns={'index': 'time'})
+                
+                logger.info(f"✅ {ticker} filled {len(missing_dates)} missing dates")
+            
+            # Convert time back to string format
+            df['time'] = df['time'].dt.strftime('%Y-%m-%d')
+            
+            return df
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to fill missing dates for {ticker}: {e}")
+            return df
     
     def update_ticker(
         self, 
