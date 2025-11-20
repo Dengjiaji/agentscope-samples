@@ -173,7 +173,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
                 whiteSpace: 'normal',
                 wordWrap: 'break-word'
               }}>
-                ⓘ Portfolio Manager provides the team's final signal, synthesizing all analyst recommendations, and does not participate in ranking.
+                ⓘ Portfolio Manager provides the team's final signal(position), synthesizing all analyst recommendations, and does not participate in ranking.
               </div>
             </div>
           )}
