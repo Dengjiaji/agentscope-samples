@@ -441,8 +441,8 @@ def analyze_trend_following(ticker: str, start_date: str, end_date: str, api_key
         from datetime import datetime, timedelta
         
         end_dt = datetime.strptime(end_date, "%Y-%m-%d")
-        # Extend to 90 days ago to ensure sufficient historical data
-        extended_start_date = (end_dt - timedelta(days=90)).strftime("%Y-%m-%d")
+        # Extend to 250 days ago to ensure sufficient data for 200-day MA
+        extended_start_date = (end_dt - timedelta(days=250)).strftime("%Y-%m-%d")
         
         # Get extended price data
         prices = get_prices(ticker=ticker, start_date=extended_start_date, end_date=end_date, api_key=api_key)
@@ -467,9 +467,12 @@ def analyze_trend_following(ticker: str, start_date: str, end_date: str, api_key
         data_length = len(prices_df)
         sma_short_window = min(20, data_length // 2)
         sma_long_window = min(50, data_length - 5) if data_length > 25 else min(25, data_length - 5)
+        sma_200_window = min(200, data_length - 10) if data_length > 200 else None
         
         prices_df['SMA_20'] = prices_df['close'].rolling(window=sma_short_window).mean()
         prices_df['SMA_50'] = prices_df['close'].rolling(window=sma_long_window).mean()
+        if sma_200_window:
+            prices_df['SMA_200'] = prices_df['close'].rolling(window=sma_200_window).mean()
         prices_df['EMA_12'] = prices_df['close'].ewm(span=min(12, data_length // 3)).mean()
         prices_df['EMA_26'] = prices_df['close'].ewm(span=min(26, data_length // 2)).mean()
         
@@ -482,6 +485,7 @@ def analyze_trend_following(ticker: str, start_date: str, end_date: str, api_key
         current_price = safe_float(prices_df['close'].iloc[-1])
         sma_20 = safe_float(prices_df['SMA_20'].iloc[-1])
         sma_50 = safe_float(prices_df['SMA_50'].iloc[-1])
+        sma_200 = safe_float(prices_df['SMA_200'].iloc[-1]) if 'SMA_200' in prices_df.columns else None
         macd = safe_float(prices_df['MACD'].iloc[-1])
         macd_signal = safe_float(prices_df['MACD_signal'].iloc[-1])
         macd_histogram = safe_float(prices_df['MACD_histogram'].iloc[-1])
@@ -536,7 +540,38 @@ def analyze_trend_following(ticker: str, start_date: str, end_date: str, api_key
             final_signal = "bearish"
         else:
             final_signal = "neutral"
+        
+        # Determine long-term trend and context (requires 200-day MA)
+        long_term_trend = None
+        trend_context = None
+        context_description = ""
+        distance_from_200ma_pct = None
+        
+        if sma_200 is not None:
+            long_term_trend = "bullish" if current_price > sma_200 else "bearish"
+            distance_from_200ma_pct = ((current_price - sma_200) / sma_200) * 100
             
+            # Detect pullback vs reversal
+            if current_price > sma_200 and current_price < sma_20:
+                trend_context = "PULLBACK_IN_UPTREND"
+                context_description = f"🎯 KEY INSIGHT: Price is above 200-day MA (${sma_200:.2f}) indicating LONG-TERM UPTREND, but below 20-day MA (${sma_20:.2f}). This is a PULLBACK in an uptrend, not a reversal. Historically a BUY opportunity if fundamentals remain strong."
+                details.append(context_description)
+            elif current_price < sma_200 and current_price > sma_20:
+                trend_context = "BOUNCE_IN_DOWNTREND"
+                context_description = f"⚠️ KEY INSIGHT: Price is below 200-day MA (${sma_200:.2f}) indicating LONG-TERM DOWNTREND, but above 20-day MA (${sma_20:.2f}). This is a temporary BOUNCE in a downtrend, not a reversal. Caution on long positions."
+                details.append(context_description)
+            elif current_price > sma_200 > sma_20:
+                trend_context = "STRONG_UPTREND"
+                context_description = f"✅ Price above both 200-day MA (${sma_200:.2f}) and 20-day MA (${sma_20:.2f}). Strong uptrend confirmed."
+                details.append(context_description)
+            elif current_price < sma_200 < sma_20:
+                trend_context = "STRONG_DOWNTREND"
+                context_description = f"❌ Price below both 200-day MA (${sma_200:.2f}) and 20-day MA (${sma_20:.2f}). Strong downtrend confirmed."
+                details.append(context_description)
+            else:
+                trend_context = "TRANSITIONAL"
+                context_description = f"↔️ Price near 200-day MA (${sma_200:.2f}). Trend in transition."
+                details.append(context_description)
         
         return {
             "signal": final_signal,
@@ -544,18 +579,23 @@ def analyze_trend_following(ticker: str, start_date: str, end_date: str, api_key
                 "current_price": current_price,
                 "sma_20": sma_20,
                 "sma_50": sma_50,
+                "sma_200": sma_200,
                 "macd": macd,
                 "macd_signal": macd_signal,
                 "macd_histogram": macd_histogram,
-                "trend_slope": safe_float(np.polyfit(range(len(recent_prices)), recent_prices, 1)[0] if len(recent_prices) >= 5 else 0)
+                "trend_slope": safe_float(np.polyfit(range(len(recent_prices)), recent_prices, 1)[0] if len(recent_prices) >= 5 else 0),
+                "distance_from_200ma_pct": distance_from_200ma_pct
             },
+            "long_term_trend": long_term_trend,
+            "trend_context": trend_context,
+            "context_description": context_description,
             "signal_breakdown": {
                 "bullish_signals": bullish_count,
                 "bearish_signals": bearish_count,
                 "neutral_signals": signals.count("neutral")
             },
             "details": details,
-            "reasoning": f"Trend following analysis: {bullish_count} bullish signals, {bearish_count} bearish signals"
+            "reasoning": f"Trend following analysis: {bullish_count} bullish signals, {bearish_count} bearish signals. Long-term trend: {long_term_trend or 'unknown'}."
         }
         
     except Exception as e:
