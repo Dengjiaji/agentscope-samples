@@ -2,8 +2,7 @@
 # Position limit configuration (Portfolio mode) - Aggressive mode
 
 # Base position limit - Aggressive configuration
-base_position_limit: 0.35  # 35% base (aggressive mode, increased from 20%)
-
+base_position_limit: 0.25  
 # Volatility-based position adjustments - Aggressive configuration
 volatility_adjustments:
   low_volatility:  # < 15%
