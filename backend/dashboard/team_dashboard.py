@@ -382,8 +382,8 @@ class TeamDashboardGenerator:
         # 3. Update Agent performance
         self._update_agent_performance(date, ana_signals, pm_signals, real_returns, state, update_stats)
         
-        # 4. Update Portfolio Manager performance
-        self._update_pm_performance(date, pm_signals, real_returns, state, update_stats)
+        # 4. Update Portfolio Manager performance (pass live_env to get final positions)
+        self._update_pm_performance(date, pm_signals, real_returns, state, update_stats, live_env, mode)
         
         # 5. Check if closing price data exists, only update equity curve when prices are confirmed
         has_closing_prices = self._check_has_closing_prices(date, available_tickers)
@@ -792,8 +792,18 @@ class TeamDashboardGenerator:
             update_stats['agents_updated'] += 1
     
     def _update_pm_performance(self, date: str, pm_signals: Dict, real_returns: Dict,
-                               state: Dict, update_stats: Dict):
-        """Update Portfolio Manager performance"""
+                               state: Dict, update_stats: Dict, live_env: Dict = None, mode: str = "signal"):
+        """
+        Update Portfolio Manager performance
+        
+        IMPORTANT: PM's correctness should be evaluated based on FINAL POSITION direction,
+        not the action itself, because PM considers pre_position_state when making decisions.
+        
+        Example:
+        - Pre-position: 100 long shares
+        - PM action: short 30 shares → Final position: 70 long shares (still bullish)
+        - If stock goes up (real_return > 0): PM is CORRECT (because final position is long)
+        """
         agent_id = 'portfolio_manager'
         
         if 'agent_performance' not in state:
@@ -816,17 +826,34 @@ class TeamDashboardGenerator:
         pm_perf.setdefault('bull_unknown', 0)
         pm_perf.setdefault('bear_unknown', 0)
         
+        # Get final positions (after trade execution) in portfolio mode
+        updated_portfolio = live_env.get('updated_portfolio', {}) if live_env else {}
+        final_positions = updated_portfolio.get('positions', {})
+        
         for ticker, signal_info in pm_signals.items():
-
-            # PM outputs 'action' field, need to map to 'signal' format
-            action = signal_info['action']
-            # Map PM action to dashboard signal format
-            action_to_signal = {
-                'long': 'bullish',
-                'short': 'bearish',
-                'hold': 'neutral'
-            }
-            signal = action_to_signal[action.lower()]
+            # Determine signal based on FINAL POSITION (portfolio mode) or ACTION (signal mode)
+            if mode == "portfolio" and ticker in final_positions:
+                # Portfolio mode: Use final position direction after trade execution
+                position = final_positions[ticker]
+                long_qty = position.get('long', 0)
+                short_qty = position.get('short', 0)
+                
+                # Determine final position direction
+                if long_qty > 0:
+                    signal = 'bullish'  # Final position is long → bullish
+                elif short_qty > 0:
+                    signal = 'bearish'  # Final position is short → bearish
+                else:
+                    signal = 'neutral'  # No position → neutral
+            else:
+                # Signal mode or no position data: Use action as signal
+                action = signal_info['action']
+                action_to_signal = {
+                    'long': 'bullish',
+                    'short': 'bearish',
+                    'hold': 'neutral'
+                }
+                signal = action_to_signal[action.lower()]
 
             numeric_real_return, display_real_return = self._normalize_real_return(real_returns.get(ticker))
 
