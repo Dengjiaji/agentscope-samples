@@ -540,7 +540,7 @@ def get_company_news(
                         title=news_item.get('headline', ''),
                         related=news_item.get('related', ''),  # Finnhub doesn't provide author
                         source=news_item.get('source', ''),
-                        date=datetime.datetime.utcfromtimestamp(news_item.get('datetime', 0)).strftime("%Y-%m-%d") if news_item.get('datetime') else None,
+                        date=datetime.datetime.fromtimestamp(news_item.get('datetime', 0), datetime.timezone.utc).strftime("%Y-%m-%d") if news_item.get('datetime') else None,
                         url=news_item.get('url', ''),
                         summary=news_item.get('summary', ''),
                         category=news_item.get('category', ''),
