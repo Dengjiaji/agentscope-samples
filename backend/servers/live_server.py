@@ -147,6 +147,7 @@ class LiveTradingServer:
         self.last_executed_date = None  # Record last actual trading execution US date (for cross-day detection)
         self.trading_executed_today = False  # Flag whether trading was executed today
         self.analysis_executed_today = False  # Flag whether pre-market analysis was executed today
+        self.last_pre_market_analysis_date = None  # Record last pre-market analysis US trading date
         
         # Save daily signals and results for updating agent perf the next day
         self.daily_signals = {}  # {date: {'ana_signals': ..., 'pm_signals': ...}}
@@ -1219,13 +1220,37 @@ class LiveTradingServer:
     def _should_execute_trading_now(self) -> bool:
         """
         Determine if trading should be executed now
-        Condition: After close (Beijing time 05:05 - 20:00)
+        Conditions:
+        1. After close (Beijing time 05:05 - 20:00)
+        2. Current US trading date equals pre-market analysis date + 1 day
         """
         now_beijing = self._get_current_time_beijing()
         current_time = now_beijing.time()
         
-        # Execute trading between 05:05 - 20:00 (5-hour window, adapts to time acceleration)
-        return datetime_time(5, 5) <= current_time < datetime_time(20, 00)
+        # Condition 1: Execute trading between 05:05 - 20:00 (5-hour window, adapts to time acceleration)
+        if not (datetime_time(5, 5) <= current_time < datetime_time(20, 00)):
+            return False
+        
+        # Condition 2: Check if current US trading date equals pre-market analysis date + 1 day
+        if not self.last_pre_market_analysis_date:
+            # No pre-market analysis has been run yet, cannot execute trades
+            logger.debug("⚠️ No pre-market analysis date recorded, skipping trade execution")
+            return False
+        
+        # Get current Beijing trading date
+        current_bj_date = now_beijing.strftime("%Y-%m-%d")
+        
+        # Calculate expected execution date (pre-market analysis date + 1 day)
+        analysis_date_obj = datetime.strptime(self.last_pre_market_analysis_date, "%Y-%m-%d")
+        expected_execution_date = (analysis_date_obj + timedelta(days=1)).strftime("%Y-%m-%d")
+        
+        # Check if current date matches expected execution date
+        if current_bj_date != expected_execution_date:
+            logger.debug(f"⚠️ Trade execution date mismatch: current={current_bj_date}, expected={expected_execution_date} (analysis_date={self.last_pre_market_analysis_date}+1)")
+            return False
+        
+        logger.debug(f"✅ Trade execution conditions met: time window OK, date match (analysis={self.last_pre_market_analysis_date}, execution={current_bj_date})")
+        return True
     
     async def handle_client(self, websocket: WebSocketServerProtocol):
         """Handle client connection"""
@@ -1572,6 +1597,10 @@ class LiveTradingServer:
             'content': f'✅ Pre-market analysis completed ({date}), generated {len(pm_signals)} stock signals'
         })
         logger.info(f"✅ Pre-market analysis completed: {date}, generated {len(pm_signals)} signals")
+        
+        # Record pre-market analysis date (US trading date)
+        self.last_pre_market_analysis_date = date
+        logger.info(f"📅 Recorded pre-market analysis date: {date}")
         
         # Set flag (avoid repeated runs in short time)
         self.analysis_executed_today = True
