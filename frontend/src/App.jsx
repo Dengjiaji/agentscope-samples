@@ -1328,6 +1328,8 @@ export default function LiveTradingApp() {
                       trades={trades}
                       holdings={holdings}
                       stats={stats}
+                      baseline_vw={portfolioData.baseline_vw}
+                      equity={portfolioData.equity}
                     />
                   </div>
                 </div>

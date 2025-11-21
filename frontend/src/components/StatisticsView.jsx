@@ -8,7 +8,7 @@ import { formatNumber, formatDateTime } from '../utils/formatters';
  * Left: Performance Overview (35%) | Right: Holdings + Trades (65%)
  * No scrolling - content fits within viewport with pagination
  */
-export default function StatisticsView({ trades, holdings, stats }) {
+export default function StatisticsView({ trades, holdings, stats, baseline_vw, equity }) {
   const [holdingsPage, setHoldingsPage] = useState(1);
   const [tradesPage, setTradesPage] = useState(1);
   const holdingsPerPage = 5;
@@ -25,6 +25,42 @@ export default function StatisticsView({ trades, holdings, stats }) {
   const tradesStartIndex = (tradesPage - 1) * tradesPerPage;
   const tradesEndIndex = tradesStartIndex + tradesPerPage;
   const currentTrades = trades.slice(tradesStartIndex, tradesEndIndex);
+  
+  // Calculate excess return (Evatraders return - benchmark value-weighted return)
+  const calculateExcessReturn = () => {
+    if (!stats || !baseline_vw || baseline_vw.length === 0) {
+      return null;
+    }
+    
+    // Get Evatraders return from stats
+    const evatradersReturn = stats.totalReturn || 0; // Already in percentage
+    
+    // Calculate benchmark return from baseline_vw
+    // baseline_vw format: [{t: timestamp, v: value}, ...] or [value, ...]
+    let benchmarkInitialValue, benchmarkCurrentValue;
+    
+    if (baseline_vw.length > 0) {
+      const firstPoint = baseline_vw[0];
+      const lastPoint = baseline_vw[baseline_vw.length - 1];
+      
+      benchmarkInitialValue = typeof firstPoint === 'object' ? firstPoint.v : firstPoint;
+      benchmarkCurrentValue = typeof lastPoint === 'object' ? lastPoint.v : lastPoint;
+      
+      if (benchmarkInitialValue && benchmarkInitialValue > 0 && benchmarkCurrentValue) {
+        const benchmarkReturn = ((benchmarkCurrentValue - benchmarkInitialValue) / benchmarkInitialValue) * 100;
+        const excessReturn = evatradersReturn - benchmarkReturn;
+        return {
+          excessReturn: excessReturn,
+          benchmarkReturn: benchmarkReturn,
+          evatradersReturn: evatradersReturn
+        };
+      }
+    }
+    
+    return null;
+  };
+  
+  const excessReturnData = calculateExcessReturn();
   
   // Reset to page 1 when data changes
   useEffect(() => {
@@ -154,6 +190,41 @@ export default function StatisticsView({ trades, holdings, stats }) {
                   </div>
                 </div>
               </div>
+              
+              {/* Excess Return - Single Metric */}
+              {excessReturnData && (
+                <div style={{
+                  padding: '16px 0',
+                  borderBottom: '1px solid #e0e0e0'
+                }}>
+                  <div style={{
+                    fontSize: 9,
+                    color: '#999999',
+                    fontWeight: 700,
+                    letterSpacing: 1,
+                    marginBottom: 8,
+                    textTransform: 'uppercase'
+                  }}>
+                    Excess Return
+                  </div>
+                  <div style={{
+                    fontSize: 24,
+                    fontWeight: 700,
+                    color: excessReturnData.excessReturn >= 0 ? '#00C853' : '#FF1744',
+                    fontFamily: '"Courier New", monospace'
+                  }}>
+                    {excessReturnData.excessReturn >= 0 ? '+' : ''}{excessReturnData.excessReturn.toFixed(2)}%
+                  </div>
+                  <div style={{
+                    fontSize: 8,
+                    color: '#999999',
+                    marginTop: 4,
+                    fontFamily: '"Courier New", monospace'
+                  }}>
+                    vs. Benchmark (VW): {excessReturnData.benchmarkReturn >= 0 ? '+' : ''}{excessReturnData.benchmarkReturn.toFixed(2)}%
+                  </div>
+                </div>
+              )}
               
               {/* Tertiary Metrics - Compact List */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

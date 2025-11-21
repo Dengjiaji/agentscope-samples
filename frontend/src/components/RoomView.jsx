@@ -78,7 +78,8 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
     
     // Check if market is closed (handle both 'close' and 'closed')
     if (marketStatus && (status === 'close' || status === 'closed')) {
-      return `${ASSET_BASE_URL}/full_room_dark.png`;
+      // return `${ASSET_BASE_URL}/full_room_dark.png`;
+      return ASSETS.roomBg;
     }
     
     // Default to light background (market open or no status)
