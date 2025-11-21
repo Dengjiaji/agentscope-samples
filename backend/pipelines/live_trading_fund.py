@@ -493,7 +493,7 @@ class LiveTradingFund:
             return self._run_individual_review_mode(date, tickers, pm_signals, ana_signals, daily_returns, real_returns, live_env, state)
         else:
             # Old mode: Central Review
-            return self._run_central_review_mode(date, tickers, pm_signals, ana_signals, daily_returns, real_returns, state)
+            return self._run_central_review_mode(date, tickers, pm_signals, ana_signals, daily_returns, real_returns, live_env, state)
     
     def _perform_memory_review(
         self,
@@ -555,7 +555,7 @@ class LiveTradingFund:
         if review_mode == 'individual_review':
             result = self._run_individual_review_mode(date, tickers, pm_signals, ana_signals, daily_returns, real_returns, live_env, state)
         else:
-            result = self._run_central_review_mode(date, tickers, pm_signals, ana_signals, daily_returns, real_returns, state)
+            result = self._run_central_review_mode(date, tickers, pm_signals, ana_signals, daily_returns, real_returns, live_env, state)
        
         self.streamer.print("system", f"✅ Memory review completed for {date}")
         return result
@@ -568,6 +568,7 @@ class LiveTradingFund:
         ana_signals: Dict,
         daily_returns: Dict,
         real_returns: Dict,
+        live_env: Dict[str, Any],
         state: Optional[Dict] = None
     ) -> Dict[str, Any]:
         """Central Review mode: Unified LLM manages memory"""
@@ -575,12 +576,57 @@ class LiveTradingFund:
 
         try:
             if self.memory_reflection:
+                #  Extract additional data from live_env (like individual_review_mode)
+                portfolio_summary = live_env.get('portfolio_summary', {})
+                executed_trades = live_env.get('executed_trades', [])
+                failed_trades = live_env.get('failed_trades', [])
+                pre_portfolio_state = live_env.get('pre_portfolio_state', {})
+                updated_portfolio = live_env.get('updated_portfolio', {})
+                
+                # Get analyst performance stats from dashboard
+                analyst_stats = {}
+                if self.dashboard_generator:
+                    dashboard_state = self.dashboard_generator._load_internal_state()
+                    agent_performance = dashboard_state.get('agent_performance', {})
+                    
+                    for agent_id, perf in agent_performance.items():
+                        bull_count = perf.get('bull_count', 0)
+                        bull_win = perf.get('bull_win', 0)
+                        bull_unknown = perf.get('bull_unknown', 0)
+                        bear_count = perf.get('bear_count', 0)
+                        bear_win = perf.get('bear_win', 0)
+                        bear_unknown = perf.get('bear_unknown', 0)
+                        
+                        evaluated_bull = max(bull_count - bull_unknown, 0)
+                        evaluated_bear = max(bear_count - bear_unknown, 0)
+                        total_count = bull_count + bear_count
+                        total_win = bull_win + bear_win
+                        evaluated_total = evaluated_bull + evaluated_bear
+                        win_rate = (total_win / evaluated_total) if evaluated_total > 0 else None
+                        
+                        analyst_stats[agent_id] = {
+                            'win_rate': win_rate,
+                            'total_predictions': total_count,
+                            'correct_predictions': total_win,
+                            'bull': {'count': bull_count, 'win': bull_win, 'unknown': bull_unknown},
+                            'bear': {'count': bear_count, 'win': bear_win, 'unknown': bear_unknown}
+                        }
+                
+                # Build enhanced reflection_data with live_env data
                 reflection_data = {
                     'pm_signals': pm_signals,
                     'actual_returns': daily_returns,
                     'real_returns': real_returns,
                     'analyst_signals': ana_signals,
-                    'tickers': tickers
+                    'tickers': tickers,
+                    # Add live_env data for richer context
+                    'portfolio_summary': portfolio_summary,
+                    'executed_trades': executed_trades,
+                    'failed_trades': failed_trades,
+                    'pre_portfolio_state': pre_portfolio_state,
+                    'updated_portfolio': updated_portfolio,
+                    'analyst_stats': analyst_stats,  # Add analyst performance stats
+                    'live_env': live_env  # Include full live_env for backward compatibility
                 }
 
                 # Use unified review system (central_review mode)
