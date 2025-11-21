@@ -334,9 +334,27 @@ class InvestmentEngine:
                             break
                 else:
                     ticker_first_round = first_round_analysis.get(ticker, {})
-            
-            ticker_report = f"""## Stock {i}: {ticker}
+            # pdb.set_trace()
+            try:
+                ticker_first_round['tool_analysis']['synthesis_details']
+            except:
+                with open('../../../ticker_first_round.json', 'w') as f:
+                    json.dump(ticker_first_round, f, ensure_ascii=False, indent=2)
 
+
+
+                # 保存first_round_analysis到txt文件,不一定是dict，最安全的保存方式
+                with open('../../../first_round_analysis.txt', 'w', encoding='utf-8') as f:
+                    f.write(f"=== first_round_analysis ===\n\n")
+                    f.write(f"Type: {type(first_round_analysis)}\n\n")
+                    f.write(f"Content:\n{str(first_round_analysis)}\n\n")
+                    f.write(f"Repr:\n{repr(first_round_analysis)}\n")
+                
+                # 抛出异常以便调试
+                raise ValueError(f"ticker_first_round structure is invalid for ticker {ticker}. Debug files saved to txt.")
+                                
+            ticker_report = f"""## Stock {i}: {ticker}
+    
     ### Your First Round Analysis for {ticker}
 
     Analysis Result and Thought Process:
@@ -685,6 +703,44 @@ class InvestmentEngine:
         # Get first round analysis result
         first_round_analysis = first_round_report.get("analyst_signals", {}).get(agent_id, {})
         
+        # Check if first_round_analysis is empty or incomplete, retry if needed
+        max_retries = 3
+        retry_count = 0
+        
+        while retry_count < max_retries:
+            # Validate first_round_analysis structure
+            is_valid = self._validate_first_round_analysis(first_round_analysis, tickers)
+            
+            if is_valid:
+                break
+            
+            # Log and retry
+            retry_count += 1
+            logging.warning(f"[{agent_id}] First round analysis is empty or incomplete (attempt {retry_count}/{max_retries}). Retrying first round analysis...")
+            
+            try:
+                # Retry first round analysis
+                first_round_result = self._run_analyst_with_notifications(agent_id, agent_info, state)
+                
+                if first_round_result.get("status") == "success" and "analysis_result" in first_round_result:
+                    first_round_analysis = first_round_result["analysis_result"]
+                    # Update the state with the new result
+                    state["data"]["analyst_signals"][agent_id] = first_round_analysis
+                    logging.info(f"[{agent_id}] Successfully retried first round analysis")
+                else:
+                    logging.error(f"[{agent_id}] Retry failed: {first_round_result.get('error', 'Unknown error')}")
+                    
+            except Exception as e:
+                logging.error(f"[{agent_id}] Exception during retry: {str(e)}")
+                import traceback
+                logging.debug(f"Retry exception traceback:\n{traceback.format_exc()}")
+        
+        # If still invalid after retries, raise an error
+        if not self._validate_first_round_analysis(first_round_analysis, tickers):
+            error_msg = f"[{agent_id}] First round analysis is still invalid after {max_retries} retries. Skipping second round analysis."
+            logging.error(error_msg)
+            raise ValueError(error_msg)
+        
         # Get overall summary
         overall_summary = first_round_report.get("summary", {})
         
@@ -720,6 +776,38 @@ class InvestmentEngine:
             
        
             
+    
+    def _validate_first_round_analysis(self, first_round_analysis: Dict[str, Any], tickers: List[str]) -> bool:
+        """
+        Validate if first round analysis has the required structure
+        
+        Args:
+            first_round_analysis: First round analysis result to validate
+            tickers: List of tickers that should be in the analysis
+            
+        Returns:
+            True if valid, False otherwise
+        """
+        if not first_round_analysis or not isinstance(first_round_analysis, dict):
+            return False
+        
+        # Check if analysis contains data for at least one ticker
+        has_valid_ticker_data = False
+        
+        for ticker in tickers:
+            ticker_data = first_round_analysis.get(ticker)
+            
+            if not ticker_data or not isinstance(ticker_data, dict):
+                continue
+            
+            # Check for required nested structure
+            if 'tool_analysis' in ticker_data and isinstance(ticker_data['tool_analysis'], dict):
+                tool_analysis = ticker_data['tool_analysis']
+                if 'synthesis_details' in tool_analysis and 'tool_selection' in ticker_data:
+                    has_valid_ticker_data = True
+                    break
+        
+        return has_valid_ticker_data
     
     def _run_risk_management_analysis(self, state: AgentState, mode: str = "signal") -> Dict[str, Any]:
         """
@@ -1210,7 +1298,7 @@ class InvestmentEngine:
     
     def _generate_final_report(self, analyst_results: Dict[str, Any], state: AgentState) -> Dict[str, Any]:
         """Generate final analysis report"""
-        
+        # pdb.set_trace()
         # Count analysis results
         successful_analyses = [r for r in analyst_results.values() if r["status"] == "success"]
         failed_analyses = [r for r in analyst_results.values() if r["status"] == "error"]

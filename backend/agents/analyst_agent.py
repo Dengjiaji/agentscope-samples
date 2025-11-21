@@ -191,9 +191,6 @@ class AnalystAgent(AgentBase):
         # 1. Generate market conditions
         market_conditions = {
             "analysis_date": end_date,
-            "volatility_regime": "normal",
-            "interest_rate": "normal", 
-            "market_sentiment": "neutral"
         }
         
         # 2. Use LLM to select tools
