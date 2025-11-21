@@ -17,6 +17,7 @@ import StockLogo from './components/StockLogo';
 import StatisticsView from './components/StatisticsView';
 import PerformanceView from './components/PerformanceView';
 import AboutModal from './components/AboutModal';
+import ContactModal from './components/ContactModal';
 import RulesView from './components/RulesView';
 
 // Utils
@@ -36,6 +37,7 @@ export default function LiveTradingApp() {
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [now, setNow] = useState(() => new Date());
   const [showAboutModal, setShowAboutModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
   
   // View toggle: 'rules' | 'room' | 'chart' | 'statistics'
   const [currentView, setCurrentView] = useState('chart'); // Start with chart, then animate to room
@@ -1032,9 +1034,13 @@ export default function LiveTradingApp() {
             display: 'inline-block',
             verticalAlign: 'middle'
           }} />
-          <a href="https://1mycell.github.io/" className="header-link">
+          <span 
+            className="header-link" 
+            style={{ cursor: 'pointer' }}
+            onClick={() => setShowContactModal(true)}
+          >
             Contact Us <span className="link-arrow">↗</span>
-          </a>
+          </span>
         </div>
         
         <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: 24, marginLeft: 'auto', flexWrap: 'wrap', minWidth: 0 }}>
@@ -1352,6 +1358,9 @@ export default function LiveTradingApp() {
       
       {/* About Modal */}
       {showAboutModal && <AboutModal onClose={() => setShowAboutModal(false)} />}
+      
+      {/* Contact Modal */}
+      {showContactModal && <ContactModal onClose={() => setShowContactModal(false)} />}
     </div>
   );
 }

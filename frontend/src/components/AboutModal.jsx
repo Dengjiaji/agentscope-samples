@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import ContactModal from './ContactModal';
 
 export default function AboutModal({ onClose }) {
   const [isClosing, setIsClosing] = useState(false);
   const [language, setLanguage] = useState('en'); // 'en' or 'zh'
+  const [showContactModal, setShowContactModal] = useState(false);
   
   const handleClose = () => {
     setIsClosing(true);
@@ -236,9 +238,16 @@ export default function AboutModal({ onClose }) {
               display: 'inline-block',
               verticalAlign: 'middle'
             }} />
-            <a href="https://1mycell.github.io/" className="header-link">
+            <span 
+              className="header-link" 
+              style={{ cursor: 'pointer' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowContactModal(true);
+              }}
+            >
               Contact Us <span className="link-arrow">↗</span>
-            </a>
+            </span>
           </div>
         </div>
         
@@ -374,6 +383,9 @@ export default function AboutModal({ onClose }) {
           </div>
         </div>
       </div>
+      
+      {/* Contact Modal */}
+      {showContactModal && <ContactModal onClose={() => setShowContactModal(false)} />}
     </>
   );
 }
