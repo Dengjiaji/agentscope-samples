@@ -636,9 +636,9 @@ class Server:
             logger.info(f"✅ Subscribed to real-time prices: {self.config.tickers}")
         
         # Generate trading day list
-        start_date = self.config.start_date or "2025-11-14"
+        start_date = self.config.start_date or "2025-11-20"
         # end_date = self.config.end_date or datetime.now().strftime("%Y-%m-%d")
-        end_date = self.config.end_date or "2025-11-19"
+        end_date = self.config.end_date or "2025-11-20"
 
         trading_days = self.thinking_fund.generate_trading_dates(start_date, end_date)
         logger.info(f"📅 Planning to run {len(trading_days)} trading days: {start_date} -> {end_date}")
@@ -783,7 +783,7 @@ class Server:
             except Exception as e:
                 logger.error(f"❌ Dashboard file monitor error: {e}")
     
-    async def start(self, host: str = "0.0.0.0", port: int = 8765, mock: bool = False):
+    async def start(self, host: str = "0.0.0.0", port: int = 8766, mock: bool = False):
         """Start server
         
         Args:
@@ -859,7 +859,7 @@ async def main():
     parser = argparse.ArgumentParser(description='Continuously running trading system server')
     parser.add_argument('--mock', action='store_true', help='Use Mock mode (test frontend)')
     parser.add_argument('--host', default='0.0.0.0', help='Listen address (default: 0.0.0.0)')
-    parser.add_argument('--port', type=int, default=8765, help='Listen port (default: 8765)')
+    parser.add_argument('--port', type=int, default=8766, help='Listen port (default: 8766)')
     args = parser.parse_args()
     
     # Load config

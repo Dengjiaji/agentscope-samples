@@ -159,6 +159,7 @@ class InvestmentEngine:
         enable_communications: bool = True,
         enable_notifications: bool = True,
         max_comm_cycles: int = 2,
+        is_live_mode: bool = False,
         **kwargs
     ) -> Dict[str, Any]:
         """
@@ -172,6 +173,7 @@ class InvestmentEngine:
             enable_communications: Whether to enable communication mechanism
             enable_notifications: Whether to enable notification mechanism
             max_comm_cycles: Maximum communication cycles
+            is_live_mode: Whether running in live mode (affects risk manager price selection)
             **kwargs: Additional parameters (initial_cash, margin_requirement, etc.)
             
         Returns:
@@ -189,6 +191,7 @@ class InvestmentEngine:
         state["metadata"]["max_communication_cycles"] = max_comm_cycles
         state["metadata"]["trading_date"] = date
         state["metadata"]["mode"] = mode
+        state["metadata"]["is_live_mode"] = is_live_mode
         
         # Add analyst performance stats if available
         analyst_stats = kwargs.get('analyst_stats', None)

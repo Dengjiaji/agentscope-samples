@@ -1958,7 +1958,7 @@ class LiveTradingServer:
             except Exception as e:
                 logger.error(f"❌ Dashboard file monitor error: {e}")
     
-    async def start(self, host: str = "0.0.0.0", port: int = 8765):
+    async def start(self, host: str = "0.0.0.0", port: int = 8766):
         """Start server"""
         self.loop = asyncio.get_event_loop()
         
@@ -2012,7 +2012,7 @@ async def main():
     parser.add_argument('--mock', action='store_true', help='Use Mock mode (virtual price testing)')
     parser.add_argument('--config-name', default='live_mode', help='Config name (default: live_mode)')
     parser.add_argument('--host', default='0.0.0.0', help='Listen address (default: 0.0.0.0)')
-    parser.add_argument('--port', type=int, default=8765, help='Listen port (default: 8765)')
+    parser.add_argument('--port', type=int, default=8766, help='Listen port (default: 8766)')
     parser.add_argument('--pause-before-trade', action='store_true', dest='pause_before_trade_cli', help='Pause mode: complete analysis but do not execute trades, only update prices')
     parser.add_argument('--time-accelerator', type=float, default=1.0, help='Time accelerator (for debugging, 1.0=normal, 60.0=1 minute as 1 hour)')
     parser.add_argument('--virtual-start-time', type=str, default=None, help='Virtual start time (format: "2024-11-12 22:25:00", Mock mode only)')

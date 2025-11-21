@@ -160,12 +160,14 @@ class LiveTradingFund:
         force_run: bool = False,
         enable_communications: bool = False,
         enable_notifications: bool = False,
-        skip_real_returns: bool = False
+        skip_real_returns: bool = False,
+        is_live_mode: bool = False
     ) -> Dict[str, Any]:
         """Run pre-market analysis
         
         Args:
             skip_real_returns: If True, do not calculate real_returns (for live mode pre-market analysis)
+            is_live_mode: Whether running in live mode (affects risk manager price selection)
         """
         self.streamer.print("system", 
             f"===== Pre-Market Analysis ({date}) =====\n"
@@ -211,7 +213,8 @@ class LiveTradingFund:
             enable_communications=enable_communications,
             enable_notifications=enable_notifications,
             max_comm_cycles=max_comm_cycles,
-            analyst_stats=analyst_stats
+            analyst_stats=analyst_stats,
+            is_live_mode=is_live_mode
         )
 
         # Use defaultdict to simplify initialization
@@ -1022,7 +1025,10 @@ class LiveTradingFund:
         enable_communications: bool = False,
         enable_notifications: bool = False
     ) -> Dict[str, Any]:
-        """Run pre-market analysis (only runs strategy.run_single_day, does not execute trades)"""
+        """Run pre-market analysis (only runs strategy.run_single_day, does not execute trades)
+        
+        This method is used by live_server.py, so is_live_mode is set to True.
+        """
         
         is_trading_day = self.is_trading_day(date)
         
@@ -1046,9 +1052,11 @@ class LiveTradingFund:
                 f"Positions {positions_count}")
         
         # Run pre-market analysis (do not calculate real_returns, market hasn't closed yet)
+        # ⭐ Set is_live_mode=True for live_server.py (risk manager will use T-1 day prices)
         pre_market_result = self.run_pre_market_analysis(
             date, tickers, max_comm_cycles, force_run, enable_communications, enable_notifications,
-            skip_real_returns=True  # Live mode: Skip real_returns calculation
+            skip_real_returns=True,  # Live mode: Skip real_returns calculation
+            is_live_mode=True  # Live mode: Risk manager uses T-1 day closing price
         )
         
         return {

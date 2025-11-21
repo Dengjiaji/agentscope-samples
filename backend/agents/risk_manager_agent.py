@@ -92,6 +92,9 @@ class RiskManagerAgent(AgentBase):
         tickers = data["tickers"]
         api_key = os.getenv("FINNHUB_API_KEY")
         
+        # Check if in live mode (from live_server.py)
+        is_live_mode = state.get("metadata", {}).get("is_live_mode", False)
+        
         # Calculate volatility
         volatility_data = {}
         current_prices = {}
@@ -101,7 +104,9 @@ class RiskManagerAgent(AgentBase):
             
             # ⭐ Strategy:
             # 1. Volatility calculation: Use historical data (up to T-1 day) to avoid incomplete data
-            # 2. Current price: Use T-day opening price to reflect actual price level at market open
+            # 2. Current price: 
+            #    - Live mode (live_server.py): Use T-1 day closing price (previous trading day)
+            #    - Backtest mode (server.py): Use T-day closing price (current day)
             
             # Get historical data up to T-1 day for volatility calculation
             adjusted_end_date = get_last_tradeday(data["end_date"])
@@ -128,20 +133,27 @@ class RiskManagerAgent(AgentBase):
             # Calculate volatility (based on historical data up to and including T-1 day)
             vol_metrics = self._calculate_volatility_metrics(prices_df)
             volatility_data[ticker] = vol_metrics
-            # ⭐ Get T-day opening price as current price
-            today_prices = get_prices(
-                ticker=ticker,
-                start_date=data["end_date"],
-                end_date=data["end_date"],
-                api_key=api_key,
-            )
             
-            # Use T-day closing price
-            today_df = prices_to_df(today_prices)
-            current_price = float(today_df["close"].iloc[0])
+            # ⭐ Get current price based on mode
+            if is_live_mode:
+                # Live mode: Use T-1 day closing price (last available trading day)
+                # Already have the data in prices_df (which ends at T-1)
+                current_price = float(prices_df["close"].iloc[-1])
+                price_type = "T-1 close"
+            else:
+                # Backtest mode: Use T-day closing price
+                today_prices = get_prices(
+                    ticker=ticker,
+                    start_date=data["end_date"],
+                    end_date=data["end_date"],
+                    api_key=api_key,
+                )
+                
+                today_df = prices_to_df(today_prices)
+                current_price = float(today_df["close"].iloc[0])
+                price_type = "T close"
+            
             current_prices[ticker] = current_price
-            price_type = "T-1 close"
-           
                 
             progress.update_status(
                 self.agent_id, 

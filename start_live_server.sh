@@ -30,7 +30,7 @@ MOCK_MODE=false
 AUTO_CLEAN=false
 CONFIG_NAME="live_mode"
 HOST="0.0.0.0"
-PORT=8765
+PORT=8766
 PAUSE_BEFORE_TRADE=false
 TIME_ACCELERATOR=1.0  # 时间加速器（1.0=正常，60.0=1分钟当1小时）
 VIRTUAL_START_TIME=""  # 虚拟起始时间
@@ -46,7 +46,7 @@ show_help() {
     echo "  --config-name NAME     配置名称（默认: live_mode）"
     echo "  --clean                清空历史记录"
     echo "  --host HOST            监听地址（默认: 0.0.0.0）"
-    echo "  --port PORT            监听端口（默认: 8765"
+    echo "  --port PORT            监听端口（默认: 8766"
     echo "  --pause-before-trade   暂停模式：完成分析但不执行交易，仅更新价格"
     echo "  --time-accelerator N   时间加速器（默认: 1.0，用于调试，60.0=1分钟当1小时）"
     echo "  --virtual-start-time \"YYYY-MM-DD HH:MM:SS\"  虚拟起始时间（仅Mock模式，例如: \"2024-11-12 22:25:00\"）"
