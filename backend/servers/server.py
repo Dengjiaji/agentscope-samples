@@ -636,12 +636,13 @@ class Server:
             logger.info(f"✅ Subscribed to real-time prices: {self.config.tickers}")
         
         # Generate trading day list
-        start_date = self.config.start_date or "2025-11-20"
-        # end_date = self.config.end_date or datetime.now().strftime("%Y-%m-%d")
-        end_date = self.config.end_date or "2025-11-20"
+        start_date = self.config.start_date
+        end_date = self.config.end_date
+        
+        logger.info(f"📅 Using date range: {start_date} -> {end_date}")
 
         trading_days = self.thinking_fund.generate_trading_dates(start_date, end_date)
-        logger.info(f"📅 Planning to run {len(trading_days)} trading days: {start_date} -> {end_date}")
+        logger.info(f"📅 Planning to run {len(trading_days)} trading days")
         
         self.state_manager.update('status', 'running')
         self.state_manager.update('trading_days_total', len(trading_days))
@@ -860,24 +861,31 @@ async def main():
     parser.add_argument('--mock', action='store_true', help='Use Mock mode (test frontend)')
     parser.add_argument('--host', default='0.0.0.0', help='Listen address (default: 0.0.0.0)')
     parser.add_argument('--port', type=int, default=8766, help='Listen port (default: 8766)')
+    parser.add_argument('--config-name', default='mock', help='Config name (default: mock)')
+    parser.add_argument('--start-date', help='Start date for backtest (YYYY-MM-DD)')
+    parser.add_argument('--end-date', help='End date for backtest (YYYY-MM-DD)')
     args = parser.parse_args()
     
     # Load config
     config = LiveThinkingFundConfig()
-    config.config_name = "mock"
+    config.config_name = args.config_name
+    
+    # Override config with command line arguments
+    config.override_with_args(args)
     
     # Print config
     logger.info("📊 Server configuration:")
     logger.info(f"   Config name: {config.config_name}")
     logger.info(f"   Run mode: {'🎭 MOCK' if args.mock else config.mode.upper()}")
     logger.info(f"   Monitored stocks: {config.tickers}")
+    logger.info(f"   Start date: {config.start_date}")
+    logger.info(f"   End date: {config.end_date}")
     if config.mode == "portfolio":
         logger.info(f"   Initial cash: ${config.initial_cash:,.2f}")
         logger.info(f"   Margin requirement: {config.margin_requirement * 100:.1f}%")
     
     # Create and start server
     server = Server(config)
-    print(args)
     await server.start(host=args.host, port=args.port, mock=args.mock)
 
 

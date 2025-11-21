@@ -2,12 +2,16 @@
 # 启动持续运行服务器的便捷脚本
 # 
 # 使用方法:
-#   ./start_server.sh                      # 正常模式
-#   ./start_server.sh --mock               # Mock模式（测试前端）
-#   ./start_server.sh --clean              # 正常模式，自动清空历史记录
-#   ./start_server.sh --port 9000          # 指定端口（默认8765）
-#   ./start_server.sh --host 127.0.0.1     # 指定主机（默认0.0.0.0）
-#   ./start_server.sh --port 9000 --mock   # 组合使用多个参数
+#   ./start_server.sh                                      # 正常模式
+#   ./start_server.sh --mock                               # Mock模式（测试前端）
+#   ./start_server.sh --clean                              # 正常模式，自动清空历史记录
+#   ./start_server.sh --port 9000                          # 指定端口（默认8765）
+#   ./start_server.sh --host 127.0.0.1                     # 指定主机（默认0.0.0.0）
+#   ./start_server.sh --config-name live_mode              # 指定配置名（默认: mock）
+#   ./start_server.sh --start-date 2025-11-01              # 指定开始日期
+#   ./start_server.sh --end-date 2025-11-20                # 指定结束日期
+#   ./start_server.sh --port 9000 --mock                   # 组合使用多个参数
+#   ./start_server.sh --start-date 2025-11-01 --end-date 2025-11-20 --config-name my_backtest
 
 set -e
 
@@ -22,16 +26,19 @@ MODE="normal"
 AUTO_CLEAN=false
 PORT=""
 HOST=""
+CONFIG_NAME=""
+START_DATE=""
+END_DATE=""
 
 # 解析所有参数
 while [[ $# -gt 0 ]]; do
     case $1 in
         --mock)
-    MODE="mock"
+	MODE="mock"
             shift
             ;;
         --clean)
-    AUTO_CLEAN=true
+	AUTO_CLEAN=true
             shift
             ;;
         --port)
@@ -40,6 +47,18 @@ while [[ $# -gt 0 ]]; do
             ;;
         --host)
             HOST="$2"
+            shift 2
+            ;;
+        --config-name)
+            CONFIG_NAME="$2"
+            shift 2
+            ;;
+        --start-date)
+            START_DATE="$2"
+            shift 2
+            ;;
+        --end-date)
+            END_DATE="$2"
             shift 2
             ;;
         *)
@@ -97,8 +116,10 @@ if [ "$MODE" = "normal" ]; then
     echo ""
 fi
 
-# 获取CONFIG_NAME（从.env文件或使用默认值）
-CONFIG_NAME='mock'
+# 设置CONFIG_NAME默认值（如果未通过参数指定）
+if [ -z "$CONFIG_NAME" ]; then
+    CONFIG_NAME='mock'
+fi
 
 # 正常模式下询问是否清空历史记录
 CLEAN_HISTORY=false
@@ -197,7 +218,15 @@ if [ "$MODE" = "mock" ]; then
     echo "   说明: 用于测试前端，不需要真实数据和API密钥"
 else
     echo "   模式: 🚀 NORMAL (真实交易)"
-    echo "   配置目录: ${CONFIG_NAME}"
+fi
+echo "   配置名称: ${CONFIG_NAME}"
+if [ -n "$START_DATE" ]; then
+    echo "   开始日期: ${START_DATE}"
+fi
+if [ -n "$END_DATE" ]; then
+    echo "   结束日期: ${END_DATE}"
+fi
+if [ "$MODE" = "normal" ]; then
     if [ "$CLEAN_HISTORY" = true ]; then
         echo "   历史记录: 已清空 🆕"
     else
@@ -229,6 +258,15 @@ if [ -n "$HOST" ]; then
 fi
 if [ -n "$PORT" ]; then
     PYTHON_CMD="$PYTHON_CMD --port $PORT"
+fi
+if [ -n "$CONFIG_NAME" ]; then
+    PYTHON_CMD="$PYTHON_CMD --config-name $CONFIG_NAME"
+fi
+if [ -n "$START_DATE" ]; then
+    PYTHON_CMD="$PYTHON_CMD --start-date $START_DATE"
+fi
+if [ -n "$END_DATE" ]; then
+    PYTHON_CMD="$PYTHON_CMD --end-date $END_DATE"
 fi
 
 # 执行启动命令

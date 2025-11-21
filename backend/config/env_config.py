@@ -292,6 +292,17 @@ class LiveThinkingFundConfig:
         self.margin_requirement = get_env_value('MARGIN_REQUIREMENT', default=0.0, value_type=float, env_vars=self.env_vars)
         
         # Date configuration
+        self.start_date = get_env_value('START_DATE', default=None, env_vars=self.env_vars)
+        self.end_date = get_env_value('END_DATE', default=None, env_vars=self.env_vars)
+        
+        # Use default values if dates are not set
+        if not self.end_date:
+            self.end_date = datetime.now().strftime("%Y-%m-%d")
+        
+        if not self.start_date:
+            end_date_obj = datetime.strptime(self.end_date, "%Y-%m-%d")
+            self.start_date = (end_date_obj - timedelta(days=30)).strftime("%Y-%m-%d")
+        
         # Feature switches
         self.force_run = get_env_value('FORCE_RUN', default=False, value_type=bool, env_vars=self.env_vars)
         self.pause_before_trade = get_env_value('PAUSE_BEFORE_TRADE', default=False, value_type=bool, env_vars=self.env_vars)
@@ -311,7 +322,10 @@ class LiveThinkingFundConfig:
             self.base_dir = args.base_dir
         
         if hasattr(args, 'start_date') and args.start_date:
-            self.backfill_start_date = args.start_date
+            self.start_date = args.start_date
+        
+        if hasattr(args, 'end_date') and args.end_date:
+            self.end_date = args.end_date
         
         if hasattr(args, 'date') and args.date:
             self.target_date = args.date
