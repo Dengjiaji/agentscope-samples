@@ -157,9 +157,21 @@ class MemoryReflectionSystem:
             analyst_signals = reflection_data.get('analyst_signals', {})
             tickers = reflection_data.get('tickers', [])
             
-            # Generate prompt
-            prompt = self._build_central_review_prompt(date, tickers, pm_signals, 
-                                                       analyst_signals, actual_returns, real_returns)
+            # Extract additional data from reflection_data (added by live_trading_fund.py)
+            portfolio_summary = reflection_data.get('portfolio_summary', {})
+            executed_trades = reflection_data.get('executed_trades', [])
+            failed_trades = reflection_data.get('failed_trades', [])
+            pre_portfolio_state = reflection_data.get('pre_portfolio_state', {})
+            updated_portfolio = reflection_data.get('updated_portfolio', {})
+            analyst_stats = reflection_data.get('analyst_stats', {})
+            live_env = reflection_data.get('live_env', {})
+            
+            # Generate prompt with enhanced data
+            prompt = self._build_central_review_prompt(
+                date, tickers, pm_signals, analyst_signals, actual_returns, real_returns,
+                portfolio_summary, executed_trades, failed_trades, 
+                pre_portfolio_state, updated_portfolio, analyst_stats, live_env
+            )
             
             logger.info(f"🤖 Central Review mode ({date})")
             
@@ -396,33 +408,149 @@ Stock Real Return: {real_return:+.2%}"""
         
         return results
     
-    def _build_central_review_prompt(self, date: str, tickers: List[str],
-                                    pm_signals: Dict, analyst_signals: Dict, 
-                                    actual_returns: Dict, real_returns: Dict) -> str:
-        """Build Central Review prompt"""
-        pm_signals_section = "\n".join([
-            f"{ticker}: PM decision {pm_signals.get(ticker, {}).get('signal', 'N/A')} "
-            f"(confidence: {pm_signals.get(ticker, {}).get('confidence', 'N/A')}%), "
-            f"Stock real daily return: {real_returns.get(ticker, 0):.2%}"
-            for ticker in tickers
-        ])
+    def _build_central_review_prompt(
+        self, 
+        date: str, 
+        tickers: List[str],
+        pm_signals: Dict, 
+        analyst_signals: Dict, 
+        actual_returns: Dict, 
+        real_returns: Dict,
+        portfolio_summary: Dict = None,
+        executed_trades: List = None,
+        failed_trades: List = None,
+        pre_portfolio_state: Dict = None,
+        updated_portfolio: Dict = None,
+        analyst_stats: Dict = None,
+        live_env: Dict = None
+    ) -> str:
+        """
+        Build Central Review prompt (Enhanced version with more context data)
+        Uses original memory_decision.md template but with enriched information
+        """
+        # Build PM signals section with enhanced details
+        pm_signals_section = ""
+        for ticker in tickers:
+            if ticker in pm_signals:
+                decision_data = pm_signals[ticker]
+                action = decision_data.get('action', 'N/A')
+                signal = decision_data.get('signal', action)  # fallback to action if signal not present
+                quantity = decision_data.get('quantity', 0)
+                confidence = decision_data.get('confidence', 'N/A')
+                reasoning = decision_data.get('reasoning', '')
+                
+                # Ensure reasoning is a string
+                if not isinstance(reasoning, str):
+                    reasoning = str(reasoning) if reasoning else ''
+                
+                pm_signals_section += f"{ticker}: PM decision {signal} "
+                pm_signals_section += f"(Action: {action}, Quantity: {quantity} shares, Confidence: {confidence}%), "
+                pm_signals_section += f"Stock real daily return: {real_returns.get(ticker, 0):.2%}\n"
+                if reasoning:
+                    pm_signals_section += f"  Reasoning: {reasoning}\n"
         
+        # Build analyst signals section with enhanced details
         analyst_signals_section = ""
-        for analyst, signals in analyst_signals.items():
-            analyst_signals_section += f"\n\n**{analyst}:**"
+        for analyst_id, signals in analyst_signals.items():
+            from backend.config.constants import ANALYST_TYPES
+            display_name = ANALYST_TYPES.get(analyst_id, {}).get('display_name', analyst_id)
+            
+            analyst_signals_section += f"\n**{display_name} ({analyst_id}):**"
+            
+            # Add historical performance stats if available
+            if analyst_stats and analyst_id in analyst_stats:
+                stats = analyst_stats[analyst_id]
+                win_rate = stats.get('win_rate')
+                if win_rate is not None:
+                    analyst_signals_section += f" [Historical Win Rate: {win_rate:.1%}]"
+            
+            analyst_signals_section += "\n"
+            
             for ticker in tickers:
                 if ticker in signals:
-                    analyst_signals_section += f"\n  {ticker}: {signals[ticker]}, Stock real daily return: {real_returns.get(ticker, 0):.2%}"
+                    analyst_signal = signals[ticker]
+                    if isinstance(analyst_signal, dict):
+                        signal = analyst_signal.get('signal', 'N/A')
+                        confidence = analyst_signal.get('confidence', 'N/A')
+                        analyst_signals_section += f"  {ticker}: {signal} (Confidence: {confidence}%), "
+                    else:
+                        analyst_signals_section += f"  {ticker}: {analyst_signal}, "
+                    analyst_signals_section += f"Stock real daily return: {real_returns.get(ticker, 0):.2%}\n"
         
-        return self.prompt_loader.load_prompt(
+        # Build portfolio context section (new addition)
+        portfolio_context = ""
+        
+        # Use live_env if available
+        if live_env:
+            pre_portfolio_state = live_env.get('pre_portfolio_state', pre_portfolio_state)
+            updated_portfolio = live_env.get('updated_portfolio', updated_portfolio)
+            executed_trades = live_env.get('executed_trades', executed_trades or [])
+            failed_trades = live_env.get('failed_trades', failed_trades or [])
+        
+        if portfolio_summary or executed_trades or failed_trades:
+            portfolio_context = "\n## Portfolio Performance Context\n\n"
+            
+            if portfolio_summary:
+                total_value = portfolio_summary.get('total_value', 'N/A')
+                cash = portfolio_summary.get('cash', 'N/A')
+                portfolio_context += f"- Total Portfolio Value: ${total_value:,.2f}" if isinstance(total_value, (int, float)) else f"- Total Portfolio Value: {total_value}\n"
+                portfolio_context += f"- Cash Position: ${cash:,.2f}\n" if isinstance(cash, (int, float)) else f"- Cash Position: {cash}\n"
+            
+            if executed_trades:
+                portfolio_context += f"- Successfully Executed Trades: {len(executed_trades)}\n"
+                for trade in executed_trades[:3]:  # Show first 3 trades
+                    if isinstance(trade, dict):
+                        ticker = trade.get('ticker', 'N/A')
+                        action = trade.get('action', 'N/A')
+                        quantity = trade.get('quantity', 0)
+                        portfolio_context += f"  * {ticker}: {action} {quantity} shares\n"
+            
+            if failed_trades:
+                portfolio_context += f"- Failed Trades: {len(failed_trades)}\n"
+                for trade in failed_trades[:3]:  # Show first 3 failed trades
+                    if isinstance(trade, dict):
+                        ticker = trade.get('ticker', 'N/A')
+                        reason = trade.get('reason', 'Unknown')
+                        portfolio_context += f"  * {ticker}: {reason}\n"
+        
+        # Build analyst historical performance summary (new addition)
+        analyst_performance_summary = ""
+        if analyst_stats:
+            analyst_performance_summary = "\n## Analyst Historical Performance Summary\n\n"
+            
+            # Sort by win rate (descending)
+            sorted_analysts = sorted(
+                analyst_stats.items(),
+                key=lambda x: (x[1]['win_rate'] is not None, x[1]['win_rate'] or 0),
+                reverse=True
+            )
+            
+            for analyst_id, stats in sorted_analysts:
+                win_rate = stats.get('win_rate')
+                total = stats.get('total_predictions', 0)
+                correct = stats.get('correct_predictions', 0)
+                
+                # Skip if no data
+                if win_rate is None or total == 0:
+                    continue
+                
+                from backend.config.constants import ANALYST_TYPES
+                display_name = ANALYST_TYPES.get(analyst_id, {}).get('display_name', analyst_id)
+                
+                analyst_performance_summary += f"- **{display_name}**: Win Rate {win_rate:.1%} ({correct}/{total} predictions)\n"
+        
+        # Use original memory_decision template with enhanced data
+        prompt = self.prompt_loader.load_prompt(
             "memory",
             "memory_decision",
             {
                 "date": date,
-                "pm_signals_section": pm_signals_section,
+                "pm_signals_section": pm_signals_section + portfolio_context + analyst_performance_summary,
                 "analyst_signals_section": analyst_signals_section
             }
         )
+        
+        return prompt
     
     def _build_analyst_reflection_prompt(self, agent_role: str, date: str, 
                                         agent_data: Dict) -> str:
