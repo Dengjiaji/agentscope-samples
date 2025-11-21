@@ -140,35 +140,47 @@ export default function StatisticsView({ trades, holdings, stats, baseline_vw, e
                 </div>
               </div>
               
-              {/* Secondary Metrics - Grid */}
+              {/* Secondary Metrics - Grid: Excess Return, Win Rate, Absolute Return */}
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
+                gridTemplateColumns: excessReturnData ? '1fr 1fr 1fr' : '1fr 1fr',
                 gap: 16,
                 paddingBottom: 20,
                 borderBottom: '1px solid #e0e0e0'
               }}>
-                <div>
-                  <div style={{
-                    fontSize: 9,
-                    color: '#999999',
-                    fontWeight: 700,
-                    letterSpacing: 1,
-                    marginBottom: 8,
-                    textTransform: 'uppercase'
-                  }}>
-                    Return
+                {/* 1. Excess Return */}
+                {excessReturnData ? (
+                  <div>
+                    <div style={{
+                      fontSize: 9,
+                      color: '#999999',
+                      fontWeight: 700,
+                      letterSpacing: 1,
+                      marginBottom: 8,
+                      textTransform: 'uppercase'
+                    }}>
+                      Excess Return
+                    </div>
+                    <div style={{
+                      fontSize: 28,
+                      fontWeight: 700,
+                      color: excessReturnData.excessReturn >= 0 ? '#00C853' : '#FF1744',
+                      fontFamily: '"Courier New", monospace'
+                    }}>
+                      {excessReturnData.excessReturn >= 0 ? '+' : ''}{excessReturnData.excessReturn.toFixed(2)}%
+                    </div>
+                    <div style={{
+                      fontSize: 7,
+                      color: '#999999',
+                      marginTop: 4,
+                      fontFamily: '"Courier New", monospace'
+                    }}>
+                      vs. VW: {excessReturnData.benchmarkReturn >= 0 ? '+' : ''}{excessReturnData.benchmarkReturn.toFixed(2)}%
+                    </div>
                   </div>
-                  <div style={{
-                    fontSize: 28,
-                    fontWeight: 700,
-                    color: (stats.totalReturn || 0) >= 0 ? '#00C853' : '#FF1744',
-                    fontFamily: '"Courier New", monospace'
-                  }}>
-                    {(stats.totalReturn || 0) >= 0 ? '+' : ''}{(stats.totalReturn || 0).toFixed(2)}%
-                  </div>
-                </div>
+                ) : null}
                 
+                {/* 2. Win Rate */}
                 <div>
                   <div style={{
                     fontSize: 9,
@@ -189,14 +201,9 @@ export default function StatisticsView({ trades, holdings, stats, baseline_vw, e
                     {Math.round(stats.winRate * 100)}%
                   </div>
                 </div>
-              </div>
-              
-              {/* Excess Return - Single Metric */}
-              {excessReturnData && (
-                <div style={{
-                  padding: '16px 0',
-                  borderBottom: '1px solid #e0e0e0'
-                }}>
+                
+                {/* 3. Absolute Return */}
+                <div>
                   <div style={{
                     fontSize: 9,
                     color: '#999999',
@@ -205,26 +212,18 @@ export default function StatisticsView({ trades, holdings, stats, baseline_vw, e
                     marginBottom: 8,
                     textTransform: 'uppercase'
                   }}>
-                    Excess Return
+                    Absolute Return
                   </div>
                   <div style={{
-                    fontSize: 24,
+                    fontSize: 28,
                     fontWeight: 700,
-                    color: excessReturnData.excessReturn >= 0 ? '#00C853' : '#FF1744',
+                    color: (stats.totalReturn || 0) >= 0 ? '#00C853' : '#FF1744',
                     fontFamily: '"Courier New", monospace'
                   }}>
-                    {excessReturnData.excessReturn >= 0 ? '+' : ''}{excessReturnData.excessReturn.toFixed(2)}%
-                  </div>
-                  <div style={{
-                    fontSize: 8,
-                    color: '#999999',
-                    marginTop: 4,
-                    fontFamily: '"Courier New", monospace'
-                  }}>
-                    vs. Benchmark (VW): {excessReturnData.benchmarkReturn >= 0 ? '+' : ''}{excessReturnData.benchmarkReturn.toFixed(2)}%
+                    {(stats.totalReturn || 0) >= 0 ? '+' : ''}{(stats.totalReturn || 0).toFixed(2)}%
                   </div>
                 </div>
-              )}
+              </div>
               
               {/* Tertiary Metrics - Compact List */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
