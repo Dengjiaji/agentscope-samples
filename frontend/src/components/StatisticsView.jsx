@@ -195,7 +195,7 @@ export default function StatisticsView({ trades, holdings, stats, baseline_vw, e
                   <div style={{
                     fontSize: 28,
                     fontWeight: 700,
-                    color: stats.winRate >= 0.5 ? '#00C853' : '#FF1744',
+                    color: '#000000',
                     fontFamily: '"Courier New", monospace'
                   }}>
                     {Math.round(stats.winRate * 100)}%
