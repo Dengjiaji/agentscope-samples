@@ -172,7 +172,7 @@ export default function ContactModal({ onClose }) {
           <div style={iframeContainerStyle}>
             <div style={iframeLabelStyle}>
               <span style={{ fontWeight: 600, color: '#615CED' }}></span>
-              <span style={{ color: '#999' }}>•</span>
+              <span style={{ color: '#999' }}>•Yue Wu</span>
               <a 
                 href="https://1mycell.github.io/" 
                 target="_blank" 
@@ -198,7 +198,7 @@ export default function ContactModal({ onClose }) {
           <div style={iframeContainerStyle}>
             <div style={iframeLabelStyle}>
               <span style={{ fontWeight: 600, color: '#615CED' }}></span>
-              <span style={{ color: '#999' }}>•</span>
+              <span style={{ color: '#999' }}>•Jiaji Deng</span>
               <a 
                 href="https://dengjiaji.github.io/self/" 
                 target="_blank" 

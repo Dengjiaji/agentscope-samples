@@ -223,7 +223,7 @@ class LiveTradingFund:
             'ana_signals': defaultdict(lambda: defaultdict(str)),  # Automatically create nested dict, default value is empty string
             'real_returns': defaultdict(float) , # Auto-create, default value is 0.0
             'daily_returns': defaultdict(float),
-            'state': result.get('state') , # Add state for memory reflection
+            'state': result.get('state'),  # Add state for memory reflection and deferred trade execution
             'pre_portfolio_state': result.get('pre_portfolio_state')
         }
 
@@ -326,10 +326,18 @@ class LiveTradingFund:
             live_env['updated_portfolio'] = result.get('updated_portfolio', {})
             
             # Get executed_trades from execution_report or final_execution_report
+            # In live mode pre-market, execution_report may be None (trades deferred)
             pm_results = result.get('portfolio_management_results', {})
-            execution_report = pm_results.get('final_execution_report') or pm_results.get('execution_report', {})
-            live_env['executed_trades'] = execution_report.get('executed_trades', [])
-            live_env['failed_trades'] = execution_report.get('failed_trades', [])
+            execution_report = pm_results.get('final_execution_report') or pm_results.get('execution_report')
+            
+            # Handle None case (live mode pre-market: trades are deferred)
+            if execution_report is not None:
+                live_env['executed_trades'] = execution_report.get('executed_trades', [])
+                live_env['failed_trades'] = execution_report.get('failed_trades', [])
+            else:
+                # Live mode pre-market: no trades executed yet (will execute after market close)
+                live_env['executed_trades'] = []
+                live_env['failed_trades'] = []
 
         # Record to sandbox log
         self._log_sandbox_activity(date, self.PRE_MARKET, {
@@ -1178,30 +1186,94 @@ class LiveTradingFund:
     ) -> Dict[str, Any]:
         """Execute trades only, do not perform memory review (for Live mode)
         
-        Note: In Live mode, trading decisions have already been completed in pre-market analysis stage via strategy.run_single_day
-        Here mainly records logs and updates dashboard
+        In Live mode:
+        1. First update historical data via ret_data_updater (to get today's closing prices)
+        2. Then update current_prices in state from risk manager (using today's closing prices)
+        3. Then execute deferred trades using today's closing prices
         """
         pm_signals = live_env.get('pm_signals', {})
         
         self.streamer.print("system", 
             f"===== Trade Execution ({date}) =====\n"
-            f"Executing trades based on pre-market signals")
+            f"Step 1: Updating historical data to get today's closing prices...")
         
-        # Display trade signals
-        trade_lines = ["Executing trades:"]
-        for ticker in tickers:
-            if ticker in pm_signals:
-                signal_info = pm_signals[ticker]
-                if self.mode == "portfolio":
-                    action = signal_info.get('action', 'N/A')
-                    quantity = signal_info.get('quantity', 0)
-                    trade_lines.append(f"  {ticker}: {action} ({quantity} shares)")
-                else:
-                    trade_lines.append(f"  {ticker}: {signal_info.get('signal', 'N/A')}")
+        # Step 1: Update historical data (to get today's closing prices)
+        try:
+            from backend.data.ret_data_updater import DataUpdater
+            import os
+            
+            api_key = os.getenv('FINNHUB_API_KEY')
+            if api_key:
+                updater = DataUpdater(api_key=api_key)
+                for ticker in tickers:
+                    updater.update_ticker(ticker, force_full_update=False)
+                self.streamer.print("system", "✅ Historical data updated")
+            else:
+                self.streamer.print("system", "⚠️ FINNHUB_API_KEY not found, skipping data update")
+        except Exception as e:
+            self.streamer.print("system", f"⚠️ Failed to update historical data: {e}")
         
-        self.streamer.print("agent", "\n".join(trade_lines), role_key="portfolio_manager")
+        # Step 2: Get state and execute deferred trades
+        state = live_env.get('state')
+        if not state:
+            self.streamer.print("system", "⚠️ State not found in live_env, cannot execute trades")
+            return {
+                'status': 'failed',
+                'type': 'trade_execution_only',
+                'date': date,
+                'error': 'State not found in live_env'
+            }
         
+        # Step 3: Execute deferred trades (this will get today's closing prices and execute trades)
+        self.streamer.print("system", "Step 2: Getting today's closing prices and executing trades...")
         
+        try:
+            final_execution_report = self.strategy.engine.execute_deferred_trades(
+                state=state,
+                decisions=pm_signals,
+                mode=self.mode,
+                date=date
+            )
+            
+            # Update live_env with execution report
+            live_env['execution_report'] = final_execution_report
+            live_env['executed_trades'] = final_execution_report.get('executed_trades', [])
+            live_env['failed_trades'] = final_execution_report.get('failed_trades', [])
+            
+            # Display execution results
+            executed_trades = final_execution_report.get('executed_trades', [])
+            failed_trades = final_execution_report.get('failed_trades', [])
+            
+            if executed_trades:
+                trade_lines = ["✅ Successfully executed trades:"]
+                for trade in executed_trades:
+                    ticker = trade.get('ticker', 'N/A')
+                    action = trade.get('action', 'N/A')
+                    quantity = trade.get('quantity', 0)
+                    price = trade.get('price', 0)
+                    trade_lines.append(f"  {ticker}: {action} {quantity} shares @ ${price:.2f}")
+                self.streamer.print("agent", "\n".join(trade_lines), role_key="portfolio_manager")
+            
+            if failed_trades:
+                fail_lines = ["❌ Failed trades:"]
+                for trade in failed_trades:
+                    ticker = trade.get('ticker', 'N/A')
+                    reason = trade.get('reason', 'Unknown')
+                    fail_lines.append(f"  {ticker}: {reason}")
+                self.streamer.print("agent", "\n".join(fail_lines), role_key="portfolio_manager")
+            
+        except Exception as e:
+            self.streamer.print("system", f"❌ Failed to execute trades: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'status': 'failed',
+                'type': 'trade_execution_only',
+                'date': date,
+                'error': str(e)
+            }
+        
+        # Step 4: Update dashboard
         dashboard_update_stats = self.dashboard_generator.update_from_day_result(
             date=date,
             pre_market_result=pre_market_result,
@@ -1210,13 +1282,13 @@ class LiveTradingFund:
         self.streamer.print("system", 
             f"Dashboard updated: {dashboard_update_stats.get('trades_added', 0)} trades added, "
             f"{dashboard_update_stats.get('agents_updated', 0)} agents updated")
-        # ================================================
         
         # Record to sandbox log
         log_data = {
             'status': 'success',
             'type': 'trade_execution_only',
             'pm_signals': pm_signals,
+            'execution_report': final_execution_report,
             'note': 'Memory review will be performed next day'
         }
         self._log_sandbox_activity(date, self.POST_MARKET, log_data)
@@ -1228,6 +1300,7 @@ class LiveTradingFund:
             'status': 'success',
             'type': 'trade_execution_only',
             'date': date,
+            'execution_report': final_execution_report,
             'note': 'Memory review will be performed next day when real_returns available'
         }
     

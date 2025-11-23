@@ -276,8 +276,11 @@ class InvestmentEngine:
         risk_analysis_results = self._run_risk_management_analysis(state, mode)
         
         # Step 4: Portfolio management decisions (including communication mechanism)
+        # Check if in live mode and should defer trade execution
+        is_live_mode = state.get("metadata", {}).get("is_live_mode", False)
+        execute_trades = not is_live_mode  # In live mode, defer trade execution to after market close
         portfolio_management_results = self._run_portfolio_management_with_communications(
-            state, enable_communications, mode
+            state, enable_communications, mode, execute_trades=execute_trades
         )
         
         # Generate final report
@@ -293,7 +296,8 @@ class InvestmentEngine:
             "analysis_timestamp": datetime.now().isoformat(),
             "tickers": tickers,
             "date_range": {"start": start_date, "end": end_date},
-            "updated_portfolio": state["data"].get("portfolio")  # Return updated portfolio state
+            "updated_portfolio": state["data"].get("portfolio"),  # Return updated portfolio state
+            "state": state  # Return state for deferred trade execution in live mode
         }
 
 
@@ -886,7 +890,8 @@ class InvestmentEngine:
         self,
         state: AgentState,
         enable_communications: bool = True,
-        mode: str = "signal"
+        mode: str = "signal",
+        execute_trades: bool = True
     ) -> Dict[str, Any]:
         """
         Run portfolio management (including communication mechanism)
@@ -895,6 +900,7 @@ class InvestmentEngine:
             state: Current state
             enable_communications: Whether to enable communication mechanism
             mode: Running mode ("signal" or "portfolio")
+            execute_trades: Whether to execute trades. If False, only generate decisions without execution (for live mode pre-market)
         """
         try:
             # Select appropriate Portfolio Manager based on mode
@@ -1012,6 +1018,60 @@ class InvestmentEngine:
                     else:
                         break
                 
+                # Execute final trading decisions (only if execute_trades=True)
+                if not execute_trades:
+                    # Live mode pre-market: Only generate decisions, do not execute trades yet
+                    # Execution will happen after market close when we have closing prices
+                    if self.streamer:
+                        decision_lines = ["Generated final trading decisions (will execute after market close):"]
+                        for ticker, decision in final_decisions.items():
+                            action = decision.get('action', 'N/A')
+                            confidence = decision.get('confidence', 0)
+                            reasoning = decision.get('reasoning', '')
+                            
+                            # Add emoji for different actions
+                            if mode == "portfolio":
+                                action_emoji = {
+                                    'buy': '📈 Buy',
+                                    'sell': '📉 Sell',
+                                    'short': '🔻 Short',
+                                    'cover': '🔺 Cover',
+                                    'hold': '⏸️ Hold'
+                                }
+                            else:
+                                action_emoji = {
+                                    'long': '📈 Long',
+                                    'short': '📉 Short',
+                                    'hold': '⏸️ Hold'
+                                }
+                            action_display = action_emoji.get(action, action)
+                            
+                            decision_lines.append(f"\n【{ticker}】")
+                            decision_lines.append(f"  Decision: {action_display}")
+                            if mode == "portfolio":
+                                quantity = decision.get('quantity', 0)
+                                decision_lines.append(f"  Quantity: {quantity} shares")
+                            decision_lines.append(f"  Confidence: {confidence}%")
+                            if reasoning:
+                                decision_lines.append(f"  💭 Reasoning: {reasoning}")
+                        
+                        self.streamer.print("agent", "\n".join(decision_lines), role_key="portfolio_manager")
+                    
+                    # Return decisions without execution
+                    return {
+                        "agent_id": "portfolio_manager",
+                        "agent_name": "Portfolio Manager",
+                        "initial_decisions": initial_decisions,
+                        "final_decisions": final_decisions,
+                        "communication_decision": last_decision_dump,
+                        "communication_results": communication_results,
+                        "final_execution_report": None,  # No execution yet
+                        "portfolio_summary": {"status": "signal_based_analysis"},
+                        "communications_enabled": True,
+                        "status": "success",
+                        "trades_deferred": True  # Flag indicating trades are deferred
+                    }
+                
                 # Execute final trading decisions
                 if self.streamer:
                     decision_lines = ["Executing final trading decisions"]
@@ -1067,21 +1127,35 @@ class InvestmentEngine:
                 }
             
             else:
-                # Communication mechanism disabled, execute initial decisions directly
-                execution_report = self._execute_portfolio_trades(state, initial_decisions, mode)
-                
-                # Generate simplified summary
-                portfolio_summary = {"status": "signal_based_analysis"}
-                
-                return {
-                    "agent_id": "portfolio_manager",
-                    "agent_name": "Portfolio Manager",
-                    "final_decisions": initial_decisions,
-                    "execution_report": execution_report,
-                    "portfolio_summary": portfolio_summary,
-                    "communications_enabled": False,
-                    "status": "success"
-                }
+                # Communication mechanism disabled
+                if not execute_trades:
+                    # Live mode pre-market: Only generate decisions
+                    return {
+                        "agent_id": "portfolio_manager",
+                        "agent_name": "Portfolio Manager",
+                        "final_decisions": initial_decisions,
+                        "execution_report": None,
+                        "portfolio_summary": {"status": "signal_based_analysis"},
+                        "communications_enabled": False,
+                        "status": "success",
+                        "trades_deferred": True
+                    }
+                else:
+                    # Execute initial decisions directly
+                    execution_report = self._execute_portfolio_trades(state, initial_decisions, mode)
+                    
+                    # Generate simplified summary
+                    portfolio_summary = {"status": "signal_based_analysis"}
+                    
+                    return {
+                        "agent_id": "portfolio_manager",
+                        "agent_name": "Portfolio Manager",
+                        "final_decisions": initial_decisions,
+                        "execution_report": execution_report,
+                        "portfolio_summary": portfolio_summary,
+                        "communications_enabled": False,
+                        "status": "success"
+                    }
                 
         except Exception as e:
             traceback.print_exc()
@@ -1219,6 +1293,101 @@ class InvestmentEngine:
         except Exception as e:
             import traceback
             return {}
+    
+    def execute_deferred_trades(
+        self,
+        state: AgentState,
+        decisions: Dict[str, Any],
+        mode: str = "signal",
+        date: str = None
+    ) -> Dict[str, Any]:
+        """
+        Execute deferred trades (for live mode after market close)
+        
+        Args:
+            state: Current state with decisions already generated
+            decisions: PM decisions from pre-market analysis
+            mode: Running mode ("signal" or "portfolio")
+            date: Trading date (for updating current prices)
+            
+        Returns:
+            Execution report
+        """
+        # Update end_date in state to current date (to get today's closing price)
+        if date:
+            state["data"]["end_date"] = date
+            state["metadata"]["trading_date"] = date
+        
+        # Re-run risk manager to get today's closing prices
+        # Set is_live_mode=False temporarily to get T-day closing price
+        original_is_live_mode = state.get("metadata", {}).get("is_live_mode", False)
+        state["metadata"]["is_live_mode"] = False  # Get today's closing price
+        
+        risk_analysis_results = self._run_risk_management_analysis(state, mode)
+        
+        # Extract current_prices from risk manager results
+        analyst_signals = state["data"].get("analyst_signals", {})
+        current_prices = {}
+        
+        # Extract current_prices from risk_manager signals (as user suggested)
+        # Get tickers from decisions (since these are the ones we need to trade)
+        tickers = list(decisions.keys())
+        
+        for agent, signals in analyst_signals.items():
+            if agent.startswith("risk_manager"):
+                # Risk management agent - extract risk information
+                for ticker in tickers:
+                    if ticker in signals:
+                        risk_info = signals[ticker]
+                        current_prices[ticker] = risk_info.get("current_price", 0)
+        
+        # Update state with current prices
+        state["data"]["current_prices"] = current_prices
+        
+        # Restore original is_live_mode
+        state["metadata"]["is_live_mode"] = original_is_live_mode
+        
+        # Now execute trades with updated prices
+        if self.streamer:
+            decision_lines = ["Executing final trading decisions (after market close):"]
+            for ticker, decision in decisions.items():
+                action = decision.get('action', 'N/A')
+                confidence = decision.get('confidence', 0)
+                reasoning = decision.get('reasoning', '')
+                price = current_prices.get(ticker, 0)
+                
+                # Add emoji for different actions
+                if mode == "portfolio":
+                    action_emoji = {
+                        'buy': '📈 Buy',
+                        'sell': '📉 Sell',
+                        'short': '🔻 Short',
+                        'cover': '🔺 Cover',
+                        'hold': '⏸️ Hold'
+                    }
+                else:
+                    action_emoji = {
+                        'long': '📈 Long',
+                        'short': '📉 Short',
+                        'hold': '⏸️ Hold'
+                    }
+                action_display = action_emoji.get(action, action)
+                
+                decision_lines.append(f"\n【{ticker}】")
+                decision_lines.append(f"  Decision: {action_display}")
+                decision_lines.append(f"  Closing Price: ${price:.2f}")
+                if mode == "portfolio":
+                    quantity = decision.get('quantity', 0)
+                    decision_lines.append(f"  Quantity: {quantity} shares")
+                decision_lines.append(f"  Confidence: {confidence}%")
+                if reasoning:
+                    decision_lines.append(f"  💭 Reasoning: {reasoning}")
+            
+            self.streamer.print("agent", "\n".join(decision_lines), role_key="portfolio_manager")
+        
+        final_execution_report = self._execute_portfolio_trades(state, decisions, mode)
+        
+        return final_execution_report
     
     def _execute_portfolio_trades(self, state: AgentState, decisions: Dict[str, Any], mode: str = "signal") -> Dict[str, Any]:
         """
