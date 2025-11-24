@@ -63,16 +63,20 @@ setup_logging(
 class InvestmentEngine:
     """Core Investment Analysis Engine - Handles single-day complete analysis workflow"""
     
-    def __init__(self, streamer=None, pause_before_trade=False):
+    def __init__(self, streamer=None, pause_before_trade=False, config_name: str = "default", sandbox_dir: str = None):
         """
         Initialize investment engine
         
         Args:
             streamer: Event streamer for UI updates
             pause_before_trade: Whether to pause before trade execution (only generate decisions, don't execute trades)
+            config_name: Configuration name for directory paths
+            sandbox_dir: Sandbox directory path (optional, will be computed from config_name if not provided)
         """
         self.streamer = streamer
         self.pause_before_trade = pause_before_trade
+        self.config_name = config_name
+        self.sandbox_dir = sandbox_dir
         
         # Add thread lock for parallel execution synchronization
         self._notification_lock = threading.Lock()
@@ -904,10 +908,15 @@ class InvestmentEngine:
         """
         try:
             # Select appropriate Portfolio Manager based on mode
+            # Prepare config with dashboard directory
+            pm_config = {
+                'config_name': self.config_name,
+                'sandbox_dir': self.sandbox_dir
+            }
             if mode == "portfolio":
-                pm_agent = PortfolioManagerAgent(agent_id="portfolio_manager", mode="portfolio")
+                pm_agent = PortfolioManagerAgent(agent_id="portfolio_manager", mode="portfolio", config=pm_config)
             else:
-                pm_agent = PortfolioManagerAgent(agent_id="portfolio_manager", mode="direction")
+                pm_agent = PortfolioManagerAgent(agent_id="portfolio_manager", mode="direction", config=pm_config)
             
             portfolio_result = pm_agent.execute(state)
             
@@ -999,10 +1008,15 @@ class InvestmentEngine:
                             state["data"]["analyst_signals"][f"{agent_id}_post_communication_cycle{cycle}"] = updated_signal
                         
                         # Rerun portfolio management
+                        # Prepare config with dashboard directory
+                        pm_config = {
+                            'config_name': self.config_name,
+                            'sandbox_dir': self.sandbox_dir
+                        }
                         if mode == "portfolio":
-                            pm_agent = PortfolioManagerAgent(agent_id="portfolio_manager", mode="portfolio")
+                            pm_agent = PortfolioManagerAgent(agent_id="portfolio_manager", mode="portfolio", config=pm_config)
                         else:
-                            pm_agent = PortfolioManagerAgent(agent_id="portfolio_manager", mode="direction")
+                            pm_agent = PortfolioManagerAgent(agent_id="portfolio_manager", mode="direction", config=pm_config)
                         
                         final_portfolio_result = pm_agent.execute(state)
                         
@@ -1187,7 +1201,7 @@ class InvestmentEngine:
                     topic=communication_decision.discussion_topic,
                     analyst_signal=analyst_signals[analyst_id],
                     state=state,
-                    max_rounds=2,
+                    max_rounds=1,
                     streamer=self.streamer
                 )
                 
@@ -1241,7 +1255,7 @@ class InvestmentEngine:
             topic=communication_decision.discussion_topic,
             analyst_signals=meeting_signals,
             state=state,
-            max_rounds=2,
+            max_rounds=1,
             streamer=self.streamer
         )
         

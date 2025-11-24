@@ -6,6 +6,8 @@ from typing import Dict, Any, Optional, Literal, List
 import json
 import pdb
 import os
+from pathlib import Path
+from datetime import datetime, timedelta
 from agentscope.agent import AgentBase
 from agentscope.message import Msg
 
@@ -153,9 +155,7 @@ class PortfolioManagerAgent(AgentBase):
                     risk_info = signals[ticker]
                     ticker_signals[agent] = {
                         "type": "risk_assessment",
-                        "risk_level": risk_info.get("risk_level", "unknown"),
-                        "risk_score": risk_info.get("risk_score", 50),
-                        "risk_assessment": risk_info.get("risk_assessment", "")
+                        "risk_info": {i: risk_info[i] for i in risk_info if i != "reasoning"}
                     }
                     current_prices[ticker] = risk_info.get("current_price", 0)
             elif ticker in signals:
@@ -260,6 +260,9 @@ class PortfolioManagerAgent(AgentBase):
         # Format analyst performance stats
         analyst_performance_info = self._format_analyst_performance(state)
         
+        # Get recent memory (win rates and last 3 trading days signals)
+        recent_memory = self._get_recent_memory(state)
+        
         # Generate prompt
         prompt_data = {
             "signals_by_ticker": json.dumps(signals_by_ticker, indent=2, ensure_ascii=False),
@@ -271,6 +274,8 @@ class PortfolioManagerAgent(AgentBase):
             "analyst_performance_info": analyst_performance_info,
             "analyst_performance_separator": "\n" if analyst_performance_info else "",
             "relevant_past_experiences": formatted_memories,  # Inject historical experience
+            "recent_memory": recent_memory,
+            "recent_memory_separator": "\n" if recent_memory else "",
         }
 
 
@@ -298,7 +303,18 @@ class PortfolioManagerAgent(AgentBase):
             )
         
         progress.update_status(self.agent_id, None, "Generating decisions based on signals and historical experience")
-        
+                # 保存到文件	        
+        save_dir = "/Users/wy/Downloads/Project/IA_space/reviews/pm_decisions/"	
+        os.makedirs(save_dir, exist_ok=True)	
+        filename = f"pm_decision_system_prompt_{state['metadata']['trading_date']}.txt"	
+        filepath = os.path.join(save_dir, filename)	
+        with open(filepath, 'w', encoding='utf-8') as f:	
+            f.write(system_prompt)	
+        filename = f"pm_decision_human_prompt_{state['metadata']['trading_date']}.txt"	
+        filepath = os.path.join(save_dir, filename)	
+        with open(filepath, 'w', encoding='utf-8') as f:	
+            f.write(human_prompt)	
+        print(f"✅ Decision saved to: {filepath}")
         # pdb.set_trace()
         return tool_call(
             messages=messages,
@@ -543,4 +559,481 @@ class PortfolioManagerAgent(AgentBase):
             return "No relevant historical experience available."
         
         return "\n".join(formatted_lines)
-
+    
+    def _get_recent_memory(self, state: AgentState) -> str:
+        """
+        Get recent memory: latest win rates and last 3 trading days' signals for analysts and PM
+        
+        Returns:
+            Formatted string with recent memory information
+        """
+        recent_memory_parts = []
+        
+        # Try to get dashboard data from config
+        dashboard_dir = self.config.get('dashboard_dir')
+        
+        if not dashboard_dir:
+            # Try to get sandbox_dir from config
+            sandbox_dir = self.config.get('sandbox_dir')
+            if sandbox_dir:
+                dashboard_dir = Path(sandbox_dir) / "team_dashboard"
+            else:
+                # Try to get from config_name
+                config_name = self.config.get('config_name', 'default')
+                if config_name and config_name != 'default':
+                    # Compute path from config_name
+                    from ..config.path_config import get_directory_config
+                    base_dir = Path(get_directory_config(config_name))
+                    dashboard_dir = base_dir / "sandbox_logs" / "team_dashboard"
+                else:
+                    # No valid configuration found
+                    print(f"⚠️ Dashboard directory not configured, skipping recent memory")
+                    return ""
+        
+        dashboard_dir = Path(dashboard_dir)
+        leaderboard_file = dashboard_dir / "leaderboard.json"
+        summary_file = dashboard_dir / "summary.json"
+        internal_state_file = dashboard_dir / "_internal_state.json"
+        
+        # Load leaderboard data (contains agent performance and signals)
+        agent_performance_data = {}
+        if leaderboard_file.exists():
+            try:
+                with open(leaderboard_file, 'r', encoding='utf-8') as f:
+                    leaderboard = json.load(f)
+                    for agent in leaderboard:
+                        agent_id = agent.get('agentId', '')
+                        agent_performance_data[agent_id] = {
+                            'winRate': agent.get('winRate'),
+                            'signals': agent.get('signals', [])
+                        }
+            except Exception as e:
+                print(f"⚠️ Failed to load leaderboard data: {e}")
+        
+        # Load internal state for detailed portfolio and trade information
+        internal_state = {}
+        if internal_state_file.exists():
+            try:
+                with open(internal_state_file, 'r', encoding='utf-8') as f:
+                    internal_state = json.load(f)
+            except Exception as e:
+                print(f"⚠️ Failed to load internal state: {e}")
+        
+        # Load summary data (contains benchmark returns)
+        benchmark_returns = {}
+        equity_history = []
+        if summary_file.exists():
+            try:
+                with open(summary_file, 'r', encoding='utf-8') as f:
+                    summary = json.load(f)
+                    # Calculate returns from equity history
+                    equity = summary.get('equity', [])
+                    baseline = summary.get('baseline', [])
+                    baseline_vw = summary.get('baseline_vw', [])
+                    momentum = summary.get('momentum', [])
+                    
+                    initial_value = 100000.0  # Default initial cash
+                    if equity and len(equity) > 0:
+                        initial_value = equity[0].get('v', 100000.0) if isinstance(equity[0], dict) else equity[0]
+                        equity_history = equity
+                    
+                        # Calculate current returns (from initial value)
+                        if equity and len(equity) > 0:
+                            current_equity = equity[-1].get('v', initial_value) if isinstance(equity[-1], dict) else equity[-1]
+                            portfolio_return = ((current_equity - initial_value) / initial_value) * 100
+                            benchmark_returns['portfolio'] = portfolio_return
+                            
+                            # Calculate last 3 single-day returns for portfolio
+                            recent_daily_returns = []
+                            if len(equity) >= 2:
+                                # Calculate daily returns for the last 3 trading days
+                                for i in range(max(1, len(equity) - 3), len(equity)):
+                                    prev_equity = equity[i-1].get('v', initial_value) if isinstance(equity[i-1], dict) else equity[i-1]
+                                    curr_equity = equity[i].get('v', initial_value) if isinstance(equity[i], dict) else equity[i]
+                                    if prev_equity > 0:
+                                        daily_return = ((curr_equity - prev_equity) / prev_equity) * 100
+                                        recent_daily_returns.append(daily_return)
+                            benchmark_returns['portfolio_recent_daily_returns'] = recent_daily_returns
+                    
+                    if baseline and len(baseline) > 0:
+                        current_baseline = baseline[-1].get('v', initial_value) if isinstance(baseline[-1], dict) else baseline[-1]
+                        baseline_return = ((current_baseline - initial_value) / initial_value) * 100
+                        benchmark_returns['baseline'] = baseline_return
+                        
+                        # Calculate last 3 single-day returns for baseline
+                        baseline_daily_returns = []
+                        if len(baseline) >= 2:
+                            for i in range(max(1, len(baseline) - 3), len(baseline)):
+                                prev_baseline = baseline[i-1].get('v', initial_value) if isinstance(baseline[i-1], dict) else baseline[i-1]
+                                curr_baseline = baseline[i].get('v', initial_value) if isinstance(baseline[i], dict) else baseline[i]
+                                if prev_baseline > 0:
+                                    daily_return = ((curr_baseline - prev_baseline) / prev_baseline) * 100
+                                    baseline_daily_returns.append(daily_return)
+                        benchmark_returns['baseline_recent_daily_returns'] = baseline_daily_returns
+                    
+                    if baseline_vw and len(baseline_vw) > 0:
+                        current_baseline_vw = baseline_vw[-1].get('v', initial_value) if isinstance(baseline_vw[-1], dict) else baseline_vw[-1]
+                        baseline_vw_return = ((current_baseline_vw - initial_value) / initial_value) * 100
+                        benchmark_returns['baseline_vw'] = baseline_vw_return
+                        
+                        # Calculate last 3 single-day returns for baseline_vw
+                        baseline_vw_daily_returns = []
+                        if len(baseline_vw) >= 2:
+                            for i in range(max(1, len(baseline_vw) - 3), len(baseline_vw)):
+                                prev_baseline_vw = baseline_vw[i-1].get('v', initial_value) if isinstance(baseline_vw[i-1], dict) else baseline_vw[i-1]
+                                curr_baseline_vw = baseline_vw[i].get('v', initial_value) if isinstance(baseline_vw[i], dict) else baseline_vw[i]
+                                if prev_baseline_vw > 0:
+                                    daily_return = ((curr_baseline_vw - prev_baseline_vw) / prev_baseline_vw) * 100
+                                    baseline_vw_daily_returns.append(daily_return)
+                        benchmark_returns['baseline_vw_recent_daily_returns'] = baseline_vw_daily_returns
+                    
+                    if momentum and len(momentum) > 0:
+                        current_momentum = momentum[-1].get('v', initial_value) if isinstance(momentum[-1], dict) else momentum[-1]
+                        momentum_return = ((current_momentum - initial_value) / initial_value) * 100
+                        benchmark_returns['momentum'] = momentum_return
+                        
+                        # Calculate last 3 single-day returns for momentum
+                        momentum_daily_returns = []
+                        if len(momentum) >= 2:
+                            for i in range(max(1, len(momentum) - 3), len(momentum)):
+                                prev_momentum = momentum[i-1].get('v', initial_value) if isinstance(momentum[i-1], dict) else momentum[i-1]
+                                curr_momentum = momentum[i].get('v', initial_value) if isinstance(momentum[i], dict) else momentum[i]
+                                if prev_momentum > 0:
+                                    daily_return = ((curr_momentum - prev_momentum) / prev_momentum) * 100
+                                    momentum_daily_returns.append(daily_return)
+                        benchmark_returns['momentum_recent_daily_returns'] = momentum_daily_returns
+            except Exception as e:
+                print(f"⚠️ Failed to load summary data: {e}")
+           
+        # Format recent memory
+        recent_memory_parts.append("## Recent Memory")
+        recent_memory_parts.append("")
+        
+        # Get unique trading dates from signals (last 3 trading days)
+        all_dates = set()
+        for agent_data in agent_performance_data.values():
+            signals = agent_data.get('signals', [])
+            for signal in signals:
+                date = signal.get('date', '')
+                if date:
+                    all_dates.add(date)
+        
+        # Sort dates and get last 3
+        sorted_dates = sorted(all_dates, reverse=True)[:3]
+        
+        # Format analyst and PM win rates and recent signals
+        for agent_id, agent_data in agent_performance_data.items():
+            win_rate = agent_data.get('winRate')
+            signals = agent_data.get('signals', [])
+            
+            # Filter signals for last 3 trading days
+            recent_signals = [s for s in signals if s.get('date', '') in sorted_dates]
+            recent_signals.sort(key=lambda x: (x.get('date', ''), x.get('ticker', '')), reverse=True)
+            
+            if win_rate is not None or recent_signals:
+                agent_name = agent_id.replace('_', ' ').title()
+                recent_memory_parts.append(f"### {agent_name}")
+                
+                if win_rate is not None:
+                    recent_memory_parts.append(f"- Latest Win Rate: {win_rate*100:.2f}%")
+                
+                if recent_signals:
+                    # Special handling for Portfolio Manager signals
+                    if agent_id == 'portfolio_manager':
+                        recent_memory_parts.append(f"- Last 3 Trading Days Decisions:")
+                        recent_memory_parts.extend(
+                            self._format_pm_signals_with_trades(recent_signals, sorted_dates, internal_state)
+                        )
+                    else:
+                        recent_memory_parts.append(f"- Last 3 Trading Days Signals:")
+                        
+                        # Group by date
+                        signals_by_date = {}
+                        for signal in recent_signals:
+                            date = signal.get('date', '')
+                            if date not in signals_by_date:
+                                signals_by_date[date] = []
+                            signals_by_date[date].append(signal)
+                        
+                        for date in sorted(sorted_dates, reverse=True):
+                            if date in signals_by_date:
+                                recent_memory_parts.append(f"  **{date}:**")
+                                for signal in signals_by_date[date]:
+                                    ticker = signal.get('ticker', '')
+                                    signal_value = signal.get('signal', '')
+                                    real_return = signal.get('real_return', 'N/A')
+                                    is_correct = signal.get('is_correct', 'unknown')
+                                    
+                                    correct_marker = ""
+                                    if is_correct == True:
+                                        correct_marker = " ✓"
+                                    elif is_correct == False:
+                                        correct_marker = " ✗"
+                                    elif is_correct == 'unknown':
+                                        correct_marker = " ?"
+                                    
+                                    recent_memory_parts.append(
+                                        f"    - {ticker}: {signal_value} (Real Return: {real_return}){correct_marker}"
+                                    )
+                
+                recent_memory_parts.append("")
+        
+        # Add benchmark returns section at the end
+        if benchmark_returns:
+            recent_memory_parts.append("### Benchmark Performance")
+            
+            # Current cumulative returns
+            if 'baseline' in benchmark_returns:
+                recent_memory_parts.append(f"- Buy & Hold (Equal Weight): {benchmark_returns['baseline']:+.2f}%")
+            if 'baseline_vw' in benchmark_returns:
+                recent_memory_parts.append(f"- Buy & Hold (Value Weighted): {benchmark_returns['baseline_vw']:+.2f}%")
+            if 'momentum' in benchmark_returns:
+                recent_memory_parts.append(f"- Momentum Strategy: {benchmark_returns['momentum']:+.2f}%")
+            if 'portfolio' in benchmark_returns:
+                portfolio_return = benchmark_returns['portfolio']
+                recent_memory_parts.append(f"- Portfolio (EvoTraders): {portfolio_return:+.2f}%")
+                # Calculate excess return vs baseline_vw
+                if 'baseline_vw' in benchmark_returns:
+                    excess_return = portfolio_return - benchmark_returns['baseline_vw']
+                    recent_memory_parts.append(f"- Excess Return vs VW: {excess_return:+.2f}%")
+            
+            # Last 3 trading days strategy returns change log
+            recent_memory_parts.append("")
+            recent_memory_parts.append("**Last 3 Trading Days Stategy Returns Change Log:**")
+            
+            if benchmark_returns.get('portfolio_recent_daily_returns'):
+                daily_returns = benchmark_returns['portfolio_recent_daily_returns']
+                if daily_returns:
+                    returns_str = ", ".join([f"{r:+.2f}%" for r in daily_returns])
+                    recent_memory_parts.append(f"- Portfolio (EvoTraders): {returns_str}")
+            
+            if benchmark_returns.get('baseline_recent_daily_returns'):
+                daily_returns = benchmark_returns['baseline_recent_daily_returns']
+                if daily_returns:
+                    returns_str = ", ".join([f"{r:+.2f}%" for r in daily_returns])
+                    recent_memory_parts.append(f"- Buy & Hold (Equal Weight): {returns_str}")
+            
+            if benchmark_returns.get('baseline_vw_recent_daily_returns'):
+                daily_returns = benchmark_returns['baseline_vw_recent_daily_returns']
+                if daily_returns:
+                    returns_str = ", ".join([f"{r:+.2f}%" for r in daily_returns])
+                    recent_memory_parts.append(f"- Buy & Hold (Value Weighted): {returns_str}")
+            
+            if benchmark_returns.get('momentum_recent_daily_returns'):
+                daily_returns = benchmark_returns['momentum_recent_daily_returns']
+                if daily_returns:
+                    returns_str = ", ".join([f"{r:+.2f}%" for r in daily_returns])
+                    recent_memory_parts.append(f"- Momentum Strategy: {returns_str}")
+            
+            recent_memory_parts.append("")
+        
+        if len(recent_memory_parts) == 2:  # Only header and empty line
+            return ""
+        
+        return "\n".join(recent_memory_parts)
+    
+    def _format_pm_signals_with_trades(self, recent_signals: List[Dict], sorted_dates: List[str], 
+                                       internal_state: Dict) -> List[str]:
+        """
+        Format PM signals with detailed trade information showing:
+        pre_position → action (quantity) → final_position + stock_return
+        
+        Simplified approach: use daily trades and equity history directly
+        
+        Args:
+            recent_signals: List of PM signals for recent days
+            sorted_dates: Sorted list of recent trading dates
+            internal_state: Internal state from dashboard with trade history
+            
+        Returns:
+            List of formatted lines
+        """
+        from datetime import datetime
+        
+        formatted_lines = []
+        
+        # Get data from internal state
+        all_trades = internal_state.get('all_trades', [])
+        equity_history = internal_state.get('equity_history', [])
+        daily_position_history = internal_state.get('daily_position_history', {})  # ✨ Optimized: pre-computed snapshots
+        
+        # Build trades index by (date, ticker)
+        trades_by_date_ticker = {}
+        for trade in all_trades:
+            ts = trade.get('ts') or trade.get('timestamp', 0)
+            if ts:
+                trade_date = datetime.fromtimestamp(ts / 1000).strftime('%Y-%m-%d')
+                ticker = trade.get('ticker', '')
+                key = (trade_date, ticker)
+                if key not in trades_by_date_ticker:
+                    trades_by_date_ticker[key] = []
+                trades_by_date_ticker[key].append(trade)
+        
+        # Build equity history by date for daily return calculation
+        equity_by_date = {}
+        for point in equity_history:
+            if 't' in point and 'v' in point:
+                date_str = datetime.fromtimestamp(point['t'] / 1000).strftime('%Y-%m-%d')
+                equity_by_date[date_str] = point['v']
+        
+        # Build position tracker
+        # ✨ Optimization: Use pre-computed daily_position_history if available
+        position_tracker = {}  # {(date, ticker): opening_position}
+        
+        if daily_position_history:
+            # Fast path: Use pre-computed daily position snapshots (O(1) lookup)
+            dates_list = sorted(daily_position_history.keys())
+            
+            for i, date in enumerate(dates_list):
+                closing_positions = daily_position_history[date]
+                
+                # Get all tickers seen up to this date
+                all_tickers_seen = set()
+                for d in dates_list[:i+1]:
+                    all_tickers_seen.update(daily_position_history[d].keys())
+                
+                for ticker in all_tickers_seen:
+                    if i == 0:
+                        # First day: opening = 0
+                        position_tracker[(date, ticker)] = 0
+                    else:
+                        # Opening = previous day's closing
+                        prev_date = dates_list[i-1]
+                        prev_closing = daily_position_history.get(prev_date, {}).get(ticker, 0)
+                        position_tracker[(date, ticker)] = prev_closing
+        else:
+            # Fallback: Rebuild from all_trades (slower, O(n) where n = number of trades)
+            sorted_trades = sorted(all_trades, key=lambda x: x.get('ts') or x.get('timestamp', 0))
+            
+            daily_positions = {}
+            current_positions = {}
+            
+            for trade in sorted_trades:
+                ts = trade.get('ts') or trade.get('timestamp', 0)
+                if not ts:
+                    continue
+                trade_date = datetime.fromtimestamp(ts / 1000).strftime('%Y-%m-%d')
+                ticker = trade.get('ticker', '')
+                qty = trade.get('qty', 0)
+                side = trade.get('side', '')
+                
+                if ticker not in current_positions:
+                    current_positions[ticker] = 0
+                
+                if side == 'LONG':
+                    current_positions[ticker] += qty
+                elif side == 'SHORT':
+                    current_positions[ticker] -= qty
+                
+                if trade_date not in daily_positions:
+                    daily_positions[trade_date] = {}
+                daily_positions[trade_date][ticker] = current_positions[ticker]
+            
+            dates_list = sorted(daily_positions.keys())
+            for i, date in enumerate(dates_list):
+                all_tickers_seen = set()
+                for d in dates_list[:i+1]:
+                    all_tickers_seen.update(daily_positions[d].keys())
+                
+                for ticker in all_tickers_seen:
+                    if i == 0:
+                        position_tracker[(date, ticker)] = 0
+                    else:
+                        prev_date = dates_list[i-1]
+                        prev_closing = daily_positions.get(prev_date, {}).get(ticker, 0)
+                        position_tracker[(date, ticker)] = prev_closing
+        
+        # Group signals by date
+        signals_by_date = {}
+        for signal in recent_signals:
+            date = signal.get('date', '')
+            if date not in signals_by_date:
+                signals_by_date[date] = []
+            signals_by_date[date].append(signal)
+        
+        # Process each date
+        dates_list = sorted(equity_by_date.keys())
+        for date in sorted(sorted_dates, reverse=True):
+            if date not in signals_by_date:
+                continue
+            
+            formatted_lines.append(f"  **{date}:**")
+            
+            # Calculate portfolio daily return
+            portfolio_daily_return = None
+            if date in equity_by_date:
+                try:
+                    date_idx = dates_list.index(date)
+                    if date_idx > 0:
+                        prev_equity = equity_by_date[dates_list[date_idx - 1]]
+                        curr_equity = equity_by_date[date]
+                        if prev_equity > 0:
+                            portfolio_daily_return = ((curr_equity - prev_equity) / prev_equity) * 100
+                except (ValueError, IndexError):
+                    pass
+            
+            # Process each ticker's signal
+            for signal in signals_by_date[date]:
+                ticker = signal.get('ticker', '')
+                real_return = signal.get('real_return', 'N/A')
+                is_correct = signal.get('is_correct', 'unknown')
+                
+                # Get trades for this ticker on this date
+                ticker_trades = trades_by_date_ticker.get((date, ticker), [])
+                
+                # Get pre-position (position before first trade of the day)
+                pre_position = position_tracker.get((date, ticker), 0)
+                
+                # Calculate action from trades
+                action_qty = 0
+                for trade in ticker_trades:
+                    qty = trade.get('qty', 0)
+                    side = trade.get('side', '')
+                    if side == 'LONG':
+                        action_qty += qty
+                    elif side == 'SHORT':
+                        action_qty -= qty
+                
+                # Calculate final position
+                final_position = pre_position + action_qty
+                
+                # Format display
+                def format_position(pos):
+                    if pos > 0:
+                        return f"{pos} long"
+                    elif pos < 0:
+                        return f"{abs(pos)} short"
+                    else:
+                        return "0"
+                
+                # Format action
+                if action_qty > 0:
+                    action_desc = f"long {action_qty}"
+                elif action_qty < 0:
+                    action_desc = f"short {abs(action_qty)}"
+                else:
+                    action_desc = "hold"
+                
+                # Correct marker
+                correct_marker = ""
+                if is_correct == True:
+                    correct_marker = " ✓"
+                elif is_correct == False:
+                    correct_marker = " ✗"
+                elif is_correct == 'unknown':
+                    correct_marker = " ?"
+                
+                formatted_lines.append(
+                    f"    - {ticker}: [{format_position(pre_position)}] → [{action_desc}] → "
+                    f"[{format_position(final_position)}] (Stock Return: {real_return}){correct_marker}"
+                )
+            
+            # Add portfolio daily return
+            if portfolio_daily_return is not None:
+                formatted_lines.append(f"    Portfolio Daily Return: {portfolio_daily_return:+.2f}%")
+            
+            formatted_lines.append("")
+        
+        return formatted_lines
+  
+  

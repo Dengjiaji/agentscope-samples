@@ -173,6 +173,7 @@ class TeamDashboardGenerator:
             'baseline_vw_history': [],  # Buy & Hold value-weighted baseline history
             'momentum_history': [],  # Momentum strategy history
             'all_trades': [],  # All trade history
+            'daily_position_history': {},  # {date: {ticker: qty}} - Daily position snapshots for fast lookup
             'agent_performance': {},  # agent_id -> {signals: [], bull_count: 0, bull_win: 0, ...}
             'portfolio_state': {  # Current position state
                 'cash': self.initial_cash,
@@ -633,6 +634,16 @@ class TeamDashboardGenerator:
                 # pdb.set_trace()
                 state['all_trades'].append(trade_record)
                 update_stats['trades_added'] += 1
+        
+        # Save daily position snapshot for fast lookup (optimization for PM's _get_recent_memory)
+        if 'daily_position_history' not in state:
+            state['daily_position_history'] = {}
+        
+        # Save current positions as end-of-day snapshot
+        position_snapshot = {}
+        for ticker, pos_data in portfolio_state['positions'].items():
+            position_snapshot[ticker] = pos_data['qty']
+        state['daily_position_history'][date] = position_snapshot
     
     def _update_signal_mode(self, date: str, timestamp_ms: int, pm_signals: Dict,
                             real_returns: Dict, state: Dict, update_stats: Dict):
@@ -701,6 +712,16 @@ class TeamDashboardGenerator:
             
             state['all_trades'].append(trade_record)
             update_stats['trades_added'] += 1
+        
+        # Save daily position snapshot for fast lookup (optimization for PM's _get_recent_memory)
+        if 'daily_position_history' not in state:
+            state['daily_position_history'] = {}
+        
+        # Save current positions as end-of-day snapshot
+        position_snapshot = {}
+        for ticker, pos_data in portfolio_state['positions'].items():
+            position_snapshot[ticker] = pos_data['qty']
+        state['daily_position_history'][date] = position_snapshot
     
     def _update_agent_performance(self, date: str, ana_signals: Dict, pm_signals: Dict,
                                   real_returns: Dict, state: Dict, update_stats: Dict):

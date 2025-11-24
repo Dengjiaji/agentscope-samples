@@ -81,7 +81,12 @@ class LiveTradingFund:
             self.streamer = ConsoleStreamer()
 
         # Initialize investment engine
-        engine = InvestmentEngine(streamer=self.streamer, pause_before_trade=pause_before_trade)
+        engine = InvestmentEngine(
+            streamer=self.streamer, 
+            pause_before_trade=pause_before_trade,
+            config_name=config_name,
+            sandbox_dir=str(self.sandbox_dir)
+        )
         
         # Initialize multi-day strategy manager
         self.strategy = MultiDayStrategy(

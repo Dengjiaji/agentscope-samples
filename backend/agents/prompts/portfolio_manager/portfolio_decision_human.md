@@ -12,10 +12,12 @@ Current margin requirement: {{margin_requirement}}
 Total margin used: {{total_margin_used}}
 {{analyst_performance_separator}}{{analyst_performance_info}}
 
+{{recent_memory_separator}}{{recent_memory}}
+
 Relevant historical experiences:
 {{relevant_past_experiences}}
 
-Important Note: Please carefully refer to the above historical experiences to avoid repeating past erroneous decisions (such as being overly aggressive, ignoring risk warnings, etc.), and learn successful position management patterns.
+Important Note: Please consider the above historical experiences as a reference with potential value only. It is crucial to be aware that market environments can change, and historical experiences may not necessarily be applicable to the current situation.
 
 **BUDGET MANAGEMENT CHECKLIST (MANDATORY):**
 Before finalizing your decisions, you MUST verify:

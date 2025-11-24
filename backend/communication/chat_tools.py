@@ -460,7 +460,7 @@ class CommunicationManager:
     
     def conduct_meeting(self, manager_id: str, analyst_ids: List[str], 
                        topic: str, analyst_signals: Dict[str, Any], 
-                       state, max_rounds: int = 2, streamer=None) -> Dict[str, Any]:
+                       state, max_rounds: int = 1, streamer=None) -> Dict[str, Any]:
         """Conduct meeting"""
         meeting_id = str(uuid.uuid4())
         print(f"Starting meeting: {meeting_id}")
