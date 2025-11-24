@@ -6,6 +6,7 @@ ROLE_TO_AGENT = {
     "portfolio_manager":   "Portfolio Manager",
     "risk_manager":        "Risk Manager",
     "_default":            "Portfolio Manager",
+    # "comprehensive_analyst": "Comprehensive Analyst"
 }
 
 ANALYST_TYPES = {
@@ -33,7 +34,7 @@ ANALYST_TYPES = {
         "description": "Uses LLM to intelligently select analysis tools, focuses on company valuation and value assessment",
         "order": 14
     },
-    # "comprehensive": {
+    # "comprehensive_analyst": {
     #     "display_name": "Comprehensive Analyst",
     #     "agent_id": "comprehensive_analyst",
     #     "description": "Uses LLM to intelligently select analysis tools, performs comprehensive analysis",

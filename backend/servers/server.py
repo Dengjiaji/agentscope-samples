@@ -290,9 +290,9 @@ class Server:
         
         # Note: Do not update equity curve in summary.json
         # Reasons:
-        # 1. For backtest mode (normal mode), equity curve should be updated by backtest system (TeamDashboardGenerator) at end of each day
+        # 1. For mock t mode (normal mode), equity curve should be updated by mock system (TeamDashboardGenerator) at end of each day
         # 2. Real-time price updates are only for displaying current prices, should not modify historical equity curves
-        # 3. Equity curve updates should be completed through _update_equity_curve method during backtest process, not through price update callback
+        # 3. Equity curve updates should be completed through _update_equity_curve method during mock process, not through price update callback
         # 
         # If need to update other fields in summary.json (such as balance, pnlPct) for real-time display,
         # can add here, but do not modify equity curve
@@ -710,7 +710,7 @@ class Server:
                         })
                         self.state_manager.update('portfolio', portfolio)
                         
-                        # Update holdings (convert to frontend format) ⭐ Bug fix
+                        # Update holdings (convert to frontend format)
                         realtime_prices = self.state_manager.get('realtime_prices', {})
                         holdings_list = []
                         positions = updated_portfolio.get('positions', {})
@@ -867,7 +867,7 @@ async def main():
     parser.add_argument('--mock', action='store_true', help='Use Mock mode (test frontend)')
     parser.add_argument('--host', default='0.0.0.0', help='Listen address (default: 0.0.0.0)')
     parser.add_argument('--port', type=int, default=8766, help='Listen port (default: 8766)')
-    parser.add_argument('--config-name', default='mock', help='Config name (default: mock)')
+    parser.add_argument('--config-name', default='backtest', help='Config name (default: backtest)')
     parser.add_argument('--start-date', help='Start date for backtest (YYYY-MM-DD)')
     parser.add_argument('--end-date', help='End date for backtest (YYYY-MM-DD)')
     args = parser.parse_args()
