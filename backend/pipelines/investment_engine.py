@@ -426,7 +426,9 @@ class InvestmentEngine:
         
         # Get analysis result
         analysis_result = state['data']['analyst_signals'].get(agent_id, {})
-        print(f"{agent_name}: {analysis_result}")
+
+        # print(f"{agent_name}: {analysis_result}")
+
         if analysis_result:
             # Write analysis result to agent memory
 
@@ -444,6 +446,7 @@ class InvestmentEngine:
                         f"{signal_data.get('reasoning', 'N/A')}\n"
                         # f"details_evidence_from_tools:\n{tools_details}"
                     )
+
                     self.streamer.print("agent", message, role_key=agent_id)
             from backend.memory import get_memory
             base_dir = state.get("metadata", {}).get("config_name", "mock") if state else "mock"

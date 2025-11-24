@@ -529,9 +529,8 @@ class CommunicationManager:
                     "round": round_num + 1,
                     "timestamp": datetime.now().isoformat()
                 })
-                
-                # print(f"{analyst_id}: {analyst_response['response']}") 
-                print(f"{analyst_id}: {analyst_response}")
+
+                # print(f"{analyst_id}: {analyst_response}")
                 
                 # Output analyst statement to frontend
                 if streamer:
