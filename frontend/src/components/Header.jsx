@@ -148,8 +148,8 @@ export default function Header({
               letterSpacing: '0.5px',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
-              maxWidth: activeContactCard.yue ? '120px' : '32px',
-              minWidth: activeContactCard.yue ? '120px' : '32px'
+              maxWidth: activeContactCard.yue ? '80px' : '32px',
+              minWidth: activeContactCard.yue ? '80px' : '32px'
             }}
           >
             {activeContactCard.yue ? (
@@ -160,7 +160,7 @@ export default function Header({
                 style={{ color: 'inherit', textDecoration: 'none' }}
                 onClick={(e) => e.stopPropagation()}
               >
-                Wu Yue ↗
+                Yue Wu ↗
               </a>
             ) : 'YW'}
           </div>
@@ -203,8 +203,8 @@ export default function Header({
               letterSpacing: '0.5px',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
-              maxWidth: activeContactCard.jiaji ? '140px' : '32px',
-              minWidth: activeContactCard.jiaji ? '140px' : '32px'
+              maxWidth: activeContactCard.jiaji ? '100px' : '32px',
+              minWidth: activeContactCard.jiaji ? '100px' : '32px'
             }}
           >
             {activeContactCard.jiaji ? (
