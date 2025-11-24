@@ -246,57 +246,94 @@ class Toolselector:
     
     def synthesize_results_with_llm(self, tool_results: List[Dict[str, Any]], 
                                    selection_result: Dict[str, Any], 
-                                   llm, ticker: str, analyst_persona: str) -> Dict[str, Any]:
-        """Use LLM to synthesize tool results"""
-        try:
-            # Prepare tool result summaries with full raw data
-            tool_summaries = [
-                {
-                    "tool_name": result.get("tool_name", "unknown"),
-                    "selection_reason": result.get("selection_reason", ""),
-                    "full_result": result  # Include full result for comprehensive analysis
-                }
-                for result in tool_results if "error" not in result
-            ]
-            
-            tool_summaries_json = json.dumps(tool_summaries, indent=2, ensure_ascii=False)
-            
-            # Load prompt
-            prompt = self.prompt_loader.load_prompt(
-                "analyst",
-                "tool_synthesis",
-                {
-                    "analyst_persona": analyst_persona,
-                    "ticker": ticker,
-                    "analysis_strategy": selection_result.get('analysis_strategy', ''),
-                    "synthesis_approach": selection_result.get('synthesis_approach', ''),
-                    "tool_summaries": tool_summaries_json
-                }
-            )
-            # pdb.set_trace()
-            # Call LLM
-            messages = [{"role": "user", "content": prompt}]
-            response = llm(messages=messages, temperature=0.7)
-            response_text = response["content"].strip()
-            
-            # Extract and parse JSON
-            json_text = self._extract_json(response_text)
-            synthesis_result = json.loads(json_text)
-            
-            return {
-                "signal": synthesis_result.get("signal", "neutral"),
-                "confidence": max(0, min(100, synthesis_result.get("confidence", 50))),
-                "reasoning": synthesis_result.get("reasoning", ""),
-                "tool_impact_analysis": synthesis_result.get("tool_impact_analysis", ""),
-                "synthesis_method": "llm_based"
+                                   llm, ticker: str, analyst_persona: str,
+                                   max_retries: int = 3) -> Dict[str, Any]:
+        """
+        Use LLM to synthesize tool results with retry mechanism
+        
+        Args:
+            tool_results: Results from executed tools
+            selection_result: Tool selection decision
+            llm: LLM function
+            ticker: Stock ticker
+            analyst_persona: Analyst persona description
+            max_retries: Maximum number of retry attempts (default: 3)
+        
+        Returns:
+            Synthesis result dict
+        """
+        import time
+        
+        # Prepare tool result summaries (once, outside retry loop)
+        tool_summaries = [
+            {
+                "tool_name": result.get("tool_name", "unknown"),
+                "selection_reason": result.get("selection_reason", ""),
+                "full_result": result  # Include full result for comprehensive analysis
             }
-            
-        except Exception as e:
-            print(f"⚠️ Synthesis failed: {str(e)}")
-            return {
-                "signal": "neutral",
-                "confidence": 50,
-                "reasoning": "Failed to synthesize results",
-                "tool_impact_analysis": "",
-                "synthesis_method": "error"
+            for result in tool_results if "error" not in result
+        ]
+        
+        tool_summaries_json = json.dumps(tool_summaries, indent=2, ensure_ascii=False)
+        
+        # Load prompt (once, outside retry loop)
+        prompt = self.prompt_loader.load_prompt(
+            "analyst",
+            "tool_synthesis",
+            {
+                "analyst_persona": analyst_persona,
+                "ticker": ticker,
+                "analysis_strategy": selection_result.get('analysis_strategy', ''),
+                "synthesis_approach": selection_result.get('synthesis_approach', ''),
+                "tool_summaries": tool_summaries_json
             }
+        )
+        
+        # Retry loop
+        last_exception = None
+        for attempt in range(max_retries):
+            try:
+                # Call LLM
+                messages = [{"role": "user", "content": prompt}]
+                response = llm(messages=messages, temperature=0.7)
+                response_text = response["content"].strip()
+                
+                # Extract and parse JSON
+                json_text = self._extract_json(response_text)
+                synthesis_result = json.loads(json_text)
+                
+                # Success - return result
+                if attempt > 0:
+                    print(f"✅ Synthesis succeeded on attempt {attempt + 1}/{max_retries} for {ticker}")
+                
+                return {
+                    "signal": synthesis_result.get("signal", "neutral"),
+                    "confidence": max(0, min(100, synthesis_result.get("confidence", 50))),
+                    "reasoning": synthesis_result.get("reasoning", ""),
+                    "tool_impact_analysis": synthesis_result.get("tool_impact_analysis", ""),
+                    "synthesis_method": "llm_based"
+                }
+                
+            except Exception as e:
+                last_exception = e
+                attempt_num = attempt + 1
+                
+                if attempt_num < max_retries:
+                    # Calculate exponential backoff: 1s, 2s, 4s, ...
+                    wait_time = 2 ** attempt
+                    print(f"⚠️ Synthesis attempt {attempt_num}/{max_retries} failed for {ticker}: {str(e)}")
+                    print(f"   Retrying in {wait_time}s...")
+                    time.sleep(wait_time)
+                else:
+                    # Final attempt failed
+                    print(f"❌ Synthesis failed after {max_retries} attempts for {ticker}: {str(e)}")
+        
+        # All retries exhausted
+        return {
+            "signal": "neutral",
+            "confidence": 50,
+            "reasoning": f"Failed to synthesize results after {max_retries} attempts",
+            "tool_impact_analysis": "",
+            "synthesis_method": "error",
+            "error_details": str(last_exception) if last_exception else "Unknown error"
+        }

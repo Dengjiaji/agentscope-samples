@@ -161,11 +161,19 @@ class PortfolioManagerAgent(AgentBase):
             elif ticker in signals:
                 # First round format - analyst signals
                 if "signal" in signals[ticker] and "confidence" in signals[ticker]:
+                    signal_data = signals[ticker]
                     ticker_signals[agent] = {
                         "type": "investment_signal", 
-                        "signal": signals[ticker]["signal"], 
-                        "confidence": signals[ticker]["confidence"]
+                        "signal": signal_data["signal"], 
+                        "confidence": signal_data["confidence"]
                     }
+                    
+                    # Include reasoning if it indicates an error (for better PM decision-making)
+                    reasoning = signal_data.get("reasoning", "")
+                    if "Failed to synthesize" in reasoning or signal_data.get("synthesis_method") == "error":
+                        ticker_signals[agent]["error_note"] = reasoning
+                        if "error_details" in signal_data:
+                            ticker_signals[agent]["error_details"] = signal_data["error_details"]
             elif "ticker_signals" in signals:
                 # Second round format - search ticker_signals list
                 for ts in signals["ticker_signals"]:
@@ -175,6 +183,13 @@ class PortfolioManagerAgent(AgentBase):
                             "signal": ts["signal"], 
                             "confidence": ts["confidence"]
                         }
+                        
+                        # Include reasoning if it indicates an error
+                        reasoning = ts.get("reasoning", "")
+                        if "Failed to synthesize" in reasoning or ts.get("synthesis_method") == "error":
+                            ticker_signals[agent]["error_note"] = reasoning
+                            if "error_details" in ts:
+                                ticker_signals[agent]["error_details"] = ts["error_details"]
                         break
         
         return ticker_signals
