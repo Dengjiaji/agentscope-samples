@@ -90,8 +90,8 @@ export default function LiveTradingApp() {
   const lastVirtualTimeRef = useRef(null);
   const virtualTimeOffsetRef = useRef(0);
   
-  // Replay callback ref
-  const replayCallbackRef = useRef(null);
+  // Last day history for replay
+  const [lastDayHistory, setLastDayHistory] = useState([]);
   
   // Set default chart tab based on market status
   useEffect(() => {
@@ -376,22 +376,9 @@ export default function LiveTradingApp() {
       };
       
       const handlers = {
-        // Replay data response
-        replay_data_response: (e) => {
-          console.log('[Replay] Received data response');
-          if (replayCallbackRef.current) {
-            replayCallbackRef.current(e.data, null);
-          }
-        },
-        
-        // Error response (including replay errors and fast forward errors)
+        // Error response (for fast forward errors)
         error: (e) => {
           console.error('[Error]', e.message);
-          
-          // Handle replay errors
-          if (replayCallbackRef.current) {
-            replayCallbackRef.current(null, e.message);
-          }
           
           // Handle fast forward errors
           if (e.message && e.message.includes('fast forward')) {
@@ -504,6 +491,12 @@ export default function LiveTradingApp() {
             if (state.feed_history && Array.isArray(state.feed_history)) {
               console.log(`✅ Loading ${state.feed_history.length} historical events`);
               processHistoricalFeed(state.feed_history);
+            }
+            
+            // Load last day history for replay
+            if (state.last_day_history && Array.isArray(state.last_day_history)) {
+              setLastDayHistory(state.last_day_history);
+              console.log(`✅ Loaded ${state.last_day_history.length} last day events for replay`);
             }
             
             console.log('Initial state loaded');
@@ -1243,10 +1236,7 @@ export default function LiveTradingApp() {
                       bubbleFor={bubbleFor} 
                       leaderboard={leaderboard}
                       marketStatus={marketStatus}
-                      wsClient={clientRef.current}
-                      onReplayRequest={(callback) => {
-                        replayCallbackRef.current = callback;
-                      }}
+                      lastDayHistory={lastDayHistory}
                       onJumpToMessage={handleJumpToMessage}
                     />
                   </div>
