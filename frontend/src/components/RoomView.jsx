@@ -511,8 +511,12 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
               if (hiddenBubbles[bubbleKey]) return null;
               
               const pos = AGENT_SEATS[idx];
-              const left = Math.round((pos.x - 20) * scale);
-              const top = Math.round((pos.y - 150) * scale);
+              const scaledWidth = SCENE_NATIVE.width * scale;
+              const scaledHeight = SCENE_NATIVE.height * scale;
+              
+              // Bubble left-bottom corner aligns to agent position
+              const left = Math.round(pos.x * scaledWidth);
+              const bottom = Math.round(pos.y * scaledHeight);
               
               // Get agent data for model info
               const agentData = getAgentData(agent.id);
@@ -548,7 +552,7 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
                 <div 
                   key={agent.id} 
                   className="room-bubble"
-                  style={{ left, top }}
+                  style={{ left, bottom }}
                 >
                   {/* Action buttons */}
                   <div className="bubble-action-buttons">
