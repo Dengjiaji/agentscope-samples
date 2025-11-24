@@ -47,7 +47,7 @@ function getRankMedal(rank) {
  * Supports click and hover (1.5s) to show agent performance cards
  * Supports replay mode for reviewing past trading day decisions
  */
-export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus, wsClient, onReplayRequest }) {
+export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus, lastDayHistory, onJumpToMessage }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   
@@ -58,14 +58,26 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
   const hoverTimerRef = useRef(null);
   const closeTimerRef = useRef(null);
   
+  // Bubble expansion state
+  const [expandedBubbles, setExpandedBubbles] = useState({});
+  
+  // Hidden bubbles (locally dismissed)
+  const [hiddenBubbles, setHiddenBubbles] = useState({});
+  
+  // Handle bubble close
+  const handleCloseBubble = (agentId, bubbleKey, e) => {
+    e.stopPropagation();
+    setHiddenBubbles(prev => ({
+      ...prev,
+      [bubbleKey]: true
+    }));
+  };
+  
   // Replay state (must be defined before using in useMemo)
   const [isReplaying, setIsReplaying] = useState(false);
-  const [replayData, setReplayData] = useState(null);
   const [replayBubbles, setReplayBubbles] = useState({});
-  const [isLoadingReplay, setIsLoadingReplay] = useState(false);
   const replayTimerRef = useRef(null);
   const replayTimeoutsRef = useRef([]);
-  const replayCallbackRef = useRef(null);
   
   // Select background image based on market status and replay state
   const roomBgSrc = useMemo(() => {
@@ -295,64 +307,25 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
     return (status === 'close' || status === 'closed') && !isReplaying;
   }, [marketStatus?.status, isReplaying]);
   
-  // Request replay data from server
+  // Start replay with local data
   const handleReplayClick = useCallback(() => {
-    if (!wsClient || isLoadingReplay) return;
-    
-    try {
-      setIsLoadingReplay(true);
-      
-      // Store callback for when data is received
-      replayCallbackRef.current = (data, error) => {
-        if (error) {
-          console.error('❌ Replay error:', error);
-          alert(`Replay loading failed: ${error}`);
-          setIsLoadingReplay(false);
-          replayCallbackRef.current = null;
-        } else if (data) {
-          console.log('📦 Received replay data:', data);
-          setReplayData(data);
-          startReplay(data);
-          setIsLoadingReplay(false);
-          replayCallbackRef.current = null;
-        }
-      };
-      
-      // Notify parent to handle replay request
-      if (onReplayRequest) {
-        onReplayRequest(replayCallbackRef.current);
-      }
-      
-      // Send request via wsClient
-      const success = wsClient.send({
-        type: 'get_replay_data'
-      });
-      
-      if (success) {
-        console.log('📤 Sent replay data request');
-      } else {
-        console.error('Failed to send replay request');
-        setIsLoadingReplay(false);
-        replayCallbackRef.current = null;
-        alert('Failed to send replay request');
-      }
-      
-    } catch (error) {
-      console.error('Replay request failed:', error);
-      alert('Replay request failed');
-      setIsLoadingReplay(false);
-      replayCallbackRef.current = null;
-    }
-  }, [wsClient, isLoadingReplay, onReplayRequest]);
-  
-  // Start replay with data
-  const startReplay = useCallback((data) => {
-    if (!data || !data.events || data.events.length === 0) {
-      alert('没有可回放的数据');
+    if (!lastDayHistory || lastDayHistory.length === 0) {
+      alert('No replay data available');
       return;
     }
     
-    console.log(`🎬 Starting replay for ${data.date} with ${data.event_count} events`);
+    console.log(`🎬 Starting replay with ${lastDayHistory.length} events`);
+    startReplay(lastDayHistory);
+  }, [lastDayHistory]);
+  
+  // Start replay with feed history data
+  const startReplay = useCallback((events) => {
+    if (!events || events.length === 0) {
+      alert('No replay data available');
+      return;
+    }
+    
+    console.log(`🎬 Starting replay with ${events.length} events`);
     
     setIsReplaying(true);
     setReplayBubbles({});
@@ -361,25 +334,40 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
     replayTimeoutsRef.current.forEach(timeoutId => clearTimeout(timeoutId));
     replayTimeoutsRef.current = [];
     
-    // Schedule all events
-    const events = data.events;
+    // Filter only agent_message events
+    const agentMessages = events.filter(e => e.type === 'agent_message');
     
-    events.forEach((event, index) => {
-      const delay = event.timestamp;
+    if (agentMessages.length === 0) {
+      alert('No agent messages to replay');
+      setIsReplaying(false);
+      return;
+    }
+    
+    // Calculate relative timestamps (3 seconds between each message)
+    const messageInterval = 3000;
+    
+    agentMessages.forEach((event, index) => {
+      const delay = index * messageInterval;
       
       // Show bubble
       const showTimeout = setTimeout(() => {
-        const bubbleId = `replay_${event.agent_id}_${index}`;
+        // Find agent by ID or name
+        const agent = AGENTS.find(a => 
+          a.id === event.agentId || 
+          a.name === event.agentId || 
+          a.name === event.agentName
+        );
+        
+        const bubbleId = `replay_${agent?.id || event.agentId}_${index}`;
         
         setReplayBubbles(prev => ({
           ...prev,
           [bubbleId]: {
             id: bubbleId,
-            agentId: event.agent_id,
-            agentName: event.agent_name,
-            text: event.text,
-            timestamp: Date.now(),
-            phase: event.phase
+            agentId: agent?.id || event.agentId,
+            agentName: agent?.name || event.agentName || event.agentId,
+            text: event.content,
+            timestamp: Date.now()
           }
         }));
         
@@ -399,7 +387,7 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
     });
     
     // End replay after all events complete
-    const totalDuration = data.total_duration + 6000; // Add 6 seconds buffer
+    const totalDuration = agentMessages.length * messageInterval + 6000;
     const endTimeout = setTimeout(() => {
       console.log('✅ Replay completed');
       setIsReplaying(false);
@@ -517,24 +505,99 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
               const bubble = getBubbleForAgent(agent.name);
               if (!bubble) return null;
               
-              const pos = AGENT_SEATS[idx];
-              const left = Math.round((pos.x - 20) * scale);
-              const top = Math.round((pos.y - 150) * scale);
+              const bubbleKey = `${agent.id}_${bubble.timestamp || bubble.id || bubble.ts}`;
               
-              // Truncate long text
-              const maxLength = 100;
-              const displayText = bubble.text.length > maxLength 
-                ? bubble.text.substring(0, maxLength) + '...' 
-                : bubble.text;
+              // Check if bubble is hidden
+              if (hiddenBubbles[bubbleKey]) return null;
+              
+              const pos = AGENT_SEATS[idx];
+              const scaledWidth = SCENE_NATIVE.width * scale;
+              const scaledHeight = SCENE_NATIVE.height * scale;
+              
+              // Bubble left-bottom corner aligns to agent position
+              const left = Math.round(pos.x * scaledWidth);
+              const bottom = Math.round(pos.y * scaledHeight);
+              
+              // Get agent data for model info
+              const agentData = getAgentData(agent.id);
+              const modelInfo = getModelIcon(agentData?.modelName, agentData?.modelProvider);
+              
+              // Truncate long text - 200 collapsed, 500 expanded max
+              const maxLength = 200;
+              const maxExpandedLength = 500;
+              const isTruncated = bubble.text.length > maxLength;
+              const isExpanded = expandedBubbles[bubbleKey];
+              const displayText = (!isExpanded && isTruncated)
+                ? bubble.text.substring(0, maxLength) + '...'
+                : (isExpanded && bubble.text.length > maxExpandedLength)
+                  ? bubble.text.substring(0, maxExpandedLength) + '...'
+                  : bubble.text;
+              
+              const toggleExpand = (e) => {
+                e.stopPropagation();
+                setExpandedBubbles(prev => ({
+                  ...prev,
+                  [bubbleKey]: !prev[bubbleKey]
+                }));
+              };
+              
+              const handleJumpToFeed = (e) => {
+                e.stopPropagation();
+                if (onJumpToMessage) {
+                  onJumpToMessage(bubble);
+                }
+              };
               
               return (
                 <div 
                   key={agent.id} 
                   className="room-bubble"
-                  style={{ left, top }}
+                  style={{ left, bottom }}
                 >
-                  <div className="room-bubble-name">{bubble.agentName || agent.name}</div>
-                  {displayText}
+                  {/* Action buttons */}
+                  <div className="bubble-action-buttons">
+                    <button 
+                      className="bubble-jump-btn"
+                      onClick={handleJumpToFeed}
+                      title="Jump to message in feed"
+                    >
+                      ↗
+                    </button>
+                    <button 
+                      className="bubble-close-btn"
+                      onClick={(e) => handleCloseBubble(agent.id, bubbleKey, e)}
+                      title="Close bubble"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  
+                  {/* Agent header with model icon */}
+                  <div className="room-bubble-header">
+                    {modelInfo.logoPath && (
+                      <img 
+                        src={modelInfo.logoPath}
+                        alt={modelInfo.provider}
+                        className="bubble-model-icon"
+                      />
+                    )}
+                    <div className="room-bubble-name">{bubble.agentName || agent.name}</div>
+                  </div>
+                  
+                  <div className="room-bubble-divider"></div>
+                  
+                  {/* Message content */}
+                  <div className="room-bubble-content">
+                    {displayText}
+                    {isTruncated && (
+                      <button 
+                        className="bubble-expand-btn"
+                        onClick={toggleExpand}
+                      >
+                        {isExpanded ? ' ↑' : ' ↓'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -565,11 +628,11 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
             <button 
               className="replay-button"
               onClick={handleReplayClick}
-              disabled={isLoadingReplay}
+              disabled={!lastDayHistory || lastDayHistory.length === 0}
               title="Replay latest trading day decisions"
             >
-              <span className="replay-icon">{isLoadingReplay ? '⏳' : '⏮'}</span>
-              <span>{isLoadingReplay ? 'LOADING...' : 'REPLAY'}</span>
+              <span className="replay-icon">⏮</span>
+              <span>REPLAY</span>
             </button>
           </div>
         )}
@@ -578,7 +641,7 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
         {isReplaying && (
           <div className="replay-indicator">
             <span className="replay-status">
-              ▶ REPLAYING {replayData?.date}
+              REPLAYING LAST DAY
             </span>
             <button 
               className="stop-replay-button"

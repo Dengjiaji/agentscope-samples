@@ -659,6 +659,9 @@ class Server:
             self.state_manager.update('current_date', date)
             self.state_manager.update('trading_days_completed', idx)
             
+            # Start new day
+            self.state_manager.start_new_day()
+            
             await self.broadcast({
                 'type': 'day_start',
                 'date': date,
@@ -744,6 +747,9 @@ class Server:
                 'result': broadcast_result,
                 'timestamp': datetime.now().isoformat()
             })
+            
+            # End current day (save for replay)
+            self.state_manager.end_current_day()
             
             # Save state (after each day ends)
             self.state_manager.save()

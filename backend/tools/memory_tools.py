@@ -150,7 +150,7 @@ def search_and_update_analyst_memory(
         print(f"   Analyst: {analyst_id}\n")
         
         # Broadcast update operation
-        update_msg = f"Update memory: {reason[:80]}..." if len(reason) > 80 else f"Update memory: {reason}"
+        update_msg = f"Update memory: {reason[:500]}..." if len(reason) > 500 else f"Update memory: {reason}"
         _broadcast_memory_operation(
             operation_type="update",
             content=update_msg,

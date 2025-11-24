@@ -22,17 +22,18 @@ export const STOCK_LOGOS = {
   'TSLA': `${LOGO_BASE_URL}/TSLA.png`,
 };
 
-// Scene dimensions
-export const SCENE_NATIVE = { width: 1184, height: 864 };
+// Scene dimensions (actual image size)
+export const SCENE_NATIVE = { width: 1248, height: 832 };
 
-// Agent seat positions (pixel coordinates on the room image)
+// Agent seat positions (percentage relative to image, origin at bottom-left)
+// Format: { x: horizontal %, y: vertical % from bottom }
 export const AGENT_SEATS = [
-  { x: 545, y: 380 },
-  { x: 600, y: 470 },
-  { x: 460, y: 490 },
-  { x: 540, y: 590 },
-  { x: 710, y: 560 },
-  { x: 780, y: 490 },
+  { x: 0.44, y: 0.58 },  // portfolio_manager
+  { x: 0.55, y: 0.58 },  // risk_manager
+  { x: 0.33, y: 0.52 },  // valuation_analyst
+  { x: 0.42, y: 0.42 },  // sentiment_analyst
+  { x: 0.56, y: 0.42 },  // fundamentals_analyst
+  { x: 0.61, y: 0.49 },  // technical_analyst
 ];
 
 // Agent definitions with subtle color schemes (very light backgrounds)

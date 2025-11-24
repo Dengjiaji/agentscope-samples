@@ -424,7 +424,7 @@ class CommunicationManager:
         from backend.memory import get_memory
 
         # Get base_dir from state (if exists)
-        base_dir = state.get("metadata", {}).get("config_name", "mock") if state else "mock"
+        base_dir = state.get("metadata", {}).get("config_name", "default") if state else "default"
         
         try:
             memory = get_memory(base_dir)
@@ -529,17 +529,12 @@ class CommunicationManager:
                     "round": round_num + 1,
                     "timestamp": datetime.now().isoformat()
                 })
-                
-                # print(f"{analyst_id}: {analyst_response['response']}") 
-                print(f"{analyst_id}: {analyst_response}")
+
+                # print(f"{analyst_id}: {analyst_response}")
                 
                 # Output analyst statement to frontend
                 if streamer:
                     response_text = analyst_response.get("response", "")
-                    # Limit output length to avoid too long
-                    max_display_length = 300
-                    if len(response_text) > max_display_length:
-                        response_text = response_text[:max_display_length] + "..."
                     streamer.print("agent", response_text, role_key=analyst_id)
 
                 # Record statement to analyst memory

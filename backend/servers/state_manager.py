@@ -66,6 +66,10 @@ class StateManager:
         
         # Feed history (using FeedMessage objects)
         self._feed_history: List[FeedMessage] = []
+        
+        # Last day history (for replay)
+        self._last_day_history: List[FeedMessage] = []
+        self._current_day_messages: List[FeedMessage] = []
     
     def get_state_file_path(self) -> Path:
         """Get state file path"""
@@ -92,17 +96,34 @@ class StateManager:
         if len(self._feed_history) > self.max_history:
             self._feed_history = self._feed_history[:self.max_history]
         
+        # Also add to current day messages
+        self._current_day_messages.append(message)
+        
         return True
     
     def get_feed_history(self) -> List[Dict[str, Any]]:
         """Get feed history (converted to frontend format)"""
         return [msg.to_dict() for msg in self._feed_history]
     
+    def start_new_day(self):
+        """Start new trading day - clear current day messages"""
+        self._current_day_messages = []
+    
+    def end_current_day(self):
+        """End current trading day - save messages as last day history"""
+        self._last_day_history = self._current_day_messages.copy()
+        self._current_day_messages = []
+    
+    def get_last_day_history(self) -> List[Dict[str, Any]]:
+        """Get last day history (for replay)"""
+        return [msg.to_dict() for msg in self._last_day_history]
+    
     def get_full_state(self) -> Dict[str, Any]:
         """Get full state (including feed history)"""
         return {
             **self.state,
-            'feed_history': self.get_feed_history()
+            'feed_history': self.get_feed_history(),
+            'last_day_history': self.get_last_day_history()
         }
     
     def save(self):
@@ -113,7 +134,8 @@ class StateManager:
             # Prepare state to save
             state_to_save = {
                 **self.state,
-                'feed_history': [asdict(msg) for msg in self._feed_history[:self.max_history]],
+                'feed_history': [msg.to_dict() for msg in self._feed_history[:self.max_history]],
+                'last_day_history': [msg.to_dict() for msg in self._last_day_history],
                 'trades': self.state.get('trades', [])[:100],  # Only save last 100 trades
                 'last_saved': datetime.now().isoformat()
             }
@@ -144,10 +166,22 @@ class StateManager:
             self._feed_history = []
             for item in feed_history:
                 try:
-                    msg = FeedMessage(**item)
-                    self._feed_history.append(msg)
+                    msg = FeedMessage.from_event(item)
+                    if msg:
+                        self._feed_history.append(msg)
                 except Exception as e:
                     logger.warning(f"Skipping invalid history message: {e}")
+            
+            # Restore last day history
+            last_day_history = saved_state.pop('last_day_history', [])
+            self._last_day_history = []
+            for item in last_day_history:
+                try:
+                    msg = FeedMessage.from_event(item)
+                    if msg:
+                        self._last_day_history.append(msg)
+                except Exception as e:
+                    logger.warning(f"Skipping invalid last day message: {e}")
             
             # Restore other state
             for key in ['status', 'current_date', 'portfolio', 'holdings', 'trades', 

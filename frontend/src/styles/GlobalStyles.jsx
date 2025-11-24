@@ -154,7 +154,7 @@ export default function GlobalStyles() {
       }
       
       .header-tab.active {
-        background: #19367A;
+        background: #615CED;
         color: #ffffff;
       }
       
@@ -630,15 +630,15 @@ export default function GlobalStyles() {
       
       .room-bubble {
         position: absolute;
-        max-width: 200px;
+        max-width: 300px;
         font-size: 11px;
         background: #ffffff;
         color: #000000;
-        padding: 8px 10px;
+        padding: 10px 12px;
         border: 2px solid #000000;
         box-shadow: 3px 3px 0 0 rgba(0, 0, 0, 0.2);
         font-family: 'IBM Plex Mono', monospace;
-        line-height: 1.4;
+        line-height: 1.5;
         animation: bubbleAppear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
       }
       
@@ -666,17 +666,110 @@ export default function GlobalStyles() {
         transform: rotate(-45deg);
       }
       
+      .bubble-action-buttons {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        display: flex;
+        gap: 4px;
+        z-index: 10;
+      }
+      
+      .bubble-jump-btn,
+      .bubble-close-btn {
+        width: 18px;
+        height: 18px;
+        padding: 0;
+        border: none;
+        background: transparent;
+        color: #666666;
+        font-size: 13px;
+        line-height: 1;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .bubble-jump-btn:hover,
+      .bubble-close-btn:hover {
+        color: #000000;
+        transform: scale(1.15);
+      }
+      
+      .bubble-jump-btn:active,
+      .bubble-close-btn:active {
+        transform: scale(0.95);
+      }
+      
+      .bubble-close-btn {
+        font-size: 16px;
+        font-weight: bold;
+      }
+      
+      .room-bubble-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      
+      .bubble-model-icon {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        object-fit: contain;
+        flex-shrink: 0;
+      }
+      
       .room-bubble-name {
         font-weight: 900;
-        margin-bottom: 4px;
         font-size: 10px;
         letter-spacing: 0.5px;
+        color: #000000;
+        flex: 1;
+      }
+      
+      .room-bubble-divider {
+        height: 1px;
+        background: #e0e0e0;
+        margin: 6px 0 8px;
+      }
+      
+      .room-bubble-content {
+        word-wrap: break-word;
+        white-space: pre-wrap;
+        position: relative;
+      }
+      
+      .bubble-expand-btn {
+        padding: 0;
+        margin-left: 4px;
+        border: none;
+        background: none;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 11px;
+        font-weight: 700;
+        color: #666666;
+        cursor: pointer;
+        transition: color 0.15s;
+        display: inline;
+        vertical-align: baseline;
+      }
+      
+      .bubble-expand-btn:hover {
+        color: #000000;
+      }
+      
+      .bubble-expand-btn:focus {
+        outline: none;
       }
       
       /* Replay Button Container */
       .replay-button-container {
         position: absolute;
-        bottom: 40px;
+        bottom: 10px;
         left: 50%;
         transform: translateX(-50%);
         z-index: 100;
@@ -1298,7 +1391,7 @@ export default function GlobalStyles() {
       }
       
       .data-table thead th {
-        background: #19367A;
+        background: #615CED;
         color: #ffffff;
         padding: 10px 12px;
         text-align: left;

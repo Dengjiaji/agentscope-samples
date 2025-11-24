@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import ContactModal from './ContactModal';
+import Header from './Header.jsx';
 
 export default function AboutModal({ onClose }) {
   const [isClosing, setIsClosing] = useState(false);
   const [language, setLanguage] = useState('en'); // 'en' or 'zh'
-  const [showContactModal, setShowContactModal] = useState(false);
   
   const handleClose = () => {
     setIsClosing(true);
@@ -104,11 +103,7 @@ export default function AboutModal({ onClose }) {
       point2: " — with memory modules that retain experience, learn from market feedback, reflect, and develop their own methodology over time.",
       
       point3Highlight: "✦ AI teams interacting with live markets",
-      point3: " — learning from real-time data and making immediate decisions, not just theoretical simulations.",
-      
-      opensource: "Everything is fully open-source. Built on AgentScope, using ReMe for memory management.",
-      
-      github: "github.com/agentscope-ai/agentscope-samples"
+      point3: " — learning from real-time data and making immediate decisions, not just theoretical simulations."
     },
     zh: {
       intro: "如果不是让模型彼此竞争，而是像一支高效协作的团队一样进行实时交易，会发生什么？",
@@ -121,13 +116,7 @@ export default function AboutModal({ onClose }) {
       point2: "依托「记忆」模块，每个智能体都能跨回合保留经验，不断学习、反思与调整。我们希望能看到在长期实时交易中，Agent形成自己的独特方法论，而不是一次性偶然的推理。",
       
       title3: "✦ 实时参与市场的 AI Agents",
-      point3: "Agents从实时行情中学习，并给予即时决策；不是纸上谈兵，而是面对市场的真实波动。",
-      
-      opensource: "我们已经在github上开源。",
-      opensourceSub: "EvoTraders 基于 AgentScope 搭建，并使用其中的 ReMe 作为记忆管理核心。",
-      findMore: "你可以在此找到完整项目与示例：",
-      
-      github: "github.com/agentscope-ai/agentscope-samples"
+      point3: "Agents从实时行情中学习，并给予即时决策；不是纸上谈兵，而是面对市场的真实波动。"
     }
   };
   
@@ -186,69 +175,10 @@ export default function AboutModal({ onClose }) {
             ? 'fadeOutContent 0.4s ease forwards'
             : 'fadeInContent 0.8s ease 0.3s backwards'
         }} onClick={(e) => e.stopPropagation()}>
-          <div className="header-title" style={{ flex: '0 1 auto', minWidth: 0 }}>
-            <span 
-              className="header-link" 
-              style={{ padding: '4px 8px', borderRadius: '3px', cursor: 'pointer' }}
-              onClick={handleClose}
-            >
-              EvoTraders <span className="link-arrow">↙</span>
-            </span>
-            <span style={{
-              width: '2px',
-              height: '16px',
-              background: '#666',
-              margin: '0 16px',
-              display: 'inline-block',
-              verticalAlign: 'middle'
-            }} />
-            <a href="https://github.com/agentscope-ai" target="_blank" rel="noopener noreferrer" className="header-link">
-              About Us <span className="link-arrow">↗</span>
-            </a>
-            <span style={{
-              width: '2px',
-              height: '16px',
-              background: '#666',
-              margin: '0 16px',
-              display: 'inline-block',
-              verticalAlign: 'middle'
-            }} />
-            <a href="https://github.com/agentscope-ai/agentscope-samples" target="_blank" rel="noopener noreferrer" className="header-link">
-              <svg 
-                width="14" 
-                height="14" 
-                viewBox="0 0 24 24" 
-                fill="currentColor" 
-                style={{ 
-                  display: 'inline-block', 
-                  verticalAlign: 'middle', 
-                  marginRight: '6px',
-                  marginBottom: '2px'
-                }}
-              >
-                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-              </svg>
-              agentscope-samples <span className="link-arrow">↗</span>
-            </a>
-            <span style={{
-              width: '2px',
-              height: '16px',
-              background: '#666',
-              margin: '0 16px',
-              display: 'inline-block',
-              verticalAlign: 'middle'
-            }} />
-            <span 
-              className="header-link" 
-              style={{ cursor: 'pointer' }}
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowContactModal(true);
-              }}
-            >
-              Contact Us <span className="link-arrow">↗</span>
-            </span>
-          </div>
+          <Header
+            onEvoTradersClick={handleClose}
+            evoTradersLinkStyle="close"
+          />
         </div>
         
         {/* Content */}
@@ -303,7 +233,25 @@ export default function AboutModal({ onClose }) {
               </div>
               
               <div style={{ marginBottom: '25px', opacity: 0.7 }}>
-                {content.en.opensource}
+                Everything is fully open-source. Built on{' '}
+                <a 
+                  href="https://github.com/agentscope-ai" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  style={linkStyle}
+                >
+                  AgentScope
+                </a>
+                , using{' '}
+                <a 
+                  href="https://github.com/agentscope-ai/ReMe" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  style={linkStyle}
+                >
+                  ReMe
+                </a>
+                {' '}for memory management.
               </div>
             </>
           ) : (
@@ -355,14 +303,32 @@ export default function AboutModal({ onClose }) {
               </div>
               
               <div style={{ marginBottom: '10px', opacity: 0.7 }}>
-                {content.zh.opensource}
+                我们已经在github上开源。
               </div>
               <div style={{ marginBottom: '25px', opacity: 0.7 }}>
-                {content.zh.opensourceSub}
+                EvoTraders 基于{' '}
+                <a 
+                  href="https://github.com/agentscope-ai" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  style={linkStyle}
+                >
+                  AgentScope
+                </a>
+                {' '}搭建，并使用其中的{' '}
+                <a 
+                  href="https://github.com/agentscope-ai/ReMe" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  style={linkStyle}
+                >
+                  ReMe
+                </a>
+                {' '}作为记忆管理核心。
               </div>
               
               <div style={{ marginBottom: '10px', fontSize: '14px' }}>
-                {content.zh.findMore}
+                你可以在此找到完整项目与示例：
               </div>
             </>
           )}
@@ -374,7 +340,7 @@ export default function AboutModal({ onClose }) {
               rel="noopener noreferrer"
               style={linkStyle}
             >
-              {language === 'en' ? content.en.github : content.zh.github}
+              github.com/agentscope-ai/agentscope-samples
             </a>
           </div>
           
@@ -383,9 +349,6 @@ export default function AboutModal({ onClose }) {
           </div>
         </div>
       </div>
-      
-      {/* Contact Modal */}
-      {showContactModal && <ContactModal onClose={() => setShowContactModal(false)} />}
     </>
   );
 }

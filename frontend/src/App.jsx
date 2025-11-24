@@ -17,8 +17,8 @@ import StockLogo from './components/StockLogo';
 import StatisticsView from './components/StatisticsView';
 import PerformanceView from './components/PerformanceView';
 import AboutModal from './components/AboutModal';
-import ContactModal from './components/ContactModal';
 import RulesView from './components/RulesView';
+import Header from './components/Header.jsx';
 
 // Utils
 import { formatNumber, formatTickerPrice, calculateDuration } from './utils/formatters';
@@ -37,7 +37,6 @@ export default function LiveTradingApp() {
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [now, setNow] = useState(() => new Date());
   const [showAboutModal, setShowAboutModal] = useState(false);
-  const [showContactModal, setShowContactModal] = useState(false);
   
   // View toggle: 'rules' | 'room' | 'chart' | 'statistics'
   const [currentView, setCurrentView] = useState('chart'); // Start with chart, then animate to room
@@ -85,13 +84,14 @@ export default function LiveTradingApp() {
   
   const clientRef = useRef(null);
   const containerRef = useRef(null);
+  const agentFeedRef = useRef(null);
   
   // Track last virtual time update to calculate increment
   const lastVirtualTimeRef = useRef(null);
   const virtualTimeOffsetRef = useRef(0);
   
-  // Replay callback ref
-  const replayCallbackRef = useRef(null);
+  // Last day history for replay
+  const [lastDayHistory, setLastDayHistory] = useState([]);
   
   // Set default chart tab based on market status
   useEffect(() => {
@@ -188,6 +188,15 @@ export default function LiveTradingApp() {
     
     return null;
   };
+  
+  // Handle jump to message in feed
+  const handleJumpToMessage = useCallback((bubble) => {
+    // Switch to room tab (if not already there) for better context
+    // Then scroll AgentFeed to the message
+    if (agentFeedRef.current && agentFeedRef.current.scrollToMessage) {
+      agentFeedRef.current.scrollToMessage(bubble);
+    }
+  }, []);
   
   // Auto-connect to server on mount
   useEffect(() => {
@@ -367,22 +376,9 @@ export default function LiveTradingApp() {
       };
       
       const handlers = {
-        // Replay data response
-        replay_data_response: (e) => {
-          console.log('[Replay] Received data response');
-          if (replayCallbackRef.current) {
-            replayCallbackRef.current(e.data, null);
-          }
-        },
-        
-        // Error response (including replay errors and fast forward errors)
+        // Error response (for fast forward errors)
         error: (e) => {
           console.error('[Error]', e.message);
-          
-          // Handle replay errors
-          if (replayCallbackRef.current) {
-            replayCallbackRef.current(null, e.message);
-          }
           
           // Handle fast forward errors
           if (e.message && e.message.includes('fast forward')) {
@@ -495,6 +491,12 @@ export default function LiveTradingApp() {
             if (state.feed_history && Array.isArray(state.feed_history)) {
               console.log(`✅ Loading ${state.feed_history.length} historical events`);
               processHistoricalFeed(state.feed_history);
+            }
+            
+            // Load last day history for replay
+            if (state.last_day_history && Array.isArray(state.last_day_history)) {
+              setLastDayHistory(state.last_day_history);
+              console.log(`✅ Loaded ${state.last_day_history.length} last day events for replay`);
             }
             
             console.log('Initial state loaded');
@@ -982,66 +984,10 @@ export default function LiveTradingApp() {
       
       {/* Header */}
       <div className="header">
-        <div className="header-title" style={{ flex: '0 1 auto', minWidth: 0 }}>
-          <span 
-            className="header-link"
-            onClick={() => setShowAboutModal(true)}
-            style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: '3px' }}
-          >
-            EvoTraders <span className="link-arrow">↗</span>
-          </span>
-          <span style={{
-            width: '2px',
-            height: '16px',
-            background: '#666',
-            margin: '0 16px',
-            display: 'inline-block',
-            verticalAlign: 'middle'
-          }} />
-          <a href="https://github.com/agentscope-ai" target="_blank" rel="noopener noreferrer" className="header-link">
-           About Us <span className="link-arrow">↗</span>
-          </a>
-          <span style={{
-            width: '2px',
-            height: '16px',
-            background: '#666',
-            margin: '0 16px',
-            display: 'inline-block',
-            verticalAlign: 'middle'
-          }} />
-          <a href="https://github.com/agentscope-ai/agentscope-samples" target="_blank" rel="noopener noreferrer" className="header-link">
-            <svg 
-              width="14" 
-              height="14" 
-              viewBox="0 0 24 24" 
-              fill="currentColor" 
-              style={{ 
-                display: 'inline-block', 
-                verticalAlign: 'middle', 
-                marginRight: '6px',
-                marginBottom: '2px'
-              }}
-            >
-              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-            </svg>
-            agentscope-samples <span className="link-arrow">↗</span>
-          </a>
-          <span style={{
-            width: '2px',
-            height: '16px',
-            background: '#666',
-            margin: '0 16px',
-            display: 'inline-block',
-            verticalAlign: 'middle'
-          }} />
-          <span 
-            className="header-link" 
-            style={{ cursor: 'pointer' }}
-            onClick={() => setShowContactModal(true)}
-          >
-            Contact Us <span className="link-arrow">↗</span>
-          </span>
-        </div>
+        <Header
+          onEvoTradersClick={() => setShowAboutModal(true)}
+          evoTradersLinkStyle="default"
+        />
         
         <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: 24, marginLeft: 'auto', flexWrap: 'wrap', minWidth: 0 }}>
           {/* Mock Mode Indicator */}
@@ -1290,10 +1236,8 @@ export default function LiveTradingApp() {
                       bubbleFor={bubbleFor} 
                       leaderboard={leaderboard}
                       marketStatus={marketStatus}
-                      wsClient={clientRef.current}
-                      onReplayRequest={(callback) => {
-                        replayCallbackRef.current = callback;
-                      }}
+                      lastDayHistory={lastDayHistory}
+                      onJumpToMessage={handleJumpToMessage}
                     />
                   </div>
                   
@@ -1351,16 +1295,13 @@ export default function LiveTradingApp() {
 
           {/* Right Panel: Agent Feed */}
           <div className="right-panel" style={{ width: `${100 - leftWidth}%` }}>
-            <AgentFeed feed={feed} conferences={conferences} />
+            <AgentFeed ref={agentFeedRef} feed={feed} conferences={conferences} leaderboard={leaderboard} />
           </div>
         </div>
       </>
       
       {/* About Modal */}
       {showAboutModal && <AboutModal onClose={() => setShowAboutModal(false)} />}
-      
-      {/* Contact Modal */}
-      {showContactModal && <ContactModal onClose={() => setShowContactModal(false)} />}
     </div>
   );
 }
