@@ -47,7 +47,7 @@ function getRankMedal(rank) {
  * Supports click and hover (1.5s) to show agent performance cards
  * Supports replay mode for reviewing past trading day decisions
  */
-export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus, wsClient, onReplayRequest }) {
+export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus, wsClient, onReplayRequest, onJumpToMessage }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   
@@ -57,6 +57,21 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
   const [isClosing, setIsClosing] = useState(false);
   const hoverTimerRef = useRef(null);
   const closeTimerRef = useRef(null);
+  
+  // Bubble expansion state
+  const [expandedBubbles, setExpandedBubbles] = useState({});
+  
+  // Hidden bubbles (locally dismissed)
+  const [hiddenBubbles, setHiddenBubbles] = useState({});
+  
+  // Handle bubble close
+  const handleCloseBubble = (agentId, bubbleKey, e) => {
+    e.stopPropagation();
+    setHiddenBubbles(prev => ({
+      ...prev,
+      [bubbleKey]: true
+    }));
+  };
   
   // Replay state (must be defined before using in useMemo)
   const [isReplaying, setIsReplaying] = useState(false);
@@ -517,15 +532,41 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
               const bubble = getBubbleForAgent(agent.name);
               if (!bubble) return null;
               
+              const bubbleKey = `${agent.id}_${bubble.timestamp || bubble.id || bubble.ts}`;
+              
+              // Check if bubble is hidden
+              if (hiddenBubbles[bubbleKey]) return null;
+              
               const pos = AGENT_SEATS[idx];
               const left = Math.round((pos.x - 20) * scale);
               const top = Math.round((pos.y - 150) * scale);
               
-              // Truncate long text
-              const maxLength = 100;
-              const displayText = bubble.text.length > maxLength 
+              // Get agent data for model info
+              const agentData = getAgentData(agent.id);
+              const modelInfo = getModelIcon(agentData?.modelName, agentData?.modelProvider);
+              
+              // Truncate long text - increased to 200 for better readability
+              const maxLength = 200;
+              const isTruncated = bubble.text.length > maxLength;
+              const isExpanded = expandedBubbles[bubbleKey];
+              const displayText = (!isExpanded && isTruncated)
                 ? bubble.text.substring(0, maxLength) + '...' 
                 : bubble.text;
+              
+              const toggleExpand = (e) => {
+                e.stopPropagation();
+                setExpandedBubbles(prev => ({
+                  ...prev,
+                  [bubbleKey]: !prev[bubbleKey]
+                }));
+              };
+              
+              const handleJumpToFeed = (e) => {
+                e.stopPropagation();
+                if (onJumpToMessage) {
+                  onJumpToMessage(bubble);
+                }
+              };
               
               return (
                 <div 
@@ -533,8 +574,50 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
                   className="room-bubble"
                   style={{ left, top }}
                 >
-                  <div className="room-bubble-name">{bubble.agentName || agent.name}</div>
-                  {displayText}
+                  {/* Action buttons */}
+                  <div className="bubble-action-buttons">
+                    <button 
+                      className="bubble-jump-btn"
+                      onClick={handleJumpToFeed}
+                      title="Jump to message in feed"
+                    >
+                      ↗
+                    </button>
+                    <button 
+                      className="bubble-close-btn"
+                      onClick={(e) => handleCloseBubble(agent.id, bubbleKey, e)}
+                      title="Close bubble"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  
+                  {/* Agent header with model icon */}
+                  <div className="room-bubble-header">
+                    {modelInfo.logoPath && (
+                      <img 
+                        src={modelInfo.logoPath}
+                        alt={modelInfo.provider}
+                        className="bubble-model-icon"
+                      />
+                    )}
+                    <div className="room-bubble-name">{bubble.agentName || agent.name}</div>
+                  </div>
+                  
+                  <div className="room-bubble-divider"></div>
+                  
+                  {/* Message content */}
+                  <div className="room-bubble-content">
+                    {displayText}
+                    {isTruncated && (
+                      <button 
+                        className="bubble-expand-btn"
+                        onClick={toggleExpand}
+                      >
+                        {isExpanded ? ' ↑' : ' ↓'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}

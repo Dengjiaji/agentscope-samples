@@ -84,6 +84,7 @@ export default function LiveTradingApp() {
   
   const clientRef = useRef(null);
   const containerRef = useRef(null);
+  const agentFeedRef = useRef(null);
   
   // Track last virtual time update to calculate increment
   const lastVirtualTimeRef = useRef(null);
@@ -187,6 +188,15 @@ export default function LiveTradingApp() {
     
     return null;
   };
+  
+  // Handle jump to message in feed
+  const handleJumpToMessage = useCallback((bubble) => {
+    // Switch to room tab (if not already there) for better context
+    // Then scroll AgentFeed to the message
+    if (agentFeedRef.current && agentFeedRef.current.scrollToMessage) {
+      agentFeedRef.current.scrollToMessage(bubble);
+    }
+  }, []);
   
   // Auto-connect to server on mount
   useEffect(() => {
@@ -1237,6 +1247,7 @@ export default function LiveTradingApp() {
                       onReplayRequest={(callback) => {
                         replayCallbackRef.current = callback;
                       }}
+                      onJumpToMessage={handleJumpToMessage}
                     />
                   </div>
                   
@@ -1294,7 +1305,7 @@ export default function LiveTradingApp() {
 
           {/* Right Panel: Agent Feed */}
           <div className="right-panel" style={{ width: `${100 - leftWidth}%` }}>
-            <AgentFeed feed={feed} conferences={conferences} />
+            <AgentFeed ref={agentFeedRef} feed={feed} conferences={conferences} leaderboard={leaderboard} />
           </div>
         </div>
       </>
