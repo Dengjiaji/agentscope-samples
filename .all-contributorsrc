@@ -92,6 +92,16 @@
         "code",
         "example"
       ]
+    },
+    {
+      "login": "ShenQianLi",
+      "name": "ShenQianli",
+      "avatar_url": "https://avatars.githubusercontent.com/u/28307002?v=4",
+      "profile": "https://shenqianli.github.io/",
+      "contributions": [
+        "code",
+        "example"
+      ]
     }
   ],
   "contributorsPerLine": 7,
