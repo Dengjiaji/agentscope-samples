@@ -139,14 +139,16 @@ def tool_call(
                 print(f"🚨 FINAL ERROR: LLM call failed after {max_retries} attempts")
                 print(f"🚨 Agent: {agent_name}, Model: {model_name} ({model_provider})")
                 print(f"🚨 Final Error: {e}")
-                
-                # Use default_factory or create default response
-                if default_factory:
-                    return default_factory()
                 return create_default_response(pydantic_model)
+            else:
+                # Not the last attempt - retry with exponential backoff
+                import time
+                wait_time = 2 ** attempt  # 1s, 2s, 4s, ...
+                print(f"⏳ Waiting {wait_time}s before retry...")
+                time.sleep(wait_time)
+                print(f"🔄 Retrying (attempt {attempt + 2}/{max_retries})...")
+                continue  # ✨ Enter next iteration of the loop
 
-    # Should not reach here
-    return create_default_response(pydantic_model)
 
 
 def create_default_response(model_class: type[BaseModel]) -> BaseModel:
