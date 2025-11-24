@@ -154,7 +154,7 @@ export default function GlobalStyles() {
       }
       
       .header-tab.active {
-        background: #19367A;
+        background: #615CED;
         color: #ffffff;
       }
       
@@ -1298,7 +1298,7 @@ export default function GlobalStyles() {
       }
       
       .data-table thead th {
-        background: #19367A;
+        background: #615CED;
         color: #ffffff;
         padding: 10px 12px;
         text-align: left;
