@@ -641,7 +641,7 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
         {isReplaying && (
           <div className="replay-indicator">
             <span className="replay-status">
-              ▶ REPLAYING LAST DAY
+              REPLAYING LAST DAY
             </span>
             <button 
               className="stop-replay-button"

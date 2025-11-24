@@ -769,7 +769,7 @@ export default function GlobalStyles() {
       /* Replay Button Container */
       .replay-button-container {
         position: absolute;
-        bottom: 40px;
+        bottom: 10px;
         left: 50%;
         transform: translateX(-50%);
         z-index: 100;

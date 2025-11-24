@@ -28,10 +28,10 @@ export const SCENE_NATIVE = { width: 1248, height: 832 };
 // Agent seat positions (percentage relative to image, origin at bottom-left)
 // Format: { x: horizontal %, y: vertical % from bottom }
 export const AGENT_SEATS = [
-  { x: 0.46, y: 0.58 },  // portfolio_manager
-  { x: 0.55, y: 0.56 },  // risk_manager
-  { x: 0.39, y: 0.49 },  // valuation_analyst
-  { x: 0.43, y: 0.42 },  // sentiment_analyst
+  { x: 0.44, y: 0.58 },  // portfolio_manager
+  { x: 0.55, y: 0.58 },  // risk_manager
+  { x: 0.33, y: 0.52 },  // valuation_analyst
+  { x: 0.42, y: 0.42 },  // sentiment_analyst
   { x: 0.56, y: 0.42 },  // fundamentals_analyst
   { x: 0.61, y: 0.49 },  // technical_analyst
 ];
