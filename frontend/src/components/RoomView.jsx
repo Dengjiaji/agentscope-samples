@@ -545,13 +545,16 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
               const agentData = getAgentData(agent.id);
               const modelInfo = getModelIcon(agentData?.modelName, agentData?.modelProvider);
               
-              // Truncate long text - increased to 200 for better readability
+              // Truncate long text - 200 collapsed, 500 expanded max
               const maxLength = 200;
+              const maxExpandedLength = 500;
               const isTruncated = bubble.text.length > maxLength;
               const isExpanded = expandedBubbles[bubbleKey];
               const displayText = (!isExpanded && isTruncated)
-                ? bubble.text.substring(0, maxLength) + '...' 
-                : bubble.text;
+                ? bubble.text.substring(0, maxLength) + '...'
+                : (isExpanded && bubble.text.length > maxExpandedLength)
+                  ? bubble.text.substring(0, maxExpandedLength) + '...'
+                  : bubble.text;
               
               const toggleExpand = (e) => {
                 e.stopPropagation();
