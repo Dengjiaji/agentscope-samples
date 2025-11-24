@@ -424,7 +424,7 @@ class CommunicationManager:
         from backend.memory import get_memory
 
         # Get base_dir from state (if exists)
-        base_dir = state.get("metadata", {}).get("config_name", "mock") if state else "mock"
+        base_dir = state.get("metadata", {}).get("config_name", "default") if state else "default"
         
         try:
             memory = get_memory(base_dir)

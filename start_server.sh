@@ -3,14 +3,14 @@
 # 
 # 使用方法:
 #   ./start_server.sh                                      # 正常模式
-#   ./start_server.sh --mock                               # Mock模式（测试前端）
+#   ./start_server.sh --backtest                               # backtest模式（测试前端）
 #   ./start_server.sh --clean                              # 正常模式，自动清空历史记录
 #   ./start_server.sh --port 9000                          # 指定端口（默认8765）
 #   ./start_server.sh --host 127.0.0.1                     # 指定主机（默认0.0.0.0）
-#   ./start_server.sh --config-name live_mode              # 指定配置名（默认: mock）
+#   ./start_server.sh --config-name live_mode              # 指定配置名（默认: backtest）
 #   ./start_server.sh --start-date 2025-11-01              # 指定开始日期
 #   ./start_server.sh --end-date 2025-11-20                # 指定结束日期
-#   ./start_server.sh --port 9000 --mock                   # 组合使用多个参数
+#   ./start_server.sh --port 9000 --backtest                   # 组合使用多个参数
 #   ./start_server.sh --start-date 2025-11-01 --end-date 2025-11-20 --config-name my_backtest
 
 set -e
@@ -33,8 +33,8 @@ END_DATE=""
 # 解析所有参数
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --mock)
-	MODE="mock"
+        --backtest)
+	MODE="backtest"
             shift
             ;;
         --clean)
@@ -68,15 +68,15 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [ "$MODE" = "mock" ]; then
-    echo "🎭 启动 Mock Mode - 测试模式"
+if [ "$MODE" = "backtest" ]; then
+    echo "🎭 启动 backtest Mode - 测试模式"
 else
     echo "🚀 启动 Live EvoTraders System - Continuous Server"
 fi
 echo "=================================================="
 
 
-# 正常模式需要检查.env文件，mock模式不需要
+# 正常模式需要检查.env文件，backtest模式不需要
 if [ "$MODE" = "normal" ]; then
     # 检查.env文件
     if [ ! -f ".env" ]; then
@@ -118,7 +118,7 @@ fi
 
 # 设置CONFIG_NAME默认值（如果未通过参数指定）
 if [ -z "$CONFIG_NAME" ]; then
-    CONFIG_NAME='mock'
+    CONFIG_NAME='backtest'
 fi
 
 # 正常模式下询问是否清空历史记录
@@ -213,8 +213,8 @@ fi
 # 显示配置信息
 echo ""
 echo "📊 当前配置:"
-if [ "$MODE" = "mock" ]; then
-    echo "   模式: 🎭 MOCK (模拟数据)"
+if [ "$MODE" = "backtest" ]; then
+    echo "   模式: 🎭 backtest (模拟数据)"
     echo "   说明: 用于测试前端，不需要真实数据和API密钥"
 else
     echo "   模式: 🚀 NORMAL (真实交易)"
@@ -250,8 +250,8 @@ echo ""
 
 # 构建启动命令
 PYTHON_CMD="python -u -m backend.servers.server"
-if [ "$MODE" = "mock" ]; then
-    PYTHON_CMD="$PYTHON_CMD --mock"
+if [ "$MODE" = "backtest" ]; then
+    PYTHON_CMD="$PYTHON_CMD --backtest"
 fi
 if [ -n "$HOST" ]; then
     PYTHON_CMD="$PYTHON_CMD --host $HOST"
