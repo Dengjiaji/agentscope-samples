@@ -304,17 +304,7 @@ class PortfolioManagerAgent(AgentBase):
         
         progress.update_status(self.agent_id, None, "Generating decisions based on signals and historical experience")
                 # 保存到文件	        
-        save_dir = "/Users/wy/Downloads/Project/IA_space/reviews/pm_decisions/"	
-        os.makedirs(save_dir, exist_ok=True)	
-        filename = f"pm_decision_system_prompt_{state['metadata']['trading_date']}.txt"	
-        filepath = os.path.join(save_dir, filename)	
-        with open(filepath, 'w', encoding='utf-8') as f:	
-            f.write(system_prompt)	
-        filename = f"pm_decision_human_prompt_{state['metadata']['trading_date']}.txt"	
-        filepath = os.path.join(save_dir, filename)	
-        with open(filepath, 'w', encoding='utf-8') as f:	
-            f.write(human_prompt)	
-        print(f"✅ Decision saved to: {filepath}")
+      
         # pdb.set_trace()
         return tool_call(
             messages=messages,
@@ -872,7 +862,7 @@ class PortfolioManagerAgent(AgentBase):
                 ticker = trade.get('ticker', '')
                 key = (trade_date, ticker)
                 if key not in trades_by_date_ticker:
-                    trades_by_date_ticker[key] = []
+                    trades_by_date_t icker[key] = []
                 trades_by_date_ticker[key].append(trade)
         
         # Build equity history by date for daily return calculation
