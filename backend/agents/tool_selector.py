@@ -7,7 +7,7 @@ import os
 import json
 from typing import Dict, Any, List
 from agentscope.tool import Toolkit
-
+import pdb
 from .prompt_loader import PromptLoader
 
 # Import all available analysis tools
@@ -249,13 +249,12 @@ class Toolselector:
                                    llm, ticker: str, analyst_persona: str) -> Dict[str, Any]:
         """Use LLM to synthesize tool results"""
         try:
-            # Prepare tool result summaries
+            # Prepare tool result summaries with full raw data
             tool_summaries = [
                 {
                     "tool_name": result.get("tool_name", "unknown"),
-                    "signal": result.get("signal", "neutral"),
-                    "key_metrics": result.get("metrics", result.get("valuation", {})),
-                    "selection_reason": result.get("selection_reason", "")
+                    "selection_reason": result.get("selection_reason", ""),
+                    "full_result": result  # Include full result for comprehensive analysis
                 }
                 for result in tool_results if "error" not in result
             ]
@@ -274,7 +273,7 @@ class Toolselector:
                     "tool_summaries": tool_summaries_json
                 }
             )
-            
+            # pdb.set_trace()
             # Call LLM
             messages = [{"role": "user", "content": prompt}]
             response = llm(messages=messages, temperature=0.7)

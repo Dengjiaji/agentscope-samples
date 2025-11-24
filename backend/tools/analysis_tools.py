@@ -56,7 +56,7 @@ def analyze_efficiency_ratios(ticker: str, end_date: str, api_key: str) -> Dict[
     try:
         financial_metrics = get_financial_metrics(ticker=ticker, end_date=end_date, period="ttm", limit=10, api_key=api_key)
         if not financial_metrics:
-            return {"error": "No financial metrics found", "signal": "neutral", "confidence": 0}
+            return {"error": "No financial metrics found"}
         
         metrics = financial_metrics[0]
         
@@ -66,52 +66,19 @@ def analyze_efficiency_ratios(ticker: str, end_date: str, api_key: str) -> Dict[
         receivables_turnover = metrics.receivables_turnover
         working_capital_turnover = metrics.working_capital_turnover
         
-        score = 0
-        details = []
-        
-        # Asset turnover
-        if asset_turnover and asset_turnover > 1.0:
-            score += 1
-            details.append(f"Good asset turnover: {asset_turnover:.2f}")
-        else:
-            details.append(f"Low asset turnover: {asset_turnover:.2f}" if asset_turnover else "Asset turnover: N/A")
-        
-        # Inventory turnover
-        if inventory_turnover and inventory_turnover > 6:
-            score += 1
-            details.append(f"Fast inventory turnover: {inventory_turnover:.1f} times/year")
-        else:
-            details.append(f"Slow inventory turnover: {inventory_turnover:.1f} times/year" if inventory_turnover else "Inventory turnover: N/A")
-        
-        # Receivables turnover
-        if receivables_turnover and receivables_turnover > 8:
-            score += 1
-            details.append(f"Fast receivables turnover: {receivables_turnover:.1f} times/year")
-        else:
-            details.append(f"Slow receivables turnover: {receivables_turnover:.1f} times/year" if receivables_turnover else "Receivables turnover: N/A")
-        
-        # Working capital turnover
-        if working_capital_turnover and working_capital_turnover > 4:
-            score += 1
-            details.append(f"High working capital efficiency: {working_capital_turnover:.1f}")
-        else:
-            details.append(f"Low working capital efficiency: {working_capital_turnover:.1f}" if working_capital_turnover else "Working capital turnover: N/A")
-        
-        signal = "bullish" if score >= 3 else "bearish" if score <= 1 else "neutral"
+       
         
         return {
-            "signal": signal,
             "metrics": {
                 "asset_turnover": asset_turnover,
                 "inventory_turnover": inventory_turnover,
                 "receivables_turnover": receivables_turnover,
                 "working_capital_turnover": working_capital_turnover
             },
-            "details": details,
-            "reasoning": f"Efficiency analysis score: {score}/4"
+            "reasoning": f"Efficiency analysis"
         }
     except Exception as e:
-        return {"error": str(e), "signal": "neutral"}
+        return {"error": str(e)}
 
 @tool
 def analyze_profitability(ticker: str, end_date: str, api_key: str) -> Dict[str, Any]:
@@ -137,7 +104,7 @@ def analyze_profitability(ticker: str, end_date: str, api_key: str) -> Dict[str,
         )
         
         if not financial_metrics:
-            return {"error": "No financial metrics found", "signal": "neutral"}
+            return {"error": "No financial metrics found"}
         
         metrics = financial_metrics[0]
         
@@ -145,46 +112,18 @@ def analyze_profitability(ticker: str, end_date: str, api_key: str) -> Dict[str,
         return_on_equity = metrics.return_on_equity
         net_margin = metrics.net_margin
         operating_margin = metrics.operating_margin
-        
-        # Evaluation criteria
-        thresholds = [
-            (return_on_equity, 0.15, "ROE > 15%"),  # Strong ROE above 15%
-            (net_margin, 0.20, "Net Margin > 20%"),  # Healthy profit margins
-            (operating_margin, 0.15, "Operating Margin > 15%"),  # Strong operating efficiency
-        ]
-        
-        score = 0
-        details = []
-        for metric, threshold, description in thresholds:
-            if metric is not None and metric > threshold:
-                score += 1
-                details.append(f"{description}: {metric:.2%}")
-            else:
-                details.append(f"{description}: {metric:.2%}" if metric else f"{description}: N/A")
-        
-        # Generate signal
-        if score >= 2:
-            signal = "bullish"
-        elif score == 0:
-            signal = "bearish"
-        else:
-            signal = "neutral"
-            
+
         return {
-            "signal": signal,
-            "score": score,
-            "max_score": len(thresholds),
             "metrics": {
                 "return_on_equity": return_on_equity,
                 "net_margin": net_margin,
                 "operating_margin": operating_margin
             },
-            "details": details,
-            "reasoning": f"Profitability score: {score}/{len(thresholds)}"
+            "reasoning": f"Profitability analysis"
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral"}
+        return {"error": str(e)}
 
 
 @tool
@@ -210,7 +149,7 @@ def analyze_growth(ticker: str, end_date: str, api_key: str) -> Dict[str, Any]:
         )
         
         if not financial_metrics:
-            return {"error": "No financial metrics found", "signal": "neutral"}
+            return {"error": "No financial metrics found"}
         
         metrics = financial_metrics[0]
         
@@ -219,46 +158,19 @@ def analyze_growth(ticker: str, end_date: str, api_key: str) -> Dict[str, Any]:
         earnings_growth = metrics.earnings_growth
         book_value_growth = metrics.book_value_growth
         
-        # Evaluation criteria
-        thresholds = [
-            (revenue_growth, 0.10, "Revenue Growth > 10%"),
-            (earnings_growth, 0.10, "Earnings Growth > 10%"),
-            (book_value_growth, 0.10, "Book Value Growth > 10%"),
-        ]
         
-        score = 0
-        details = []
-        for metric, threshold, description in thresholds:
-            if metric is not None and metric > threshold:
-                score += 1
-                details.append(f"{description}: {metric:.2%}")
-            else:
-                details.append(f"{description}: {metric:.2%}" if metric else f"{description}: N/A")
-        
-        # Generate signal
-        if score >= 2:
-            signal = "bullish"
-        elif score == 0:
-            signal = "bearish"
-        else:
-            signal = "neutral"
-            
         
         return {
-            "signal": signal,
-            "score": score,
-            "max_score": len(thresholds),
             "metrics": {
                 "revenue_growth": revenue_growth,
                 "earnings_growth": earnings_growth,
                 "book_value_growth": book_value_growth
             },
-            "details": details,
-            "reasoning": f"Growth score: {score}/{len(thresholds)}"
+            "reasoning": f"Growth analysis"
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral"}
+        return {"error": str(e)}
 
 
 @tool  
@@ -284,7 +196,7 @@ def analyze_financial_health(ticker: str, end_date: str, api_key: str) -> Dict[s
         )
         
         if not financial_metrics:
-            return {"error": "No financial metrics found", "signal": "neutral"}
+            return {"error": "No financial metrics found"}
         
         metrics = financial_metrics[0]
         
@@ -294,56 +206,21 @@ def analyze_financial_health(ticker: str, end_date: str, api_key: str) -> Dict[s
         free_cash_flow_per_share = metrics.free_cash_flow_per_share
         earnings_per_share = metrics.earnings_per_share
         
-        score = 0
-        details = []
         
-        # Liquidity assessment
-        if current_ratio and current_ratio > 1.5:
-            score += 1
-            details.append(f"Good liquidity: Current Ratio = {current_ratio:.2f}")
-        else:
-            details.append(f"Insufficient liquidity: Current Ratio = {current_ratio:.2f}" if current_ratio else "Insufficient liquidity: Current Ratio = N/A")
-            
-        # Debt level assessment
-        if debt_to_equity and debt_to_equity < 0.5:
-            score += 1
-            details.append(f"Conservative debt level: D/E = {debt_to_equity:.2f}")
-        else:
-            details.append(f"High debt level: D/E = {debt_to_equity:.2f}" if debt_to_equity else "High debt level: D/E = N/A")
-            
-        # Cash flow assessment
-        if (free_cash_flow_per_share and earnings_per_share and 
-            free_cash_flow_per_share > earnings_per_share * 0.8):
-            score += 1
-            details.append(f"Good cash flow conversion: FCF/EPS = {free_cash_flow_per_share/earnings_per_share:.2f}")
-        else:
-            details.append("Poor cash flow conversion")
-        
-        # Generate signal
-        if score >= 2:
-            signal = "bullish"
-        elif score == 0:
-            signal = "bearish"
-        else:
-            signal = "neutral"
             
         
         return {
-            "signal": signal,
-            "score": score,
-            "max_score": 3,
             "metrics": {
                 "current_ratio": current_ratio,
                 "debt_to_equity": debt_to_equity,
                 "free_cash_flow_per_share": free_cash_flow_per_share,
                 "earnings_per_share": earnings_per_share
             },
-            "details": details,
-            "reasoning": f"Financial health score: {score}/3"
+            "reasoning": f"Financial health analysis"
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral"}
+        return {"error": str(e)}
 
 
 @tool
@@ -369,7 +246,7 @@ def analyze_valuation_ratios(ticker: str, end_date: str, api_key: str) -> Dict[s
         )
         
         if not financial_metrics:
-            return {"error": "No financial metrics found", "signal": "neutral"}
+            return {"error": "No financial metrics found"}
         
         metrics = financial_metrics[0]
         
@@ -378,46 +255,18 @@ def analyze_valuation_ratios(ticker: str, end_date: str, api_key: str) -> Dict[s
         pb_ratio = metrics.price_to_book_ratio
         ps_ratio = metrics.price_to_sales_ratio
         
-        # Evaluation criteria (high valuation is negative signal)
-        thresholds = [
-            (pe_ratio, 25, "P/E < 25"),
-            (pb_ratio, 3, "P/B < 3"),
-            (ps_ratio, 5, "P/S < 5"),
-        ]
-        
-        overvalued_score = 0
-        details = []
-        for metric, threshold, description in thresholds:
-            if metric is not None and metric > threshold:
-                overvalued_score += 1
-                details.append(f"Overvalued: {description.split('<')[0]}= {metric:.2f}")
-            else:
-                details.append(f"Fair valuation: {description.split('<')[0]}= {metric:.2f}" if metric else f"{description.split('<')[0]}= N/A")
-        
-        # Generate signal (more overvaluation = more bearish)
-        if overvalued_score >= 2:
-            signal = "bearish"
-        elif overvalued_score == 0:
-            signal = "bullish"
-        else:
-            signal = "neutral"
-            
         
         return {
-            "signal": signal,
-            "overvalued_score": overvalued_score,
-            "max_score": len(thresholds),
             "metrics": {
                 "pe_ratio": pe_ratio,
                 "pb_ratio": pb_ratio,
                 "ps_ratio": ps_ratio
             },
-            "details": details,
-            "reasoning": f"Overvalued indicators count: {overvalued_score}/{len(thresholds)}"
+            "reasoning": f"Valuation ratio analysis"
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral"}
+        return {"error": str(e)}
 
 
 # ===================== Technical Analysis Tools =====================
@@ -448,7 +297,7 @@ def analyze_trend_following(ticker: str, start_date: str, end_date: str, api_key
         prices = get_prices(ticker=ticker, start_date=extended_start_date, end_date=end_date, api_key=api_key)
         
         if not prices:
-            return {"error": "No price data found", "signal": "neutral"}
+            return {"error": "No price data found"}
         
         prices_df = prices_to_df(prices)
         
@@ -456,7 +305,6 @@ def analyze_trend_following(ticker: str, start_date: str, end_date: str, api_key
         if len(prices_df) < 10:
             return {
                 "error": f"Insufficient data for trend analysis: only {len(prices_df)} days available, need at least 10", 
-                "signal": "neutral", 
                 "data_range": f"Attempted to fetch data from {extended_start_date} to {end_date}"
             }
         elif len(prices_df) < 20:
@@ -490,91 +338,20 @@ def analyze_trend_following(ticker: str, start_date: str, end_date: str, api_key
         macd_signal = safe_float(prices_df['MACD_signal'].iloc[-1])
         macd_histogram = safe_float(prices_df['MACD_histogram'].iloc[-1])
         
-        # Trend signal scoring
-        signals = []
-        details = []
         
-        # 1. Price vs moving averages
-        if current_price > sma_20 > sma_50:
-            signals.append("bullish")
-            details.append(f"Price above moving averages: {current_price:.2f} > SMA20({sma_20:.2f}) > SMA50({sma_50:.2f})")
-        elif current_price < sma_20 < sma_50:
-            signals.append("bearish")
-            details.append(f"Price below moving averages: {current_price:.2f} < SMA20({sma_20:.2f}) < SMA50({sma_50:.2f})")
-        else:
-            signals.append("neutral")
-            details.append(f"Price interwoven with moving averages: {current_price:.2f}, SMA20({sma_20:.2f}), SMA50({sma_50:.2f})")
-        
-        # 2. MACD signal
-        if macd > macd_signal and macd_histogram > 0:
-            signals.append("bullish")
-            details.append(f"MACD bullish: MACD({macd:.4f}) > Signal({macd_signal:.4f})")
-        elif macd < macd_signal and macd_histogram < 0:
-            signals.append("bearish")
-            details.append(f"MACD bearish: MACD({macd:.4f}) < Signal({macd_signal:.4f})")
-        else:
-            signals.append("neutral")
-            details.append(f"MACD neutral: MACD({macd:.4f}), Signal({macd_signal:.4f})")
         
         # 3. Short-term trend
         recent_prices = prices_df['close'].tail(5).values
-        if len(recent_prices) >= 5:
-            trend_slope = np.polyfit(range(len(recent_prices)), recent_prices, 1)[0]
-            if trend_slope > 0:
-                signals.append("bullish")
-                details.append(f"Short-term uptrend: slope {trend_slope:.4f}")
-            elif trend_slope < 0:
-                signals.append("bearish")
-                details.append(f"Short-term downtrend: slope {trend_slope:.4f}")
-            else:
-                signals.append("neutral")
-                details.append("Short-term trend flat")
-        
-        # Combined signal
-        bullish_count = signals.count("bullish")
-        bearish_count = signals.count("bearish")
-        
-        if bullish_count > bearish_count:
-            final_signal = "bullish"
-        elif bearish_count > bullish_count:
-            final_signal = "bearish"
-        else:
-            final_signal = "neutral"
-        
-        # Determine long-term trend and context (requires 200-day MA)
+       
         long_term_trend = None
-        trend_context = None
-        context_description = ""
+        
         distance_from_200ma_pct = None
         
         if sma_200 is not None:
             long_term_trend = "bullish" if current_price > sma_200 else "bearish"
             distance_from_200ma_pct = ((current_price - sma_200) / sma_200) * 100
-            
-            # Detect pullback vs reversal
-            if current_price > sma_200 and current_price < sma_20:
-                trend_context = "PULLBACK_IN_UPTREND"
-                context_description = f"🎯 KEY INSIGHT: Price is above 200-day MA (${sma_200:.2f}) indicating LONG-TERM UPTREND, but below 20-day MA (${sma_20:.2f}). This is a PULLBACK in an uptrend, not a reversal. Historically a BUY opportunity if fundamentals remain strong."
-                details.append(context_description)
-            elif current_price < sma_200 and current_price > sma_20:
-                trend_context = "BOUNCE_IN_DOWNTREND"
-                context_description = f"⚠️ KEY INSIGHT: Price is below 200-day MA (${sma_200:.2f}) indicating LONG-TERM DOWNTREND, but above 20-day MA (${sma_20:.2f}). This is a temporary BOUNCE in a downtrend, not a reversal. Caution on long positions."
-                details.append(context_description)
-            elif current_price > sma_200 > sma_20:
-                trend_context = "STRONG_UPTREND"
-                context_description = f"✅ Price above both 200-day MA (${sma_200:.2f}) and 20-day MA (${sma_20:.2f}). Strong uptrend confirmed."
-                details.append(context_description)
-            elif current_price < sma_200 < sma_20:
-                trend_context = "STRONG_DOWNTREND"
-                context_description = f"❌ Price below both 200-day MA (${sma_200:.2f}) and 20-day MA (${sma_20:.2f}). Strong downtrend confirmed."
-                details.append(context_description)
-            else:
-                trend_context = "TRANSITIONAL"
-                context_description = f"↔️ Price near 200-day MA (${sma_200:.2f}). Trend in transition."
-                details.append(context_description)
-        
+       
         return {
-            "signal": final_signal,
             "metrics": {
                 "current_price": current_price,
                 "sma_20": sma_20,
@@ -587,19 +364,11 @@ def analyze_trend_following(ticker: str, start_date: str, end_date: str, api_key
                 "distance_from_200ma_pct": distance_from_200ma_pct
             },
             "long_term_trend": long_term_trend,
-            "trend_context": trend_context,
-            "context_description": context_description,
-            "signal_breakdown": {
-                "bullish_signals": bullish_count,
-                "bearish_signals": bearish_count,
-                "neutral_signals": signals.count("neutral")
-            },
-            "details": details,
-            "reasoning": f"Trend following analysis: {bullish_count} bullish signals, {bearish_count} bearish signals. Long-term trend: {long_term_trend or 'unknown'}."
+            "reasoning": f"Trend following analysis"
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral"}
+        return {"error": str(e)}
 
 
 @tool
@@ -627,14 +396,13 @@ def analyze_mean_reversion(ticker: str, start_date: str, end_date: str, api_key:
         prices = get_prices(ticker=ticker, start_date=extended_start_date, end_date=end_date, api_key=api_key)
         
         if not prices:
-            return {"error": "No price data found", "signal": "neutral"}
+            return {"error": "No price data found"}
         
         prices_df = prices_to_df(prices)
         
         if len(prices_df) < 5:
             return {
                 "error": f"Insufficient data for mean reversion analysis: only {len(prices_df)} days available, need at least 5", 
-                "signal": "neutral", 
                 "data_range": f"Attempted to fetch data from {extended_start_date} to {end_date}"
             }
         elif len(prices_df) < 20:
@@ -661,57 +429,11 @@ def analyze_mean_reversion(ticker: str, start_date: str, end_date: str, api_key:
         lower_band = safe_float(prices_df['Lower_Band'].iloc[-1])
         rsi = safe_float(prices_df['RSI'].iloc[-1])
         
-        signals = []
-        details = []
-        
-        # 1. Bollinger Bands signal
-        if current_price <= lower_band:
-            signals.append("bullish")  # Oversold, possible bounce
-            details.append(f"Price touches lower band, oversold: {current_price:.2f} <= {lower_band:.2f}")
-        elif current_price >= upper_band:
-            signals.append("bearish")  # Overbought, possible pullback
-            details.append(f"Price touches upper band, overbought: {current_price:.2f} >= {upper_band:.2f}")
-        else:
-            signals.append("neutral")
-            details.append(f"Price within Bollinger Bands: {lower_band:.2f} < {current_price:.2f} < {upper_band:.2f}")
-        
-        # 2. RSI signal
-        if rsi <= 30:
-            signals.append("bullish")  # Oversold
-            details.append(f"RSI oversold: {rsi:.2f} <= 30")
-        elif rsi >= 70:
-            signals.append("bearish")  # Overbought
-            details.append(f"RSI overbought: {rsi:.2f} >= 70")
-        else:
-            signals.append("neutral")
-            details.append(f"RSI normal: {rsi:.2f}")
         
         # 3. Price deviation
         price_deviation = (current_price - sma) / sma * 100
-        if price_deviation <= -5:  # More than 5% below moving average
-            signals.append("bullish")
-            details.append(f"Price significantly below moving average: {price_deviation:.2f}%")
-        elif price_deviation >= 5:  # More than 5% above moving average
-            signals.append("bearish")
-            details.append(f"Price significantly above moving average: {price_deviation:.2f}%")
-        else:
-            signals.append("neutral")
-            details.append(f"Price near moving average: deviation {price_deviation:.2f}%")
-        
-        # Combined signal
-        bullish_count = signals.count("bullish")
-        bearish_count = signals.count("bearish")
-        
-        if bullish_count > bearish_count:
-            final_signal = "bullish"
-        elif bearish_count > bullish_count:
-            final_signal = "bearish"
-        else:
-            final_signal = "neutral"
-            
         
         return {
-            "signal": final_signal,
             "metrics": {
                 "current_price": current_price,
                 "sma": sma,
@@ -720,17 +442,11 @@ def analyze_mean_reversion(ticker: str, start_date: str, end_date: str, api_key:
                 "rsi": rsi,
                 "price_deviation_pct": round(price_deviation, 2)
             },
-            "signal_breakdown": {
-                "bullish_signals": bullish_count,
-                "bearish_signals": bearish_count,
-                "neutral_signals": signals.count("neutral")
-            },
-            "details": details,
-            "reasoning": f"Mean reversion analysis: {bullish_count} bullish signals, {bearish_count} bearish signals"
+            "reasoning": f"Mean reversion analysis"
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral"}
+        return {"error": str(e)}
 
 
 @tool
@@ -758,14 +474,13 @@ def analyze_momentum(ticker: str, start_date: str, end_date: str, api_key: str) 
         prices = get_prices(ticker=ticker, start_date=extended_start_date, end_date=end_date, api_key=api_key)
         
         if not prices:
-            return {"error": "No price data found", "signal": "neutral"}
+            return {"error": "No price data found"}
         
         prices_df = prices_to_df(prices)
         
         if len(prices_df) < 5:
             return {
                 "error": f"Insufficient data for momentum analysis: only {len(prices_df)} days available, need at least 5", 
-                "signal": "neutral", 
                 "data_range": f"Attempted to fetch data from {extended_start_date} to {end_date}"
             }
         elif len(prices_df) < 20:
@@ -792,57 +507,10 @@ def analyze_momentum(ticker: str, start_date: str, end_date: str, api_key: str) 
         
         # Calculate recent volatility
         recent_volatility = safe_float(prices_df['returns'].tail(20).std() * np.sqrt(252))
-        
-        signals = []
-        details = []
-        
-        # 1. Short-term momentum (5-day)
-        if momentum_5 > 0.02:  # 5-day gain exceeds 2%
-            signals.append("bullish")
-            details.append(f"Strong short-term momentum: 5-day gain {momentum_5*100:.2f}%")
-        elif momentum_5 < -0.02:  # 5-day loss exceeds 2%
-            signals.append("bearish")
-            details.append(f"Weak short-term momentum: 5-day loss {momentum_5*100:.2f}%")
-        else:
-            signals.append("neutral")
-            details.append(f"Flat short-term momentum: 5-day change {momentum_5*100:.2f}%")
-        
-        # 2. Medium-term momentum (10-day)
-        if momentum_10 > 0.05:  # 10-day gain exceeds 5%
-            signals.append("bullish")
-            details.append(f"Strong medium-term momentum: 10-day gain {momentum_10*100:.2f}%")
-        elif momentum_10 < -0.05:  # 10-day loss exceeds 5%
-            signals.append("bearish")
-            details.append(f"Weak medium-term momentum: 10-day loss {momentum_10*100:.2f}%")
-        else:
-            signals.append("neutral")
-            details.append(f"Flat medium-term momentum: 10-day change {momentum_10*100:.2f}%")
-        
-        # 3. Long-term momentum (20-day)
-        if momentum_20 > 0.10:  # 20-day gain exceeds 10%
-            signals.append("bullish")
-            details.append(f"Strong long-term momentum: 20-day gain {momentum_20*100:.2f}%")
-        elif momentum_20 < -0.10:  # 20-day loss exceeds 10%
-            signals.append("bearish")
-            details.append(f"Weak long-term momentum: 20-day loss {momentum_20*100:.2f}%")
-        else:
-            signals.append("neutral")
-            details.append(f"Flat long-term momentum: 20-day change {momentum_20*100:.2f}%")
-        
-        # Combined signal
-        bullish_count = signals.count("bullish")
-        bearish_count = signals.count("bearish")
-        
-        if bullish_count > bearish_count:
-            final_signal = "bullish"
-        elif bearish_count > bullish_count:
-            final_signal = "bearish"
-        else:
-            final_signal = "neutral"
+       
             
         
         return {
-            "signal": final_signal,
             "metrics": {
                 "current_price": current_price,
                 "momentum_5d_pct": round(momentum_5 * 100, 2),
@@ -850,17 +518,11 @@ def analyze_momentum(ticker: str, start_date: str, end_date: str, api_key: str) 
                 "momentum_20d_pct": round(momentum_20 * 100, 2),
                 "recent_volatility": round(recent_volatility * 100, 2)
             },
-            "signal_breakdown": {
-                "bullish_signals": bullish_count,
-                "bearish_signals": bearish_count,
-                "neutral_signals": signals.count("neutral")
-            },
-            "details": details,
-            "reasoning": f"Momentum analysis: {bullish_count} bullish signals, {bearish_count} bearish signals"
+            "reasoning": f"Momentum analysis"
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral"}
+        return {"error": str(e)}
 
 
 @tool
@@ -888,14 +550,13 @@ def analyze_volatility(ticker: str, start_date: str, end_date: str, api_key: str
         prices = get_prices(ticker=ticker, start_date=extended_start_date, end_date=end_date, api_key=api_key)
         
         if not prices:
-            return {"error": "No price data found", "signal": "neutral"}
+            return {"error": "No price data found"}
         
         prices_df = prices_to_df(prices)
         
         if len(prices_df) < 5:
             return {
                 "error": f"Insufficient data for volatility analysis: only {len(prices_df)} days available, need at least 5", 
-                "signal": "neutral", 
                 "data_range": f"Attempted to fetch data from {extended_start_date} to {end_date}"
             }
         elif len(prices_df) < 20:
@@ -923,56 +584,9 @@ def analyze_volatility(ticker: str, start_date: str, end_date: str, api_key: str
         # Calculate volatility percentile
         vol_20_percentile = (prices_df['vol_20'].rank(pct=True).iloc[-1]) * 100
         
-        signals = []
-        details = []
-        
-        # 1. Volatility trend
-        if current_vol_10 > current_vol_20 > current_vol_60:
-            signals.append("bearish")  # Rising volatility is usually a risk signal
-            details.append("Volatility continuously rising, risk increasing")
-        elif current_vol_10 < current_vol_20 < current_vol_60:
-            signals.append("bullish")  # Falling volatility, risk decreasing
-            details.append("Volatility continuously falling, risk decreasing")
-        else:
-            signals.append("neutral")
-            details.append("Volatility change not significant")
-        
-        # 2. Volatility level
-        if current_vol_20 > 0.40:  # Annualized volatility exceeds 40%
-            signals.append("bearish")
-            details.append(f"High volatility environment: {current_vol_20*100:.1f}%")
-        elif current_vol_20 < 0.15:  # Annualized volatility below 15%
-            signals.append("bullish")
-            details.append(f"Low volatility environment: {current_vol_20*100:.1f}%")
-        else:
-            signals.append("neutral")
-            details.append(f"Moderate volatility: {current_vol_20*100:.1f}%")
-        
-        # 3. Volatility percentile
-        if vol_20_percentile > 80:
-            signals.append("bearish")
-            details.append(f"Volatility at high level: {vol_20_percentile:.1f} percentile")
-        elif vol_20_percentile < 20:
-            signals.append("bullish")
-            details.append(f"Volatility at low level: {vol_20_percentile:.1f} percentile")
-        else:
-            signals.append("neutral")
-            details.append(f"Normal volatility: {vol_20_percentile:.1f} percentile")
-        
-        # Combined signal
-        bullish_count = signals.count("bullish")
-        bearish_count = signals.count("bearish")
-        
-        if bullish_count > bearish_count:
-            final_signal = "bullish"
-        elif bearish_count > bullish_count:
-            final_signal = "bearish"
-        else:
-            final_signal = "neutral"
             
         
         return {
-            "signal": final_signal,
             "metrics": {
                 "current_price": current_price,
                 "volatility_10d": round(current_vol_10 * 100, 2),
@@ -980,17 +594,11 @@ def analyze_volatility(ticker: str, start_date: str, end_date: str, api_key: str
                 "volatility_60d": round(current_vol_60 * 100, 2),
                 "volatility_percentile": round(vol_20_percentile, 1)
             },
-            "signal_breakdown": {
-                "bullish_signals": bullish_count,
-                "bearish_signals": bearish_count,
-                "neutral_signals": signals.count("neutral")
-            },
-            "details": details,
-            "reasoning": f"Volatility analysis: {bullish_count} bullish signals, {bearish_count} bearish signals"
+            "reasoning": f"Volatility analysis"
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral"}
+        return {"error": str(e)}
 
 
 # ===================== Sentiment Analysis Tools =====================
@@ -1022,7 +630,6 @@ def analyze_insider_trading(ticker: str, end_date: str, api_key: str, start_date
         if not insider_trades:
             # When no insider trading data, return neutral signal instead of error
             return {
-                "signal": "neutral",
                 "metrics": {
                     "total_trades": 0,
                     "buy_trades": 0,
@@ -1032,8 +639,7 @@ def analyze_insider_trading(ticker: str, end_date: str, api_key: str, start_date
                     "trade_ratio": 0,
                     "volume_ratio": 0
                 },
-                "details": ["No available insider trading data"],
-                "reasoning": "Insider trading analysis: No trading data, returning neutral signal"
+                "reasoning": "Insider trading analysis: No trading data"
             }
         
         # Analyze trading signals
@@ -1041,7 +647,6 @@ def analyze_insider_trading(ticker: str, end_date: str, api_key: str, start_date
         
         if len(transaction_shares) == 0:
             return {
-                "signal": "neutral",
                 "metrics": {
                     "total_trades": len(insider_trades),
                     "buy_trades": 0,
@@ -1050,9 +655,8 @@ def analyze_insider_trading(ticker: str, end_date: str, api_key: str, start_date
                     "total_sell_volume": 0,
                     "trade_ratio": 0,
                     "volume_ratio": 0
-                },
-                "details": [f"Found {len(insider_trades)} trades, but trading data is invalid"],
-                "reasoning": "Insider trading analysis: Trading data invalid, returning neutral signal"
+                },  
+                "reasoning": "Insider trading analysis: Trading data invalid"
             }
         
         # Buy (positive) and sell (negative) statistics
@@ -1064,17 +668,8 @@ def analyze_insider_trading(ticker: str, end_date: str, api_key: str, start_date
         total_buy_volume = transaction_shares[transaction_shares > 0].sum()
         total_sell_volume = abs(transaction_shares[transaction_shares < 0].sum())
         
-        # Generate signal
-        if buy_trades > sell_trades and total_buy_volume > total_sell_volume:
-            signal = "bullish"
-        elif sell_trades > buy_trades and total_sell_volume > total_buy_volume:
-            signal = "bearish"
-        else:
-            signal = "neutral"
             
-        
         return {
-            "signal": signal,
             "metrics": {
                 "total_trades": total_trades,
                 "buy_trades": buy_trades,
@@ -1084,18 +679,11 @@ def analyze_insider_trading(ticker: str, end_date: str, api_key: str, start_date
                 "trade_ratio": round(buy_trades / max(sell_trades, 1), 2),
                 "volume_ratio": round(total_buy_volume / max(total_sell_volume, 1), 2)
             },
-            "details": [
-                f"Total trades: {total_trades}",
-                f"Buy trades: {buy_trades} ({buy_trades/total_trades*100:.1f}%)",
-                f"Sell trades: {sell_trades} ({sell_trades/total_trades*100:.1f}%)",
-                f"Buy volume: {total_buy_volume:,.0f}",
-                f"Sell volume: {total_sell_volume:,.0f}"
-            ],
-            "reasoning": f"Insider trading analysis: {'Buying dominant' if signal == 'bullish' else 'Selling dominant' if signal == 'bearish' else 'Neutral'}"
+            "reasoning": f"Insider trading analysis"
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral"}
+        return {"error": str(e)}
 
 
 @tool
@@ -1129,7 +717,6 @@ def analyze_news_sentiment(ticker: str, end_date: str, api_key: str, start_date:
         if not company_news:
             # When no news data, return neutral signal instead of error
             return {
-                "signal": "neutral", 
                 "metrics": {
                     "total_articles": 0,
                     "positive_articles": 0,
@@ -1139,8 +726,7 @@ def analyze_news_sentiment(ticker: str, end_date: str, api_key: str, start_date:
                     "negative_ratio": 0,
                     "neutral_ratio": 0
                 },
-                "details": ["No available company news data"],
-                "reasoning": "News sentiment analysis: No news data, returning neutral signal"
+                "reasoning": "News sentiment analysis: No news data"
             }
         
         # Check if sentiment data exists (determine which API is being used)
@@ -1163,60 +749,16 @@ def analyze_news_sentiment(ticker: str, end_date: str, api_key: str, start_date:
                 })
             
             return {
-                "signal": "neutral",  # Default neutral, LLM will judge based on news content
                 "data_source": "finnhub",
                 "total_news_count": len(company_news),
                 "news_list": news_list,
-                "details": [
-                    f"Retrieved {len(company_news)} news articles using Finnhub API",
-                    f"Returning latest {len(news_list)} news articles for analysis",
-                    "Please judge market sentiment based on news titles and sources"
-                ],
                 "reasoning": "News data analysis: Using Finnhub API, returning raw news data for LLM sentiment analysis"
             }
         
-        # If sentiment data exists, using Financial Datasets API
-        # Return statistics
-        positive_count = (sentiment_data == "positive").sum()
-        negative_count = (sentiment_data == "negative").sum()
-        neutral_count = (sentiment_data == "neutral").sum()
-        total_count = len(sentiment_data)
-        
-        # Generate signal
-        if positive_count > negative_count:
-            signal = "bullish"
-            dominant_count = positive_count
-        elif negative_count > positive_count:
-            signal = "bearish"
-            dominant_count = negative_count
-        else:
-            signal = "neutral"
-            dominant_count = max(positive_count, negative_count)
-            
-        
-        return {
-            "signal": signal,
-            "data_source": "financial_datasets",
-            "metrics": {
-                "total_articles": total_count,
-                "positive_articles": positive_count,
-                "negative_articles": negative_count,
-                "neutral_articles": neutral_count,
-                "positive_ratio": round(positive_count / total_count * 100, 1),
-                "negative_ratio": round(negative_count / total_count * 100, 1),
-                "neutral_ratio": round(neutral_count / total_count * 100, 1)
-            },
-            "details": [
-                f"Total news count: {total_count}",
-                f"Positive news: {positive_count} ({positive_count/total_count*100:.1f}%)",
-                f"Negative news: {negative_count} ({negative_count/total_count*100:.1f}%)",
-                f"Neutral news: {neutral_count} ({neutral_count/total_count*100:.1f}%)"
-            ],
-            "reasoning": f"News sentiment analysis: {'Positive sentiment dominant' if signal == 'bullish' else 'Negative sentiment dominant' if signal == 'bearish' else 'Neutral sentiment'}"
-        }
-        
+       
+  
     except Exception as e:
-        return {"error": str(e), "signal": "neutral"}
+        return {"error": str(e)}
 
 
 # ===================== Valuation Analysis Tools =====================
@@ -1245,7 +787,7 @@ def dcf_valuation_analysis(ticker: str, end_date: str, api_key: str) -> Dict[str
         )
         
         if not financial_metrics:
-            return {"error": "No financial metrics found", "signal": "neutral"}
+            return {"error": "No financial metrics found"}
         
         most_recent = financial_metrics[0]
         
@@ -1260,16 +802,16 @@ def dcf_valuation_analysis(ticker: str, end_date: str, api_key: str) -> Dict[str
         )
         
         if not line_items:
-            return {"error": "No cash flow data found", "signal": "neutral"}
+            return {"error": "No cash flow data found"}
         
         current_fcf = line_items[0].free_cash_flow
         if not current_fcf or current_fcf <= 0:
-            return {"error": "Invalid free cash flow data", "signal": "neutral"}
+            return {"error": "Invalid free cash flow data"}
         
         # Get market cap
         market_cap = get_market_cap(ticker, end_date, api_key=api_key)
         if not market_cap:
-            return {"error": "Market cap unavailable", "signal": "neutral"}
+            return {"error": "Market cap unavailable"}
         
         # DCF valuation calculation
         growth_rate = most_recent.earnings_growth or 0.05
@@ -1294,37 +836,21 @@ def dcf_valuation_analysis(ticker: str, end_date: str, api_key: str) -> Dict[str
         # Calculate value gap
         value_gap = (enterprise_value - market_cap) / market_cap
         
-        # Generate signal
-        if value_gap > 0.20:  # Undervalued by more than 20%
-            signal = "bullish"
-        elif value_gap < -0.20:  # Overvalued by more than 20%
-            signal = "bearish"
-        else:
-            signal = "neutral"
-        
         
         return {
-            "signal": signal,
             "valuation": {
                 "enterprise_value": enterprise_value,
                 "market_cap": market_cap,
                 "value_gap_pct": round(value_gap * 100, 2),
-                "current_fcf": current_fcf,
+                "current_free_cash_flow": current_fcf,
                 "growth_rate": growth_rate,
                 "discount_rate": discount_rate
             },
-            "details": [
-                f"Enterprise value: ${enterprise_value:,.0f}",
-                f"Market cap: ${market_cap:,.0f}",
-                f"Value gap: {value_gap*100:.1f}%",
-                f"Free cash flow: ${current_fcf:,.0f}",
-                f"Growth rate assumption: {growth_rate*100:.1f}%"
-            ],
-            "reasoning": f"DCF valuation: {'Undervalued' if signal == 'bullish' else 'Overvalued' if signal == 'bearish' else 'Fairly valued'} {abs(value_gap)*100:.1f}%"
+            "reasoning": f"DCF valuation analysis"
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral"}
+        return {"error": str(e)}
 
 
 @tool
@@ -1351,7 +877,7 @@ def owner_earnings_valuation_analysis(ticker: str, end_date: str, api_key: str) 
         )
         
         if not financial_metrics:
-            return {"error": "No financial metrics found", "signal": "neutral"}
+            return {"error": "No financial metrics found"}
         
         most_recent = financial_metrics[0]
         
@@ -1371,7 +897,7 @@ def owner_earnings_valuation_analysis(ticker: str, end_date: str, api_key: str) 
         )
         
         if len(line_items) < 2:
-            return {"error": "Insufficient financial data", "signal": "neutral"}
+            return {"error": "Insufficient financial data"}
         
         current, previous = line_items[0], line_items[1]
         
@@ -1384,12 +910,12 @@ def owner_earnings_valuation_analysis(ticker: str, end_date: str, api_key: str) 
         owner_earnings = net_income + depreciation - capex - wc_change
         
         if owner_earnings <= 0:
-            return {"error": "Negative owner earnings", "signal": "neutral"}
+            return {"error": "Negative owner earnings"}
         
         # Get market cap
         market_cap = get_market_cap(ticker, end_date, api_key=api_key)
         if not market_cap:
-            return {"error": "Market cap unavailable", "signal": "neutral"}
+            return {"error": "Market cap unavailable"}
         
         # Valuation calculation
         growth_rate = most_recent.earnings_growth or 0.05
@@ -1415,17 +941,8 @@ def owner_earnings_valuation_analysis(ticker: str, end_date: str, api_key: str) 
         # Value gap
         value_gap = (intrinsic_value - market_cap) / market_cap
         
-        # Generate signal
-        if value_gap > 0.25:  # Undervalued by more than 25%
-            signal = "bullish"
-        elif value_gap < -0.25:  # Overvalued by more than 25%
-            signal = "bearish"
-        else:
-            signal = "neutral"
-        
         
         return {
-            "signal": signal,
             "valuation": {
                 "intrinsic_value": intrinsic_value,
                 "market_cap": market_cap,
@@ -1433,26 +950,18 @@ def owner_earnings_valuation_analysis(ticker: str, end_date: str, api_key: str) 
                 "owner_earnings": owner_earnings,
                 "growth_rate": growth_rate,
                 "required_return": required_return,
-                "margin_of_safety": margin_of_safety
-            },
-            "components": {
+                "margin_of_safety": margin_of_safety,
                 "net_income": net_income,
                 "depreciation": depreciation,
                 "capex": capex,
                 "wc_change": wc_change
             },
-            "details": [
-                f"Intrinsic value: ${intrinsic_value:,.0f}",
-                f"Market cap: ${market_cap:,.0f}",
-                f"Value gap: {value_gap*100:.1f}%",
-                f"Owner earnings: ${owner_earnings:,.0f}",
-                f"Margin of safety: {margin_of_safety*100:.0f}%"
-            ],
-            "reasoning": f"Owner earnings valuation: {'Undervalued' if signal == 'bullish' else 'Overvalued' if signal == 'bearish' else 'Fairly valued'} {abs(value_gap)*100:.1f}%"
+           
+            "reasoning": f"Owner earnings valuation analysis"
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral"}
+        return {"error": str(e)}
 
 
 @tool  
@@ -1479,21 +988,21 @@ def ev_ebitda_valuation_analysis(ticker: str, end_date: str, api_key: str) -> Di
         )
         
         if not financial_metrics:
-            return {"error": "No financial metrics found", "signal": "neutral"}
+            return {"error": "No financial metrics found"}
         
         most_recent = financial_metrics[0]
         
         # Check required data
         if not (most_recent.enterprise_value and most_recent.enterprise_value_to_ebitda_ratio):
-            return {"error": "Missing EV/EBITDA data", "signal": "neutral"}
+            return {"error": "Missing EV/EBITDA data"}
         
         if most_recent.enterprise_value_to_ebitda_ratio <= 0:
-            return {"error": "Invalid EV/EBITDA ratio", "signal": "neutral"}
+            return {"error": "Invalid EV/EBITDA ratio"}
         
         # Get market cap
         market_cap = get_market_cap(ticker, end_date, api_key=api_key)
         if not market_cap:
-            return {"error": "Market cap unavailable", "signal": "neutral"}
+            return {"error": "Market cap unavailable"}
         
         # Calculate current EBITDA
         current_ebitda = most_recent.enterprise_value / most_recent.enterprise_value_to_ebitda_ratio
@@ -1506,7 +1015,7 @@ def ev_ebitda_valuation_analysis(ticker: str, end_date: str, api_key: str) -> Di
         ]
         
         if len(valid_multiples) < 3:
-            return {"error": "Insufficient historical data", "signal": "neutral"}
+            return {"error": "Insufficient historical data"}
         
         median_multiple = median(valid_multiples)
         current_multiple = most_recent.enterprise_value_to_ebitda_ratio
@@ -1526,39 +1035,23 @@ def ev_ebitda_valuation_analysis(ticker: str, end_date: str, api_key: str) -> Di
         # Multiple comparison
         multiple_discount = (median_multiple - current_multiple) / median_multiple
         
-        # Generate signal
-        if value_gap > 0.15 and multiple_discount > 0.10:  # Undervalued and multiple discount
-            signal = "bullish"
-        elif value_gap < -0.15 and multiple_discount < -0.10:  # Overvalued and multiple premium
-            signal = "bearish"
-        else:
-            signal = "neutral"
-        
         
         return {
-            "signal": signal,
             "valuation": {
                 "implied_equity_value": implied_equity_value,
                 "market_cap": market_cap,
                 "value_gap_pct": round(value_gap * 100, 2),
-                "current_multiple": current_multiple,
-                "median_multiple": median_multiple,
+                "Current EV/EBITDA": current_multiple,
+                "Historical median": median_multiple,
                 "multiple_discount_pct": round(multiple_discount * 100, 2),
                 "current_ebitda": current_ebitda
             },
-            "details": [
-                f"Implied equity value: ${implied_equity_value:,.0f}",
-                f"Market cap: ${market_cap:,.0f}",
-                f"Value gap: {value_gap*100:.1f}%",
-                f"Current EV/EBITDA: {current_multiple:.1f}x",
-                f"Historical median: {median_multiple:.1f}x",
-                f"Multiple discount: {multiple_discount*100:.1f}%"
-            ],
-            "reasoning": f"EV/EBITDA valuation: {'Undervalued' if signal == 'bullish' else 'Overvalued' if signal == 'bearish' else 'Fairly valued'}"
+           
+            "reasoning": f"EV/EBITDA valuation analysis"
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral"}
+        return {"error": str(e)}
 
 
 @tool
@@ -1585,7 +1078,7 @@ def residual_income_valuation_analysis(ticker: str, end_date: str, api_key: str)
         )
         
         if not financial_metrics:
-            return {"error": "No financial metrics found", "signal": "neutral"}
+            return {"error": "No financial metrics found"}
         
         most_recent = financial_metrics[0]
         
@@ -1600,19 +1093,19 @@ def residual_income_valuation_analysis(ticker: str, end_date: str, api_key: str)
         )
         
         if not line_items or not line_items[0].net_income:
-            return {"error": "No net income data", "signal": "neutral"}
+            return {"error": "No net income data"}
         
         net_income = line_items[0].net_income
         
         # Get market cap
         market_cap = get_market_cap(ticker, end_date, api_key=api_key)
         if not market_cap:
-            return {"error": "Market cap unavailable", "signal": "neutral"}
+            return {"error": "Market cap unavailable"}
         
         # Check required data
         pb_ratio = most_recent.price_to_book_ratio
         if not pb_ratio or pb_ratio <= 0:
-            return {"error": "Invalid P/B ratio", "signal": "neutral"}
+            return {"error": "Invalid P/B ratio"}
         
         # Calculate book value
         book_value = market_cap / pb_ratio
@@ -1628,7 +1121,7 @@ def residual_income_valuation_analysis(ticker: str, end_date: str, api_key: str)
         initial_residual_income = net_income - cost_of_equity * book_value
         
         if initial_residual_income <= 0:
-            return {"error": "Negative residual income", "signal": "neutral"}
+            return {"error": "Negative residual income"}
         
         # Calculate present value of future residual income
         pv_residual_income = 0.0
@@ -1647,17 +1140,8 @@ def residual_income_valuation_analysis(ticker: str, end_date: str, api_key: str)
         # Value gap
         value_gap = (intrinsic_value - market_cap) / market_cap
         
-        # Generate signal
-        if value_gap > 0.20:  # Undervalued by more than 20%
-            signal = "bullish"
-        elif value_gap < -0.20:  # Overvalued by more than 20%
-            signal = "bearish"
-        else:
-            signal = "neutral"
-        
         
         return {
-            "signal": signal,
             "valuation": {
                 "intrinsic_value": intrinsic_value,
                 "market_cap": market_cap,
@@ -1668,16 +1152,9 @@ def residual_income_valuation_analysis(ticker: str, end_date: str, api_key: str)
                 "book_value_growth": book_value_growth,
                 "margin_of_safety": margin_of_safety
             },
-            "details": [
-                f"Intrinsic value: ${intrinsic_value:,.0f}",
-                f"Market cap: ${market_cap:,.0f}",
-                f"Value gap: {value_gap*100:.1f}%",
-                f"Book value: ${book_value:,.0f}",
-                f"Residual income: ${initial_residual_income:,.0f}",
-                f"Margin of safety: {margin_of_safety*100:.0f}%"
-            ],
-            "reasoning": f"Residual income valuation: {'Undervalued' if signal == 'bullish' else 'Overvalued' if signal == 'bearish' else 'Fairly valued'} {abs(value_gap)*100:.1f}%"
+           
+            "reasoning": f"Residual income valuation analysis"
         }
         
     except Exception as e:
-        return {"error": str(e), "signal": "neutral"}
+        return {"error": str(e)}
