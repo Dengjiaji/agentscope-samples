@@ -299,10 +299,16 @@ class LiveTradingFund:
                         )
                     elif self.mode == "portfolio":
                         quantity = signal_info.get('quantity', 0)
-                        self.streamer.print("agent", 
-                            f"{ticker}: Final signal {action}({quantity} shares, confidence {confidence}%) \n{reasoning}",
-                            role_key='portfolio_manager'
-                        )
+                        if action == 'hold':
+                            self.streamer.print("agent", 
+                                f"{ticker}: Final signal {action}(changed 0 shares, confidence {confidence}%) \n{reasoning}",
+                                role_key='portfolio_manager'
+                            )
+                        else:
+                            self.streamer.print("agent", 
+                                f"{ticker}: Final signal {action}({quantity} shares, confidence {confidence}%) \n{reasoning}",
+                                role_key='portfolio_manager'
+                            )
                 else:
                     # Backtest mode: Display daily return
                     daily_ret = live_env['daily_returns'].get(ticker, 0) * 100
@@ -315,10 +321,16 @@ class LiveTradingFund:
                         )
                     elif self.mode == "portfolio":
                         quantity = signal_info.get('quantity', 0)
-                        self.streamer.print("agent", 
-                            f"{ticker}: Final signal {action}({quantity} shares, confidence {confidence}%, stock real daily return {real_ret:.2f}%) \n{reasoning}",
-                            role_key='portfolio_manager'
-                        )
+                        if action == 'hold':
+                            self.streamer.print("agent", 
+                                f"{ticker}: Final signal {action}(changed 0 shares, confidence {confidence}%, stock real daily return {real_ret:.2f}%) \n{reasoning}",
+                                role_key='portfolio_manager'
+                            )
+                        else:
+                            self.streamer.print("agent", 
+                                f"{ticker}: Final signal {action}({quantity} shares, confidence {confidence}%, stock real daily return {real_ret:.2f}%) \n{reasoning}",
+                                role_key='portfolio_manager'
+                            )
 
         # Portfolio mode: Add portfolio info
         if self.mode == "portfolio":
