@@ -862,7 +862,7 @@ class PortfolioManagerAgent(AgentBase):
                 ticker = trade.get('ticker', '')
                 key = (trade_date, ticker)
                 if key not in trades_by_date_ticker:
-                    trades_by_date_t icker[key] = []
+                    trades_by_date_ticker[key] = []
                 trades_by_date_ticker[key].append(trade)
         
         # Build equity history by date for daily return calculation
