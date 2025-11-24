@@ -860,9 +860,15 @@ class PortfolioManagerAgent(AgentBase):
         # Build trades index by (date, ticker)
         trades_by_date_ticker = {}
         for trade in all_trades:
-            ts = trade.get('ts') or trade.get('timestamp', 0)
-            if ts:
-                trade_date = datetime.fromtimestamp(ts / 1000).strftime('%Y-%m-%d')
+            # Use trading_date if available (handles timezone offset correctly)
+            # Fallback to extracting from timestamp for backward compatibility
+            trade_date = trade.get('trading_date')
+            if not trade_date:
+                ts = trade.get('ts') or trade.get('timestamp', 0)
+                if ts:
+                    trade_date = datetime.fromtimestamp(ts / 1000).strftime('%Y-%m-%d')
+            
+            if trade_date:
                 ticker = trade.get('ticker', '')
                 key = (trade_date, ticker)
                 if key not in trades_by_date_ticker:
@@ -909,10 +915,15 @@ class PortfolioManagerAgent(AgentBase):
             current_positions = {}
             
             for trade in sorted_trades:
-                ts = trade.get('ts') or trade.get('timestamp', 0)
-                if not ts:
-                    continue
-                trade_date = datetime.fromtimestamp(ts / 1000).strftime('%Y-%m-%d')
+                # Use trading_date if available (handles timezone offset correctly)
+                # Fallback to extracting from timestamp for backward compatibility
+                trade_date = trade.get('trading_date')
+                if not trade_date:
+                    ts = trade.get('ts') or trade.get('timestamp', 0)
+                    if not ts:
+                        continue
+                    trade_date = datetime.fromtimestamp(ts / 1000).strftime('%Y-%m-%d')
+                
                 ticker = trade.get('ticker', '')
                 qty = trade.get('qty', 0)
                 side = trade.get('side', '')

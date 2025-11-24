@@ -625,6 +625,7 @@ class TeamDashboardGenerator:
                 trade_record = {
                     'id': trade_id,
                     'ts': timestamp_ms,
+                    'trading_date': date,  # ✨ Store trading date explicitly to avoid timezone confusion
                     'side': side,
                     'ticker': ticker,
                     'qty': quantity,
@@ -703,6 +704,7 @@ class TeamDashboardGenerator:
             trade_record = {
                 'id': trade_id,
                 'ts': timestamp_ms,
+                'trading_date': date,  # ✨ Store trading date explicitly to avoid timezone confusion
                 'side': side,
                 'ticker': ticker,
                 'qty': quantity,
