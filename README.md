@@ -1,8 +1,8 @@
-# EvoTrader：自我进化的多智能体交易系统
+# EvoTraders：自我进化的多智能体交易系统
 
 ## 项目概览
 
-EvoTrader 是一个开源的金融交易智能体框架，旨在构建能够真正自我进化的多智能体交易系统。不同于传统的预定义工作流，EvoTrader 通过三维反馈机制让智能体群体在实战中持续学习、适应与进化。
+EvoTraders 是一个开源的金融交易智能体框架，旨在构建能够真正自我进化的多智能体交易系统。不同于传统的预定义工作流，EvoTrader 通过三维反馈机制让智能体群体在实战中持续学习、适应与进化。
 
 ### 为什么选择EvoTrader？
 
@@ -147,97 +147,81 @@ EvoTrader 提供了强大的回测和可视化系统：
 - workspace_id 机制实现多用户隔离
 - 高效的语义检索和相似度匹配
 
-## 快速开始
+## Quick Start
 
-### 环境配置
+### Installation
 
-1. 克隆仓库：
+1. Clone the repository:
 ```bash
 git clone https://github.com/yourusername/EvoTrader.git
 cd EvoTrader
 ```
 
-2. 安装依赖：
+2. Install the package:
 ```bash
-pip install -r requirements.txt
+pip install -e .
 ```
 
-3. 配置环境变量：
+3. Configure environment variables:
 ```bash
 cp env.template .env
-# 编辑 .env 文件，填入必要的API密钥
+# Edit .env file and add your API keys
 ```
 
-### 运行回测
+### CLI Usage
 
-**日频回测模式**（推荐用于策略开发）：
+EvoTraders provides a simple command-line interface:
 
+**Run Backtest Mode:**
 ```bash
-# 使用启动脚本（自动处理前后端）
-./start_server.sh
-
-# 或手动启动
-python backend/servers/server.py
+evotraders backtest --start 2025-11-01 --end 2025-12-01
 ```
 
-**实时模式**（用于盘中实时更新）：
-
+**Run Live Trading Mode:**
 ```bash
-# 正常模式（需要等待美股开盘时间）
-./start_live_server.sh
-
-# Mock模式（用于开发调试）
-./start_live_server.sh --mock
+evotraders live                    # Real-time mode
+evotraders live --mock             # Mock mode for testing
 ```
 
-### 访问可视化界面
+**Start Frontend Dashboard:**
+```bash
+evotraders frontend                # Connect to default port 8765
+evotraders frontend --ws-port 8766 # Connect to custom port
+```
 
-启动服务后，在浏览器中访问：
+**Get Help:**
+```bash
+evotraders --help
+evotraders backtest --help
+evotraders live --help
+evotraders frontend --help
+```
+
+### Access Dashboard
+
+After starting the backend, open your browser and visit:
 ```
 http://localhost:5173/
 ```
 
-右侧选择要回放的日期，点击 Run/Replay 即可观察智能体的完整决策过程。
+Select a date on the right panel and click Run/Replay to observe the agent decision-making process.
 
-### 多日策略回测
-
-如果需要运行多日连续回测并生成绩效报告：
-
-```bash
-python multi_day_strategy.py \
-    --start-date 2024-01-02 \
-    --end-date 2024-12-31 \
-    --config_name my_strategy
-```
-
-系统会自动：
-- 处理交易日历，跳过非交易日
-- 管理智能体的记忆状态持久化
-- 生成详细的绩效报告和图表
-- 追踪OKR评估和分析师淘汰过程
-
-## 项目结构
+## Project Structure
 
 ```
 EvoTrader/
-├── src/
-│   ├── agents/           # 智能体实现
-│   │   ├── prompts/      # 各角色的prompt模板
-│   │   ├── analyst_agent.py
-│   │   ├── portfolio_manager_agent.py
-│   │   └── risk_manager_agent.py
-│   ├── communication/    # 智能体通信系统
-│   ├── memory/          # 记忆系统实现
-│   │   ├── mem0_memory.py
-│   │   └── reme_memory.py
-│   ├── tools/           # 分析工具集
-│   ├── servers/         # 回测服务器
-│   ├── okr/            # OKR治理系统
-│   └── dashboard/      # 可视化仪表板
-├── frontend/           # React前端
-├── logs_and_memory/    # 日志和记忆数据
-├── multi_day_strategy.py  # 多日回测主程序
-└── requirements.txt
+├── backend/
+│   ├── agents/           # Agent implementations
+│   ├── communication/    # Agent communication system
+│   ├── memory/          # Memory system (mem0, ReMe)
+│   ├── tools/           # Analysis tools
+│   ├── servers/         # Backend servers
+│   ├── okr/            # OKR governance system
+│   ├── cli.py          # CLI entry point
+│   └── ...
+├── frontend/           # React dashboard
+├── logs_and_memory/    # Logs and memory data
+└── pyproject.toml      # Package configuration
 ```
 
 ## 核心概念深入
