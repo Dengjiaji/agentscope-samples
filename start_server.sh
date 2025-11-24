@@ -3,7 +3,7 @@
 # 
 # 使用方法:
 #   ./start_server.sh                                      # 正常模式
-#   ./start_server.sh --backtest                               # backtest模式（测试前端）
+#   ./start_server.sh --backtest                               # backtest模式
 #   ./start_server.sh --clean                              # 正常模式，自动清空历史记录
 #   ./start_server.sh --port 9000                          # 指定端口（默认8765）
 #   ./start_server.sh --host 127.0.0.1                     # 指定主机（默认0.0.0.0）

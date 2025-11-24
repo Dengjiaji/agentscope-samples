@@ -535,10 +535,6 @@ class CommunicationManager:
                 # Output analyst statement to frontend
                 if streamer:
                     response_text = analyst_response.get("response", "")
-                    # Limit output length to avoid too long
-                    max_display_length = 300
-                    if len(response_text) > max_display_length:
-                        response_text = response_text[:max_display_length] + "..."
                     streamer.print("agent", response_text, role_key=analyst_id)
 
                 # Record statement to analyst memory
