@@ -410,7 +410,7 @@ class PortfolioManagerAgent(AgentBase):
         tickers: List[str], 
         signals_by_ticker: Dict[str, Dict],
         state: AgentState,
-        top_k: int = 3
+        top_k: int = 1
     ) -> Dict[str, List[str]]:
         """
         Step 1: Retrieve relevant historical decision experiences from memory system (code layer)
