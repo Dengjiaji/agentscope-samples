@@ -1032,25 +1032,8 @@ class InvestmentEngine:
                             confidence = decision.get('confidence', 0)
                             reasoning = decision.get('reasoning', '')
                             
-                            # Add emoji for different actions
-                            if mode == "portfolio":
-                                action_emoji = {
-                                    'buy': '📈 Buy',
-                                    'sell': '📉 Sell',
-                                    'short': '🔻 Short',
-                                    'cover': '🔺 Cover',
-                                    'hold': '⏸️ Hold'
-                                }
-                            else:
-                                action_emoji = {
-                                    'long': '📈 Long',
-                                    'short': '📉 Short',
-                                    'hold': '⏸️ Hold'
-                                }
-                            action_display = action_emoji.get(action, action)
-                            
                             decision_lines.append(f"\n【{ticker}】")
-                            decision_lines.append(f"  Decision: {action_display}")
+                            decision_lines.append(f"  Decision: {action}")
                             if mode == "portfolio":
                                 quantity = decision.get('quantity', 0)
                                 decision_lines.append(f"  Quantity: {quantity} shares")
@@ -1083,25 +1066,8 @@ class InvestmentEngine:
                         confidence = decision.get('confidence', 0)
                         reasoning = decision.get('reasoning', '')
                         
-                        # Add emoji for different actions
-                        if mode == "portfolio":
-                            action_emoji = {
-                                'buy': '📈 Buy',
-                                'sell': '📉 Sell',
-                                'short': '🔻 Short',
-                                'cover': '🔺 Cover',
-                                'hold': '⏸️ Hold'
-                            }
-                        else:
-                            action_emoji = {
-                                'long': '📈 Long',
-                                'short': '📉 Short',
-                                'hold': '⏸️ Hold'
-                            }
-                        action_display = action_emoji.get(action, action)
-                        
                         decision_lines.append(f"\n【{ticker}】")
-                        decision_lines.append(f"  Decision: {action_display}")
+                        decision_lines.append(f"  Decision: {action}")
                         if mode == "portfolio":
                             quantity = decision.get('quantity', 0)
                             decision_lines.append(f"  Quantity: {quantity} shares")
@@ -1359,25 +1325,8 @@ class InvestmentEngine:
                 reasoning = decision.get('reasoning', '')
                 price = current_prices.get(ticker, 0)
                 
-                # Add emoji for different actions
-                if mode == "portfolio":
-                    action_emoji = {
-                        'buy': '📈 Buy',
-                        'sell': '📉 Sell',
-                        'short': '🔻 Short',
-                        'cover': '🔺 Cover',
-                        'hold': '⏸️ Hold'
-                    }
-                else:
-                    action_emoji = {
-                        'long': '📈 Long',
-                        'short': '📉 Short',
-                        'hold': '⏸️ Hold'
-                    }
-                action_display = action_emoji.get(action, action)
-                
                 decision_lines.append(f"\n【{ticker}】")
-                decision_lines.append(f"  Decision: {action_display}")
+                decision_lines.append(f"  Decision: {action}")
                 decision_lines.append(f"  Closing Price: ${price:.2f}")
                 if mode == "portfolio":
                     quantity = decision.get('quantity', 0)
