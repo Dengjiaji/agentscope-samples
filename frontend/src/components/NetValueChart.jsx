@@ -73,22 +73,23 @@ function filterStrategyDataForLive(strategyData, equity, sessionStartTime) {
     
     const sessionStartTimestamp = sessionStartTime.getTime();
     
-    // Find the last data point before session start (by timestamp, not index)
+    // Find the last index before session
     let lastDataBeforeSession = null;
-    for (let i = strategyData.length - 1; i >= 0; i--) {
-      if (strategyData[i] && typeof strategyData[i].t === 'number' && 
-          strategyData[i].t < sessionStartTimestamp &&
-          strategyData[i].v !== undefined && strategyData[i].v !== null) {
-        lastDataBeforeSession = strategyData[i];
+    for (let i = equity.length - 1; i >= 0; i--) {
+      if (equity[i] && typeof equity[i].t === 'number' && equity[i].t < sessionStartTimestamp) {
+        if (strategyData[i] && strategyData[i].v !== undefined && strategyData[i].v !== null) {
+          lastDataBeforeSession = strategyData[i];
+        }
         break;
       }
     }
     
-    // Find all data points in the current session (by timestamp)
+    // Find data points in the session
     const sessionData = [];
-    for (let i = 0; i < strategyData.length; i++) {
-      if (strategyData[i] && typeof strategyData[i].t === 'number' && 
-          strategyData[i].t >= sessionStartTimestamp && 
+    for (let i = 0; i < equity.length; i++) {
+      if (equity[i] && typeof equity[i].t === 'number' && 
+          equity[i].t >= sessionStartTimestamp && 
+          strategyData[i] && 
           strategyData[i].v !== undefined && strategyData[i].v !== null) {
         sessionData.push(strategyData[i]);
       }

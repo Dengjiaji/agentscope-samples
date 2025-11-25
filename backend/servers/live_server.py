@@ -288,6 +288,8 @@ class LiveTradingServer:
                 logger.error(f"Failed to read summary.json: {e}")
         
         # Update prices in holdings
+        # Note: 'updated' indicates whether this specific symbol's price in our holdings was updated
+        # Even if updated=False (symbol not in holdings or holdings=0), we still update curves
         updated = False
         total_value = 0.0
         cash = 0.0
@@ -359,6 +361,7 @@ class LiveTradingServer:
                 # Use virtual time (in mock mode) or real time
                 current_time = self._get_current_timestamp_ms_for_data()
                 
+                # Always update summary stats if price was updated
                 if updated:
                     summary['balance'] = round(total_value, 2)
                     summary['totalAssetValue'] = round(total_value, 2)
@@ -366,8 +369,27 @@ class LiveTradingServer:
                     summary['totalReturn'] = round(total_return, 2)
                     summary['cashPosition'] = round(cash, 2)
                     summary['tickerWeights'] = ticker_weights
-                    
-                    equity_list = summary.get('equity', [])
+                
+                # CRITICAL FIX: Always update equity and benchmark curves together to keep indices aligned
+                # This ensures that equity[i], baseline[i], baseline_vw[i], momentum[i] all represent the same timestamp
+                # Even when holdings are 0 (pure cash), we still need to record equity points
+                
+                # Check if we should add a new data point (avoid adding too frequently)
+                equity_list = summary.get('equity', [])
+                should_add_point = False
+                
+                if len(equity_list) == 0:
+                    # Always add first point
+                    should_add_point = True
+                else:
+                    # Add point if at least 5 seconds have passed since last point
+                    last_timestamp = equity_list[-1].get('t', 0)
+                    time_diff_ms = current_time - last_timestamp
+                    if time_diff_ms >= 5000:  # 5 seconds minimum interval
+                        should_add_point = True
+                
+                if should_add_point:
+                    # Add equity point
                     equity_list.append({
                         't': current_time,
                         'v': round(total_value, 2)
@@ -378,11 +400,16 @@ class LiveTradingServer:
                     summary['equity'] = equity_list
                     # Sync to internal_state for persistence
                     self.internal_state['equity_history'] = equity_list
-                    summary_changed = True
                     
-                    # Only update benchmark curves when equity is updated to keep them in sync
+                    # CRITICAL: Update benchmark curves synchronously with the SAME timestamp
+                    # This maintains index alignment: equity[i] and baseline[i] will have same timestamp
                     if self._update_benchmark_curves(summary, current_time):
-                        summary_changed = True
+                        pass  # Benchmarks updated
+                    
+                    summary_changed = True
+                elif updated:
+                    # Even if we didn't add a curve point, if price was updated, save the file
+                    summary_changed = True
                 
                 if summary_changed:
                     with open(summary_file, 'w', encoding='utf-8') as f:
@@ -476,12 +503,14 @@ class LiveTradingServer:
     def _update_benchmark_curves(self, summary: Dict[str, Any], timestamp_ms: int) -> bool:
         """
         Update benchmark/strategy curves based on latest prices
+        CRITICAL: This method is called synchronously with equity updates to maintain index alignment
         """
         if not self.internal_state:
             return False
         
         changed = False
         
+        # Update baseline (equal weight)
         baseline_state = self.internal_state.get('baseline_state', {})
         if baseline_state.get('initialized') and baseline_state.get('initial_allocation'):
             total_value = 0.0
@@ -493,10 +522,17 @@ class LiveTradingServer:
                     break
                 total_value += alloc.get('qty', 0) * price
             if not missing_price:
-                history = self._append_curve_point(self.internal_state.setdefault('baseline_history', []), timestamp_ms, total_value)
+                # Use the SAME max_points (500) as equity to maintain synchronization
+                history = self._append_curve_point(
+                    self.internal_state.setdefault('baseline_history', []), 
+                    timestamp_ms, 
+                    total_value,
+                    max_points=500  # Match equity's limit
+                )
                 summary['baseline'] = history
                 changed = True
         
+        # Update baseline_vw (value weighted)
         baseline_vw_state = self.internal_state.get('baseline_vw_state', {})
         if baseline_vw_state.get('initialized') and baseline_vw_state.get('initial_allocation'):
             total_value = 0.0
@@ -508,10 +544,16 @@ class LiveTradingServer:
                     break
                 total_value += alloc.get('qty', 0) * price
             if not missing_price:
-                history = self._append_curve_point(self.internal_state.setdefault('baseline_vw_history', []), timestamp_ms, total_value)
+                history = self._append_curve_point(
+                    self.internal_state.setdefault('baseline_vw_history', []), 
+                    timestamp_ms, 
+                    total_value,
+                    max_points=500  # Match equity's limit
+                )
                 summary['baseline_vw'] = history
                 changed = True
         
+        # Update momentum strategy
         momentum_state = self.internal_state.get('momentum_state', {})
         if momentum_state.get('initialized'):
             total_value = momentum_state.get('cash', 0.0)
@@ -523,7 +565,12 @@ class LiveTradingServer:
                     break
                 total_value += pos.get('qty', 0) * price
             if not missing_price:
-                history = self._append_curve_point(self.internal_state.setdefault('momentum_history', []), timestamp_ms, total_value)
+                history = self._append_curve_point(
+                    self.internal_state.setdefault('momentum_history', []), 
+                    timestamp_ms, 
+                    total_value,
+                    max_points=500  # Match equity's limit
+                )
                 summary['momentum'] = history
                 changed = True
         
