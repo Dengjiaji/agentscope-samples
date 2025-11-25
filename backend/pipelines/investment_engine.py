@@ -718,7 +718,7 @@ class InvestmentEngine:
         first_round_analysis = first_round_report.get("analyst_signals", {}).get(agent_id, {})
         
         # Check if first_round_analysis is empty or incomplete, retry if needed
-        max_retries = 3
+        max_retries = 10
         retry_count = 0
         
         while retry_count < max_retries:

@@ -435,7 +435,8 @@ class PortfolioTradeExecutor:
     
     def _calculate_portfolio_value(self, current_prices: Dict[str, float]) -> float:
         """Calculate total portfolio value (net liquidation value)"""
-        total_value = self.portfolio["cash"]
+        # Add margin_used back because it's frozen cash, not lost money
+        total_value = self.portfolio["cash"] + self.portfolio["margin_used"]
         
         for ticker, position in self.portfolio["positions"].items():
             if ticker in current_prices:

@@ -205,7 +205,8 @@ class TeamDashboardGenerator:
         if 'portfolio_state' not in state:
             state['portfolio_state'] = {
                 'cash': self.initial_cash,
-                'positions': {}
+                'positions': {},
+                'margin_used': 0.0  # Initialize margin_used
             }
         
         # Ensure total_value_history exists
@@ -565,6 +566,7 @@ class TeamDashboardGenerator:
         # If updated_portfolio exists, use it directly
         if updated_portfolio:
             portfolio_state['cash'] = updated_portfolio.get('cash', portfolio_state['cash'])
+            portfolio_state['margin_used'] = updated_portfolio.get('margin_used', 0.0)  # Add margin_used
             new_positions = updated_portfolio.get('positions', {})
             
             # Update positions (convert to simplified format)
@@ -609,7 +611,6 @@ class TeamDashboardGenerator:
                     pnl = -quantity * price * numeric_real_return
                 else:
                     pnl = 0.0
-                
                 # Map action to side (for display)
                 side_map = {
                     'long': 'LONG',
@@ -942,8 +943,9 @@ class TeamDashboardGenerator:
             state['equity_history'].append(initial_point)
             print(f"📊 Portfolio initial point: ${self.initial_cash:,.2f} at {date} 05:00:00")
         
-        # Calculate current total value: cash + position market value (using actual prices)
+        # Calculate current total value: cash + margin_used + position market value (using actual prices)
         cash = portfolio_state['cash']
+        margin_used = portfolio_state.get('margin_used', 0.0)  # Get margin_used, default to 0
         positions_value = 0.0
         
         for ticker, pos in portfolio_state['positions'].items():
@@ -951,7 +953,7 @@ class TeamDashboardGenerator:
             current_price = self._get_current_price(ticker, date, state)
             positions_value += pos['qty'] * current_price
         
-        total_value = cash + positions_value
+        total_value = cash + margin_used + positions_value
         
         # Use actual amount directly (no longer normalized to percentage)
         # normalized_value = (total_value / self.initial_cash) * 100
@@ -1486,7 +1488,7 @@ class TeamDashboardGenerator:
         portfolio_state = state['portfolio_state']
         last_date = state.get('last_update_date')
         all_trades = state.get('all_trades', [])
-        
+        margin_used = state['portfolio_state'].get('margin_used', 0.0)
         # Calculate current balance: cash + position market value (using latest prices)
         cash = portfolio_state['cash']
         positions_value = 0.0
@@ -1498,7 +1500,7 @@ class TeamDashboardGenerator:
             position_value = pos['qty'] * current_price
             positions_value += position_value
         
-        balance = cash + positions_value
+        balance = cash + positions_value + margin_used
         total_asset_value = balance
         
         # Calculate weight of each ticker
@@ -1538,7 +1540,9 @@ class TeamDashboardGenerator:
         print(f"\n🔍 Generating Holdings data (date: {last_date}):")
         
         # Calculate total value for weight calculation (using actual prices)
-        total_value = cash
+        # Add margin_used back because it's frozen cash
+        margin_used = portfolio_state.get('margin_used', 0.0)
+        total_value = cash + margin_used
         for ticker, pos in positions.items():
             current_price = self._get_current_price(ticker, last_date, state) if last_date else self.DEFAULT_BASE_PRICE
             total_value += pos['qty'] * current_price
@@ -1585,6 +1589,7 @@ class TeamDashboardGenerator:
         """Generate statistics (Portfolio Manager performance + Overview data)"""
         pm_perf = state.get('agent_performance', {}).get('portfolio_manager', {})
         portfolio_state = state['portfolio_state']
+        margin_used = portfolio_state.get('margin_used', 0.0)
         last_date = state.get('last_update_date')
         all_trades = state.get('all_trades', [])
         
@@ -1608,7 +1613,7 @@ class TeamDashboardGenerator:
             position_value = pos['qty'] * current_price
             positions_value += position_value
         
-        total_asset_value = cash + positions_value
+        total_asset_value = cash + positions_value + margin_used
         
         # Calculate weight of each ticker
         for ticker, pos in portfolio_state['positions'].items():
