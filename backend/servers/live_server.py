@@ -364,8 +364,9 @@ class LiveTradingServer:
                         't': current_time,
                         'v': round(total_value, 2)
                     })
-                    if len(equity_list) > 1000:
-                        equity_list = equity_list[-1000:]
+                    # Limit curve length to reduce storage size
+                    if len(equity_list) > 500:
+                        equity_list = equity_list[-500:]
                     summary['equity'] = equity_list
                     summary_changed = True
                 
@@ -451,13 +452,13 @@ class LiveTradingServer:
         
         return fallback
     
-    def _append_curve_point(self, history: List[Dict[str, Any]], timestamp_ms: int, value: float) -> List[Dict[str, Any]]:
+    def _append_curve_point(self, history: List[Dict[str, Any]], timestamp_ms: int, value: float, max_points: int = 500) -> List[Dict[str, Any]]:
         """
         Append curve point and maintain length limit
         """
         history.append({'t': timestamp_ms, 'v': round(value, 2)})
-        if len(history) > 1000:
-            del history[:len(history) - 1000]
+        if len(history) > max_points:
+            del history[:len(history) - max_points]
         return history
     
     def _update_benchmark_curves(self, summary: Dict[str, Any], timestamp_ms: int) -> bool:
