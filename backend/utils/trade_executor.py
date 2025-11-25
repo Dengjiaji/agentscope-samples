@@ -247,14 +247,34 @@ class PortfolioTradeExecutor:
         trades_executed = []  # Record actually executed trade steps
         
         if action == "long":
-            # Add position: Buy target_quantity shares
-            print(f"\n📈 {ticker} Add position: Current {current_long} shares → Buy {target_quantity} shares → Final {current_long + target_quantity} shares")
+            # Add position: Buy target_quantity shares (or cover shorts first)
+            print(f"\n📈 {ticker} Long operation: Current Long {current_long}, Short {current_short} → Target quantity {target_quantity}")
             
             if target_quantity > 0:
-                buy_result = self._buy_long_position(ticker, target_quantity, price, date)
-                if buy_result["status"] == "failed":
-                    return buy_result
-                trades_executed.append(f"Buy {target_quantity} shares")
+                remaining = target_quantity
+                
+                # 🔧 FIX: If has short position, cover first
+                if current_short > 0:
+                    cover_qty = min(remaining, current_short)
+                    print(f"   1️⃣ Cover short: {cover_qty} shares")
+                    cover_result = self._cover_short_position(ticker, cover_qty, price, date)
+                    if cover_result["status"] == "failed":
+                        return cover_result
+                    trades_executed.append(f"Cover {cover_qty} shares")
+                    remaining -= cover_qty
+                
+                # If still has remaining quantity, buy long
+                if remaining > 0:
+                    print(f"   2️⃣ Buy long: {remaining} shares")
+                    buy_result = self._buy_long_position(ticker, remaining, price, date)
+                    if buy_result["status"] == "failed":
+                        return buy_result
+                    trades_executed.append(f"Buy {remaining} shares")
+                
+                # Display final result
+                final_long = self.portfolio["positions"][ticker]["long"]
+                final_short = self.portfolio["positions"][ticker]["short"]
+                print(f"   ✅ Final state: Long {final_long} shares, Short {final_short} shares")
             else:
                 print(f"   ⏸️ Quantity is 0, no trade needed")
             
@@ -417,9 +437,10 @@ class PortfolioTradeExecutor:
                 "reason": f"Insufficient short position (holding: {position['short']}, trying to cover: {quantity})"
             }
         
-        # Calculate released margin
+        # Calculate released margin - 🔧 FIX: Use cost_basis instead of current price
         trade_value = quantity * price
-        margin_released = trade_value * self.portfolio["margin_requirement"]
+        cost_basis = position["short_cost_basis"]
+        margin_released = quantity * cost_basis * self.portfolio["margin_requirement"]
         
         # Reduce position
         position["short"] -= quantity
