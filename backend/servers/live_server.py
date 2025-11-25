@@ -379,9 +379,10 @@ class LiveTradingServer:
                     # Sync to internal_state for persistence
                     self.internal_state['equity_history'] = equity_list
                     summary_changed = True
-                
-                if self._update_benchmark_curves(summary, current_time):
-                    summary_changed = True
+                    
+                    # Only update benchmark curves when equity is updated to keep them in sync
+                    if self._update_benchmark_curves(summary, current_time):
+                        summary_changed = True
                 
                 if summary_changed:
                     with open(summary_file, 'w', encoding='utf-8') as f:
