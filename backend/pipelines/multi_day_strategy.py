@@ -96,9 +96,9 @@ class MultiDayStrategy:
         """Create necessary directory structure"""
         directories = [
             self.base_dir,
-            self.data_dir,
-            self.reports_dir,
-            self.charts_dir,
+            # self.data_dir,
+            # self.reports_dir,
+            # self.charts_dir,
             self.state_dir
         ]
         
