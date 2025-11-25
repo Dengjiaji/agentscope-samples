@@ -51,6 +51,9 @@ pip install -e .
 # 配置环境变量
 cp env.template .env
 # 编辑 .env 文件，添加你的 API Keys
+# finance data API
+# LLM API for Agents
+# LLM & embedding API for Memory
 ```
 
 ### 运行
@@ -115,8 +118,8 @@ evotraders frontend                # 默认连接 8765 端口
 
 ### 模块支持
 
-- **智能体框架**：[AgentScope](https://github.com/modelscope/agentscope)
-- **记忆系统**：ReMe
+- **智能体框架**：[AgentScope](https://github.com/agentscope-ai/agentscope)
+- **记忆系统**：[ReMe](https://github.com/agentscope-ai/reme)
 - **LLM 支持**：OpenAI、DeepSeek、Qwen、Moonshot、Zhipu AI 等
 
 
