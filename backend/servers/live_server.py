@@ -93,16 +93,24 @@ class LiveTradingServer:
         )
         
         # Initialize portfolio state
+        # Load equity history from internal_state if available
+        equity_history = self.internal_state.get('equity_history', [])
+        baseline_history = self.internal_state.get('baseline_history', [])
+        baseline_vw_history = self.internal_state.get('baseline_vw_history', [])
+        momentum_history = self.internal_state.get('momentum_history', [])
+        
         self.state_manager.update('portfolio', {
             'total_value': config.initial_cash,
             'cash': config.initial_cash,
             'pnl_percent': 0,
-            'equity': [],
-            'baseline': [],
-            'baseline_vw': [],
-            'momentum': [],
+            'equity': equity_history,
+            'baseline': baseline_history,
+            'baseline_vw': baseline_vw_history,
+            'momentum': momentum_history,
             'strategies': []
         })
+        
+        logger.info(f"📊 Loaded history: equity={len(equity_history)} points, baseline={len(baseline_history)} points")
         
         # Initialize price manager
         if mock_mode:
@@ -368,6 +376,8 @@ class LiveTradingServer:
                     if len(equity_list) > 500:
                         equity_list = equity_list[-500:]
                     summary['equity'] = equity_list
+                    # Sync to internal_state for persistence
+                    self.internal_state['equity_history'] = equity_list
                     summary_changed = True
                 
                 if self._update_benchmark_curves(summary, current_time):
@@ -388,6 +398,7 @@ class LiveTradingServer:
             'baseline_state': {'initialized': False, 'initial_allocation': {}},
             'baseline_vw_state': {'initialized': False, 'initial_allocation': {}},
             'momentum_state': {'positions': {}, 'cash': 0.0, 'initialized': False},
+            'equity_history': [],  # Portfolio equity history
             'baseline_history': [],
             'baseline_vw_history': [],
             'momentum_history': [],

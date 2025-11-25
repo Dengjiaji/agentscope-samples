@@ -13,10 +13,6 @@ from backend.config.path_config import get_logs_and_memory_dir
 logger = logging.getLogger(__name__)
 
 
-# Large data fields that should be excluded from feed_history to reduce file size
-_LARGE_DATA_FIELDS = {'equity', 'baseline', 'baseline_vw', 'momentum', 'strategies'}
-
-
 @dataclass
 class FeedMessage:
     """Unified Feed message format - saves original event"""
@@ -39,16 +35,6 @@ class FeedMessage:
         
         if event_type not in save_types:
             return None
-        
-        # For team_summary, strip large curve data to reduce storage size
-        # Curves are already stored separately in portfolio state
-        if event_type == 'team_summary':
-            slim_event = {k: v for k, v in event.items() if k not in _LARGE_DATA_FIELDS}
-            return cls(
-                type=event_type,
-                timestamp=event.get('timestamp', datetime.now().timestamp() * 1000),
-                metadata=slim_event
-            )
         
         return cls(
             type=event_type,
@@ -80,6 +66,10 @@ class StateManager:
         
         # Feed history (using FeedMessage objects)
         self._feed_history: List[FeedMessage] = []
+        
+        # Last day history (for replay)
+        self._last_day_history: List[FeedMessage] = []
+        self._current_day_messages: List[FeedMessage] = []
     
     def get_state_file_path(self) -> Path:
         """Get state file path"""
@@ -106,49 +96,52 @@ class StateManager:
         if len(self._feed_history) > self.max_history:
             self._feed_history = self._feed_history[:self.max_history]
         
+        # Also add to current day messages
+        self._current_day_messages.append(message)
+        
         return True
     
     def get_feed_history(self) -> List[Dict[str, Any]]:
         """Get feed history (converted to frontend format)"""
         return [msg.to_dict() for msg in self._feed_history]
     
+    def start_new_day(self):
+        """Start new trading day - clear current day messages"""
+        self._current_day_messages = []
+    
+    def end_current_day(self):
+        """End current trading day - save messages as last day history"""
+        self._last_day_history = self._current_day_messages.copy()
+        self._current_day_messages = []
+    
+    def get_last_day_history(self) -> List[Dict[str, Any]]:
+        """Get last day history (for replay)"""
+        return [msg.to_dict() for msg in self._last_day_history]
+    
     def get_full_state(self) -> Dict[str, Any]:
         """Get full state (including feed history)"""
         return {
             **self.state,
-            'feed_history': self.get_feed_history()
+            'feed_history': self.get_feed_history(),
+            'last_day_history': self.get_last_day_history()
         }
-    
-    def _truncate_curves(self, data: Dict[str, Any], max_points: int = 500) -> Dict[str, Any]:
-        """Truncate curve data to reduce storage size"""
-        result = data.copy()
-        
-        # Truncate portfolio curves
-        if 'portfolio' in result and isinstance(result['portfolio'], dict):
-            portfolio = result['portfolio'].copy()
-            for curve_key in _LARGE_DATA_FIELDS:
-                if curve_key in portfolio and isinstance(portfolio[curve_key], list):
-                    portfolio[curve_key] = portfolio[curve_key][-max_points:]
-            result['portfolio'] = portfolio
-        
-        return result
     
     def save(self):
         """Save state to file"""
         try:
             state_file = self.get_state_file_path()
             
-            # Prepare state to save (with truncated curves)
-            state_to_save = self._truncate_curves({
+            # Prepare state to save
+            state_to_save = {
                 **self.state,
-                'feed_history': [asdict(msg) for msg in self._feed_history[:self.max_history]],
+                'feed_history': [msg.to_dict() for msg in self._feed_history[:self.max_history]],
+                'last_day_history': [msg.to_dict() for msg in self._last_day_history],
                 'trades': self.state.get('trades', [])[:100],  # Only save last 100 trades
                 'last_saved': datetime.now().isoformat()
-            })
+            }
             
-            # Use compact JSON format (no indent) to reduce file size
             with open(state_file, 'w') as f:
-                json.dump(state_to_save, f, ensure_ascii=False, separators=(',', ':'), default=str)
+                json.dump(state_to_save, f, ensure_ascii=False, indent=2, default=str)
             
             logger.debug(f"✅ State saved to: {state_file}")
             return True
@@ -173,10 +166,22 @@ class StateManager:
             self._feed_history = []
             for item in feed_history:
                 try:
-                    msg = FeedMessage(**item)
-                    self._feed_history.append(msg)
+                    msg = FeedMessage.from_event(item)
+                    if msg:
+                        self._feed_history.append(msg)
                 except Exception as e:
                     logger.warning(f"Skipping invalid history message: {e}")
+            
+            # Restore last day history
+            last_day_history = saved_state.pop('last_day_history', [])
+            self._last_day_history = []
+            for item in last_day_history:
+                try:
+                    msg = FeedMessage.from_event(item)
+                    if msg:
+                        self._last_day_history.append(msg)
+                except Exception as e:
+                    logger.warning(f"Skipping invalid last day message: {e}")
             
             # Restore other state
             for key in ['status', 'current_date', 'portfolio', 'holdings', 'trades', 
