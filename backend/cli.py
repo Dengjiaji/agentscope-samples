@@ -9,6 +9,7 @@ and frontend development server.
 import sys
 import os
 import subprocess
+import shutil
 from pathlib import Path
 from typing import Optional
 from datetime import datetime
@@ -17,6 +18,9 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 from rich import print as rprint
+from rich.prompt import Confirm
+
+from backend.config.path_config import get_logs_and_memory_dir
 
 app = typer.Typer(
     name="evotraders",
@@ -31,6 +35,93 @@ def get_project_root() -> Path:
     """Get the project root directory."""
     # Assuming cli.py is in backend/
     return Path(__file__).parent.parent
+
+
+def handle_history_cleanup(config_name: str, auto_clean: bool = False) -> None:
+    """
+    Handle cleanup of historical data for a given config.
+    
+    Args:
+        config_name: Configuration name for the run
+        auto_clean: If True, skip confirmation and clean automatically
+    """
+    logs_and_memory_dir = get_logs_and_memory_dir()
+    base_data_dir = logs_and_memory_dir / config_name
+    
+    # Check if historical data exists
+    if not base_data_dir.exists() or not any(base_data_dir.iterdir()):
+        console.print(f"\n[dim]No historical data found for config '{config_name}'[/dim]")
+        console.print("[dim]   Will start from scratch[/dim]\n")
+        return
+    
+    console.print("\n[bold yellow]Detected existing run data:[/bold yellow]")
+    console.print(f"   Data directory: [cyan]{base_data_dir}[/cyan]")
+    
+    # Show directory size
+    try:
+        total_size = sum(f.stat().st_size for f in base_data_dir.rglob('*') if f.is_file())
+        size_mb = total_size / (1024 * 1024)
+        if size_mb < 1:
+            console.print(f"   Directory size: [cyan]{total_size / 1024:.1f} KB[/cyan]")
+        else:
+            console.print(f"   Directory size: [cyan]{size_mb:.1f} MB[/cyan]")
+    except Exception:
+        pass
+    
+    # Show last modified time
+    state_dir = base_data_dir / "state"
+    if state_dir.exists():
+        state_files = list(state_dir.glob("*.json"))
+        if state_files:
+            last_modified = max(f.stat().st_mtime for f in state_files)
+            last_modified_str = datetime.fromtimestamp(last_modified).strftime("%Y-%m-%d %H:%M:%S")
+            console.print(f"   Last updated: [cyan]{last_modified_str}[/cyan]")
+    
+    console.print()
+    
+    # Determine if we should clean
+    should_clean = auto_clean
+    if not auto_clean:
+        should_clean = Confirm.ask(
+            "   ﹂ Clear historical data and start fresh?",
+            default=False
+        )
+    else:
+        console.print("[yellow]⚠️  Auto-clean enabled (--clean flag)[/yellow]")
+        should_clean = True
+    
+    if should_clean:
+        console.print("\n[yellow]▩  Cleaning historical data...[/yellow]")
+        
+        # Backup important config files if they exist
+        backup_files = [".env", "config.json"]
+        backed_up = []
+        backup_dir = None
+        
+        for backup_file in backup_files:
+            file_path = base_data_dir / backup_file
+            if file_path.exists():
+                if backup_dir is None:
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    backup_dir = base_data_dir.parent / f"{config_name}_backup_{timestamp}"
+                    backup_dir.mkdir(parents=True, exist_ok=True)
+                
+                shutil.copy(file_path, backup_dir / backup_file)
+                backed_up.append(backup_file)
+        
+        if backed_up:
+            console.print(f"   💾 Backed up config files to: [cyan]{backup_dir}[/cyan]")
+            console.print(f"      Files: {', '.join(backed_up)}")
+        
+        # Remove the data directory
+        try:
+            shutil.rmtree(base_data_dir)
+            console.print("   ✔ Historical data cleared\n")
+        except Exception as e:
+            console.print(f"   [red]✗ Error clearing data: {e}[/red]\n")
+            raise typer.Exit(1)
+    else:
+        console.print("\n[dim]  Continuing with existing historical data[/dim]\n")
 
 
 @app.command()
@@ -64,6 +155,11 @@ def backtest(
         "-p",
         help="WebSocket server port",
     ),
+    clean: bool = typer.Option(
+        False,
+        "--clean",
+        help="Clear historical data before starting",
+    ),
 ):
     """
     Run backtest mode with historical data.
@@ -71,6 +167,7 @@ def backtest(
     Example:
         evotraders backtest --start 2025-11-01 --end 2025-12-01
         evotraders backtest --config-name my_strategy --port 9000
+        evotraders backtest --clean  # Clear historical data before starting
     """
     console.print(Panel.fit(
         "[bold cyan]EvoTraders Backtest Mode[/bold cyan]",
@@ -82,15 +179,18 @@ def backtest(
         try:
             datetime.strptime(start, "%Y-%m-%d")
         except ValueError:
-            console.print("[red]❌ Invalid start date format. Use YYYY-MM-DD[/red]")
+            console.print("[red]✗ Invalid start date format. Use YYYY-MM-DD[/red]")
             raise typer.Exit(1)
     
     if end:
         try:
             datetime.strptime(end, "%Y-%m-%d")
         except ValueError:
-            console.print("[red]❌ Invalid end date format. Use YYYY-MM-DD[/red]")
+            console.print("[red]✗ Invalid end date format. Use YYYY-MM-DD[/red]")
             raise typer.Exit(1)
+    
+    # Handle historical data cleanup
+    handle_history_cleanup(config_name, auto_clean=clean)
     
     # Build command
     cmd = [
@@ -98,7 +198,6 @@ def backtest(
         "-u",
         "-m",
         "backend.servers.server",
-        "--backtest",
         "--config-name", config_name,
         "--host", host,
         "--port", str(port),
@@ -173,6 +272,11 @@ def live(
         "--virtual-start-time",
         help="Virtual start time for mock mode (YYYY-MM-DD HH:MM:SS)",
     ),
+    clean: bool = typer.Option(
+        False,
+        "--clean",
+        help="Clear historical data before starting",
+    ),
 ):
     """
     Run live trading mode with real-time data.
@@ -182,6 +286,7 @@ def live(
         evotraders live --mock
         evotraders live --pause-before-trade
         evotraders live --mock --virtual-start-time "2024-11-12 22:25:00"
+        evotraders live --clean  # Clear historical data before starting
     """
     mode_name = "MOCK" if mock else "LIVE"
     console.print(Panel.fit(
@@ -207,11 +312,15 @@ def live(
                 console.print("[red]Error: env.template not found[/red]")
                 raise typer.Exit(1)
     
+    # Handle historical data cleanup
+    handle_history_cleanup(config_name, auto_clean=clean)
+    
     # Build command
     cmd = [
         sys.executable,
         "-u",
-        "backend/servers/live_server.py",
+        "-m",
+        "backend.servers.live_server",
         "--config-name", config_name,
         "--host", host,
         "--port", str(port),
@@ -228,19 +337,37 @@ def live(
     
     # Display configuration
     console.print("\n[bold]Configuration:[/bold]")
-    console.print(f"   Mode: {mode_name}")
-    console.print(f"   Config: {config_name}")
-    console.print(f"   Server: {host}:{port}")
-    if pause_before_trade:
-        console.print("   Trading: Paused (analysis only)")
-    else:
-        console.print("   Trading: Active")
     if mock:
-        console.print("   Data: Simulated prices")
-        if virtual_start_time:
-            console.print(f"   Virtual Time: {virtual_start_time}")
+        console.print(f"   Mode: MOCK (Simulated prices for testing)")
+        console.print(f"   Description: Uses randomly generated prices, no API key required")
     else:
-        console.print("   Data: Real-time (Finnhub API)")
+        console.print(f"   Mode: LIVE (Real-time prices via Finnhub API)")
+        console.print(f"   Description: High-frequency real-time price updates using Finnhub Quote API")
+    console.print(f"   Config Name: {config_name}")
+    console.print(f"   Listen Address: {host}:{port}")
+    if pause_before_trade:
+        console.print("   Trading Mode: Paused (analysis only, no execution)")
+    else:
+        console.print("   Trading Mode: Active (analysis and execution)")
+    console.print(f"   Historical Data: Continue using existing data")
+    
+    console.print("\n[bold]Functionality:[/bold]")
+    console.print("   Real-time stock price board updates immediately after startup")
+    if mock and virtual_start_time:
+        console.print(f"   1. System will run using virtual time as 'today'")
+        console.print(f"      Reference time: {virtual_start_time}")
+    else:
+        console.print("   1. System will run for today's trading day")
+    console.print("   2. First day startup: Run pre-market analysis immediately (generate signals)")
+    console.print("   3. Trading cycle:")
+    console.print("      - Daily at 22:30:15: Run pre-market analysis (func1)")
+    console.print("      - Daily at 05:05: Execute trades (func2) + update previous day agent performance")
+    if mock:
+        console.print("   4. Mock mode generates simulated price updates every 5 seconds")
+    else:
+        console.print("   4. Real-time prices update every 10 seconds (Finnhub Quote API)")
+    console.print("   5. Real-time updates: stock prices, returns, portfolio value curve, position P&L")
+    
     console.print(f"\nAccess at: [cyan]http://localhost:{port}[/cyan]")
     console.print("Press Ctrl+C to stop\n")
     

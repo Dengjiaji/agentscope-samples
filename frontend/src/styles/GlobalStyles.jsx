@@ -677,6 +677,7 @@ export default function GlobalStyles() {
       
       .bubble-jump-btn,
       .bubble-close-btn {
+        outline: none;
         width: 18px;
         height: 18px;
         padding: 0;
@@ -694,13 +695,21 @@ export default function GlobalStyles() {
       
       .bubble-jump-btn:hover,
       .bubble-close-btn:hover {
+        outline: none;
         color: #000000;
         transform: scale(1.15);
       }
       
       .bubble-jump-btn:active,
       .bubble-close-btn:active {
+        outline: none;
         transform: scale(0.95);
+      }
+      
+      .bubble-jump-btn:focus,
+      .bubble-close-btn:focus {
+        outline: none;
+        box-shadow: none;
       }
       
       .bubble-close-btn {
@@ -1391,14 +1400,14 @@ export default function GlobalStyles() {
       }
       
       .data-table thead th {
-        background: #615CED;
+        background: #000000;
         color: #ffffff;
         padding: 10px 12px;
         text-align: left;
         font-weight: 700;
         letter-spacing: 1px;
         font-size: 9px;
-        border-right: 1px solid #615CED;
+        border-right: 1px solid #000000;
         text-transform: uppercase;
         position: sticky;
         top: 0;
