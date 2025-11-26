@@ -3,6 +3,8 @@
 Portfolio Manager Agent - Portfolio Management Agent
 Provides unified portfolio management interface (based on AgentScope)
 """
+# flake8: noqa: E501
+
 import json
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional

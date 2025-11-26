@@ -6,6 +6,8 @@ Continuously running WebSocket server
 - Integrates real-time price data
 - Broadcasts status to all connected clients
 """
+# flake8: noqa: E501
+# pylint: disable=C0301
 import asyncio
 import json
 import logging

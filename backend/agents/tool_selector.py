@@ -4,6 +4,7 @@ LLM-based intelligent tool selector
 Enables analysts to intelligently select and use analysis tools through LLM
 Uses AgentScope's Toolkit to manage tools
 """
+# flake8: noqa: E501
 import json
 import os
 from typing import Any, Dict, List

@@ -4,7 +4,7 @@
 Notification System Helper Functions
 Provides notification decision-making and other functionality
 """
-
+# flake8: noqa: E501
 import json
 import logging
 import math
@@ -172,7 +172,8 @@ If notification is not needed:
     "reason": "reason for not sending notification"
 }}
 
-Important: Reply content must be in pure JSON format, do not add any explanatory text or markdown markers.
+Important: Reply content must be in pure JSON format,
+do not add any explanatory text or markdown markers.
 """
 
     # Use the specific analyst's model configuration
@@ -196,7 +197,8 @@ Important: Reply content must be in pure JSON format, do not add any explanatory
             response_content = response.get("content", "")
 
             logger.debug(
-                f"🔍 {agent_id} LLM notification decision raw response (attempt {attempt + 1}/{max_retries}): '{response_content}'",
+                f"🔍 {agent_id} LLM notification decision raw response "
+                f"(attempt {attempt + 1}/{max_retries}): '{response_content}'",
             )
 
             decision = robust_json_parse(response_content)
@@ -205,7 +207,8 @@ Important: Reply content must be in pure JSON format, do not add any explanatory
 
         except json.JSONDecodeError as e:
             logger.warning(
-                f"⚠️ {agent_id} notification decision JSON parsing failed (attempt {attempt + 1}/{max_retries}): {str(e)}",
+                f"⚠️ {agent_id} notification decision JSON parsing failed "
+                f"(attempt {attempt + 1}/{max_retries}): {str(e)}",
             )
 
             if attempt < max_retries - 1:
@@ -227,7 +230,8 @@ Please regenerate the correct JSON format reply."""
 
         except Exception as e:
             logger.warning(
-                f"⚠️ {agent_id} notification decision processing encountered unknown error (attempt {attempt + 1}/{max_retries}): {str(e)}",
+                f"⚠️ {agent_id} notification decision processing encountered unknown error "
+                f"(attempt {attempt + 1}/{max_retries}): {str(e)}",
             )
 
             if attempt < max_retries - 1:
@@ -238,6 +242,7 @@ Please regenerate the correct JSON format reply."""
                 )
                 fallback_decision = {
                     "should_notify": False,
-                    "reason": f"Notification decision processing failed, retried {max_retries} times: {str(e)}",
+                    "reason": "Notification decision processing failed, "
+                    f"retried {max_retries} times: {str(e)}",
                 }
                 return fallback_decision

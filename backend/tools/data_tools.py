@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+# flake8: noqa: E501
+# pylint: disable=C0301
 import datetime
 import os
 import time

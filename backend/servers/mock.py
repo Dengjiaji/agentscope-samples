@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 import asyncio
 import logging
 import random
@@ -192,7 +193,8 @@ class MockSimulator:
                 "agentId": agent["id"],
                 "agentName": agent["name"],
                 "role": agent["role"],
-                "content": f"Historical analysis: Market analysis from {i+1} updates ago",
+                "content": "Historical analysis: "
+                f"Market analysis from {i+1} updates ago",
                 "timestamp": msg_time.isoformat(),
             }
             self.state_manager.add_feed_message(historical_msg)

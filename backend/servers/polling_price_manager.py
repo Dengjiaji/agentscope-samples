@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 class PollingPriceManager:
     """Polling-based price manager - Regularly fetches real-time prices from Finnhub Quote API"""
+
     def __init__(self, api_key: str, poll_interval: int = 30):
         """
         Args:

@@ -11,6 +11,8 @@ Features:
 5. Support batch updates for multiple stocks
 """
 
+# flake8: noqa: E501
+
 import logging
 import os
 import sys
@@ -319,7 +321,8 @@ class DataUpdater:
 
             if missing_dates:
                 logger.warning(
-                    f"⚠️ {ticker} found {len(missing_dates)} missing trading days: {[str(d.date()) for d in missing_dates[:5]]}",
+                    f"⚠️ {ticker} found {len(missing_dates)} missing trading days: "
+                    f"{[str(d.date()) for d in missing_dates[:5]]}",
                 )
 
                 # Set time as index for reindexing
@@ -412,7 +415,8 @@ class DataUpdater:
                 days_diff <= 3
             ):  # If only 1-3 days difference, may be weekend or data delay
                 logger.info(
-                    f"ℹ️ {ticker} has no new data (may be weekend/holiday/data delay), existing data is sufficient",
+                    f"ℹ️ {ticker} has no new data (may be weekend/holiday/data delay), "
+                    f"existing data is sufficient",
                 )
                 return True  # Return success to let script continue
             else:

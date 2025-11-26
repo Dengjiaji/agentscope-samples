@@ -2,6 +2,7 @@
 """
 Agent Model Configuration - Support different models for different agents/roles
 """
+# flake8: noqa: E501
 import os
 from dataclasses import dataclass
 from typing import Dict, Optional, Tuple

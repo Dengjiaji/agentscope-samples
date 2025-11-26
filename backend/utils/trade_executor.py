@@ -4,7 +4,7 @@ Trading Execution Engine - Supports Two Modes
 1. Signal mode: Only records directional signal decisions
 2. Portfolio mode: Executes specific trades and tracks positions
 """
-
+# flake8: noqa: E501
 from copy import deepcopy
 from datetime import datetime
 from typing import Any, Dict, Optional

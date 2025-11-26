@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+# flake8: noqa: E501
+# pylint: disable=C0301
 ROLE_TO_AGENT = {
     "sentiment_analyst": "Sentiment Analyst",
     "technical_analyst": "Technical Analyst",

@@ -4,7 +4,8 @@
 Investment Engine - Core investment analysis engine
 Handles single-day analysis workflow: analysts → risk → portfolio manager → communications
 """
-
+# flake8: noqa: E501
+# pylint: disable=C0301
 import concurrent.futures
 import json
 import logging

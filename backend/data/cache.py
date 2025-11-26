@@ -19,7 +19,7 @@ class Cache:
         new_data: list[dict],
         key_field: str,
     ) -> list[dict]:
-        """Merge existing and new data, avoiding duplicates based on a key field."""
+        """Merge existing and new data"""
         if not existing:
             return new_data
 

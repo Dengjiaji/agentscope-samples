@@ -86,7 +86,8 @@ class Mem0Memory(LongTermMemory):
     ) -> str:
         """Add memory"""
         logger.debug(
-            f"➕ [Mem0Memory] Adding memory: user_id={user_id}, content_len={len(content)}",
+            f"➕ [Mem0Memory] Adding memory: user_id={user_id}, "
+            f"content_len={len(content)}",
         )
 
         result = self.memory.add(
@@ -103,7 +104,7 @@ class Mem0Memory(LongTermMemory):
             logger.debug(f"   ✅ Memory added, memory_id={memory_id}")
             return memory_id
 
-        logger.warning(f"   ⚠️ Failed to add memory or no ID returned")
+        logger.warning("   ⚠️ Failed to add memory or no ID returned")
         return ""
 
     def search(
@@ -114,14 +115,16 @@ class Mem0Memory(LongTermMemory):
     ) -> List[Dict[str, Any]]:
         """Search memory"""
         logger.debug(
-            f"🔍 [Mem0Memory] Searching memory: user_id={user_id}, query={query[:100]}...",
+            f"🔍 [Mem0Memory] Searching memory: user_id={user_id}, "
+            f"query={query[:100]}...",
         )
 
         results = self.memory.search(query=query, user_id=user_id, limit=top_k)
 
         logger.debug(f"   Raw result type: {type(results)}")
         logger.debug(
-            f"   Raw result length: {len(results) if isinstance(results, list) else 'N/A'}",
+            "   Raw result length: "
+            f"{len(results) if isinstance(results, list) else 'N/A'}",
         )
 
         # Standardize return format

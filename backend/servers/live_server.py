@@ -7,6 +7,8 @@ Features:
 2. High-frequency real-time price fetching, update equity curves, position P&L, etc.
 3. Support Mock mode for testing during non-trading hours
 """
+# flake8: noqa: E501
+# pylint: disable=C0301,W0613
 import asyncio
 import json
 import logging
@@ -577,7 +579,7 @@ class LiveTradingServer:
         timestamp_ms: int,
         value: float,
         max_points: int = None,
-        ) -> List[Dict[str, Any]]:
+    ) -> List[Dict[str, Any]]:
         """
         Append curve point (no length limit by default)
         """
@@ -591,57 +593,71 @@ class LiveTradingServer:
         values: List[Dict[str, Any]],
     ) -> List[Dict[str, Any]]:
         """Calculate cumulative returns for live mode
-        
+
         For live mode, we calculate returns relative to the last value before
         the current trading session (22:30). This ensures all strategies start
         at 0% at the beginning of the trading session.
-        
+
         Args:
             values: List of {t: timestamp_ms, v: value} data points
-            
+
         Returns:
             List of {t: timestamp_ms, v: cumulative_return_percentage} data points
             where the first point (session start) is 0%
         """
         if not values or len(values) == 0:
             return []
-        
+
         current_time = self._get_current_time_for_data()
-        
+
         current_hour = current_time.hour
         current_minute = current_time.minute
-        
-        is_in_trading_session = (current_hour == 22 and current_minute >= 30) or current_hour >= 23 or (current_hour >= 0 and current_hour < 5) or (current_hour == 5 and current_minute == 0)
-        
-        session_start_time = current_time.replace(hour=22, minute=30, second=0, microsecond=0)
+
+        is_in_trading_session = (
+            (current_hour == 22 and current_minute >= 30)
+            or current_hour >= 23
+            or (current_hour >= 0 and current_hour < 5)
+            or (current_hour == 5 and current_minute == 0)
+        )
+
+        session_start_time = current_time.replace(
+            hour=22,
+            minute=30,
+            second=0,
+            microsecond=0,
+        )
         if not is_in_trading_session or current_time < session_start_time:
             session_start_time = session_start_time - timedelta(days=1)
-        
+
         session_start_timestamp = int(session_start_time.timestamp() * 1000)
-        
+
         initial_value = None
         for i in range(len(values) - 1, -1, -1):
             if values[i]["t"] < session_start_timestamp:
                 initial_value = values[i]["v"]
                 break
-        
+
         if initial_value is None:
             if len(values) > 0:
                 initial_value = values[0]["v"]
             else:
                 return []
-        
+
         if initial_value == 0:
             return []
-        
+
         returns = []
         for point in values:
-            cumulative_return = (point["v"] - initial_value) / initial_value * 100
-            returns.append({
-                "t": point["t"],
-                "v": round(cumulative_return, 4)
-            })
-        
+            cumulative_return = (
+                (point["v"] - initial_value) / initial_value * 100
+            )
+            returns.append(
+                {
+                    "t": point["t"],
+                    "v": round(cumulative_return, 4),
+                },
+            )
+
         return returns
 
     def _update_benchmark_curves(
@@ -829,12 +845,20 @@ class LiveTradingServer:
             baseline_data = data.get("baseline", [])
             baseline_vw_data = data.get("baseline_vw", [])
             momentum_data = data.get("momentum", [])
-            
-            equity_return = self._calculate_cumulative_returns_for_live(equity_data)
-            baseline_return = self._calculate_cumulative_returns_for_live(baseline_data)
-            baseline_vw_return = self._calculate_cumulative_returns_for_live(baseline_vw_data)
-            momentum_return = self._calculate_cumulative_returns_for_live(momentum_data)
-            
+
+            equity_return = self._calculate_cumulative_returns_for_live(
+                equity_data,
+            )
+            baseline_return = self._calculate_cumulative_returns_for_live(
+                baseline_data,
+            )
+            baseline_vw_return = self._calculate_cumulative_returns_for_live(
+                baseline_vw_data,
+            )
+            momentum_return = self._calculate_cumulative_returns_for_live(
+                momentum_data,
+            )
+
             await self.broadcast(
                 {
                     "type": "team_summary",
@@ -1246,12 +1270,28 @@ class LiveTradingServer:
                     baseline_data = summary_data.get("baseline", [])
                     baseline_vw_data = summary_data.get("baseline_vw", [])
                     momentum_data = summary_data.get("momentum", [])
-                    
-                    equity_return = self._calculate_cumulative_returns_for_live(equity_data)
-                    baseline_return = self._calculate_cumulative_returns_for_live(baseline_data)
-                    baseline_vw_return = self._calculate_cumulative_returns_for_live(baseline_vw_data)
-                    momentum_return = self._calculate_cumulative_returns_for_live(momentum_data)
-                    
+
+                    equity_return = (
+                        self._calculate_cumulative_returns_for_live(
+                            equity_data,
+                        )
+                    )
+                    baseline_return = (
+                        self._calculate_cumulative_returns_for_live(
+                            baseline_data,
+                        )
+                    )
+                    baseline_vw_return = (
+                        self._calculate_cumulative_returns_for_live(
+                            baseline_vw_data,
+                        )
+                    )
+                    momentum_return = (
+                        self._calculate_cumulative_returns_for_live(
+                            momentum_data,
+                        )
+                    )
+
                     initial_state["portfolio"].update(
                         {
                             "total_value": summary_data.get("balance"),

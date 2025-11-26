@@ -3,7 +3,7 @@
 Unified analysis tools collection
 Contains all tools for fundamental analysis, technical analysis, sentiment analysis, and valuation analysis
 """
-
+# pylint: disable=C0301
 from statistics import median
 from typing import Any, Dict, Optional
 
