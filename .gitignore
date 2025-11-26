@@ -59,6 +59,9 @@ node_modules
 # Outputs
 outputs/
 
+# Data files
+backend/data/ret_data/
+
 # Database files (users will have their own local databases)
 *.db
 *.db-journal
