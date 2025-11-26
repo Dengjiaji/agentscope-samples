@@ -4,6 +4,8 @@
 ReMe Long-term Memory Implementation
 Uses global singleton ChromaVectorStore, distinguishes different users via workspace_id
 """
+# flake8: noqa: E501
+# pylint: disable=C0301
 
 import logging
 import os
@@ -203,14 +205,14 @@ class ReMeMemory(LongTermMemory):
         """
         if not content or not isinstance(content, str):
             logger.warning(
-                f"⚠️ [ReMeMemory] Input content is empty or not a string type, skipping",
+                "⚠️ [ReMeMemory] Input content is empty or not a string type, skipping",
             )
             return ""
 
         content = content.strip()
         if not content:
             logger.warning(
-                f"⚠️ [ReMeMemory] Input content is empty (contains only whitespace), skipping",
+                "⚠️ [ReMeMemory] Input content is empty (contains only whitespace), skipping",
             )
             return ""
 
@@ -306,14 +308,14 @@ class ReMeMemory(LongTermMemory):
         """Search memory"""
         if not query or not isinstance(query, str):
             logger.warning(
-                f"⚠️ [ReMeMemory] Search query is empty or not a string type, returning empty list",
+                "⚠️ [ReMeMemory] Search query is empty or not a string type, returning empty list",
             )
             return []
 
         query = query.strip()
         if not query:
             logger.warning(
-                f"⚠️ [ReMeMemory] Search query is empty (contains only whitespace), returning empty list",
+                "⚠️ [ReMeMemory] Search query is empty (contains only whitespace), returning empty list",
             )
             return []
 
@@ -338,7 +340,7 @@ class ReMeMemory(LongTermMemory):
 
         if not self.vector_store.exist_workspace(workspace_id):
             logger.warning(
-                f"   ⚠️ Workspace does not exist, returning empty list",
+                "   ⚠️ Workspace does not exist, returning empty list",
             )
             return []
 
@@ -372,14 +374,14 @@ class ReMeMemory(LongTermMemory):
         """
         if not content or not isinstance(content, str):
             logger.warning(
-                f"⚠️ [ReMeMemory] Update content is empty or not a string type, skipping",
+                "⚠️ [ReMeMemory] Update content is empty or not a string type, skipping",
             )
             return False
 
         content = content.strip()
         if not content:
             logger.warning(
-                f"⚠️ [ReMeMemory] Update content is empty (contains only whitespace), skipping",
+                "⚠️ [ReMeMemory] Update content is empty (contains only whitespace), skipping",
             )
             return False
 

@@ -2,6 +2,7 @@
 """
 State Manager - Manages server state persistence and history
 """
+# pylint: disable=C0301
 import json
 import logging
 from dataclasses import dataclass, field

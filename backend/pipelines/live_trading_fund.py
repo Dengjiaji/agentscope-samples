@@ -18,6 +18,9 @@ python live_trading_fund.py --date 2025-01-15 --config_name my_config
 # Force run
 python live_trading_fund.py --date 2025-01-15 --force-run --config_name my_config
 """
+# flake8: noqa: E501
+# pylint: disable=C0301
+
 import argparse
 import json
 import os

@@ -129,7 +129,7 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
     'Momentum': 'Momentum Strategy: Buy stocks that have performed well in the past',
   };
 
-  
+
   // For live mode, use cumulative returns calculated by backend
   // For all mode, use portfolio values directly
   const dataSource = useMemo(() => {
@@ -227,7 +227,7 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
         // 如果有上一个交易日的最后值，在session数据前添加一个起点
         if (lastValueBeforeSession !== null && sessionData.length > 0) {
         // 如果有上一个交易日的最后值，在session数据前添加一个起点
-        
+
           const startPoint = {
             t: sessionStartTimestamp - 1,
             v: lastValueBeforeSession
@@ -395,7 +395,7 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
     // For live mode (percentage data), use smaller padding and finer rounding
     // For all mode (dollar amounts), use larger padding and coarser rounding
     const isLiveMode = chartTab === 'live';
-    
+
     const paddingFactor = isLiveMode ? range * 0.15 : range * 0.03;
 
     let yMinCalc = dataMin - paddingFactor;
@@ -404,7 +404,7 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
     // Smart rounding based on magnitude and mode
     const magnitude = Math.max(Math.abs(yMinCalc), Math.abs(yMaxCalc));
     let roundTo;
-    
+
     if (isLiveMode) {
       // For percentage data, use much finer rounding
       if (magnitude >= 100) {

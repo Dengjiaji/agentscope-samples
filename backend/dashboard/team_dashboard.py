@@ -4,7 +4,8 @@
 Team Dashboard Data Generator
 Provides 5 main data interfaces for frontend: summary, holdings, stats, trades, leaderboard
 """
-
+# flake8: noqa: E501
+# pylint: disable=C0301
 import json
 import math
 from datetime import datetime, timedelta

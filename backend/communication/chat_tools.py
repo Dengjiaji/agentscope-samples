@@ -3,7 +3,7 @@
 """
 Communication Tools - Implementation of private chat and meeting features
 """
-
+# flake8: noqa: E501
 import json
 import re
 import uuid

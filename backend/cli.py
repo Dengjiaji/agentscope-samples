@@ -6,7 +6,7 @@ EvoTraders CLI - Command-line interface for the EvoTraders trading system.
 This module provides easy-to-use commands for running backtest, live trading,
 and frontend development server.
 """
-
+# flake8: noqa: E501
 import os
 import shutil
 import subprocess

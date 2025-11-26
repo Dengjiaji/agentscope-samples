@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Helper functions for LLM"""
-
+# flake8: noqa: E501
+# pylint: disable=E501
 import json
 from typing import Optional, Union
 

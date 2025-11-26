@@ -11,6 +11,8 @@ Features:
 5. Support batch updates for multiple stocks
 """
 
+# flake8: noqa: E501
+
 import logging
 import os
 import sys

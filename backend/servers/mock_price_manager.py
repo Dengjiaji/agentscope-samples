@@ -30,8 +30,10 @@ class MockPriceManager:
     def __init__(self, poll_interval: int = None, volatility: float = None):
         """
         Args:
-            poll_interval: Price update interval (seconds), defaults to environment variable or 5 seconds
-            volatility: Price volatility (percentage), defaults to environment variable or 0.5%
+            poll_interval: Price update interval (seconds),
+            defaults to environment variable or 5 seconds
+            volatility: Price volatility (percentage),
+             defaults to environment variable or 0.5%
         """
         # Read configuration from environment variables (if not specified)
         if poll_interval is None:
@@ -207,7 +209,8 @@ class MockPriceManager:
                 # Log price change
                 change = ((new_price - old_price) / old_price) * 100
                 logger.debug(
-                    f"💹 Mock {symbol}: ${new_price:.2f} ({change:+.2f}%) [Open: {change_from_open:+.2f}%]",
+                    f"💹 Mock {symbol}: ${new_price:.2f} ({change:+.2f}%) "
+                    f"[Open: {change_from_open:+.2f}%]",
                 )
 
             except Exception as e:
@@ -218,7 +221,8 @@ class MockPriceManager:
     def _polling_loop(self):
         """Polling loop (runs in separate thread)"""
         logger.info(
-            f"🚀 Mock price generation started (interval: {self.poll_interval}s, volatility: {self.volatility}%)",
+            f"🚀 Mock price generation started "
+            f"(interval: {self.poll_interval}s, volatility: {self.volatility}%)",
         )
 
         while self.running:
