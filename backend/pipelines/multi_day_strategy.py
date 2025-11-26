@@ -16,8 +16,6 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib import rcParams
 import seaborn as sns
-import pdb
-# Try importing US trading calendar packages
 import pandas_market_calendars as mcal
 
 

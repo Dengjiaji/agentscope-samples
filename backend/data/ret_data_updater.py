@@ -20,15 +20,8 @@ from typing import List, Optional, Dict
 from dotenv import load_dotenv
 
 # Try importing US trading calendar packages
-try:
-    import pandas_market_calendars as mcal
-except ImportError:
-    mcal = None
-
-try:
-    import exchange_calendars as xcals
-except ImportError:
-    xcals = None
+import pandas_market_calendars as mcal
+import exchange_calendars as xcals
 
 # Add project root directory to path
 BASE_DIR = Path(__file__).resolve().parents[2]

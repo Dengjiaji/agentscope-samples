@@ -11,7 +11,7 @@ from agentscope.message import Msg
 
 from ..graph.state import AgentState
 from ..utils.progress import progress
-from ..llm.models import get_model  # Use AgentScope model
+from ..llm.models import get_model
 from .tool_selector import Toolselector
 from ..tools.data_tools import get_last_tradeday
 from ..config.constants import ANALYST_TYPES
@@ -21,7 +21,7 @@ _prompt_loader = PromptLoader()
 _personas_config = _prompt_loader.load_yaml_config("analyst", "personas")
 
 class AnalystAgent(AgentBase):
-    """Analyst Agent - Uses LLM for intelligent tool selection and analysis (based on AgentScope)"""
+    """Analyst Agent - Uses LLM for intelligent tool selection and analysis"""
     
     def __init__(self, 
                  analyst_type: str,
@@ -50,7 +50,7 @@ class AnalystAgent(AgentBase):
         if agent_id is None:
             agent_id = f"{analyst_type}_analyst_agent"
         
-        # Initialize AgentBase (does not accept parameters)
+        # Initialize AgentBase
         super().__init__()
         
         # Set name attribute
@@ -138,7 +138,7 @@ class AnalystAgent(AgentBase):
                 analysis=json.dumps(result, indent=2, default=str)
             )
         
-        # Create message (using AgentScope Msg format)
+        # Create message
         message = Msg(
             name=self.name,
             content=json.dumps(analysis_results, default=str),
@@ -183,7 +183,7 @@ class AnalystAgent(AgentBase):
             "Starting intelligent tool selection"
         )
         
-        # ⭐ Adjust end_date to previous trading day
+        # Adjust end_date to previous trading day
         # This ensures analysis doesn't include incomplete same-day data
         adjusted_end_date = get_last_tradeday(end_date)
         # print(f"📅 Analyst {self.name} - Original date: {end_date}, Analysis end date (previous trading day): {adjusted_end_date}")
@@ -207,7 +207,7 @@ class AnalystAgent(AgentBase):
 
         # print(f"{self.name} \n\n- LLM tool selection result:\n\n {selection_result}")
         
-        # 3. Execute selected tools - using AgentScope Toolkit
+        # 3. Execute selected tools
         tool_results = await self.tool_selector.execute_selected_tools(
             selection_result["selected_tools"],
             ticker=ticker,
@@ -231,8 +231,6 @@ class AnalystAgent(AgentBase):
             ticker,
             self.analyst_persona
         )
-
-        # print(f"- {self.name} call output result:\n\n {combined_result}")
         
         # 5. Build final result
         analysis_result = {

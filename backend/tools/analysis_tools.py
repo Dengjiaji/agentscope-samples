@@ -7,10 +7,8 @@ from typing import Dict, Any, List, Optional, Tuple
 
 import pandas as pd
 import numpy as np
-import json
-from datetime import datetime
+
 from statistics import median
-import math
 
 from backend.tools.data_tools import (
     get_financial_metrics, 
@@ -21,12 +19,6 @@ from backend.tools.data_tools import (
     get_market_cap,
     search_line_items,
 )
-
-# Define a simple decorator for compatibility
-def tool(func):
-    """Compatibility decorator - marks function as a tool function"""
-    func._is_tool = True
-    return func
 
 # ===================== Tool Helper Functions =====================
 
@@ -50,7 +42,7 @@ def normalize_pandas(data):
         return safe_float(data)
 
 # ===================== Fundamental Analysis Tools =====================
-@tool
+
 def analyze_efficiency_ratios(ticker: str, end_date: str, api_key: str) -> Dict[str, Any]:
     """Efficiency ratio analysis - analyze company asset utilization efficiency"""
     try:
@@ -80,7 +72,7 @@ def analyze_efficiency_ratios(ticker: str, end_date: str, api_key: str) -> Dict[
     except Exception as e:
         return {"error": str(e)}
 
-@tool
+
 def analyze_profitability(ticker: str, end_date: str, api_key: str) -> Dict[str, Any]:
     """
     Analyze company profitability
@@ -126,7 +118,6 @@ def analyze_profitability(ticker: str, end_date: str, api_key: str) -> Dict[str,
         return {"error": str(e)}
 
 
-@tool
 def analyze_growth(ticker: str, end_date: str, api_key: str) -> Dict[str, Any]:
     """
     Analyze company growth
@@ -172,8 +163,6 @@ def analyze_growth(ticker: str, end_date: str, api_key: str) -> Dict[str, Any]:
     except Exception as e:
         return {"error": str(e)}
 
-
-@tool  
 def analyze_financial_health(ticker: str, end_date: str, api_key: str) -> Dict[str, Any]:
     """
     Analyze company financial health
@@ -222,8 +211,6 @@ def analyze_financial_health(ticker: str, end_date: str, api_key: str) -> Dict[s
     except Exception as e:
         return {"error": str(e)}
 
-
-@tool
 def analyze_valuation_ratios(ticker: str, end_date: str, api_key: str) -> Dict[str, Any]:
     """
     Analyze valuation ratios
@@ -270,8 +257,6 @@ def analyze_valuation_ratios(ticker: str, end_date: str, api_key: str) -> Dict[s
 
 
 # ===================== Technical Analysis Tools =====================
-
-@tool
 def analyze_trend_following(ticker: str, start_date: str, end_date: str, api_key: str) -> Dict[str, Any]:
     """
     Trend following analysis
@@ -370,8 +355,6 @@ def analyze_trend_following(ticker: str, start_date: str, end_date: str, api_key
     except Exception as e:
         return {"error": str(e)}
 
-
-@tool
 def analyze_mean_reversion(ticker: str, start_date: str, end_date: str, api_key: str) -> Dict[str, Any]:
     """
     Mean reversion analysis
@@ -448,8 +431,6 @@ def analyze_mean_reversion(ticker: str, start_date: str, end_date: str, api_key:
     except Exception as e:
         return {"error": str(e)}
 
-
-@tool
 def analyze_momentum(ticker: str, start_date: str, end_date: str, api_key: str) -> Dict[str, Any]:
     """
     Momentum analysis
@@ -524,8 +505,6 @@ def analyze_momentum(ticker: str, start_date: str, end_date: str, api_key: str) 
     except Exception as e:
         return {"error": str(e)}
 
-
-@tool
 def analyze_volatility(ticker: str, start_date: str, end_date: str, api_key: str) -> Dict[str, Any]:
     """
     Volatility analysis
@@ -602,8 +581,6 @@ def analyze_volatility(ticker: str, start_date: str, end_date: str, api_key: str
 
 
 # ===================== Sentiment Analysis Tools =====================
-
-@tool
 def analyze_insider_trading(ticker: str, end_date: str, api_key: str, start_date: Optional[str] = None) -> Dict[str, Any]:
     """
     Analyze insider trading activity
@@ -685,8 +662,6 @@ def analyze_insider_trading(ticker: str, end_date: str, api_key: str, start_date
     except Exception as e:
         return {"error": str(e)}
 
-
-@tool
 def analyze_news_sentiment(ticker: str, end_date: str, api_key: str, start_date: Optional[str] = None) -> Dict[str, Any]:
     """
     Analyze news sentiment
@@ -762,8 +737,6 @@ def analyze_news_sentiment(ticker: str, end_date: str, api_key: str, start_date:
 
 
 # ===================== Valuation Analysis Tools =====================
-
-@tool
 def dcf_valuation_analysis(ticker: str, end_date: str, api_key: str) -> Dict[str, Any]:
     """
     Discounted Cash Flow (DCF) valuation analysis
@@ -852,8 +825,6 @@ def dcf_valuation_analysis(ticker: str, end_date: str, api_key: str) -> Dict[str
     except Exception as e:
         return {"error": str(e)}
 
-
-@tool
 def owner_earnings_valuation_analysis(ticker: str, end_date: str, api_key: str) -> Dict[str, Any]:
     """
     Buffett-style owner earnings valuation analysis
@@ -963,8 +934,6 @@ def owner_earnings_valuation_analysis(ticker: str, end_date: str, api_key: str) 
     except Exception as e:
         return {"error": str(e)}
 
-
-@tool  
 def ev_ebitda_valuation_analysis(ticker: str, end_date: str, api_key: str) -> Dict[str, Any]:
     """
     EV/EBITDA multiple valuation analysis
@@ -1053,8 +1022,6 @@ def ev_ebitda_valuation_analysis(ticker: str, end_date: str, api_key: str) -> Di
     except Exception as e:
         return {"error": str(e)}
 
-
-@tool
 def residual_income_valuation_analysis(ticker: str, end_date: str, api_key: str) -> Dict[str, Any]:
     """
     Residual Income Model (RIM) valuation analysis

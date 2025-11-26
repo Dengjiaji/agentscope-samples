@@ -63,7 +63,7 @@ evotraders = "backend.cli:app"
 [tool.setuptools]
 packages = ["backend", "backend.agents", "backend.communication", "backend.config", 
             "backend.dashboard", "backend.data", "backend.graph", "backend.llm", 
-            "backend.memory", "backend.okr", "backend.pipelines", "backend.servers", 
+            "backend.memory", "backend.pipelines", "backend.servers",
             "backend.tools", "backend.utils"]
 
 [tool.ruff]
