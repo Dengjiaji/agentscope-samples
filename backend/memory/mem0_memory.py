@@ -71,8 +71,8 @@ class Mem0Memory(LongTermMemory):
         }
 
         # Ensure directories exist
-        history_path: str = config["history_db_path"]
-        vector_path: str = config["vector_store"]["config"]["path"]
+        history_path = str(config["history_db_path"])
+        vector_path = str(config["vector_store"]["config"]["path"])  # type: ignore
 
         os.makedirs(os.path.dirname(history_path), exist_ok=True)
         os.makedirs(vector_path, exist_ok=True)

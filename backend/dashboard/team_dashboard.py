@@ -1422,7 +1422,7 @@ class TeamDashboardGenerator:
                     "qty": quantity,
                     "buy_price": price,
                     "buy_date": date,
-                    "weight": weight,  # Record market cap weight
+                    "weight": float(weight),  # Record market cap weight
                     "market_cap": mcap,
                 }
                 total_invested += quantity * price
@@ -1435,7 +1435,8 @@ class TeamDashboardGenerator:
         )
         for ticker, info in initial_allocation.items():
             print(
-                f"   {ticker}: {info['qty']} shares @ ${info['buy_price']:.2f} (weight: {info['weight']*100:.2f}%)",
+                f"   {ticker}: {info['qty']} shares @ ${info['buy_price']:.2f} "
+                f"(weight: {float(info['weight'])*100:.2f}%)",  # type: ignore
             )
 
     def _calculate_buy_and_hold_vw_value(
