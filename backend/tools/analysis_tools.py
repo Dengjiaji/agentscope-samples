@@ -3,6 +3,7 @@
 Unified analysis tools collection
 Contains all tools for fundamental analysis, technical analysis, sentiment analysis, and valuation analysis
 """
+# flake8: noqa: E501
 # pylint: disable=C0301
 from statistics import median
 from typing import Any, Dict, Optional

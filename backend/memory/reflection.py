@@ -7,6 +7,7 @@ Supports two modes:
 - individual_review: Each agent independently processes its own memories
 """
 # flake8: noqa: E501
+# pylint: disable=C0301
 import json
 import logging
 import os
