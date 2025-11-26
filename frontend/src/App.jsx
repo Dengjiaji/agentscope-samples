@@ -477,7 +477,11 @@ export default function LiveTradingApp() {
                 baseline: state.portfolio.baseline || prev.baseline,
                 baseline_vw: state.portfolio.baseline_vw || prev.baseline_vw,
                 momentum: state.portfolio.momentum || prev.momentum,
-                strategies: state.portfolio.strategies || prev.strategies
+                strategies: state.portfolio.strategies || prev.strategies,
+                equity_return: state.portfolio.equity_return || prev.equity_return,
+                baseline_return: state.portfolio.baseline_return || prev.baseline_return,
+                baseline_vw_return: state.portfolio.baseline_vw_return || prev.baseline_vw_return,
+                momentum_return: state.portfolio.momentum_return || prev.momentum_return
               }));
             }
 
@@ -793,7 +797,11 @@ export default function LiveTradingApp() {
             equity: e.equity || prev.equity,
             baseline: e.baseline || prev.baseline,
             baseline_vw: e.baseline_vw || prev.baseline_vw,
-            momentum: e.momentum || prev.momentum
+            momentum: e.momentum || prev.momentum,
+            equity_return: e.equity_return || prev.equity_return,
+            baseline_return: e.baseline_return || prev.baseline_return,
+            baseline_vw_return: e.baseline_vw_return || prev.baseline_vw_return,
+            momentum_return: e.momentum_return || prev.momentum_return
           }));
 
           // Portfolio updates are shown in the ticker bar, no need for feed messages
@@ -1266,6 +1274,10 @@ export default function LiveTradingApp() {
                         baseline_vw={portfolioData.baseline_vw}
                         momentum={portfolioData.momentum}
                         strategies={portfolioData.strategies}
+                        equity_return={portfolioData.equity_return}
+                        baseline_return={portfolioData.baseline_return}
+                        baseline_vw_return={portfolioData.baseline_vw_return}
+                        momentum_return={portfolioData.momentum_return}
                         chartTab={chartTab}
                         virtualTime={virtualTime}
                       />

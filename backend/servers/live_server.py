@@ -156,11 +156,11 @@ class LiveTradingServer:
                 logger.info("   Get free API Key: https://finnhub.io/register")
                 raise ValueError("Missing FINNHUB_API_KEY")
 
-            # Use high-frequency polling (every 10 seconds)
+            # Use polling interval (every 30 seconds)
             logger.info(
-                "📊 Using Finnhub real-time prices (high-frequency polling: 10 seconds)",
+                "📊 Using Finnhub real-time prices (polling interval: 30 seconds)",
             )
-            self.price_manager = PollingPriceManager(api_key, poll_interval=10)
+            self.price_manager = PollingPriceManager(api_key, poll_interval=30)
 
         # Add price update callback
         self.price_manager.add_price_callback(self._on_price_update)
@@ -461,9 +461,8 @@ class LiveTradingServer:
                             "v": round(total_value, 2),
                         },
                     )
-                    # Limit curve length to reduce storage size
-                    if len(equity_list) > 500:
-                        equity_list = equity_list[-500:]
+                    # No limit on curve length - keep all historical data
+
                     summary["equity"] = equity_list
                     # Sync to internal_state for persistence
                     self.internal_state["equity_history"] = equity_list
@@ -576,15 +575,73 @@ class LiveTradingServer:
         history: List[Dict[str, Any]],
         timestamp_ms: int,
         value: float,
-        max_points: int = 500,
-    ) -> List[Dict[str, Any]]:
+        max_points: int = None,
+        ) -> List[Dict[str, Any]]:
         """
-        Append curve point and maintain length limit
+        Append curve point (no length limit by default)
         """
         history.append({"t": timestamp_ms, "v": round(value, 2)})
-        if len(history) > max_points:
+        if max_points is not None and len(history) > max_points:
             del history[: len(history) - max_points]
         return history
+
+    def _calculate_cumulative_returns_for_live(
+        self,
+        values: List[Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        """Calculate cumulative returns for live mode
+        
+        For live mode, we calculate returns relative to the last value before
+        the current trading session (22:30). This ensures all strategies start
+        at 0% at the beginning of the trading session.
+        
+        Args:
+            values: List of {t: timestamp_ms, v: value} data points
+            
+        Returns:
+            List of {t: timestamp_ms, v: cumulative_return_percentage} data points
+            where the first point (session start) is 0%
+        """
+        if not values or len(values) == 0:
+            return []
+        
+        current_time = self._get_current_time_for_data()
+        
+        current_hour = current_time.hour
+        current_minute = current_time.minute
+        
+        is_in_trading_session = (current_hour == 22 and current_minute >= 30) or current_hour >= 23 or (current_hour >= 0 and current_hour < 5) or (current_hour == 5 and current_minute == 0)
+        
+        session_start_time = current_time.replace(hour=22, minute=30, second=0, microsecond=0)
+        if not is_in_trading_session or current_time < session_start_time:
+            session_start_time = session_start_time - timedelta(days=1)
+        
+        session_start_timestamp = int(session_start_time.timestamp() * 1000)
+        
+        initial_value = None
+        for i in range(len(values) - 1, -1, -1):
+            if values[i]["t"] < session_start_timestamp:
+                initial_value = values[i]["v"]
+                break
+        
+        if initial_value is None:
+            if len(values) > 0:
+                initial_value = values[0]["v"]
+            else:
+                return []
+        
+        if initial_value == 0:
+            return []
+        
+        returns = []
+        for point in values:
+            cumulative_return = (point["v"] - initial_value) / initial_value * 100
+            returns.append({
+                "t": point["t"],
+                "v": round(cumulative_return, 4)
+            })
+        
+        return returns
 
     def _update_benchmark_curves(
         self,
@@ -622,7 +679,6 @@ class LiveTradingServer:
                     self.internal_state.setdefault("baseline_history", []),
                     timestamp_ms,
                     total_value,
-                    max_points=500,  # Match equity's limit
                 )
                 summary["baseline"] = history
                 changed = True
@@ -650,7 +706,6 @@ class LiveTradingServer:
                     self.internal_state.setdefault("baseline_vw_history", []),
                     timestamp_ms,
                     total_value,
-                    max_points=500,  # Match equity's limit
                 )
                 summary["baseline_vw"] = history
                 changed = True
@@ -674,7 +729,6 @@ class LiveTradingServer:
                     self.internal_state.setdefault("momentum_history", []),
                     timestamp_ms,
                     total_value,
-                    max_points=500,  # Match equity's limit
                 )
                 summary["momentum"] = history
                 changed = True
@@ -770,15 +824,29 @@ class LiveTradingServer:
     ):
         """Broadcast single Dashboard data type"""
         if file_type == "summary":
+            equity_data = data.get("equity", [])
+            baseline_data = data.get("baseline", [])
+            baseline_vw_data = data.get("baseline_vw", [])
+            momentum_data = data.get("momentum", [])
+            
+            equity_return = self._calculate_cumulative_returns_for_live(equity_data)
+            baseline_return = self._calculate_cumulative_returns_for_live(baseline_data)
+            baseline_vw_return = self._calculate_cumulative_returns_for_live(baseline_vw_data)
+            momentum_return = self._calculate_cumulative_returns_for_live(momentum_data)
+            
             await self.broadcast(
                 {
                     "type": "team_summary",
                     "balance": data.get("balance"),
                     "pnlPct": data.get("pnlPct"),
-                    "equity": data.get("equity", []),
-                    "baseline": data.get("baseline", []),
-                    "baseline_vw": data.get("baseline_vw", []),
-                    "momentum": data.get("momentum", []),
+                    "equity": equity_data,
+                    "baseline": baseline_data,
+                    "baseline_vw": baseline_vw_data,
+                    "momentum": momentum_data,
+                    "equity_return": equity_return,
+                    "baseline_return": baseline_return,
+                    "baseline_vw_return": baseline_vw_return,
+                    "momentum_return": momentum_return,
                     "timestamp": timestamp,
                 },
             )
@@ -1173,14 +1241,28 @@ class LiveTradingServer:
                 }
 
                 if summary_data and "portfolio" in initial_state:
+                    equity_data = summary_data.get("equity", [])
+                    baseline_data = summary_data.get("baseline", [])
+                    baseline_vw_data = summary_data.get("baseline_vw", [])
+                    momentum_data = summary_data.get("momentum", [])
+                    
+                    equity_return = self._calculate_cumulative_returns_for_live(equity_data)
+                    baseline_return = self._calculate_cumulative_returns_for_live(baseline_data)
+                    baseline_vw_return = self._calculate_cumulative_returns_for_live(baseline_vw_data)
+                    momentum_return = self._calculate_cumulative_returns_for_live(momentum_data)
+                    
                     initial_state["portfolio"].update(
                         {
                             "total_value": summary_data.get("balance"),
                             "pnl_percent": summary_data.get("pnlPct"),
-                            "equity": summary_data.get("equity", []),
-                            "baseline": summary_data.get("baseline", []),
-                            "baseline_vw": summary_data.get("baseline_vw", []),
-                            "momentum": summary_data.get("momentum", []),
+                            "equity": equity_data,
+                            "baseline": baseline_data,
+                            "baseline_vw": baseline_vw_data,
+                            "momentum": momentum_data,
+                            "equity_return": equity_return,
+                            "baseline_return": baseline_return,
+                            "baseline_vw_return": baseline_vw_return,
+                            "momentum_return": momentum_return,
                         },
                     )
                 # Ensure data is a valid array or dictionary

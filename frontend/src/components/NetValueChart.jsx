@@ -116,7 +116,7 @@ function filterStrategyDataForLive(strategyData, equity, sessionStartTime) {
  * Net Value Chart Component
  * Displays portfolio value over time with multiple strategy comparisons
  */
-export default function NetValueChart({ equity, baseline, baseline_vw, momentum, strategies, chartTab = 'all', virtualTime = null }) {
+export default function NetValueChart({ equity, baseline, baseline_vw, momentum, strategies, equity_return, baseline_return, baseline_vw_return, momentum_return, chartTab = 'all', virtualTime = null }) {
   const [activePoint, setActivePoint] = useState(null);
   const [stableYRange, setStableYRange] = useState(null);
   const [legendTooltip, setLegendTooltip] = useState(null);
@@ -129,9 +129,29 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
     'Momentum': 'Momentum Strategy: Buy stocks that have performed well in the past',
   };
 
+  
+  // For live mode, use cumulative returns calculated by backend
+  // For all mode, use portfolio values directly
+  const dataSource = useMemo(() => {
+    if (chartTab === 'live') {
+      return {
+        equity: equity_return || equity,
+        baseline: baseline_return || baseline,
+        baseline_vw: baseline_vw_return || baseline_vw,
+        momentum: momentum_return || momentum
+      };
+    }
+    return {
+      equity: equity,
+      baseline: baseline,
+      baseline_vw: baseline_vw,
+      momentum: momentum
+    };
+  }, [chartTab, equity, baseline, baseline_vw, momentum, equity_return, baseline_return, baseline_vw_return, momentum_return]);
   // Filter equity data based on chartTab
   const filteredEquity = useMemo(() => {
-    if (!equity || equity.length === 0) return [];
+    const sourceEquity = dataSource.equity;
+    if (!sourceEquity || sourceEquity.length === 0) return [];
 
     if (chartTab === 'all') {
       // All图：每天只显示最后一个点
@@ -140,7 +160,7 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
       // 时间处理：时间戳(ms) -> UTC -> Asia/Shanghai时区，然后以Asia/Shanghai时间为基准进行分组和判断
       const dailyData = {};
 
-      equity.forEach((d) => {
+      sourceEquity.forEach((d) => {
         // 时间戳是毫秒数，先创建UTC时间，然后转换为Asia/Shanghai时区
         // 等价于: pd.to_datetime(timestamp, unit='ms', utc=True).dt.tz_convert('Asia/Shanghai')
         const utcDate = new Date(d.t); // 时间戳(ms) -> UTC时间
@@ -182,38 +202,32 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
       return Object.values(dailyData).sort((a, b) => a.t - b.t);
     } else if (chartTab === 'live') {
       // Live图：显示最近一次交易时段（22:30-05:00）的所有更新
-      if (equity.length === 0) return [];
-
+      if (sourceEquity.length === 0) return [];
       try {
         const sessionStartTime = getRecentTradingSessionStart(virtualTime);
-
         if (!sessionStartTime || isNaN(sessionStartTime.getTime())) {
           console.warn('Invalid sessionStartTime, returning all equity data');
-          return equity;
+          return sourceEquity;
         }
-
         const sessionStartTimestamp = sessionStartTime.getTime();
-
         // 找到上一个交易日最后的net_value（sessionStartTime之前最后一个点）
         let lastValueBeforeSession = null;
-        for (let i = equity.length - 1; i >= 0; i--) {
-          if (equity[i] && typeof equity[i].t === 'number' && equity[i].t < sessionStartTimestamp) {
-            lastValueBeforeSession = equity[i].v;
+        for (let i = sourceEquity.length - 1; i >= 0; i--) {
+          if (sourceEquity[i] && typeof sourceEquity[i].t === 'number' && sourceEquity[i].t < sessionStartTimestamp) {
+            lastValueBeforeSession = sourceEquity[i].v;
             break;
           }
         }
-
         // 如果找不到上一个交易日的值，使用equity的第一个值
-        if (lastValueBeforeSession === null && equity.length > 0 && equity[0]) {
-          lastValueBeforeSession = equity[0].v;
+        if (lastValueBeforeSession === null && sourceEquity.length > 0 && sourceEquity[0]) {
+          lastValueBeforeSession = sourceEquity[0].v;
         }
-
         // 找到sessionStartTime之后的所有点
-        const sessionData = equity.filter(d => d && typeof d.t === 'number' && d.t >= sessionStartTimestamp);
-
+        const sessionData = sourceEquity.filter(d => d && typeof d.t === 'number' && d.t >= sessionStartTimestamp);
         // 如果有上一个交易日的最后值，在session数据前添加一个起点
         if (lastValueBeforeSession !== null && sessionData.length > 0) {
-          // 确保起点的时间在session开始之前
+        // 如果有上一个交易日的最后值，在session数据前添加一个起点
+        
           const startPoint = {
             t: sessionStartTimestamp - 1,
             v: lastValueBeforeSession
@@ -225,13 +239,11 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
       } catch (error) {
         console.error('Error filtering equity for live view:', error);
         // Fallback: return all equity data
-        return equity;
+        return sourceEquity;
       }
     }
-
-    return equity;
-  }, [equity, chartTab, virtualTime]);
-
+    return sourceEquity;
+  }, [dataSource.equity, chartTab, virtualTime]);
   // Helper function to get daily indices for 'all' view
   const getDailyIndices = useMemo(() => {
     if (!equity || equity.length === 0) return new Set();
@@ -276,38 +288,38 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
 
   // Filter baseline, baseline_vw, momentum, strategies to match filteredEquity indices
   const filteredBaseline = useMemo(() => {
-    if (!baseline || baseline.length === 0 || !equity || equity.length === 0) return [];
+    const sourceBaseline = dataSource.baseline;
+    if (!sourceBaseline || sourceBaseline.length === 0 || !equity || equity.length === 0) return [];
     if (chartTab === 'all') {
-      return baseline.filter((_, idx) => getDailyIndices.has(idx));
+      return sourceBaseline.filter((_, idx) => getDailyIndices.has(idx));
     } else if (chartTab === 'live') {
       const sessionStartTime = getRecentTradingSessionStart(virtualTime);
-      return filterStrategyDataForLive(baseline, equity, sessionStartTime);
+      return filterStrategyDataForLive(sourceBaseline, equity, sessionStartTime);
     }
-    return baseline;
-  }, [baseline, equity, chartTab, getDailyIndices, virtualTime]);
-
+    return sourceBaseline;
+  }, [dataSource.baseline, equity, chartTab, getDailyIndices, virtualTime]);
   const filteredBaselineVw = useMemo(() => {
-    if (!baseline_vw || baseline_vw.length === 0 || !equity || equity.length === 0) return [];
+    const sourceBaselineVw = dataSource.baseline_vw;
+    if (!sourceBaselineVw || sourceBaselineVw.length === 0 || !equity || equity.length === 0) return [];
     if (chartTab === 'all') {
-      return baseline_vw.filter((_, idx) => getDailyIndices.has(idx));
+      return sourceBaselineVw.filter((_, idx) => getDailyIndices.has(idx));
     } else if (chartTab === 'live') {
       const sessionStartTime = getRecentTradingSessionStart(virtualTime);
-      return filterStrategyDataForLive(baseline_vw, equity, sessionStartTime);
+      return filterStrategyDataForLive(sourceBaselineVw, equity, sessionStartTime);
     }
-    return baseline_vw;
-  }, [baseline_vw, equity, chartTab, getDailyIndices, virtualTime]);
-
+    return sourceBaselineVw;
+  }, [dataSource.baseline_vw, equity, chartTab, getDailyIndices, virtualTime]);
   const filteredMomentum = useMemo(() => {
-    if (!momentum || momentum.length === 0 || !equity || equity.length === 0) return [];
+    const sourceMomentum = dataSource.momentum;
+    if (!sourceMomentum || sourceMomentum.length === 0 || !equity || equity.length === 0) return [];
     if (chartTab === 'all') {
-      return momentum.filter((_, idx) => getDailyIndices.has(idx));
+      return sourceMomentum.filter((_, idx) => getDailyIndices.has(idx));
     } else if (chartTab === 'live') {
       const sessionStartTime = getRecentTradingSessionStart(virtualTime);
-      return filterStrategyDataForLive(momentum, equity, sessionStartTime);
+      return filterStrategyDataForLive(sourceMomentum, equity, sessionStartTime);
     }
-    return momentum;
-  }, [momentum, equity, chartTab, getDailyIndices, virtualTime]);
-
+    return sourceMomentum;
+  }, [dataSource.momentum, equity, chartTab, getDailyIndices, virtualTime]);
   const filteredStrategies = useMemo(() => {
     if (!strategies || strategies.length === 0 || !equity || equity.length === 0) return [];
     if (chartTab === 'all') {
@@ -380,24 +392,41 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
     const dataMax = Math.max(...allValues);
     const range = dataMax - dataMin || 1;
 
-    // Use a smaller fixed percentage for equity charts to better show changes
-    // For equity data, smaller padding allows better visualization of price movements
-    const paddingFactor = range * 0.03; // Reduced from 0.1 to 0.03 (3% instead of 10%)
+    // For live mode (percentage data), use smaller padding and finer rounding
+    // For all mode (dollar amounts), use larger padding and coarser rounding
+    const isLiveMode = chartTab === 'live';
+    
+    const paddingFactor = isLiveMode ? range * 0.15 : range * 0.03;
 
     let yMinCalc = dataMin - paddingFactor;
     let yMaxCalc = dataMax + paddingFactor;
 
-    // Smart rounding based on magnitude
+    // Smart rounding based on magnitude and mode
     const magnitude = Math.max(Math.abs(yMinCalc), Math.abs(yMaxCalc));
     let roundTo;
-    if (magnitude >= 1e6) {
-      roundTo = 10000;
-    } else if (magnitude >= 1e5) {
-      roundTo = 5000;
-    } else if (magnitude >= 1e4) {
-      roundTo = 1000;
+    
+    if (isLiveMode) {
+      // For percentage data, use much finer rounding
+      if (magnitude >= 100) {
+        roundTo = 10;
+      } else if (magnitude >= 10) {
+        roundTo = 1;
+      } else if (magnitude >= 1) {
+        roundTo = 0.1;
+      } else {
+        roundTo = 0.01;
+      }
     } else {
-      roundTo = 100;
+      // For dollar amounts, use coarser rounding
+      if (magnitude >= 1e6) {
+        roundTo = 10000;
+      } else if (magnitude >= 1e5) {
+        roundTo = 5000;
+      } else if (magnitude >= 1e4) {
+        roundTo = 1000;
+      } else {
+        roundTo = 100;
+      }
     }
 
     yMinCalc = Math.floor(yMinCalc / roundTo) * roundTo;
@@ -481,6 +510,7 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
 
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
+      const isLiveMode = chartTab === 'live';
       return (
         <div style={{
           background: '#000000',
@@ -495,8 +525,7 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
           </div>
           {payload.map((entry, index) => (
             <div key={index} style={{ color: entry.color, marginTop: '2px' }}>
-              <span style={{ fontWeight: 700 }}>{entry.name}:</span> ${formatNumber(entry.value)}
-            </div>
+              <span style={{ fontWeight: 700 }}>{entry.name}:</span> {isLiveMode ? `${entry.value.toFixed(2)}%` : `$${formatNumber(entry.value)}`}            </div>
           ))}
         </div>
       );
@@ -666,7 +695,7 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
           stroke="#000000"
           style={{ fontFamily: '"Courier New", monospace', fontSize: '11px', fontWeight: 700 }}
           tick={{ fill: '#000000' }}
-          tickFormatter={(value) => formatFullNumber(value)}
+          tickFormatter={(value) => chartTab === 'live' ? `${value.toFixed(2)}%` : formatFullNumber(value)}
           width={75}
         />
         <Tooltip content={<CustomTooltip />} />

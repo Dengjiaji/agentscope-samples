@@ -17,12 +17,11 @@ logger = logging.getLogger(__name__)
 
 class PollingPriceManager:
     """Polling-based price manager - Regularly fetches real-time prices from Finnhub Quote API"""
-
-    def __init__(self, api_key: str, poll_interval: int = 10):
+    def __init__(self, api_key: str, poll_interval: int = 30):
         """
         Args:
             api_key: Finnhub API Key (Free registration: https://finnhub.io/register)
-            poll_interval: Polling interval (seconds), default 10 seconds (recommended for online mode)
+            poll_interval: Polling interval (seconds), default 30 seconds (recommended for online mode)
                           - Free account: Recommend 10-60 seconds
                           - Paid account: Can set shorter intervals
         """
