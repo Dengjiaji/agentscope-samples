@@ -57,19 +57,7 @@ class RiskManagerAgent(AgentBase):
         # Prompt loader
         self.prompt_loader = PromptLoader()
         
-        # Load configuration
-        if mode == "basic":
-            self.risk_config = self._load_or_default_risk_config()
-        else:
-            self.position_config = self._load_or_default_position_config()
-    
-    def _load_or_default_risk_config(self) -> Dict[str, Any]:
-        """Load risk level configuration"""
-        try:
-            return self.prompt_loader.load_yaml_config(self.agent_type, "risk_levels")
-        except FileNotFoundError:
-            # Return default configuration
-            return self._get_default_risk_config()
+        
     
     def _load_or_default_position_config(self) -> Dict[str, Any]:
         """Load position limit configuration"""
