@@ -234,7 +234,7 @@ def backtest(
 
     # Display configuration
     console.print("\n[bold]Configuration:[/bold]")
-    console.print(f"   Mode: Backtest")
+    console.print("   Mode: Backtest")
     console.print(f"   Config: {config_name}")
     if start:
         console.print(f"   Start Date: {start}")
@@ -374,14 +374,14 @@ def live(
     # Display configuration
     console.print("\n[bold]Configuration:[/bold]")
     if mock:
-        console.print(f"   Mode: MOCK (Simulated prices for testing)")
+        console.print("   Mode: MOCK (Simulated prices for testing)")
         console.print(
-            f"   Description: Uses randomly generated prices, no API key required",
+            "   Description: Uses randomly generated prices, no API key required",
         )
     else:
-        console.print(f"   Mode: LIVE (Real-time prices via Finnhub API)")
+        console.print("   Mode: LIVE (Real-time prices via Finnhub API)")
         console.print(
-            f"   Description: High-frequency real-time price updates using Finnhub Quote API",
+            "   Description: High-frequency real-time price updates using Finnhub Quote API",
         )
     console.print(f"   Config Name: {config_name}")
     console.print(f"   Listen Address: {host}:{port}")
@@ -389,14 +389,14 @@ def live(
         console.print("   Trading Mode: Paused (analysis only, no execution)")
     else:
         console.print("   Trading Mode: Active (analysis and execution)")
-    console.print(f"   Historical Data: Continue using existing data")
+    console.print("   Historical Data: Continue using existing data")
 
     console.print("\n[bold]Functionality:[/bold]")
     console.print(
         "   Real-time stock price board updates immediately after startup",
     )
     if mock and virtual_start_time:
-        console.print(f"   1. System will run using virtual time as 'today'")
+        console.print("   1. System will run using virtual time as 'today'")
         console.print(f"      Reference time: {virtual_start_time}")
     else:
         console.print("   1. System will run for today's trading day")
@@ -501,12 +501,12 @@ def frontend(
     # Display configuration
     console.print("\n[bold]Configuration:[/bold]")
     console.print(f"   WebSocket URL: {ws_url}")
-    console.print(f"   Frontend Port: 5173 (Vite default)")
+    console.print("   Frontend Port: 5173 (Vite default)")
     if host_mode:
         console.print("   Access: External allowed")
     else:
         console.print("   Access: Localhost only")
-    console.print(f"\nAccess at: [cyan]http://localhost:5173[/cyan]")
+    console.print("\nAccess at: [cyan]http://localhost:5173[/cyan]")
     console.print("Press Ctrl+C to stop\n")
 
     # Choose npm command

@@ -469,7 +469,7 @@ class DataUpdater:
 
         # Print summary
         logger.info(f"\n{'='*60}")
-        logger.info(f"📊 Update Summary")
+        logger.info("📊 Update Summary")
         logger.info(f"{'='*60}")
 
         success_count = sum(results.values())

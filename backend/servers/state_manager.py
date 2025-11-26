@@ -95,7 +95,7 @@ class StateManager:
         # Unified storage to logs_and_memory/{config_name}/state/ directory (located in project parent directory)
         state_dir = get_logs_and_memory_dir() / self.config_name / "state"
         state_dir.mkdir(parents=True, exist_ok=True)
-        return state_dir / f"server_state.json"  # Simplified filename
+        return state_dir / "server_state.json"  # Simplified filename
 
     def update(self, key: str, value: Any):
         """Update state"""

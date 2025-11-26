@@ -212,7 +212,7 @@ do not add any explanatory text or markdown markers.
             )
 
             if attempt < max_retries - 1:
-                logger.debug(f"🔄 Retrying...")
+                logger.debug("🔄 Retrying...")
                 prompt += f"""
 
 Note: Please strictly reply in JSON format, do not include any additional text explanations.
@@ -235,7 +235,7 @@ Please regenerate the correct JSON format reply."""
             )
 
             if attempt < max_retries - 1:
-                logger.debug(f"🔄 Retrying...")
+                logger.debug("🔄 Retrying...")
             else:
                 logger.warning(
                     f"❌ {agent_id} reached maximum retry count, using fallback decision",

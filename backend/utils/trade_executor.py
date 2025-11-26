@@ -312,7 +312,7 @@ class PortfolioTradeExecutor:
                     f"   ✅ Final state: Long {final_long} shares, Short {final_short} shares",
                 )
             else:
-                print(f"   ⏸️ Quantity is 0, no trade needed")
+                print("   ⏸️ Quantity is 0, no trade needed")
 
         elif action == "short":
             # Short: First sell long positions, if quantity is larger, short the remainder

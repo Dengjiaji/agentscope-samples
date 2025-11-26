@@ -24,12 +24,11 @@ from websockets.server import WebSocketServerProtocol
 
 from backend.config.env_config import LiveThinkingFundConfig
 from backend.config.path_config import get_logs_and_memory_dir
-from backend.memory import get_memory
 from backend.pipelines.live_trading_fund import LiveTradingFund
 from backend.servers.mock import MockSimulator
 from backend.servers.polling_price_manager import PollingPriceManager
 from backend.servers.state_manager import StateManager
-from backend.servers.streamer import BroadcastStreamer, ConsoleStreamer
+from backend.servers.streamer import BroadcastStreamer
 from backend.utils.progress import progress
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -128,7 +127,7 @@ class Server:
         # Initialize memory system
         # console_streamer = ConsoleStreamer()
         # memory_instance = get_memory(config.config_name)
-        logger.info(f"✅ Memory system initialized")
+        logger.info("✅ Memory system initialized")
 
         # Memory system initialization complete (no need to pre-register analysts)
         logger.info("✅ Memory system ready")
@@ -225,12 +224,12 @@ class Server:
 
         if not holdings_file or not holdings_file.exists():
             logger.warning(
-                f"holdings.json file does not exist, skipping update",
+                "holdings.json file does not exist, skipping update",
             )
             return
 
         if not stats_file or not stats_file.exists():
-            logger.warning(f"stats.json file does not exist, skipping update")
+            logger.warning("stats.json file does not exist, skipping update")
             return
 
         # Read holdings.json
@@ -463,7 +462,7 @@ class Server:
                         "timestamp": timestamp,
                     },
                 )
-                logger.info(f"✅ Broadcast team_summary (from file)")
+                logger.info("✅ Broadcast team_summary (from file)")
 
             elif file_type == "holdings":
                 self.state_manager.update("holdings", data)
@@ -487,7 +486,7 @@ class Server:
                         "timestamp": timestamp,
                     },
                 )
-                logger.info(f"✅ Broadcast team_stats (from file)")
+                logger.info("✅ Broadcast team_stats (from file)")
 
             elif file_type == "trades":
                 self.state_manager.update("trades", data)
@@ -579,7 +578,7 @@ class Server:
                     initial_state["leaderboard"] = leaderboard_data
 
                 logger.info(
-                    f"✅ Successfully loaded Dashboard data from files",
+                    "✅ Successfully loaded Dashboard data from files",
                 )
             except Exception as e:
                 logger.error(
@@ -682,10 +681,10 @@ class Server:
             except Exception as e:
                 logger.error(f"Connection error: {e}")
 
-        except ConnectionClosedError as e:
+        except ConnectionClosedError:
             # WebSocket handshake failed or connection closed abnormally
             logger.debug(
-                f"WebSocket connection closed abnormally (may be browser refresh or network issue)",
+                "WebSocket connection closed abnormally (may be browser refresh or network issue)",
             )
         except websockets.ConnectionClosed:
             # Normal disconnect

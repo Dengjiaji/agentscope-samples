@@ -484,7 +484,7 @@ class CommunicationManager:
                             if adjustment_details:
                                 streamer.print(
                                     "agent",
-                                    f"I adjusted the signal:\n"
+                                    "I adjusted the signal:\n"
                                     + "\n".join(adjustment_details),
                                     role_key=analyst_id,
                                 )
@@ -531,7 +531,7 @@ class CommunicationManager:
                             if adjustment_details:
                                 streamer.print(
                                     "agent",
-                                    f"I adjusted the signal:\n"
+                                    "I adjusted the signal:\n"
                                     + "\n".join(adjustment_details),
                                     role_key=analyst_id,
                                 )
@@ -854,7 +854,7 @@ class CommunicationManager:
                                 if adjustment_details:
                                     streamer.print(
                                         "agent",
-                                        f"I adjusted the signal:\n"
+                                        "I adjusted the signal:\n"
                                         + "\n".join(adjustment_details),
                                         role_key=analyst_id,
                                     )
@@ -904,7 +904,7 @@ class CommunicationManager:
                                 if adjustment_details:
                                     streamer.print(
                                         "agent",
-                                        f"I adjusted the signal:\n"
+                                        "I adjusted the signal:\n"
                                         + "\n".join(adjustment_details),
                                         role_key=analyst_id,
                                     )
@@ -1045,7 +1045,7 @@ class CommunicationManager:
             # Get base_dir (from state or use default)
             base_dir = state.get("metadata", {}).get("config_name", "default")
             print(f"\n{'='*60}")
-            print(f"🔍 [chat_tools] Starting memory retrieval")
+            print("🔍 [chat_tools] Starting memory retrieval")
             print(f"   analyst_id: {analyst_id}")
             print(f"   base_dir: {base_dir}")
 
@@ -1082,7 +1082,7 @@ class CommunicationManager:
                             operation_type="search",
                         )
 
-                    print(f"   Calling memory.search()...")
+                    print("   Calling memory.search()...")
                     search_results = memory.search(
                         query=memory_query,
                         user_id=analyst_id,

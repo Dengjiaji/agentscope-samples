@@ -401,7 +401,7 @@ class InvestmentEngine:
                     "w",
                     encoding="utf-8",
                 ) as f:
-                    f.write(f"=== first_round_analysis ===\n\n")
+                    f.write("=== first_round_analysis ===\n\n")
                     f.write(f"Type: {type(first_round_analysis)}\n\n")
                     f.write(f"Content:\n{str(first_round_analysis)}\n\n")
                     f.write(f"Repr:\n{repr(first_round_analysis)}\n")
@@ -1649,7 +1649,7 @@ class InvestmentEngine:
                                     else {}
                                 )
             return {}
-        except Exception as e:
+        except Exception:
             pass
 
             return {}

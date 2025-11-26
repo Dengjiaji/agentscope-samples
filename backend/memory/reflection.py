@@ -514,7 +514,7 @@ Stock Real Return: {real_return:+.2%}"""
                     context={"date": date},
                 )
 
-                logger.info(f"  ✅ Tool execution completed")
+                logger.info("  ✅ Tool execution completed")
             except Exception as e:
                 logger.error(f"  ❌ Tool execution failed: {e}")
                 results.append(

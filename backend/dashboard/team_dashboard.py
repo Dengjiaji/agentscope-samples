@@ -1676,7 +1676,7 @@ class TeamDashboardGenerator:
         top_tickers = [ticker for ticker, score in sorted_tickers[:top_n]]
 
         print(f"🔄 Momentum strategy rebalance ({date}):")
-        print(f"   Momentum ranking:")
+        print("   Momentum ranking:")
         for i, (ticker, score) in enumerate(sorted_tickers[:top_n], 1):
             print(f"   {i}. {ticker}: {score*100:+.2f}%")
 

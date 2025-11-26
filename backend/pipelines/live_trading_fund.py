@@ -918,7 +918,7 @@ class LiveTradingFund:
 
                             # Display execution result
                             if result["status"] == "success":
-                                memory_lines.append(f"\tStatus: Success")
+                                memory_lines.append("\tStatus: Success")
                                 if "affected_count" in result:
                                     memory_lines.append(
                                         f"   Affected memory count: {result['affected_count']}",
@@ -1225,7 +1225,7 @@ class LiveTradingFund:
                 portfolio_summary=portfolio_summary,
             )
 
-            print("system", f"\n📊 Individual Review Summary:")
+            print("system", "\n📊 Individual Review Summary:")
             self.streamer.print("system", summary)
 
             return {
@@ -2146,7 +2146,7 @@ Example usage:
 
         # Initialize memory system (automatically select framework based on environment variable)
         memory_instance = get_memory(base_dir=config.config_name)
-        print(f"✅ Memory system initialized")
+        print("✅ Memory system initialized")
 
         # Initialize thinking fund system, pass mode and portfolio parameters
         thinking_fund = LiveTradingFund(
@@ -2161,7 +2161,7 @@ Example usage:
         tickers = args.tickers.split(",") if args.tickers else config.tickers
         from pprint import pprint
 
-        print(f"\n📊 Live Trading Thinking Fund Configuration:")
+        print("\n📊 Live Trading Thinking Fund Configuration:")
         print(f"   Running mode: {config.mode.upper()}")
         if config.mode == "portfolio":
             print(f"   Initial cash: ${config.initial_cash:,.2f}")

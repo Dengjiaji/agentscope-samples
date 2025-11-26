@@ -81,7 +81,7 @@ def analyze_efficiency_ratios(
                 "receivables_turnover": receivables_turnover,
                 "working_capital_turnover": working_capital_turnover,
             },
-            "reasoning": f"Efficiency analysis",
+            "reasoning": "Efficiency analysis",
         }
     except Exception as e:
         return {"error": str(e)}
@@ -129,7 +129,7 @@ def analyze_profitability(
                 "net_margin": net_margin,
                 "operating_margin": operating_margin,
             },
-            "reasoning": f"Profitability analysis",
+            "reasoning": "Profitability analysis",
         }
 
     except Exception as e:
@@ -173,7 +173,7 @@ def analyze_growth(ticker: str, end_date: str, api_key: str) -> Dict[str, Any]:
                 "earnings_growth": earnings_growth,
                 "book_value_growth": book_value_growth,
             },
-            "reasoning": f"Growth analysis",
+            "reasoning": "Growth analysis",
         }
 
     except Exception as e:
@@ -223,7 +223,7 @@ def analyze_financial_health(
                 "free_cash_flow_per_share": free_cash_flow_per_share,
                 "earnings_per_share": earnings_per_share,
             },
-            "reasoning": f"Financial health analysis",
+            "reasoning": "Financial health analysis",
         }
 
     except Exception as e:
@@ -271,7 +271,7 @@ def analyze_valuation_ratios(
                 "pb_ratio": pb_ratio,
                 "ps_ratio": ps_ratio,
             },
-            "reasoning": f"Valuation ratio analysis",
+            "reasoning": "Valuation ratio analysis",
         }
 
     except Exception as e:
@@ -419,7 +419,7 @@ def analyze_trend_following(
                 "distance_from_200ma_pct": distance_from_200ma_pct,
             },
             "long_term_trend": long_term_trend,
-            "reasoning": f"Trend following analysis",
+            "reasoning": "Trend following analysis",
         }
 
     except Exception as e:
@@ -509,7 +509,7 @@ def analyze_mean_reversion(
                 "rsi": rsi,
                 "price_deviation_pct": round(price_deviation, 2),
             },
-            "reasoning": f"Mean reversion analysis",
+            "reasoning": "Mean reversion analysis",
         }
 
     except Exception as e:
@@ -604,7 +604,7 @@ def analyze_momentum(
                 "momentum_20d_pct": round(momentum_20 * 100, 2),
                 "recent_volatility": round(recent_volatility * 100, 2),
             },
-            "reasoning": f"Momentum analysis",
+            "reasoning": "Momentum analysis",
         }
 
     except Exception as e:
@@ -699,7 +699,7 @@ def analyze_volatility(
                 "volatility_60d": round(current_vol_60 * 100, 2),
                 "volatility_percentile": round(vol_20_percentile, 1),
             },
-            "reasoning": f"Volatility analysis",
+            "reasoning": "Volatility analysis",
         }
 
     except Exception as e:
@@ -793,7 +793,7 @@ def analyze_insider_trading(
                     2,
                 ),
             },
-            "reasoning": f"Insider trading analysis",
+            "reasoning": "Insider trading analysis",
         }
 
     except Exception as e:
@@ -971,7 +971,7 @@ def dcf_valuation_analysis(
                 "growth_rate": growth_rate,
                 "discount_rate": discount_rate,
             },
-            "reasoning": f"DCF valuation analysis",
+            "reasoning": "DCF valuation analysis",
         }
 
     except Exception as e:
@@ -1091,7 +1091,7 @@ def owner_earnings_valuation_analysis(
                 "capex": capex,
                 "wc_change": wc_change,
             },
-            "reasoning": f"Owner earnings valuation analysis",
+            "reasoning": "Owner earnings valuation analysis",
         }
 
     except Exception as e:
@@ -1195,7 +1195,7 @@ def ev_ebitda_valuation_analysis(
                 "multiple_discount_pct": round(multiple_discount * 100, 2),
                 "current_ebitda": current_ebitda,
             },
-            "reasoning": f"EV/EBITDA valuation analysis",
+            "reasoning": "EV/EBITDA valuation analysis",
         }
 
     except Exception as e:
@@ -1308,7 +1308,7 @@ def residual_income_valuation_analysis(
                 "book_value_growth": book_value_growth,
                 "margin_of_safety": margin_of_safety,
             },
-            "reasoning": f"Residual income valuation analysis",
+            "reasoning": "Residual income valuation analysis",
         }
 
     except Exception as e:

@@ -172,7 +172,7 @@ class LiveTradingServer:
 
         # Initialize memory system
         memory_instance = get_memory(config.config_name)
-        logger.info(f"✅ Memory system initialized")
+        logger.info("✅ Memory system initialized")
 
         # Memory system initialization complete (no need to pre-register analysts)
         logger.info("✅ Memory system ready")
@@ -313,12 +313,12 @@ class LiveTradingServer:
 
         if not holdings_file or not holdings_file.exists():
             logger.warning(
-                f"holdings.json file does not exist, skipping update",
+                "holdings.json file does not exist, skipping update",
             )
             return
 
         if not stats_file or not stats_file.exists():
-            logger.warning(f"stats.json file does not exist, skipping update")
+            logger.warning("stats.json file does not exist, skipping update")
             return
 
         # Read holdings.json
@@ -913,7 +913,7 @@ class LiveTradingServer:
                     "timestamp": timestamp,
                 },
             )
-            logger.info(f"✅ Broadcast team_summary (from file)")
+            logger.info("✅ Broadcast team_summary (from file)")
 
         elif file_type == "holdings":
             # Ensure holdings is an array
@@ -940,7 +940,7 @@ class LiveTradingServer:
                         "timestamp": timestamp,
                     },
                 )
-                logger.info(f"✅ Broadcast team_stats (from file)")
+                logger.info("✅ Broadcast team_stats (from file)")
 
         elif file_type == "trades":
             # Ensure trades is an array
@@ -1366,7 +1366,7 @@ class LiveTradingServer:
                     initial_state["leaderboard"] = []
 
                 logger.info(
-                    f"✅ Successfully loaded Dashboard data from files",
+                    "✅ Successfully loaded Dashboard data from files",
                 )
 
                 # Broadcast all Dashboard data immediately after connection (ensure frontend receives)
@@ -1685,7 +1685,7 @@ class LiveTradingServer:
             await self.broadcast(
                 {
                     "type": "system",
-                    "content": f"❌ Pre-market analysis failed: wrong return type",
+                    "content": "❌ Pre-market analysis failed: wrong return type",
                 },
             )
             return
@@ -2148,7 +2148,7 @@ class LiveTradingServer:
             await self.broadcast(
                 {
                     "type": "system",
-                    "content": f"⚠️ Historical data update failed (may be weekend/holiday), will use existing data",
+                    "content": "⚠️ Historical data update failed (may be weekend/holiday), will use existing data",
                 },
             )
 
@@ -2368,7 +2368,7 @@ async def main():
         )
     else:
         logger.info(
-            f"   Trade execution: ▶️ Normal mode (execute trades after analysis)",
+            "   Trade execution: ▶️ Normal mode (execute trades after analysis)",
         )
     if args.time_accelerator != 1.0:
         logger.info(

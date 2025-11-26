@@ -87,7 +87,7 @@ def tool_call(
                     print(f"   Response preview: {content[:500]}...")
 
                     if attempt < max_retries - 1:
-                        print(f"   Preparing to retry...")
+                        print("   Preparing to retry...")
                         continue  # Retry
                     else:
                         # ❌ Reached maximum retries, pause program
@@ -125,7 +125,7 @@ def tool_call(
                     print(f"   Response preview: {content[:500]}...")
 
                     if attempt < max_retries - 1:
-                        print(f"   Preparing to retry...")
+                        print("   Preparing to retry...")
                         continue  # Retry
                     else:
                         # Reached maximum retries, pause program

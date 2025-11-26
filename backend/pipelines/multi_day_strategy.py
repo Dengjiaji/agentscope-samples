@@ -344,7 +344,7 @@ class MultiDayStrategy:
                 self._save_portfolio_state(date, updated_portfolio)
 
                 # Print portfolio changes
-                print(f"\n📊 Portfolio updated:")
+                print("\n📊 Portfolio updated:")
                 print(f"   Cash: ${updated_portfolio['cash']:,.2f}")
                 positions_count = len(
                     [
@@ -500,7 +500,7 @@ class MultiDayStrategy:
         # Generate multi-day summary report
         summary_results = self.generate_summary_report()
 
-        print(f"\nMulti-day strategy analysis completed!")
+        print("\nMulti-day strategy analysis completed!")
         print(f"Success: {successful_days} days")
         print(f"Failed: {failed_days} days")
         print(f"Success rate: {successful_days/total_days*100:.1f}%")
@@ -726,7 +726,6 @@ class MultiDayStrategy:
         """
         # Get price data for this stock (get larger range to ensure sufficient data for return calculation)
         import datetime as dt
-        from datetime import datetime
 
         # Handle date parameter, ensure conversion to date object
         if isinstance(date, str):

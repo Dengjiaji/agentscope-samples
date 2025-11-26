@@ -74,7 +74,7 @@ class MockPriceManager:
             "BKNG": 4850.00,
         }
 
-        logger.info(f"✅ MockPriceManager initialized")
+        logger.info("✅ MockPriceManager initialized")
         logger.info(f"   Update interval: {self.poll_interval}s")
         logger.info(f"   Volatility: {self.volatility}%")
 

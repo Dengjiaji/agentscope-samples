@@ -192,7 +192,7 @@ def search_and_update_analyst_memory(
         )
 
         # ✅ Print update success info
-        print(f"✅ Memory update successful!")
+        print("✅ Memory update successful!")
         print(f"   Memory ID: {memory_id}")
         print(f"   Analyst: {analyst_id}\n")
 
