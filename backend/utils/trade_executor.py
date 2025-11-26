@@ -203,7 +203,8 @@ class PortfolioTradeExecutor:
 
                 trades_info = ", ".join(trade_result.get("trades", []))
                 print(
-                    f"   ✔ {ticker}: {action} Target {quantity} shares ({trades_info}) @ ${price:.2f}",
+                    f"   ✔ {ticker}: {action} Target {quantity} shares "
+                    f"({trades_info}) @ ${price:.2f}",
                 )
             else:
                 execution_report["failed_trades"].append(trade_result)

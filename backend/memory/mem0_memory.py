@@ -4,7 +4,8 @@
 Mem0 Long-term Memory Implementation
 Directly uses mem0, no adapter layer
 """
-
+# flake8: noqa: E501
+# pylint: disable=C0301
 import logging
 import os
 from typing import Any, Dict, List, Optional

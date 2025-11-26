@@ -5,6 +5,7 @@ Environment Variable Configuration Loader
 Supports loading configuration parameters from .env file and provides default values
 """
 # flake8: noqa: E501
+# pylint: disable=C0301
 import os
 from dataclasses import field
 from datetime import datetime, timedelta
