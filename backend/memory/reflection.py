@@ -86,11 +86,13 @@ class MemoryReflectionSystem:
             ModelProvider.OPENAI,
         )
 
-        api_keys = {}
-        if model_provider == ModelProvider.OPENAI:
-            api_keys["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
-        elif model_provider == ModelProvider.ANTHROPIC:
-            api_keys["ANTHROPIC_API_KEY"] = os.getenv("ANTHROPIC_API_KEY")
+        api_keys: Dict[str, str] = {}
+        openai_key = os.getenv("OPENAI_API_KEY")
+        anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+        if model_provider == ModelProvider.OPENAI and openai_key:
+            api_keys["OPENAI_API_KEY"] = openai_key
+        elif model_provider == ModelProvider.ANTHROPIC and anthropic_key:
+            api_keys["ANTHROPIC_API_KEY"] = anthropic_key
 
         # Create memory management toolkit and memory instance
         from backend.memory import get_memory

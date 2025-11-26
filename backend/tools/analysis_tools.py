@@ -876,7 +876,7 @@ def analyze_news_sentiment(
                 "news_list": news_list,
                 "reasoning": "News data analysis: Using Finnhub API, returning raw news data for LLM sentiment analysis",
             }
-
+        return {}
     except Exception as e:
         return {"error": str(e)}
 

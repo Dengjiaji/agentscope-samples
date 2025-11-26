@@ -479,7 +479,7 @@ class LiveTradingServer:
                     # Even if we didn't add a curve point, if price was updated, save the file
                     summary_changed = True
 
-                if summary_changed:
+                if summary_changed and summary_file:
                     with open(summary_file, "w", encoding="utf-8") as f:
                         json.dump(summary, f, indent=2, ensure_ascii=False)
                     self._save_internal_state()
