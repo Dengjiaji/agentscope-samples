@@ -27,16 +27,16 @@ function getRecentTradingSessionStart(virtualTime = null) {
   } else {
     now = new Date();
   }
-  
+
   const currentHour = now.getHours();
   const currentMinute = now.getMinutes();
-  
+
   // Check if currently in trading session
-  const isInTradingSession = (currentHour === 22 && currentMinute >= 30) || 
-                              currentHour >= 23 || 
+  const isInTradingSession = (currentHour === 22 && currentMinute >= 30) ||
+                              currentHour >= 23 ||
                               (currentHour >= 0 && currentHour < 5) ||
                               (currentHour === 5 && currentMinute === 0);
-  
+
   let sessionStartTime;
   if (isInTradingSession) {
     // Currently in trading session, find today's 22:30
@@ -52,7 +52,7 @@ function getRecentTradingSessionStart(virtualTime = null) {
     sessionStartTime.setDate(sessionStartTime.getDate() - 1);
     sessionStartTime.setHours(22, 30, 0, 0);
   }
-  
+
   return sessionStartTime;
 }
 
@@ -64,15 +64,15 @@ function getRecentTradingSessionStart(virtualTime = null) {
  */
 function filterStrategyDataForLive(strategyData, equity, sessionStartTime) {
   if (!strategyData || strategyData.length === 0 || !equity || equity.length === 0) return [];
-  
+
   try {
     if (!sessionStartTime || isNaN(sessionStartTime.getTime())) {
       console.warn('Invalid sessionStartTime in filterStrategyDataForLive');
       return [];
     }
-    
+
     const sessionStartTimestamp = sessionStartTime.getTime();
-    
+
     // Find the last index before session
     let lastDataBeforeSession = null;
     for (let i = equity.length - 1; i >= 0; i--) {
@@ -83,18 +83,18 @@ function filterStrategyDataForLive(strategyData, equity, sessionStartTime) {
         break;
       }
     }
-    
+
     // Find data points in the session
     const sessionData = [];
     for (let i = 0; i < equity.length; i++) {
-      if (equity[i] && typeof equity[i].t === 'number' && 
-          equity[i].t >= sessionStartTimestamp && 
-          strategyData[i] && 
+      if (equity[i] && typeof equity[i].t === 'number' &&
+          equity[i].t >= sessionStartTimestamp &&
+          strategyData[i] &&
           strategyData[i].v !== undefined && strategyData[i].v !== null) {
         sessionData.push(strategyData[i]);
       }
     }
-    
+
     // If we have a value before session and session data, add the start point
     // Create a start point with timestamp just before session start
     if (lastDataBeforeSession && sessionData.length > 0) {
@@ -104,7 +104,7 @@ function filterStrategyDataForLive(strategyData, equity, sessionStartTime) {
       };
       return [startPoint, ...sessionData];
     }
-    
+
     return sessionData;
   } catch (error) {
     console.error('Error in filterStrategyDataForLive:', error);
@@ -120,7 +120,7 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
   const [activePoint, setActivePoint] = useState(null);
   const [stableYRange, setStableYRange] = useState(null);
   const [legendTooltip, setLegendTooltip] = useState(null);
-  
+
   // Legend descriptions
   const legendDescriptions = {
     'EvoTraders': 'EvoTraders is our agents investment strategy',
@@ -128,23 +128,23 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
     'Buy & Hold (VW)': 'Value Weighted: Can be viewed as a market-cap weighted index of all invested stocks',
     'Momentum': 'Momentum Strategy: Buy stocks that have performed well in the past',
   };
-  
+
   // Filter equity data based on chartTab
   const filteredEquity = useMemo(() => {
     if (!equity || equity.length === 0) return [];
-    
+
     if (chartTab === 'all') {
       // All图：每天只显示最后一个点
       // 逻辑：保留每日22:30以前的最后一个equity值（美国下一个交易日开盘前的最后一个equity value）
       // 22:30之后的数据属于下一个交易日的交易时段，不在此图中显示
       // 时间处理：时间戳(ms) -> UTC -> Asia/Shanghai时区，然后以Asia/Shanghai时间为基准进行分组和判断
       const dailyData = {};
-      
+
       equity.forEach((d) => {
         // 时间戳是毫秒数，先创建UTC时间，然后转换为Asia/Shanghai时区
         // 等价于: pd.to_datetime(timestamp, unit='ms', utc=True).dt.tz_convert('Asia/Shanghai')
         const utcDate = new Date(d.t); // 时间戳(ms) -> UTC时间
-        
+
         // 使用Intl API获取Asia/Shanghai时区的日期时间组件
         const formatter = new Intl.DateTimeFormat('en-US', {
           timeZone: 'Asia/Shanghai',
@@ -155,45 +155,45 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
           minute: '2-digit',
           hour12: false
         });
-        
+
         const parts = formatter.formatToParts(utcDate);
         const year = parts.find(p => p.type === 'year').value;
         const month = parts.find(p => p.type === 'month').value;
         const day = parts.find(p => p.type === 'day').value;
         const hour = parseInt(parts.find(p => p.type === 'hour').value);
         const minute = parseInt(parts.find(p => p.type === 'minute').value);
-        
+
         // 判断是否在22:30之前（Asia/Shanghai时区）
         const isBefore2230 = hour < 22 || (hour === 22 && minute < 30);
-        
+
         // 只处理22:30之前的数据
         if (isBefore2230) {
           // 使用Asia/Shanghai时区的日期作为key
           const dateKey = `${year}-${month}-${day}`;
-          
+
           // 如果这一天还没有数据，或者当前数据的时间更晚，则更新
           if (!dailyData[dateKey] || new Date(d.t) > new Date(dailyData[dateKey].t)) {
             dailyData[dateKey] = d;
           }
         }
       });
-      
+
       // 转换为数组并按时间排序
       return Object.values(dailyData).sort((a, b) => a.t - b.t);
     } else if (chartTab === 'live') {
       // Live图：显示最近一次交易时段（22:30-05:00）的所有更新
       if (equity.length === 0) return [];
-      
+
       try {
         const sessionStartTime = getRecentTradingSessionStart(virtualTime);
-        
+
         if (!sessionStartTime || isNaN(sessionStartTime.getTime())) {
           console.warn('Invalid sessionStartTime, returning all equity data');
           return equity;
         }
-        
+
         const sessionStartTimestamp = sessionStartTime.getTime();
-        
+
         // 找到上一个交易日最后的net_value（sessionStartTime之前最后一个点）
         let lastValueBeforeSession = null;
         for (let i = equity.length - 1; i >= 0; i--) {
@@ -202,15 +202,15 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
             break;
           }
         }
-        
+
         // 如果找不到上一个交易日的值，使用equity的第一个值
         if (lastValueBeforeSession === null && equity.length > 0 && equity[0]) {
           lastValueBeforeSession = equity[0].v;
         }
-        
+
         // 找到sessionStartTime之后的所有点
         const sessionData = equity.filter(d => d && typeof d.t === 'number' && d.t >= sessionStartTimestamp);
-        
+
         // 如果有上一个交易日的最后值，在session数据前添加一个起点
         if (lastValueBeforeSession !== null && sessionData.length > 0) {
           // 确保起点的时间在session开始之前
@@ -220,7 +220,7 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
           };
           return [startPoint, ...sessionData];
         }
-        
+
         return sessionData;
       } catch (error) {
         console.error('Error filtering equity for live view:', error);
@@ -228,16 +228,16 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
         return equity;
       }
     }
-    
+
     return equity;
   }, [equity, chartTab, virtualTime]);
-  
+
   // Helper function to get daily indices for 'all' view
   const getDailyIndices = useMemo(() => {
     if (!equity || equity.length === 0) return new Set();
     const dailyIndices = new Set();
     const dailyData = {};
-    
+
     const formatter = new Intl.DateTimeFormat('en-US', {
       timeZone: 'Asia/Shanghai',
       year: 'numeric',
@@ -247,33 +247,33 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
       minute: '2-digit',
       hour12: false
     });
-    
+
     equity.forEach((d, idx) => {
       const utcDate = new Date(d.t);
       const parts = formatter.formatToParts(utcDate);
       const hour = parseInt(parts.find(p => p.type === 'hour').value);
       const minute = parseInt(parts.find(p => p.type === 'minute').value);
-      
+
       // 判断是否在22:30之前（Asia/Shanghai时区）
       const isBefore2230 = hour < 22 || (hour === 22 && minute < 30);
-      
+
       // 只处理22:30之前的数据
       if (isBefore2230) {
         const year = parts.find(p => p.type === 'year').value;
         const month = parts.find(p => p.type === 'month').value;
         const day = parts.find(p => p.type === 'day').value;
         const dateKey = `${year}-${month}-${day}`;
-        
+
         if (!dailyData[dateKey] || new Date(d.t) > new Date(dailyData[dateKey].t)) {
           dailyData[dateKey] = { data: d, index: idx };
         }
       }
     });
-    
+
     Object.values(dailyData).forEach(({ index }) => dailyIndices.add(index));
     return dailyIndices;
   }, [equity]);
-  
+
   // Filter baseline, baseline_vw, momentum, strategies to match filteredEquity indices
   const filteredBaseline = useMemo(() => {
     if (!baseline || baseline.length === 0 || !equity || equity.length === 0) return [];
@@ -285,7 +285,7 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
     }
     return baseline;
   }, [baseline, equity, chartTab, getDailyIndices, virtualTime]);
-  
+
   const filteredBaselineVw = useMemo(() => {
     if (!baseline_vw || baseline_vw.length === 0 || !equity || equity.length === 0) return [];
     if (chartTab === 'all') {
@@ -296,7 +296,7 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
     }
     return baseline_vw;
   }, [baseline_vw, equity, chartTab, getDailyIndices, virtualTime]);
-  
+
   const filteredMomentum = useMemo(() => {
     if (!momentum || momentum.length === 0 || !equity || equity.length === 0) return [];
     if (chartTab === 'all') {
@@ -307,7 +307,7 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
     }
     return momentum;
   }, [momentum, equity, chartTab, getDailyIndices, virtualTime]);
-  
+
   const filteredStrategies = useMemo(() => {
     if (!strategies || strategies.length === 0 || !equity || equity.length === 0) return [];
     if (chartTab === 'all') {
@@ -318,37 +318,37 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
     }
     return strategies;
   }, [strategies, equity, chartTab, getDailyIndices, virtualTime]);
-  
+
   const chartData = useMemo(() => {
     if (!filteredEquity || filteredEquity.length === 0) return [];
-    
+
     try {
       return filteredEquity.map((d, idx) => {
         if (!d || typeof d.t !== 'number' || typeof d.v !== 'number') {
           console.warn('Invalid equity data point:', d);
           return null;
         }
-        
+
         const date = new Date(d.t);
         if (isNaN(date.getTime())) {
           console.warn('Invalid timestamp:', d.t);
           return null;
         }
-        
+
         // For live view, strategy data might have different timestamps, so we need to match by index
         // For all view, indices should align
-        const baselineVal = filteredBaseline?.[idx] ? 
+        const baselineVal = filteredBaseline?.[idx] ?
           (typeof filteredBaseline[idx] === 'object' ? filteredBaseline[idx].v : filteredBaseline[idx]) : null;
-        const baselineVwVal = filteredBaselineVw?.[idx] ? 
+        const baselineVwVal = filteredBaselineVw?.[idx] ?
           (typeof filteredBaselineVw[idx] === 'object' ? filteredBaselineVw[idx].v : filteredBaselineVw[idx]) : null;
-        const momentumVal = filteredMomentum?.[idx] ? 
+        const momentumVal = filteredMomentum?.[idx] ?
           (typeof filteredMomentum[idx] === 'object' ? filteredMomentum[idx].v : filteredMomentum[idx]) : null;
-        const strategyVal = filteredStrategies?.[idx] ? 
+        const strategyVal = filteredStrategies?.[idx] ?
           (typeof filteredStrategies[idx] === 'object' ? filteredStrategies[idx].v : filteredStrategies[idx]) : null;
-        
+
         return {
           index: idx,
-          time: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + 
+          time: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
                 ' ' + date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
           timestamp: d.t,
           portfolio: d.v,
@@ -363,30 +363,30 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
       return [];
     }
   }, [filteredEquity, filteredBaseline, filteredBaselineVw, filteredMomentum, filteredStrategies]);
-  
+
   const { yMin, yMax, xTickIndices } = useMemo(() => {
     if (chartData.length === 0) return { yMin: 0, yMax: 1, xTickIndices: [] };
-    
+
     // Calculate min and max from all series
-    const allValues = chartData.flatMap(d => 
+    const allValues = chartData.flatMap(d =>
       [d.portfolio, d.baseline, d.baseline_vw, d.momentum, d.strategy].filter(v => v !== null && isFinite(v))
     );
-    
+
     if (allValues.length === 0) {
       return { yMin: 0, yMax: 1000000, xTickIndices: [] };
     }
-    
+
     const dataMin = Math.min(...allValues);
     const dataMax = Math.max(...allValues);
     const range = dataMax - dataMin || 1;
-    
+
     // Use a smaller fixed percentage for equity charts to better show changes
     // For equity data, smaller padding allows better visualization of price movements
     const paddingFactor = range * 0.03; // Reduced from 0.1 to 0.03 (3% instead of 10%)
-    
+
     let yMinCalc = dataMin - paddingFactor;
     let yMaxCalc = dataMax + paddingFactor;
-    
+
     // Smart rounding based on magnitude
     const magnitude = Math.max(Math.abs(yMinCalc), Math.abs(yMaxCalc));
     let roundTo;
@@ -399,43 +399,43 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
     } else {
       roundTo = 100;
     }
-    
+
     yMinCalc = Math.floor(yMinCalc / roundTo) * roundTo;
     yMaxCalc = Math.ceil(yMaxCalc / roundTo) * roundTo;
-    
+
     // Stable range to prevent frequent updates
     if (stableYRange) {
       const { min: stableMin, max: stableMax } = stableYRange;
       const stableRange = stableMax - stableMin;
       const threshold = stableRange * 0.05;
-      
-      const needsUpdate = 
-        dataMin < (stableMin + threshold) || 
+
+      const needsUpdate =
+        dataMin < (stableMin + threshold) ||
         dataMax > (stableMax - threshold);
-      
+
       if (!needsUpdate) {
         yMinCalc = stableMin;
         yMaxCalc = stableMax;
       }
     }
-    
+
     // Calculate x-axis tick indices
     const safeLength = Math.min(chartData.length, 10000);
     const targetTicks = Math.min(8, Math.max(5, Math.floor(safeLength / 10)));
     const step = Math.max(1, Math.floor(safeLength / (targetTicks - 1)));
-    
+
     const indices = [];
     for (let i = 0; i < safeLength && indices.length < 100; i += step) {
       indices.push(i);
     }
-    
+
     if (safeLength > 0 && indices[indices.length - 1] !== safeLength - 1) {
       indices.push(safeLength - 1);
     }
-    
+
     return { yMin: yMinCalc, yMax: yMaxCalc, xTickIndices: indices };
   }, [chartData, stableYRange]);
-  
+
   // Update stableYRange in useEffect to avoid infinite re-renders
   // Use functional update to avoid dependency on stableYRange
   useEffect(() => {
@@ -448,10 +448,10 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
           // Check if update is needed (5% threshold)
           const stableRange = prevRange.max - prevRange.min;
           const threshold = stableRange * 0.05;
-          const needsUpdate = 
-            yMin < (prevRange.min + threshold) || 
+          const needsUpdate =
+            yMin < (prevRange.min + threshold) ||
             yMax > (prevRange.max - threshold);
-          
+
           if (needsUpdate) {
             return { min: yMin, max: yMax };
           }
@@ -464,11 +464,11 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
 
   if (!equity || equity.length === 0) {
     return (
-      <div style={{ 
-        width: '100%', 
-        height: '100%', 
-        display: 'flex', 
-        alignItems: 'center', 
+      <div style={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
         justifyContent: 'center',
         color: '#cccccc',
         fontFamily: '"Courier New", monospace',
@@ -508,7 +508,7 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
     const { cx, cy, payload, index } = props;
     const isActive = activePoint === index;
     const isLastPoint = index === chartData.length - 1;
-    
+
     // Only show dot for the last point
     if (!isLastPoint) {
       return null;
@@ -520,7 +520,7 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
       momentum: '#2196F3',
       strategy: '#795548'
     };
-    
+
     return (
       <circle
         cx={cx}
@@ -536,11 +536,11 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
       />
     );
   };
-  
+
   const CustomXAxisTick = ({ x, y, payload }) => {
     const shouldShow = xTickIndices.includes(payload.index);
     if (!shouldShow) return null;
-    
+
     return (
       <g transform={`translate(${x},${y})`}>
         <text
@@ -558,10 +558,10 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
       </g>
     );
   };
-  
+
   const CustomLegend = ({ payload }) => {
     if (!payload || payload.length === 0) return null;
-    
+
     return (
       <div style={{
         display: 'flex',
@@ -577,7 +577,7 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
         {payload.map((entry, index) => {
           const description = legendDescriptions[entry.value] || '';
           const isActive = legendTooltip === entry.value;
-          
+
           return (
             <div
               key={index}
@@ -651,17 +651,17 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
 
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <LineChart 
-        data={chartData} 
+      <LineChart
+        data={chartData}
         margin={{ top: 20, right: 30, bottom: 50, left: 60 }}
       >
-        <XAxis 
-          dataKey="time" 
+        <XAxis
+          dataKey="time"
           stroke="#666666"
           tick={<CustomXAxisTick />}
           interval={0}
         />
-        <YAxis 
+        <YAxis
           domain={[yMin, yMax]}
           stroke="#000000"
           style={{ fontFamily: '"Courier New", monospace', fontSize: '11px', fontWeight: 700 }}
@@ -670,29 +670,29 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
           width={75}
         />
         <Tooltip content={<CustomTooltip />} />
-        <Legend 
+        <Legend
           content={<CustomLegend />}
         />
-        
+
         {/* Portfolio line */}
-        <Line 
-          type="linear" 
-          dataKey="portfolio" 
+        <Line
+          type="linear"
+          dataKey="portfolio"
           name="EvoTraders"
-          stroke="#00C853" 
+          stroke="#00C853"
           strokeWidth={2.5}
           dot={(props) => <CustomDot {...props} dataKey="portfolio" />}
           activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 2 }}
           isAnimationActive={false}
         />
-        
+
         {/* Baseline Equal Weight */}
         {baseline && baseline.length > 0 && (
-          <Line 
-            type="linear" 
-            dataKey="baseline" 
+          <Line
+            type="linear"
+            dataKey="baseline"
             name="Buy & Hold (EW)"
-            stroke="#FF6B00" 
+            stroke="#FF6B00"
             strokeWidth={2}
             strokeDasharray="5 5"
             dot={(props) => <CustomDot {...props} dataKey="baseline" />}
@@ -700,14 +700,14 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
             isAnimationActive={false}
           />
         )}
-        
+
         {/* Baseline Value Weighted */}
         {baseline_vw && baseline_vw.length > 0 && (
-          <Line 
-            type="linear" 
-            dataKey="baseline_vw" 
+          <Line
+            type="linear"
+            dataKey="baseline_vw"
             name="Buy & Hold (VW)"
-            stroke="#9C27B0" 
+            stroke="#9C27B0"
             strokeWidth={2}
             strokeDasharray="8 4"
             dot={(props) => <CustomDot {...props} dataKey="baseline_vw" />}
@@ -715,14 +715,14 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
             isAnimationActive={false}
           />
         )}
-        
+
         {/* Momentum Strategy */}
         {momentum && momentum.length > 0 && (
-          <Line 
-            type="linear" 
-            dataKey="momentum" 
+          <Line
+            type="linear"
+            dataKey="momentum"
             name="Momentum"
-            stroke="#2196F3" 
+            stroke="#2196F3"
             strokeWidth={2}
             strokeDasharray="3 3"
             dot={(props) => <CustomDot {...props} dataKey="momentum" />}
@@ -730,14 +730,14 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
             isAnimationActive={false}
           />
         )}
-        
+
         {/* Other Strategies */}
         {strategies && strategies.length > 0 && (
-          <Line 
-            type="linear" 
-            dataKey="strategy" 
+          <Line
+            type="linear"
+            dataKey="strategy"
             name="Strategy"
-            stroke="#795548" 
+            stroke="#795548"
             strokeWidth={2}
             dot={(props) => <CustomDot {...props} dataKey="strategy" />}
             activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 2 }}

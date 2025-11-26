@@ -1,6 +1,6 @@
 #!/bin/bash
 # 启动持续运行服务器的便捷脚本
-# 
+#
 # 使用方法:
 #   ./start_server.sh                                      # 正常模式
 #   ./start_server.sh --backtest                               # backtest模式
@@ -95,17 +95,17 @@ pip install -q websocket-client websockets
 if [ "$MODE" = "normal" ]; then
     echo ""
     echo "📊 检查历史数据更新..."
-    
+
     # 检查是否需要更新数据
     if python -m backend.data.ret_data_updater --help &> /dev/null; then
         echo "🔄 正在更新历史数据..."
-        
+
         # 使用 || true 确保即使更新失败也继续运行
         python -m backend.data.ret_data_updater || {
             echo "⚠️  历史数据更新失败（可能是周末或假期），但将继续启动服务器"
             echo "💡 提示: 系统将使用现有历史数据运行"
         }
-        
+
         # 无论更新成功与否，都显示完成信息
         if [ $? -eq 0 ]; then
             echo "✅ 历史数据更新完成"
@@ -125,19 +125,19 @@ fi
 CLEAN_HISTORY=false
 if [ "$MODE" = "normal" ]; then
     BASE_DATA_DIR="$LOGS_AND_MEMORY_DIR/${CONFIG_NAME}"
-    
+
     # 检查是否存在历史数据
     if [ -d "$BASE_DATA_DIR" ] && [ "$(ls -A $BASE_DATA_DIR 2>/dev/null)" ]; then
         echo ""
         echo "🔍 检测到以往运行记录:"
         echo "   数据目录: $BASE_DATA_DIR"
-        
+
         # 显示目录大小
         if command -v du &> /dev/null; then
             DIR_SIZE=$(du -sh "$BASE_DATA_DIR" 2>/dev/null | cut -f1)
             echo "   目录大小: $DIR_SIZE"
         fi
-        
+
         # 显示最后修改时间
         if [ -d "$BASE_DATA_DIR/state" ]; then
             LAST_STATE=$(find "$BASE_DATA_DIR/state" -type f -name "*.json" 2>/dev/null | head -1)
@@ -146,9 +146,9 @@ if [ "$MODE" = "normal" ]; then
                 echo "   最后更新: $LAST_MODIFIED"
             fi
         fi
-        
+
         echo ""
-        
+
         # 如果设置了自动清空，跳过询问
         if [ "$AUTO_CLEAN" = true ]; then
             echo "⚠️  已设置 --clean 参数，将清空历史记录"
@@ -158,12 +158,12 @@ if [ "$MODE" = "normal" ]; then
             while true; do
                 echo -n "❓ 是否清空历史记录，从头开始运行？(y/n) [默认: n]: "
                 read -r response
-                
+
                 # 如果用户直接按回车，使用默认值'n'
                 if [ -z "$response" ]; then
                     response="n"
                 fi
-                
+
                 case "$response" in
                     [yY]|[yY][eE][sS])
                         CLEAN_HISTORY=true
@@ -179,12 +179,12 @@ if [ "$MODE" = "normal" ]; then
                 esac
             done
         fi
-        
+
         # 执行清空操作
         if [ "$CLEAN_HISTORY" = true ]; then
             echo ""
             echo "🗑️  正在清空历史记录..."
-            
+
             # 备份重要配置文件（如果存在）
             BACKUP_DIR="${BASE_DATA_DIR}_backup_$(date +%Y%m%d_%H%M%S)"
             if [ -d "$BASE_DATA_DIR" ]; then
@@ -195,7 +195,7 @@ if [ "$MODE" = "normal" ]; then
                     [ -f "$BASE_DATA_DIR/config.json" ] && cp "$BASE_DATA_DIR/config.json" "$BACKUP_DIR/"
                     echo "   💾 配置文件已备份到: $BACKUP_DIR"
                 fi
-                
+
                 # 删除整个目录
                 rm -rf "$BASE_DATA_DIR"
                 echo "   ✅ 历史记录已清空"

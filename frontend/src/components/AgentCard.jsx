@@ -18,7 +18,7 @@ function getRankMedal(rank) {
  */
 export default function AgentCard({ agent, onClose, isClosing }) {
   if (!agent) return null;
-  
+
   const bullTotal = agent.bull?.n || 0;
   const bullWins = agent.bull?.win || 0;
   const bullUnknown = agent.bull?.unknown || 0;
@@ -42,7 +42,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
   const isPortfolioManager = agent.id === 'portfolio_manager';
   const isRiskManager = agent.id === 'risk_manager';
   const displayName = isPortfolioManager ? 'Team' : agent.name;
-  
+
   // Get model icon configuration
   const modelInfo = getModelIcon(agent.modelName, agent.modelProvider);
   const shortModelName = getShortModelName(agent.modelName);
@@ -60,11 +60,11 @@ export default function AgentCard({ agent, onClose, isClosing }) {
       animation: isClosing ? 'slideUp 0.2s ease-out forwards' : 'slideDown 0.25s ease-out'
     }}>
       {/* Horizontal scrollable content */}
-      <div style={{ 
+      <div style={{
         overflowX: 'auto',
         overflowY: 'hidden',
         padding: '12px',
-        
+
         /* Hide scrollbar for all browsers */
         scrollbarWidth: 'none', /* Firefox */
         msOverflowStyle: 'none', /* IE and Edge */
@@ -76,7 +76,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
             }
           `}
         </style>
-        
+
         <div style={{
           display: 'flex',
           gap: '12px',
@@ -93,8 +93,8 @@ export default function AgentCard({ agent, onClose, isClosing }) {
             minWidth: 200
           }}>
             {isPortfolioManager ? (
-              <img 
-                src={ASSETS.teamLogo} 
+              <img
+                src={ASSETS.teamLogo}
                 alt="Team"
                 style={{
                   height: 50,
@@ -103,8 +103,8 @@ export default function AgentCard({ agent, onClose, isClosing }) {
                 }}
               />
             ) : agent.avatar ? (
-              <img 
-                src={agent.avatar} 
+              <img
+                src={agent.avatar}
                 alt={agent.name}
                 style={{
                   height: 50,
@@ -129,7 +129,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
               )}
             </div>
           </div>
-          
+
           {/* Risk Manager Note */}
           {isRiskManager && (
             <div style={{
@@ -153,7 +153,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
               </div>
             </div>
           )}
-          
+
           {/* Portfolio Manager Note */}
           {isPortfolioManager && (
             <div style={{
@@ -177,7 +177,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
               </div>
             </div>
           )}
-          
+
           {/* Model Info Card */}
           {agent.modelName && (
             <div style={{
@@ -207,7 +207,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
                 marginBottom: 4
               }}>
                 {modelInfo.logoPath ? (
-                  <img 
+                  <img
                     src={modelInfo.logoPath}
                     alt={modelInfo.provider}
                     style={{
@@ -244,7 +244,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
               </div>
             </div>
           )}
-          
+
           {/* Overall Win Rate */}
           {!isRiskManager && (
             <div style={{
@@ -278,7 +278,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
                 fontSize: 9,
                 color: '#555555'
               }}>
-                {bullWins + bearWins}Win / {evaluatedTotal}Eval  
+                {bullWins + bearWins}Win / {evaluatedTotal}Eval
               </div>
               <div style={{
                 fontSize: 8,
@@ -292,7 +292,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
               </div>
             </div>
           )}
-          
+
           {/* Bull Stats */}
           {!isRiskManager && (
             <div style={{
@@ -329,7 +329,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
               </div>
             </div>
           )}
-          
+
           {/* Bear Stats */}
           {!isRiskManager && (
             <div style={{
@@ -366,7 +366,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
               </div>
             </div>
           )}
-          
+
           {/* Recent Signals - Horizontal scroll */}
           {agent.signals && agent.signals.length > 0 && (
             <div style={{
@@ -391,12 +391,12 @@ export default function AgentCard({ agent, onClose, isClosing }) {
                 const isNeutral = (!isBull && !isBear) || signalType.includes('neutral') || signalType === 'hold';
                 const isCorrect = signal.is_correct === true;
                 const isUnknown = signal.is_correct === 'unknown' || signal.is_correct === null;
-                
+
                 // Determine result symbol/text and color: unknown has priority over neutral
                 let resultDisplay;
                 let resultColor = '#555555';
                 let resultFontSize = 18;
-                
+
                 if (isUnknown) {
                   resultDisplay = '?';
                   resultColor = '#FFA726'; // Orange for unknown
@@ -408,7 +408,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
                   resultDisplay = isCorrect ? '✓' : '✗';
                   resultColor = isCorrect ? '#00C853' : '#FF1744'; // Green for correct, Red for wrong
                 }
-                
+
                 return (
                   <div key={idx} style={{
                     fontSize: 9,
@@ -484,7 +484,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
           )}
         </div>
       </div>
-      
+
       <style>
         {`
           @keyframes slideDown {
@@ -497,7 +497,7 @@ export default function AgentCard({ agent, onClose, isClosing }) {
               transform: translateY(0);
             }
           }
-          
+
           @keyframes slideUp {
             from {
               opacity: 1;

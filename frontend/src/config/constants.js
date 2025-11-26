@@ -13,13 +13,13 @@ export const ASSETS = {
 
 // Stock logos mapping
 export const STOCK_LOGOS = {
-  'AAPL': `${LOGO_BASE_URL}/AAPL.png`,
-  'MSFT': `${LOGO_BASE_URL}/MSFT.png`,
-  'GOOGL': `${LOGO_BASE_URL}/GOOGL.png`,
-  'AMZN': `${LOGO_BASE_URL}/AMZN.png`,
-  'NVDA': `${LOGO_BASE_URL}/NVDA.png`,
-  'META': `${LOGO_BASE_URL}/META.png`,
-  'TSLA': `${LOGO_BASE_URL}/TSLA.png`,
+  "AAPL": `${LOGO_BASE_URL}/AAPL.png`,
+  "MSFT": `${LOGO_BASE_URL}/MSFT.png`,
+  "GOOGL": `${LOGO_BASE_URL}/GOOGL.png`,
+  "AMZN": `${LOGO_BASE_URL}/AMZN.png`,
+  "NVDA": `${LOGO_BASE_URL}/NVDA.png`,
+  "META": `${LOGO_BASE_URL}/META.png`,
+  "TSLA": `${LOGO_BASE_URL}/TSLA.png`,
 };
 
 // Scene dimensions (actual image size)
@@ -38,55 +38,55 @@ export const AGENT_SEATS = [
 
 // Agent definitions with subtle color schemes (very light backgrounds)
 export const AGENTS = [
-  { 
+  {
     id: "portfolio_manager",
     name: "Portfolio Manager",
     role: "Portfolio Manager",
     avatar: `${ASSET_BASE_URL}/agent_1.png`,
-    colors: { bg: '#F9FDFF', text: '#1565C0', accent: '#1565C0' }
+    colors: { bg: "#F9FDFF", text: "#1565C0", accent: "#1565C0" }
   },
-  { 
+  {
     id: "risk_manager",
     name: "Risk Manager",
     role: "Risk Manager",
     avatar: `${ASSET_BASE_URL}/agent_2.png`,
-    colors: { bg: '#FFF8F8', text: '#C62828', accent: '#C62828' }
+    colors: { bg: "#FFF8F8", text: "#C62828", accent: "#C62828" }
   },
-  { 
+  {
     id: "valuation_analyst",
     name: "Valuation Analyst",
     role: "Valuation Analyst",
     avatar: `${ASSET_BASE_URL}/agent_3.png`,
-    colors: { bg: '#FAFFFA', text: '#2E7D32', accent: '#2E7D32' }
+    colors: { bg: "#FAFFFA", text: "#2E7D32", accent: "#2E7D32" }
   },
-  { 
+  {
     id: "sentiment_analyst",
     name: "Sentiment Analyst",
     role: "Sentiment Analyst",
     avatar: `${ASSET_BASE_URL}/agent_4.png`,
-    colors: { bg: '#FCFAFF', text: '#6A1B9A', accent: '#6A1B9A' }
+    colors: { bg: "#FCFAFF", text: "#6A1B9A", accent: "#6A1B9A" }
   },
-  { 
+  {
     id: "fundamentals_analyst",
     name: "Fundamentals Analyst",
     role: "Fundamentals Analyst",
     avatar: `${ASSET_BASE_URL}/agent_5.png`,
-    colors: { bg: '#FFFCF7', text: '#E65100', accent: '#E65100' }
+    colors: { bg: "#FFFCF7", text: "#E65100", accent: "#E65100" }
   },
-  { 
+  {
     id: "technical_analyst",
     name: "Technical Analyst",
     role: "Technical Analyst",
     avatar: `${ASSET_BASE_URL}/agent_6.png`,
-    colors: { bg: '#F9FEFF', text: '#00838F', accent: '#00838F' }
+    colors: { bg: "#F9FEFF", text: "#00838F", accent: "#00838F" }
   },
 ];
 
 // Message type colors (very subtle backgrounds)
 export const MESSAGE_COLORS = {
-  system: { bg: '#FAFAFA', text: '#424242', accent: '#424242' },
-  memory: { bg: '#FFFEFA', text: '#F57F17', accent: '#F57F17' },
-  conference: { bg: '#F1F4FF', text: '#3949AB', accent: '#3949AB' }
+  system: { bg: "#FAFAFA", text: "#424242", accent: "#424242" },
+  memory: { bg: "#FFFEFA", text: "#F57F17", accent: "#F57F17" },
+  conference: { bg: "#F1F4FF", text: "#3949AB", accent: "#3949AB" }
 };
 
 // Helper function to get agent colors by ID or name
@@ -105,12 +105,12 @@ export const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8765";
 
 // Initial ticker symbols (MAG7 companies)
 export const INITIAL_TICKERS = [
-  { symbol: 'AAPL', price: null, change: null },
-  { symbol: 'MSFT', price: null, change: null },
-  { symbol: 'GOOGL', price: null, change: null },
-  { symbol: 'AMZN', price: null, change: null },
-  { symbol: 'NVDA', price: null, change: null },
-  { symbol: 'META', price: null, change: null },
-  { symbol: 'TSLA', price: null, change: null }
+  { symbol: "AAPL", price: null, change: null },
+  { symbol: "MSFT", price: null, change: null },
+  { symbol: "GOOGL", price: null, change: null },
+  { symbol: "AMZN", price: null, change: null },
+  { symbol: "NVDA", price: null, change: null },
+  { symbol: "META", price: null, change: null },
+  { symbol: "TSLA", price: null, change: null }
 ];
 

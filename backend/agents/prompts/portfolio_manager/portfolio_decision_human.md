@@ -29,13 +29,13 @@ Before finalizing your decisions, you MUST verify:
 The trade executor will REJECT trades that exceed available cash. Ensure 100% of your trades can be executed successfully by staying within budget.
 
 Important Decision Rules:
-- LONG (Bullish): 
+- LONG (Bullish):
   * Indicates you are bullish on this stock and want to buy shares
   * quantity = number of shares to buy (incremental)
   * The system will add quantity shares to the current long position
   * Example: Currently holding 32 long shares, quantity=50 → Buy 50 shares → Final holding 82 long shares
-  
-- SHORT (Bearish): 
+
+- SHORT (Bearish):
   * Indicates you are bearish on this stock and want to sell long positions or short
   * quantity = number of shares to short (incremental)
   * Logic: First sell long positions, if quantity is larger, establish short positions for the remainder
@@ -43,8 +43,8 @@ Important Decision Rules:
     - Currently holding 100 long shares, quantity=30 → Sell 30 shares → Remaining 70 long shares
     - Currently holding 100 long shares, quantity=150 → Sell 100 long shares + Short 50 shares → Hold 50 short shares
     - Currently no position, quantity=50 → Directly short 50 shares → Hold 50 short shares
-  
-- HOLD (Neutral): 
+
+- HOLD (Neutral):
   * Indicates you hold a neutral attitude towards this stock
   * quantity = 0
   * Keep current positions unchanged

@@ -26,7 +26,7 @@ import { formatNumber, formatTickerPrice, calculateDuration } from './utils/form
 /**
  * Live Trading Intelligence Platform - Read-Only Dashboard
  * Geek Style - Terminal-inspired, minimal, monochrome
- * 
+ *
  */
 
 export default function LiveTradingApp() {
@@ -37,13 +37,13 @@ export default function LiveTradingApp() {
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [now, setNow] = useState(() => new Date());
   const [showAboutModal, setShowAboutModal] = useState(false);
-  
+
   // View toggle: 'rules' | 'room' | 'chart' | 'statistics'
   const [currentView, setCurrentView] = useState('chart'); // Start with chart, then animate to room
   const [isInitialAnimating, setIsInitialAnimating] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [isUpdating, setIsUpdating] = useState(false);
-  
+
   // Chart data
   const [chartTab, setChartTab] = useState('all');
   const [portfolioData, setPortfolioData] = useState({
@@ -55,44 +55,44 @@ export default function LiveTradingApp() {
     momentum: [], // Momentum strategy
     strategies: [] // Other strategies
   });
-  
+
   // Feed data
   const [feed, setFeed] = useState([]);
   const [conferences, setConferences] = useState({ active: null, history: [] });
-  
+
   // Statistics data
   const [holdings, setHoldings] = useState([]);
   const [trades, setTrades] = useState([]);
   const [stats, setStats] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
-  
+
   // Ticker prices (now from real-time data)
   const [tickers, setTickers] = useState(INITIAL_TICKERS);
   const [rollingTickers, setRollingTickers] = useState({});
-  
+
   // Room bubbles
   const [bubbles, setBubbles] = useState({});
-  
+
   // Resizable panels
   const [leftWidth, setLeftWidth] = useState(70); // percentage
   const [isResizing, setIsResizing] = useState(false);
-  
+
   // Market status
   const [serverMode, setServerMode] = useState(null); // 'live' | 'backtest' | null
   const [marketStatus, setMarketStatus] = useState(null); // { status, status_text, ... }
   const [virtualTime, setVirtualTime] = useState(null); // Virtual time from server (for mock mode)
-  
+
   const clientRef = useRef(null);
   const containerRef = useRef(null);
   const agentFeedRef = useRef(null);
-  
+
   // Track last virtual time update to calculate increment
   const lastVirtualTimeRef = useRef(null);
   const virtualTimeOffsetRef = useRef(0);
-  
+
   // Last day history for replay
   const [lastDayHistory, setLastDayHistory] = useState([]);
-  
+
   // Set default chart tab based on market status
   useEffect(() => {
     if (marketStatus && marketStatus.status) {
@@ -103,7 +103,7 @@ export default function LiveTradingApp() {
       }
     }
   }, [marketStatus?.status]);
-  
+
   // Clock - use virtual time if available (for mock mode)
   useEffect(() => {
     if (virtualTime) {
@@ -113,14 +113,14 @@ export default function LiveTradingApp() {
       virtualTimeOffsetRef.current = virtualTimeMs - realTimeMs;
       lastVirtualTimeRef.current = virtualTimeMs;
       setNow(new Date(virtualTime));
-      
+
       // Update clock every second based on offset
       const id = setInterval(() => {
         const currentRealTime = Date.now();
         const currentVirtualTime = currentRealTime + virtualTimeOffsetRef.current;
         setNow(new Date(currentVirtualTime));
       }, 1000);
-      
+
       return () => clearInterval(id);
     } else {
       // In live mode, use real time
@@ -128,7 +128,7 @@ export default function LiveTradingApp() {
       return () => clearInterval(id);
     }
   }, [virtualTime]);
-  
+
   // Update clock when virtual time changes (recalculate offset)
   useEffect(() => {
     if (virtualTime) {
@@ -139,7 +139,7 @@ export default function LiveTradingApp() {
       setNow(new Date(virtualTime));
     }
   }, [virtualTime]);
-  
+
   // Track updates with visual feedback
   useEffect(() => {
     setLastUpdate(new Date());
@@ -147,25 +147,25 @@ export default function LiveTradingApp() {
     const timer = setTimeout(() => setIsUpdating(false), 500);
     return () => clearTimeout(timer);
   }, [holdings, stats, trades, portfolioData.netValue]);
-  
+
   // Initial animation: show room drawer sliding in
   useEffect(() => {
     // Wait a bit after mount, then trigger slide to room
     const slideTimer = setTimeout(() => {
       setCurrentView('room');
     }, 1200); // Wait 1200ms before starting animation (2x slower)
-    
+
     // Disable animation flag after animation completes
     const completeTimer = setTimeout(() => {
       setIsInitialAnimating(false);
     }, 5000); // 1200ms delay + 1600ms animation duration + 400ms buffer
-    
+
     return () => {
       clearTimeout(slideTimer);
       clearTimeout(completeTimer);
     };
   }, []);
-  
+
   // Helper to check if bubble should still be visible
   // Bubbles persist until replaced by ANY new message (cross-role)
   // When any agent sends a new message, all previous bubbles are cleared
@@ -176,7 +176,7 @@ export default function LiveTradingApp() {
     if (b) {
       return b;
     }
-    
+
     // If not found, search by agentName
     const agent = AGENTS.find(a => a.name === idOrName || a.id === idOrName);
     if (agent) {
@@ -185,10 +185,10 @@ export default function LiveTradingApp() {
         return b;
       }
     }
-    
+
     return null;
   };
-  
+
   // Handle jump to message in feed
   const handleJumpToMessage = useCallback((bubble) => {
     // Switch to room tab (if not already there) for better context
@@ -197,32 +197,32 @@ export default function LiveTradingApp() {
       agentFeedRef.current.scrollToMessage(bubble);
     }
   }, []);
-  
+
   // Auto-connect to server on mount
   useEffect(() => {
     // Define pushEvent inside useEffect to avoid dependency issues
     const handlePushEvent = (evt) => {
       if (!evt) return;
-      
+
       try {
         handleEventInternal(evt);
       } catch (error) {
         console.error('[Event Handler] Error:', error);
       }
     };
-    
+
     // Process historical feed: convert raw events to feed items with conference grouping
     const processHistoricalFeed = (events) => {
       console.log('📋 Historical events:', events);
       const feedItems = [];
       let currentConference = null;
-      
+
       // Reverse to process in chronological order (oldest first)
       const chronologicalEvents = [...events].reverse();
-      
+
       for (const evt of chronologicalEvents) {
         if (!evt || !evt.type) continue;
-        
+
         try {
           if (evt.type === 'conference_start') {
             // Start a new conference
@@ -267,7 +267,7 @@ export default function LiveTradingApp() {
           console.error('Error processing historical event:', evt.type, error);
         }
       }
-      
+
       // If there's an unclosed conference, add it anyway
       if (currentConference) {
         feedItems.push({
@@ -276,16 +276,16 @@ export default function LiveTradingApp() {
           data: currentConference
         });
       }
-      
+
       // Reverse back to show newest first
       setFeed(feedItems.reverse());
       console.log(`✅ Processed ${feedItems.length} feed items from ${events.length} events`);
     };
-    
+
     // Convert event to message object
     const convertEventToMessage = (evt) => {
       const agent = AGENTS.find(a => a.id === evt.agentId);
-      
+
       switch (evt.type) {
         case 'system':
         case 'day_start':
@@ -298,7 +298,7 @@ export default function LiveTradingApp() {
             role: 'System',
             content: evt.content || `${evt.type}: ${evt.date || ''}`
           };
-        
+
         case 'agent_message':
           return {
             id: `msg-${evt.timestamp || Date.now()}-${Math.random()}`,
@@ -308,7 +308,7 @@ export default function LiveTradingApp() {
             role: agent?.role || evt.role || 'Agent',
             content: evt.content
           };
-        
+
         case 'memory':
           return {
             id: `memory-${evt.timestamp || Date.now()}-${Math.random()}`,
@@ -317,16 +317,16 @@ export default function LiveTradingApp() {
             role: 'Memory',
             content: evt.content || evt.text || ''
           };
-        
+
         case 'team_summary':
           // Don't create message for portfolio updates - they're shown in the ticker bar
           return null;
-        
+
         default:
           return null;
       }
     };
-    
+
     // Convert event to feed item
     const convertEventToFeedItem = (evt, message) => {
       if (evt.type === 'memory') {
@@ -346,7 +346,7 @@ export default function LiveTradingApp() {
         };
       }
     };
-    
+
     const handleEventInternal = (evt) => {
       // Helper: Update tickers from realtime prices
       const updateTickersFromPrices = (realtimePrices) => {
@@ -359,7 +359,7 @@ export default function LiveTradingApp() {
                 const newChange = (realtimeData.ret !== null && realtimeData.ret !== undefined)
                   ? realtimeData.ret
                   : (ticker.change !== null && ticker.change !== undefined ? ticker.change : 0);
-                
+
                 return {
                   ...ticker,
                   price: realtimeData.price,
@@ -374,12 +374,12 @@ export default function LiveTradingApp() {
           console.error('Error updating tickers from prices:', error);
         }
       };
-      
+
       const handlers = {
         // Error response (for fast forward errors)
         error: (e) => {
           console.error('[Error]', e.message);
-          
+
           // Handle fast forward errors
           if (e.message && e.message.includes('fast forward')) {
             console.warn(`⚠️ ${e.message}`);
@@ -390,7 +390,7 @@ export default function LiveTradingApp() {
             });
           }
         },
-        
+
         // Connection events
         system: (e) => {
           console.log('[System]', e.content);
@@ -401,7 +401,7 @@ export default function LiveTradingApp() {
             setConnectionStatus('disconnected');
             setIsConnected(false);
           }
-          
+
           const message = {
             id: `sys-${Date.now()}-${Math.random()}`,
             timestamp: e.timestamp || Date.now(),
@@ -409,12 +409,12 @@ export default function LiveTradingApp() {
             role: 'System',
             content: e.content
           };
-          
+
           // Add to conference or feed depending on active conference
           setConferences(prev => {
             if (prev.active) {
               const updated = { ...prev.active, messages: [...prev.active.messages, message] };
-              setFeed(f => f.map(item => 
+              setFeed(f => f.map(item =>
                 item.type === 'conference' && item.id === prev.active.id ? { ...item, data: updated } : item
               ));
               return { ...prev, active: updated };
@@ -424,21 +424,21 @@ export default function LiveTradingApp() {
             }
           });
         },
-        
+
         // Pong response from server
         pong: (e) => {
           console.log('[Heartbeat] Pong received');
         },
-        
+
         // Initial state from server
         initial_state: (e) => {
           try {
             const state = e.state;
             if (!state) return;
-            
+
             setSystemStatus(state.status || 'initializing');
             setCurrentDate(state.current_date);
-            
+
             // 设置服务器模式和市场状态
             if (state.server_mode) {
               setServerMode(state.server_mode);
@@ -460,14 +460,14 @@ export default function LiveTradingApp() {
                 setVirtualTime(null);
               }
             }
-            
+
             if (state.trading_days_total) {
               setProgress({
                 current: state.trading_days_completed || 0,
                 total: state.trading_days_total
               });
             }
-            
+
             if (state.portfolio) {
               setPortfolioData(prev => ({
                 ...prev,
@@ -480,56 +480,56 @@ export default function LiveTradingApp() {
                 strategies: state.portfolio.strategies || prev.strategies
               }));
             }
-            
+
             if (state.holdings) setHoldings(state.holdings);
             if (state.trades) setTrades(state.trades);
             if (state.stats) setStats(state.stats);
             if (state.leaderboard) setLeaderboard(state.leaderboard);
             if (state.realtime_prices) updateTickersFromPrices(state.realtime_prices);
-            
+
             // Load and process historical feed data
             if (state.feed_history && Array.isArray(state.feed_history)) {
               console.log(`✅ Loading ${state.feed_history.length} historical events`);
               processHistoricalFeed(state.feed_history);
             }
-            
+
             // Load last day history for replay
             if (state.last_day_history && Array.isArray(state.last_day_history)) {
               setLastDayHistory(state.last_day_history);
               console.log(`✅ Loaded ${state.last_day_history.length} last day events for replay`);
             }
-            
+
             console.log('Initial state loaded');
           } catch (error) {
             console.error('Error loading initial state:', error);
           }
         },
-        
+
         // Market status update
         market_status_update: (e) => {
           if (e.market_status) {
             setMarketStatus(e.market_status);
           }
         },
-        
+
         // Real-time price updates
         price_update: (e) => {
           try {
             const { symbol, price, ret, open, portfolio, realtime_prices } = e;
-            
+
             if (!symbol || !price) {
               console.warn('[Price Update] Missing symbol or price:', e);
               return;
             }
-            
+
             console.log(`[Price Update] ${symbol}: $${price} (ret: ${ret !== undefined ? ret.toFixed(2) : 'N/A'}%)`);
-            
+
             // Update ticker price with animation
             setTickers(prevTickers => {
               return prevTickers.map(ticker => {
                 if (ticker.symbol === symbol) {
                   const oldPrice = ticker.price;
-                  
+
                   // Use 'ret' from server (relative to open price) if available
                   // Otherwise fallback to calculating change from previous price
                   let newChange = ticker.change;
@@ -539,14 +539,14 @@ export default function LiveTradingApp() {
                   } else if (oldPrice !== null && oldPrice !== undefined && isFinite(oldPrice)) {
                     // Fallback: calculate change from previous price
                     const priceChange = ((price - oldPrice) / oldPrice) * 100;
-                    newChange = (newChange !== null && newChange !== undefined) 
-                      ? newChange + priceChange 
+                    newChange = (newChange !== null && newChange !== undefined)
+                      ? newChange + priceChange
                       : priceChange;
                   } else {
                     // First price received, set change to 0
                     newChange = 0;
                   }
-                  
+
                   // Trigger rolling animation only if price actually changed
                   if (oldPrice !== price) {
                     setRollingTickers(prev => ({ ...prev, [symbol]: true }));
@@ -554,7 +554,7 @@ export default function LiveTradingApp() {
                       setRollingTickers(prev => ({ ...prev, [symbol]: false }));
                     }, 500);
                   }
-                  
+
                   return {
                     ...ticker,
                     price: price,
@@ -565,12 +565,12 @@ export default function LiveTradingApp() {
                 return ticker;
               });
             });
-            
+
             // Update all tickers from realtime_prices if provided
             if (realtime_prices) {
               updateTickersFromPrices(realtime_prices);
             }
-            
+
             // Update portfolio value if provided
             if (portfolio && portfolio.total_value) {
               setPortfolioData(prev => ({
@@ -584,7 +584,7 @@ export default function LiveTradingApp() {
             console.error('[Price Update] Error:', error);
           }
         },
-        
+
         // Day progress events
         day_start: (e) => {
           setCurrentDate(e.date);
@@ -595,7 +595,7 @@ export default function LiveTradingApp() {
             }));
           }
           setSystemStatus('running');
-          
+
           const message = {
             id: `day-start-${Date.now()}-${Math.random()}`,
             timestamp: e.timestamp || Date.now(),
@@ -603,11 +603,11 @@ export default function LiveTradingApp() {
             role: 'System',
             content: `Starting day: ${e.date}`
           };
-          
+
           setConferences(prev => {
             if (prev.active) {
               const updated = { ...prev.active, messages: [...prev.active.messages, message] };
-              setFeed(f => f.map(item => 
+              setFeed(f => f.map(item =>
                 item.type === 'conference' && item.id === prev.active.id ? { ...item, data: updated } : item
               ));
               return { ...prev, active: updated };
@@ -617,7 +617,7 @@ export default function LiveTradingApp() {
             }
           });
         },
-        
+
         day_complete: (e) => {
           // Update from day result
           const result = e.result;
@@ -633,7 +633,7 @@ export default function LiveTradingApp() {
                   t: dateObj.getTime(),
                   v: summary.total_value || summary.cash || prev.netValue
                 });
-                
+
                 return {
                   ...prev,
                   netValue: summary.total_value || summary.cash || prev.netValue,
@@ -643,7 +643,7 @@ export default function LiveTradingApp() {
               });
             }
           }
-          
+
           const message = {
             id: `day-complete-${Date.now()}-${Math.random()}`,
             timestamp: e.timestamp || Date.now(),
@@ -651,11 +651,11 @@ export default function LiveTradingApp() {
             role: 'System',
             content: `Day completed: ${e.date}`
           };
-          
+
           setConferences(prev => {
             if (prev.active) {
               const updated = { ...prev.active, messages: [...prev.active.messages, message] };
-              setFeed(f => f.map(item => 
+              setFeed(f => f.map(item =>
                 item.type === 'conference' && item.id === prev.active.id ? { ...item, data: updated } : item
               ));
               return { ...prev, active: updated };
@@ -665,10 +665,10 @@ export default function LiveTradingApp() {
             }
           });
         },
-        
+
         day_error: (e) => {
           console.error('Day error:', e.date, e.error);
-          
+
           const message = {
             id: `day-error-${Date.now()}-${Math.random()}`,
             timestamp: e.timestamp || Date.now(),
@@ -676,11 +676,11 @@ export default function LiveTradingApp() {
             role: 'System',
             content: `Day error: ${e.date} - ${e.error || 'Unknown error'}`
           };
-          
+
           setConferences(prev => {
             if (prev.active) {
               const updated = { ...prev.active, messages: [...prev.active.messages, message] };
-              setFeed(f => f.map(item => 
+              setFeed(f => f.map(item =>
                 item.type === 'conference' && item.id === prev.active.id ? { ...item, data: updated } : item
               ));
               return { ...prev, active: updated };
@@ -690,7 +690,7 @@ export default function LiveTradingApp() {
             }
           });
         },
-        
+
         conference_start: (e) => {
           const conference = {
             id: e.conferenceId,
@@ -704,7 +704,7 @@ export default function LiveTradingApp() {
           setConferences(prev => ({ ...prev, active: conference }));
           setFeed(prev => [{ type: 'conference', data: conference, id: conference.id }, ...prev]);
         },
-        
+
         conference_end: (e) => {
           setConferences(prev => {
             if (prev.active) {
@@ -722,7 +722,7 @@ export default function LiveTradingApp() {
             return prev;
           });
         },
-        
+
         agent_message: (e) => {
           const agent = AGENTS.find(a => a.id === e.agentId);
           const message = {
@@ -733,7 +733,7 @@ export default function LiveTradingApp() {
             role: agent?.role || e.role || 'Agent',
             content: e.content
           };
-          
+
           // Update bubbles for room view
           // Clear all previous bubbles and show only the new message (cross-role behavior)
           setBubbles({
@@ -743,11 +743,11 @@ export default function LiveTradingApp() {
               agentName: agent?.name || e.agentName || e.agentId
             }
           });
-          
+
           setConferences(prev => {
             if (prev.active) {
               const updated = { ...prev.active, messages: [...prev.active.messages, message] };
-              setFeed(f => f.map(item => 
+              setFeed(f => f.map(item =>
                 item.type === 'conference' && item.id === prev.active.id ? { ...item, data: updated } : item
               ));
               return { ...prev, active: updated };
@@ -757,14 +757,14 @@ export default function LiveTradingApp() {
             }
           });
         },
-        
+
         memory: (e) => {
           const memory = {
             id: `memory-${Date.now()}-${Math.random()}`,
             timestamp: e.timestamp || Date.now(),
             content: e.content || e.text || ''
           };
-          
+
           setConferences(prev => {
             if (prev.active) {
               const message = {
@@ -773,7 +773,7 @@ export default function LiveTradingApp() {
                 role: 'Memory'
               };
               const updated = { ...prev.active, messages: [...prev.active.messages, message] };
-              setFeed(f => f.map(item => 
+              setFeed(f => f.map(item =>
                 item.type === 'conference' && item.id === prev.active.id ? { ...item, data: updated } : item
               ));
               return { ...prev, active: updated };
@@ -783,7 +783,7 @@ export default function LiveTradingApp() {
             }
           });
         },
-        
+
         team_summary: (e) => {
           // Update portfolio data silently without creating feed messages
           setPortfolioData(prev => ({
@@ -795,14 +795,14 @@ export default function LiveTradingApp() {
             baseline_vw: e.baseline_vw || prev.baseline_vw,
             momentum: e.momentum || prev.momentum
           }));
-          
+
           // Portfolio updates are shown in the ticker bar, no need for feed messages
         },
-        
+
         team_portfolio: (e) => {
           if (e.holdings) setHoldings(e.holdings);
         },
-        
+
         // ✅ 监听 holdings 更新（服务器广播的事件名）
         team_holdings: (e) => {
           if (e.data && Array.isArray(e.data)) {
@@ -810,7 +810,7 @@ export default function LiveTradingApp() {
             console.log(`✅ Holdings updated: ${e.data.length} positions`);
           }
         },
-        
+
         team_trades: (e) => {
           // 支持两种格式：完整列表或单笔交易
           if (e.mode === 'full' && e.data && Array.isArray(e.data)) {
@@ -822,7 +822,7 @@ export default function LiveTradingApp() {
             setTrades(prev => [e.trade, ...prev].slice(0, 100));
           }
         },
-        
+
         team_stats: (e) => {
           if (e.data) {
             setStats(e.data);
@@ -831,7 +831,7 @@ export default function LiveTradingApp() {
             setStats(e.stats);
           }
         },
-        
+
         team_leaderboard: (e) => {
           // 服务器发送的格式: { type: 'team_leaderboard', data: [...], timestamp: ... }
           if (Array.isArray(e.data)) {
@@ -843,7 +843,7 @@ export default function LiveTradingApp() {
             setLeaderboard(e.leaderboard);
           }
         },
-        
+
         // 虚拟时间更新（Mock模式下的时间广播）
         time_update: (e) => {
           if (e.beijing_time_str) {
@@ -853,11 +853,11 @@ export default function LiveTradingApp() {
               'non_trading_day': '📅',
               'trade_execution': '💼'
             };
-            
+
             const emoji = statusEmoji[e.status] || '⏰';
             const isMockMode = e.is_mock_mode === true;
             let logMessage = `${emoji} ${isMockMode ? '虚拟时间' : '时间'}: ${e.beijing_time_str} | 状态: ${e.status}`;
-            
+
             if (e.hours_to_open !== undefined) {
               logMessage += ` | 距离开盘: ${e.hours_to_open}小时`;
             }
@@ -867,9 +867,9 @@ export default function LiveTradingApp() {
             if (e.trading_date) {
               logMessage += ` | 交易日: ${e.trading_date}`;
             }
-            
+
             console.log(logMessage);
-            
+
             // 只在Mock模式下保存虚拟时间（用于图表过滤和UI显示）
             if (isMockMode && e.beijing_time) {
               try {
@@ -883,23 +883,23 @@ export default function LiveTradingApp() {
               setVirtualTime(null);
             }
           }
-          
+
           // 更新市场状态（如果包含在time_update中）
           if (e.market_status) {
             setMarketStatus(e.market_status);
           }
         },
-        
+
         // 时间快进事件（Mock模式）
         time_fast_forwarded: (e) => {
           console.log(`⏩ 时间已快进 ${e.minutes} 分钟: ${e.old_time_str} → ${e.new_time_str}`);
-          
+
           // 更新虚拟时间
           if (e.new_time) {
             try {
               const virtualTimeDate = new Date(e.new_time);
               setVirtualTime(virtualTimeDate);
-              
+
               // 添加到feed显示
               handlePushEvent({
                 type: 'system',
@@ -911,13 +911,13 @@ export default function LiveTradingApp() {
             }
           }
         },
-        
+
         // 快进成功响应
         fast_forward_success: (e) => {
           console.log(`✅ ${e.message}`);
         },
       };
-      
+
       // Call handler or do nothing
       try {
         const handler = handlers[evt.type];
@@ -930,13 +930,13 @@ export default function LiveTradingApp() {
         console.error('[handleEvent] Error handling event:', evt.type, error);
       }
     };
-    
+
     // Create and connect WebSocket client
     const client = new ReadOnlyClient(handlePushEvent);
     clientRef.current = client;
     client.connect();
     setConnectionStatus('connecting');
-    
+
     return () => {
       // Cleanup on unmount
       if (clientRef.current) {
@@ -944,34 +944,34 @@ export default function LiveTradingApp() {
       }
     };
   }, []); // Empty dependency array - only run once on mount
-  
+
   // Resizing handlers
   const handleMouseDown = (e) => {
     e.preventDefault();
     setIsResizing(true);
   };
-  
+
   useEffect(() => {
     if (!isResizing) return;
-    
+
     const handleMouseMove = (e) => {
       if (!containerRef.current) return;
       const containerRect = containerRef.current.getBoundingClientRect();
       const newLeftWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
-      
+
       // Limit between 30% and 85%
       if (newLeftWidth >= 30 && newLeftWidth <= 85) {
         setLeftWidth(newLeftWidth);
       }
     };
-    
+
     const handleMouseUp = () => {
       setIsResizing(false);
     };
-    
+
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-    
+
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
@@ -981,14 +981,14 @@ export default function LiveTradingApp() {
   return (
     <div className="app">
       <GlobalStyles />
-      
+
       {/* Header */}
       <div className="header">
         <Header
           onEvoTradersClick={() => setShowAboutModal(true)}
           evoTradersLinkStyle="default"
         />
-        
+
         <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: 24, marginLeft: 'auto', flexWrap: 'wrap', minWidth: 0 }}>
           {/* Mock Mode Indicator */}
           {virtualTime && (
@@ -1013,32 +1013,32 @@ export default function LiveTradingApp() {
               </span>
             </div>
           )}
-          
+
           {/* Market Status Indicator */}
           {serverMode && marketStatus && (
             <div className="market-status-indicator" style={{
-              background: serverMode === 'backtest' 
-                ? '#f5f5f5' 
+              background: serverMode === 'backtest'
+                ? '#f5f5f5'
                 : (marketStatus.status === 'open' ? 'rgba(0, 200, 83, 0.1)' : 'rgba(255, 23, 68, 0.1)'),
-              borderColor: serverMode === 'backtest' 
-                ? '#666666' 
+              borderColor: serverMode === 'backtest'
+                ? '#666666'
                 : (marketStatus.status === 'open' ? '#00C853' : '#FF1744')
             }}>
               <span className="market-status-dot" style={{
-                background: serverMode === 'backtest' 
-                  ? '#666666' 
+                background: serverMode === 'backtest'
+                  ? '#666666'
                   : (marketStatus.status === 'open' ? '#00C853' : '#FF1744')
               }} />
               <span className="market-status-text" style={{
-                color: serverMode === 'backtest' 
-                  ? '#666666' 
+                color: serverMode === 'backtest'
+                  ? '#666666'
                   : (marketStatus.status === 'open' ? '#00C853' : '#FF1744')
               }}>
                 {marketStatus.status_text || 'Status'}
               </span>
             </div>
           )}
-          
+
           {/* Clock Display (only in Mock mode) */}
           {virtualTime && (
             <div style={{
@@ -1082,7 +1082,7 @@ export default function LiveTradingApp() {
                   {now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </span>
               </div>
-              
+
               {/* Fast Forward Button (only in Mock mode) */}
               <button
                 onClick={() => {
@@ -1127,7 +1127,7 @@ export default function LiveTradingApp() {
               </button>
             </div>
           )}
-          
+
           {/* Real-time Update Indicator */}
           <div className="header-status">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1148,7 +1148,7 @@ export default function LiveTradingApp() {
           </div>
         </div>
       </div>
-      
+
       {/* Main Content */}
       <>
         {/* Ticker Bar */}
@@ -1162,14 +1162,14 @@ export default function LiveTradingApp() {
                     <span className="ticker-symbol">{ticker.symbol}</span>
                     <span className="ticker-price">
                       <span className={`ticker-price-value ${rollingTickers[ticker.symbol] ? 'rolling' : ''}`}>
-                        {ticker.price !== null && ticker.price !== undefined 
-                          ? `$${formatTickerPrice(ticker.price)}` 
+                        {ticker.price !== null && ticker.price !== undefined
+                          ? `$${formatTickerPrice(ticker.price)}`
                           : '-'}
                       </span>
                     </span>
                     <span className={`ticker-change ${
-                      ticker.change === null || ticker.change === undefined 
-                        ? '' 
+                      ticker.change === null || ticker.change === undefined
+                        ? ''
                         : ticker.change >= 0 ? 'positive' : 'negative'
                     }`}>
                       {ticker.change !== null && ticker.change !== undefined
@@ -1186,7 +1186,7 @@ export default function LiveTradingApp() {
             <span className="portfolio-amount">${formatNumber(portfolioData.netValue)}</span>
           </div>
         </div>
-        
+
         <div className="main-container" ref={containerRef}>
           {/* Left Panel: Three-View Toggle (Room/Chart/Statistics) */}
           <div className="left-panel" style={{ width: `${leftWidth}%` }}>
@@ -1199,21 +1199,21 @@ export default function LiveTradingApp() {
                   >
                     Rules
                   </button>
-                  
+
                   <button
                     className={`view-nav-btn ${currentView === 'room' ? 'active' : ''}`}
                     onClick={() => setCurrentView('room')}
                   >
                     Trading Room
                   </button>
-                  
+
                   <button
                     className={`view-nav-btn ${currentView === 'chart' ? 'active' : ''}`}
                     onClick={() => setCurrentView('chart')}
                   >
                     Performance Chart
                   </button>
-                  
+
                   <button
                     className={`view-nav-btn ${currentView === 'statistics' ? 'active' : ''}`}
                     onClick={() => setCurrentView('statistics')}
@@ -1221,26 +1221,26 @@ export default function LiveTradingApp() {
                     Statistics
                   </button>
                 </div>
-                
+
                 {/* Slider container with four views */}
                 <div className={`view-slider-four ${currentView === 'rules' ? 'show-rules' : currentView === 'room' ? 'show-room' : currentView === 'statistics' ? 'show-statistics' : 'show-chart'} ${!isInitialAnimating ? 'normal-speed' : ''}`}>
                   {/* Rules View Panel */}
                   <div className="view-panel">
                     <RulesView />
                   </div>
-                  
+
                   {/* Room View Panel */}
                   <div className="view-panel">
-                    <RoomView 
-                      bubbles={bubbles} 
-                      bubbleFor={bubbleFor} 
+                    <RoomView
+                      bubbles={bubbles}
+                      bubbleFor={bubbleFor}
                       leaderboard={leaderboard}
                       marketStatus={marketStatus}
                       lastDayHistory={lastDayHistory}
                       onJumpToMessage={handleJumpToMessage}
                     />
                   </div>
-                  
+
                   {/* Chart View Panel */}
                   <div className="view-panel">
                     <div className="chart-container">
@@ -1260,7 +1260,7 @@ export default function LiveTradingApp() {
                         </button>
                       </div>
 
-                      <NetValueChart 
+                      <NetValueChart
                         equity={portfolioData.equity}
                         baseline={portfolioData.baseline}
                         baseline_vw={portfolioData.baseline_vw}
@@ -1271,7 +1271,7 @@ export default function LiveTradingApp() {
                       />
                     </div>
                   </div>
-                  
+
                   {/* Statistics View Panel */}
                   <div className="view-panel">
                     <StatisticsView
@@ -1288,7 +1288,7 @@ export default function LiveTradingApp() {
           </div>
 
           {/* Resizer */}
-          <div 
+          <div
             className={`resizer ${isResizing ? 'resizing' : ''}`}
             onMouseDown={handleMouseDown}
           />
@@ -1299,7 +1299,7 @@ export default function LiveTradingApp() {
           </div>
         </div>
       </>
-      
+
       {/* About Modal */}
       {showAboutModal && <AboutModal onClose={() => setShowAboutModal(false)} />}
     </div>

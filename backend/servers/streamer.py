@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import asyncio, json, time, logging
 import contextlib
 from backend.config.constants import ROLE_TO_AGENT
@@ -24,7 +25,7 @@ class BaseStreamer:
     def default_print(self, content: str, type: str):
         raise NotImplementedError
 
-    def print(self, type: str="", content: str = "", **kwargs):
+    def print(self, type: str = "", content: str = "", **kwargs):
         """
         Generic print interface
         :param content: Output content
@@ -48,22 +49,17 @@ class BaseStreamer:
 
 class ConsoleStreamer(BaseStreamer):
     def system(self, content: str):
-        ts = self._bump()
         print(f"[system] {content}")
 
     def agent(self, role_key: str, content: str):
-        ts = self._bump()
         agent_id = ROLE_TO_AGENT.get(role_key or "", ROLE_TO_AGENT["_default"])
         print(f"[agent:{agent_id}] {content}")
 
     def price(self, value: float):
-        ts = self._bump()
         print(f"[price] {float(value):.4f}")
 
     def default_print(self, content: str, type: str):
-        ts = self._bump()
         print(f"[{type}] {content}")
-
 
 
 class WebSocketStreamer(BaseStreamer):
@@ -91,7 +87,9 @@ class WebSocketStreamer(BaseStreamer):
                 try:
                     await self.ws.send(json.dumps(payload, ensure_ascii=False))
                 except Exception:
-                    logging.exception("WebSocket send failed during cancel flush")
+                    logging.exception(
+                        "WebSocket send failed during cancel flush",
+                    )
                 finally:
                     self._queue.task_done()
             raise
@@ -114,22 +112,24 @@ class WebSocketStreamer(BaseStreamer):
                 await self._worker
 
     def system(self, content: str):
-        ts = self._bump()
         self._enqueue({"type": "system", "content": content, "ts": ts})
 
     def agent(self, role_key: str, content: str):
-        ts = self._bump()
         agent_id = ROLE_TO_AGENT.get(role_key or "", ROLE_TO_AGENT["_default"])
-        self._enqueue({"type": "agent_message", "agentId": agent_id, "content": content, "ts": ts})
+        self._enqueue(
+            {
+                "type": "agent_message",
+                "agentId": agent_id,
+                "content": content,
+                "ts": ts,
+            },
+        )
 
     def price(self, value: float):
-        ts = self._bump()
         self._enqueue({"type": "price", "price": float(value), "ts": ts})
 
     def default_print(self, content: str, type: str):
-        ts = self._bump()
         self._enqueue({"type": type, "content": content, "ts": ts})
-
 
 
 class MultiStreamer(BaseStreamer):
@@ -139,10 +139,12 @@ class MultiStreamer(BaseStreamer):
 
     def _fanout(self, fn_name: str, *args, **kwargs):
         # Unified step, then "copy" the same ts to child streamers:
-        ts = self._bump()
+
         for s in self.streamers:
             # Align child streamer's ts (maintain timeline order)
-            s.ts = ts - s.step_ms  # Make child streamer's next _bump() equal to ts
+            s.ts = (
+                ts - s.step_ms
+            )  # Make child streamer's next _bump() equal to ts
             getattr(s, fn_name)(*args, **kwargs)
 
     def system(self, content: str):
@@ -162,7 +164,14 @@ class BroadcastStreamer(BaseStreamer):
     """
     Thread-safe broadcast Streamer, used to forward messages from synchronous code to asynchronous broadcast system
     """
-    def __init__(self, broadcast_callback, event_loop, step_ms: int = 900, console_output: bool = True):
+
+    def __init__(
+        self,
+        broadcast_callback,
+        event_loop,
+        step_ms: int = 900,
+        console_output: bool = True,
+    ):
         """
         Args:
             broadcast_callback: Async callback function, receives message dict as parameter
@@ -174,90 +183,115 @@ class BroadcastStreamer(BaseStreamer):
         self.broadcast_callback = broadcast_callback
         self.loop = event_loop
         self.console_output = console_output
-    
+
     def _broadcast(self, message: dict):
         """Use run_coroutine_threadsafe to safely schedule async broadcast"""
         if self.loop and self.loop.is_running():
             asyncio.run_coroutine_threadsafe(
                 self.broadcast_callback(message),
-                self.loop
+                self.loop,
             )
-        
+
         # Optional console output
         if self.console_output:
-            msg_type = message.get('type', 'unknown')
-            content = message.get('content', '')
+            msg_type = message.get("type", "unknown")
+            content = message.get("content", "")
             print(f"[{msg_type}] {content}")
-    
-    def _normalize_message(self, event_type: str, content: str, **kwargs) -> dict:
+
+    def _normalize_message(
+        self,
+        event_type: str,
+        content: str,
+        **kwargs,
+    ) -> dict:
         """Normalize message format, handle various special types"""
         from datetime import datetime
-        
+
         message = {
-            'type': event_type,
-            'content': content,
-            'timestamp': datetime.now().isoformat(),
-            'ts': self._bump(),
-            **kwargs
+            "type": event_type,
+            "content": content,
+            "timestamp": datetime.now().isoformat(),
+            "ts": self._bump(),
+            **kwargs,
         }
-        
+
         # Special handling: conference events
-        if event_type == 'conference_start':
-            message['conferenceId'] = kwargs.get('conferenceId') or kwargs.get('conference_id') or f'conf-{message["ts"]}'
-            message['title'] = kwargs.get('title', content)
-            message['participants'] = kwargs.get('participants', [])
-        
-        elif event_type == 'conference_message':
-            message['conferenceId'] = kwargs.get('conferenceId') or kwargs.get('conference_id')
-            message['agent'] = kwargs.get('agent') or kwargs.get('agentId')
-            message['role'] = kwargs.get('role', 'Agent')
-        
-        elif event_type == 'conference_end':
-            message['conferenceId'] = kwargs.get('conferenceId') or kwargs.get('conference_id')
-        
-        elif event_type in ('agent_message', 'agent'):
+        if event_type == "conference_start":
+            message["conferenceId"] = (
+                kwargs.get("conferenceId")
+                or kwargs.get("conference_id")
+                or f'conf-{message["ts"]}'
+            )
+            message["title"] = kwargs.get("title", content)
+            message["participants"] = kwargs.get("participants", [])
+
+        elif event_type == "conference_message":
+            message["conferenceId"] = kwargs.get("conferenceId") or kwargs.get(
+                "conference_id",
+            )
+            message["agent"] = kwargs.get("agent") or kwargs.get("agentId")
+            message["role"] = kwargs.get("role", "Agent")
+
+        elif event_type == "conference_end":
+            message["conferenceId"] = kwargs.get("conferenceId") or kwargs.get(
+                "conference_id",
+            )
+
+        elif event_type in ("agent_message", "agent"):
             # Unified handling of agent and agent_message types
-            message['type'] = 'agent_message'
-            message['agentId'] = kwargs.get('agentId') or kwargs.get('agent_id') or kwargs.get('agent', 'unknown')
-            if 'agent_name' in kwargs:
-                message['agentName'] = kwargs['agent_name']
-            if 'role' in kwargs:
-                message['role'] = kwargs['role']
-        
+            message["type"] = "agent_message"
+            message["agentId"] = (
+                kwargs.get("agentId")
+                or kwargs.get("agent_id")
+                or kwargs.get("agent", "unknown")
+            )
+            if "agent_name" in kwargs:
+                message["agentName"] = kwargs["agent_name"]
+            if "role" in kwargs:
+                message["role"] = kwargs["role"]
+
         return message
-    
+
     def system(self, content: str):
         """System message"""
-        message = self._normalize_message('system', content)
+        message = self._normalize_message("system", content)
         self._broadcast(message)
-    
+
     def agent(self, role_key: str, content: str):
         """Agent message"""
         agent_id = ROLE_TO_AGENT.get(role_key or "", ROLE_TO_AGENT["_default"])
-        message = self._normalize_message('agent_message', content, agentId=agent_id)
+        message = self._normalize_message(
+            "agent_message",
+            content,
+            agentId=agent_id,
+        )
         self._broadcast(message)
-    
+
     def price(self, value: float):
         """Price update"""
-        message = self._normalize_message('price', str(value), price=float(value))
+        message = self._normalize_message(
+            "price",
+            str(value),
+            price=float(value),
+        )
         self._broadcast(message)
-    
+
     def default_print(self, content: str, type: str):
         """Default print (generic interface)"""
         message = self._normalize_message(type, content)
         self._broadcast(message)
-    
-    def print(self, event_type: str = "", content: str = "", **kwargs):
+
+    def print(self, type: str = "", content: str = "", **kwargs):
         """
         Generic print interface (enhanced version)
         Supports arbitrary event types and custom fields
         """
-        if event_type in ("system", ""):
+        if type in ("system", ""):
             self.system(content)
-        elif event_type == "agent":
+        elif type == "agent":
             role_key = kwargs.get("role_key", "_default")
             self.agent(role_key, content)
-        elif event_type == "price":
+        elif type == "price":
             try:
                 value = float(content)
                 self.price(value)
@@ -265,5 +299,5 @@ class BroadcastStreamer(BaseStreamer):
                 self.price(0.0)
         else:
             # Handle all other message types
-            message = self._normalize_message(event_type, content, **kwargs)
+            message = self._normalize_message(type, content, **kwargs)
             self._broadcast(message)

@@ -61,8 +61,8 @@ Documentation = "https://github.com/yourusername/evotraders"
 evotraders = "backend.cli:app"
 
 [tool.setuptools]
-packages = ["backend", "backend.agents", "backend.communication", "backend.config", 
-            "backend.dashboard", "backend.data", "backend.graph", "backend.llm", 
+packages = ["backend", "backend.agents", "backend.communication", "backend.config",
+            "backend.dashboard", "backend.data", "backend.graph", "backend.llm",
             "backend.memory", "backend.pipelines", "backend.servers",
             "backend.tools", "backend.utils"]
 

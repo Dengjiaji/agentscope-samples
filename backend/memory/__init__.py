@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Memory System - Minimalist long-term memory system
 """
@@ -11,12 +12,12 @@ from .reflection import MemoryReflectionSystem, create_reflection_system
 
 
 __all__ = [
-    'LongTermMemory',
-    'Mem0Memory',
-    'ReMeMemory',
-    'get_memory',
-    'reset_memory',
-    'reset_analyst_memory',
-    'MemoryReflectionSystem',
-    'create_reflection_system',
+    "LongTermMemory",
+    "Mem0Memory",
+    "ReMeMemory",
+    "get_memory",
+    "reset_memory",
+    "reset_analyst_memory",
+    "MemoryReflectionSystem",
+    "create_reflection_system",
 ]

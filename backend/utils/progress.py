@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from datetime import datetime, timezone
 from rich.console import Console
 from rich.live import Live
@@ -17,14 +18,22 @@ class AgentProgress:
         self.table = Table(show_header=False, box=None, padding=(0, 1))
         self.live = Live(self.table, console=console, refresh_per_second=4)
         self.started = False
-        self.update_handlers: List[Callable[[str, Optional[str], str], None]] = []
+        self.update_handlers: List[
+            Callable[[str, Optional[str], str], None]
+        ] = []
 
-    def register_handler(self, handler: Callable[[str, Optional[str], str], None]):
+    def register_handler(
+        self,
+        handler: Callable[[str, Optional[str], str], None],
+    ):
         """Register a handler to be called when agent status updates."""
         self.update_handlers.append(handler)
         return handler  # Return handler to support use as decorator
 
-    def unregister_handler(self, handler: Callable[[str, Optional[str], str], None]):
+    def unregister_handler(
+        self,
+        handler: Callable[[str, Optional[str], str], None],
+    ):
         """Unregister a previously registered handler."""
         if handler in self.update_handlers:
             self.update_handlers.remove(handler)
@@ -41,7 +50,13 @@ class AgentProgress:
             self.live.stop()
             self.started = False
 
-    def update_status(self, agent_name: str, ticker: Optional[str] = None, status: str = "", analysis: Optional[str] = None):
+    def update_status(
+        self,
+        agent_name: str,
+        ticker: Optional[str] = None,
+        status: str = "",
+        analysis: Optional[str] = None,
+    ):
         """Update the status of an agent."""
         if agent_name not in self.agent_status:
             self.agent_status[agent_name] = {"status": "", "ticker": None}
@@ -52,7 +67,7 @@ class AgentProgress:
             self.agent_status[agent_name]["status"] = status
         if analysis:
             self.agent_status[agent_name]["analysis"] = analysis
-        
+
         # Set the timestamp as UTC datetime
         timestamp = datetime.now(timezone.utc).isoformat()
         self.agent_status[agent_name]["timestamp"] = timestamp
@@ -65,7 +80,14 @@ class AgentProgress:
 
     def get_all_status(self):
         """Get the current status of all agents as a dictionary."""
-        return {agent_name: {"ticker": info["ticker"], "status": info["status"], "display_name": self._get_display_name(agent_name)} for agent_name, info in self.agent_status.items()}
+        return {
+            agent_name: {
+                "ticker": info["ticker"],
+                "status": info["status"],
+                "display_name": self._get_display_name(agent_name),
+            }
+            for agent_name, info in self.agent_status.items()
+        }
 
     def _get_display_name(self, agent_name: str) -> str:
         """Convert agent_name to a display-friendly format."""
@@ -86,7 +108,10 @@ class AgentProgress:
             else:
                 return (1, agent_name)
 
-        for agent_name, info in sorted(self.agent_status.items(), key=sort_key):
+        for agent_name, info in sorted(
+            self.agent_status.items(),
+            key=sort_key,
+        ):
             status = info["status"]
             ticker = info["ticker"]
             # Create the status text with appropriate styling

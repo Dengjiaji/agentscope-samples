@@ -13,39 +13,39 @@ export default function StatisticsView({ trades, holdings, stats, baseline_vw, e
   const [tradesPage, setTradesPage] = useState(1);
   const holdingsPerPage = 5;
   const tradesPerPage = 8;
-  
+
   // Calculate pagination for holdings
   const totalHoldingsPages = Math.ceil(holdings.length / holdingsPerPage);
   const holdingsStartIndex = (holdingsPage - 1) * holdingsPerPage;
   const holdingsEndIndex = holdingsStartIndex + holdingsPerPage;
   const currentHoldings = holdings.slice(holdingsStartIndex, holdingsEndIndex);
-  
+
   // Calculate pagination for trades
   const totalTradesPages = Math.ceil(trades.length / tradesPerPage);
   const tradesStartIndex = (tradesPage - 1) * tradesPerPage;
   const tradesEndIndex = tradesStartIndex + tradesPerPage;
   const currentTrades = trades.slice(tradesStartIndex, tradesEndIndex);
-  
+
   // Calculate excess return (Evatraders return - benchmark value-weighted return)
   const calculateExcessReturn = () => {
     if (!stats || !baseline_vw || baseline_vw.length === 0) {
       return null;
     }
-    
+
     // Get Evatraders return from stats
     const evatradersReturn = stats.totalReturn || 0; // Already in percentage
-    
+
     // Calculate benchmark return from baseline_vw
     // baseline_vw format: [{t: timestamp, v: value}, ...] or [value, ...]
     let benchmarkInitialValue, benchmarkCurrentValue;
-    
+
     if (baseline_vw.length > 0) {
       const firstPoint = baseline_vw[0];
       const lastPoint = baseline_vw[baseline_vw.length - 1];
-      
+
       benchmarkInitialValue = typeof firstPoint === 'object' ? firstPoint.v : firstPoint;
       benchmarkCurrentValue = typeof lastPoint === 'object' ? lastPoint.v : lastPoint;
-      
+
       if (benchmarkInitialValue && benchmarkInitialValue > 0 && benchmarkCurrentValue) {
         const benchmarkReturn = ((benchmarkCurrentValue - benchmarkInitialValue) / benchmarkInitialValue) * 100;
         const excessReturn = evatradersReturn - benchmarkReturn;
@@ -56,31 +56,31 @@ export default function StatisticsView({ trades, holdings, stats, baseline_vw, e
         };
       }
     }
-    
+
     return null;
   };
-  
+
   const excessReturnData = calculateExcessReturn();
-  
+
   // Reset to page 1 when data changes
   useEffect(() => {
     setHoldingsPage(1);
   }, [holdings.length]);
-  
+
   useEffect(() => {
     setTradesPage(1);
   }, [trades.length]);
-  
+
   return (
-    <div style={{ 
-      display: 'flex', 
-      height: '100%', 
+    <div style={{
+      display: 'flex',
+      height: '100%',
       overflow: 'hidden',
       background: '#f5f5f5'
     }}>
       {/* Left Panel: Performance Overview (35%) */}
-      <div style={{ 
-        width: '35%', 
+      <div style={{
+        width: '35%',
         display: 'flex',
         flexDirection: 'column',
         background: '#ffffff',
@@ -88,7 +88,7 @@ export default function StatisticsView({ trades, holdings, stats, baseline_vw, e
         overflow: 'hidden'
       }}>
         {stats ? (
-          <div style={{ 
+          <div style={{
             padding: '24px',
             display: 'flex',
             flexDirection: 'column',
@@ -111,7 +111,7 @@ export default function StatisticsView({ trades, holdings, stats, baseline_vw, e
                 Performance
               </h2>
             </div>
-            
+
             {/* Main Stats - Hierarchical Layout */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 20 }}>
               {/* Primary Metric - Total Asset Value */}
@@ -139,7 +139,7 @@ export default function StatisticsView({ trades, holdings, stats, baseline_vw, e
                   ${formatNumber(stats.totalAssetValue || 0)}
                 </div>
               </div>
-              
+
               {/* Secondary Metrics - Grid: Excess Return, Win Rate, Absolute Return */}
               <div style={{
                 display: 'grid',
@@ -179,7 +179,7 @@ export default function StatisticsView({ trades, holdings, stats, baseline_vw, e
                     </div>
                   </div>
                 ) : null}
-                
+
                 {/* 2. Win Rate */}
                 <div>
                   <div style={{
@@ -201,7 +201,7 @@ export default function StatisticsView({ trades, holdings, stats, baseline_vw, e
                     {Math.round(stats.winRate * 100)}%
                   </div>
                 </div>
-                
+
                 {/* 3. Absolute Return */}
                 <div>
                   <div style={{
@@ -224,7 +224,7 @@ export default function StatisticsView({ trades, holdings, stats, baseline_vw, e
                   </div>
                 </div>
               </div>
-              
+
               {/* Tertiary Metrics - Compact List */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{
@@ -252,7 +252,7 @@ export default function StatisticsView({ trades, holdings, stats, baseline_vw, e
                     ${formatNumber(stats.cashPosition || 0)}
                   </div>
                 </div>
-                
+
                 <div style={{
                   display: 'flex',
                   justifyContent: 'space-between',
@@ -279,17 +279,17 @@ export default function StatisticsView({ trades, holdings, stats, baseline_vw, e
                   </div>
                 </div>
               </div>
-              
+
               {/* Ticker Weights - Compact */}
               {stats.tickerWeights && Object.keys(stats.tickerWeights).length > 0 && (
-                <div style={{ 
+                <div style={{
                   marginTop: 'auto',
                   paddingTop: 20,
                   borderTop: '1px solid #e0e0e0'
                 }}>
-                  <div style={{ 
-                    fontSize: 10, 
-                    fontWeight: 700, 
+                  <div style={{
+                    fontSize: 10,
+                    fontWeight: 700,
                     marginBottom: 12,
                     letterSpacing: 1,
                     textTransform: 'uppercase',
@@ -297,7 +297,7 @@ export default function StatisticsView({ trades, holdings, stats, baseline_vw, e
                   }}>
                     Portfolio Weights
                   </div>
-                  <div className="statistics-table-container" style={{ 
+                  <div className="statistics-table-container" style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(2, 1fr)',
                     gap: 8,
@@ -325,7 +325,7 @@ export default function StatisticsView({ trades, holdings, stats, baseline_vw, e
             </div>
           </div>
         ) : (
-          <div style={{ 
+          <div style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -338,10 +338,10 @@ export default function StatisticsView({ trades, holdings, stats, baseline_vw, e
           </div>
         )}
       </div>
-      
+
       {/* Right Panel: Holdings + Trades (65%) */}
-      <div style={{ 
-        width: '65%', 
+      <div style={{
+        width: '65%',
         display: 'flex',
         flexDirection: 'column',
         background: '#ffffff',
@@ -373,7 +373,7 @@ export default function StatisticsView({ trades, holdings, stats, baseline_vw, e
               Portfolio Holdings
             </h2>
           </div>
-          
+
           <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             {holdings.length === 0 ? (
               <div style={{
@@ -418,7 +418,7 @@ export default function StatisticsView({ trades, holdings, stats, baseline_vw, e
                     </tbody>
                   </table>
                 </div>
-                
+
                 {totalHoldingsPages > 1 && (
                   <div style={{
                     padding: '12px 20px',
@@ -429,19 +429,19 @@ export default function StatisticsView({ trades, holdings, stats, baseline_vw, e
                     flexShrink: 0,
                     background: '#fafafa'
                   }}>
-                    <button 
+                    <button
                       className="pagination-btn"
                       onClick={() => setHoldingsPage(p => Math.max(1, p - 1))}
                       disabled={holdingsPage === 1}
                     >
                       ◀ Prev
                     </button>
-                    
+
                     <div className="pagination-info">
                       {holdingsPage} / {totalHoldingsPages}
                     </div>
-                    
-                    <button 
+
+                    <button
                       className="pagination-btn"
                       onClick={() => setHoldingsPage(p => Math.min(totalHoldingsPages, p + 1))}
                       disabled={holdingsPage === totalHoldingsPages}
@@ -454,7 +454,7 @@ export default function StatisticsView({ trades, holdings, stats, baseline_vw, e
             )}
           </div>
         </div>
-        
+
         {/* Transaction History - Bottom Half */}
         <div style={{
           flex: 1,
@@ -484,8 +484,8 @@ export default function StatisticsView({ trades, holdings, stats, baseline_vw, e
               Transaction History
             </h2>
             {trades.length > 0 && (
-              <div style={{ 
-                fontSize: 10, 
+              <div style={{
+                fontSize: 10,
                 color: '#666666',
                 fontFamily: '"Courier New", monospace'
               }}>
@@ -493,7 +493,7 @@ export default function StatisticsView({ trades, holdings, stats, baseline_vw, e
               </div>
             )}
           </div>
-          
+
           <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             {trades.length === 0 ? (
               <div style={{
@@ -551,7 +551,7 @@ export default function StatisticsView({ trades, holdings, stats, baseline_vw, e
                     </tbody>
                   </table>
                 </div>
-                
+
                 {totalTradesPages > 1 && (
                   <div style={{
                     padding: '12px 20px',
@@ -562,19 +562,19 @@ export default function StatisticsView({ trades, holdings, stats, baseline_vw, e
                     flexShrink: 0,
                     background: '#fafafa'
                   }}>
-                    <button 
+                    <button
                       className="pagination-btn"
                       onClick={() => setTradesPage(p => Math.max(1, p - 1))}
                       disabled={tradesPage === 1}
                     >
                       ◀ Prev
                     </button>
-                    
+
                     <div className="pagination-info">
                       {tradesPage} / {totalTradesPages}
                     </div>
-                    
-                    <button 
+
+                    <button
                       className="pagination-btn"
                       onClick={() => setTradesPage(p => Math.min(totalTradesPages, p + 1))}
                       disabled={tradesPage === totalTradesPages}

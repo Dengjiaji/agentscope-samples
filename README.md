@@ -16,20 +16,20 @@ EvoTraders is an open-source financial trading agent framework that builds a tra
 
 ## Core Features
 
-**Multi-Agent Collaborative Trading**  
+**Multi-Agent Collaborative Trading**
 A team of 6 members, including 4 specialized analyst roles (fundamentals, technical, sentiment, valuation) + portfolio manager + risk management, collaborating to make decisions like a real trading team.
 
 You can customize your Agents here: [Custom Configuration](#custom-configuration)
 
-**Continuous Learning and Evolution**  
+**Continuous Learning and Evolution**
 Based on the ReMe memory framework, agents reflect and summarize after each trade, preserving experience across rounds, and forming unique investment methodologies.
 
 Through this design, we hope that when AI Agents form a team and enter the real-time market, they will gradually develop their own trading styles and decision preferences, rather than one-time random inference.
 
-**Real-Time Market Trading**  
+**Real-Time Market Trading**
 Supports real-time market data integration, providing backtesting mode and live trading mode, allowing AI Agents to learn and make decisions in real market fluctuations.
 
-**Visualized Trading Information**  
+**Visualized Trading Information**
 Observe agents' analysis processes, communication records, and decision evolution in real-time, with complete tracking of return curves and analyst performance.
 
 <p>
@@ -169,7 +169,7 @@ ANALYST_TYPES = {
 ```javascript
 export const AGENTS = [
     // Override one of the agents
-  { 
+  {
     id: "comprehensive_analyst",
     name: "Comprehensive Analyst",
     role: "Comprehensive Analyst",

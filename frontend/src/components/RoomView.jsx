@@ -50,20 +50,20 @@ function getRankMedal(rank) {
 export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus, lastDayHistory, onJumpToMessage }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
-  
+
   // Agent selection and hover state
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [hoveredAgent, setHoveredAgent] = useState(null);
   const [isClosing, setIsClosing] = useState(false);
   const hoverTimerRef = useRef(null);
   const closeTimerRef = useRef(null);
-  
+
   // Bubble expansion state
   const [expandedBubbles, setExpandedBubbles] = useState({});
-  
+
   // Hidden bubbles (locally dismissed)
   const [hiddenBubbles, setHiddenBubbles] = useState({});
-  
+
   // Handle bubble close
   const handleCloseBubble = (agentId, bubbleKey, e) => {
     e.stopPropagation();
@@ -72,95 +72,95 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
       [bubbleKey]: true
     }));
   };
-  
+
   // Replay state (must be defined before using in useMemo)
   const [isReplaying, setIsReplaying] = useState(false);
   const [replayBubbles, setReplayBubbles] = useState({});
   const replayTimerRef = useRef(null);
   const replayTimeoutsRef = useRef([]);
-  
+
   // Select background image based on market status and replay state
   const roomBgSrc = useMemo(() => {
     const status = marketStatus?.status;
-    
+
     // During replay, always use light background with roles
     if (isReplaying) {
       return ASSETS.roomBg; // full_room_with_roles_tech_style.png
     }
-    
+
     // Check if market is closed (handle both 'close' and 'closed')
     if (marketStatus && (status === 'close' || status === 'closed')) {
       // return `${ASSET_BASE_URL}/full_room_dark.png`;
       return ASSETS.roomBg;
     }
-    
+
     // Default to light background (market open or no status)
     return ASSETS.roomBg; // full_room_with_roles_tech_style.png
   }, [marketStatus?.status, isReplaying]);
-  
+
   const bgImg = useImage(roomBgSrc);
-  
+
   // Calculate scale to fit canvas in container (80% of available space)
   const [scale, setScale] = useState(0.8);
-  
+
   useEffect(() => {
     const updateScale = () => {
       const container = containerRef.current;
       if (!container) return;
-      
+
       const { clientWidth, clientHeight } = container;
       if (clientWidth <= 0 || clientHeight <= 0) return;
-      
+
       const scaleX = clientWidth / SCENE_NATIVE.width;
       const scaleY = clientHeight / SCENE_NATIVE.height;
       const newScale = Math.min(scaleX, scaleY, 1.0) * 0.8; // Scale to 80% of original size
       setScale(Math.max(0.3, newScale));
     };
-    
+
     updateScale();
     const resizeObserver = new ResizeObserver(updateScale);
     if (containerRef.current) {
       resizeObserver.observe(containerRef.current);
     }
     window.addEventListener('resize', updateScale);
-    
+
     return () => {
       resizeObserver.disconnect();
       window.removeEventListener('resize', updateScale);
     };
   }, []);
-  
+
   // Set canvas size
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
+
     canvas.width = SCENE_NATIVE.width;
     canvas.height = SCENE_NATIVE.height;
-    
+
     const displayWidth = Math.round(SCENE_NATIVE.width * scale);
     const displayHeight = Math.round(SCENE_NATIVE.height * scale);
     canvas.style.width = `${displayWidth}px`;
     canvas.style.height = `${displayHeight}px`;
   }, [scale]);
-  
+
   // Draw room background
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
+
     const ctx = canvas.getContext('2d');
     ctx.imageSmoothingEnabled = false;
-    
+
     // Clear canvas first
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
+
     // Draw image if loaded
     if (bgImg) {
       ctx.drawImage(bgImg, 0, 0, SCENE_NATIVE.width, SCENE_NATIVE.height);
     }
   }, [bgImg, scale, roomBgSrc]);
-  
+
   // Determine which agents are speaking
   const speakingAgents = useMemo(() => {
     const speaking = {};
@@ -170,12 +170,12 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
     });
     return speaking;
   }, [bubbles, bubbleFor]);
-  
+
   // Find agent data from leaderboard
   const getAgentData = (agentId) => {
     const agent = AGENTS.find(a => a.id === agentId);
     if (!agent) return null;
-    
+
     // If no leaderboard data, return agent with default stats
     if (!leaderboard || !Array.isArray(leaderboard)) {
       return {
@@ -187,9 +187,9 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
         rank: null
       };
     }
-    
+
     const leaderboardData = leaderboard.find(lb => lb.agentId === agentId);
-    
+
     // If agent not in leaderboard, return agent with default stats
     if (!leaderboardData) {
       return {
@@ -201,7 +201,7 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
         rank: null
       };
     }
-    
+
     // Merge data but preserve the correct avatar from AGENTS config
     return {
       ...agent,
@@ -209,13 +209,13 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
       avatar: agent.avatar  // Always use the frontend's avatar URL
     };
   };
-  
+
   // Get agent rank for display
   const getAgentRank = (agentId) => {
     const agentData = getAgentData(agentId);
     return agentData?.rank || null;
   };
-  
+
   // Handle agent click
   const handleAgentClick = (agentId) => {
     // Cancel any closing animation
@@ -224,13 +224,13 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
       closeTimerRef.current = null;
     }
     setIsClosing(false);
-    
+
     const agentData = getAgentData(agentId);
     if (agentData) {
       setSelectedAgent(agentData);
     }
   };
-  
+
   // Handle agent hover
   const handleAgentMouseEnter = (agentId) => {
     setHoveredAgent(agentId);
@@ -245,7 +245,7 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
       closeTimerRef.current = null;
     }
     setIsClosing(false);
-    
+
     // If there's already a selected agent, switch immediately
     // Otherwise, show after a short delay (0ms = immediate)
     const agentData = getAgentData(agentId);
@@ -262,7 +262,7 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
       }
     }
   };
-  
+
   const handleAgentMouseLeave = () => {
     setHoveredAgent(null);
     // Clear timer if mouse leaves before 1.5 seconds
@@ -271,7 +271,7 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
       hoverTimerRef.current = null;
     }
   };
-  
+
   // Handle closing with animation
   const handleClose = () => {
     setIsClosing(true);
@@ -282,7 +282,7 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
       closeTimerRef.current = null;
     }, 200); // Match the slideUp animation duration
   };
-  
+
   // Cleanup timer on unmount
   useEffect(() => {
     return () => {
@@ -300,66 +300,66 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
       replayTimeoutsRef.current = [];
     };
   }, []);
-  
+
   // Determine if replay button should be shown (only when market is closed)
   const showReplayButton = useMemo(() => {
     const status = marketStatus?.status;
     return (status === 'close' || status === 'closed') && !isReplaying;
   }, [marketStatus?.status, isReplaying]);
-  
+
   // Start replay with local data
   const handleReplayClick = useCallback(() => {
     if (!lastDayHistory || lastDayHistory.length === 0) {
       alert('No replay data available');
       return;
     }
-    
+
     console.log(`🎬 Starting replay with ${lastDayHistory.length} events`);
     startReplay(lastDayHistory);
   }, [lastDayHistory]);
-  
+
   // Start replay with feed history data
   const startReplay = useCallback((events) => {
     if (!events || events.length === 0) {
       alert('No replay data available');
       return;
     }
-    
+
     console.log(`🎬 Starting replay with ${events.length} events`);
-    
+
     setIsReplaying(true);
     setReplayBubbles({});
-    
+
     // Clear any existing timeouts
     replayTimeoutsRef.current.forEach(timeoutId => clearTimeout(timeoutId));
     replayTimeoutsRef.current = [];
-    
+
     // Filter only agent_message events
     const agentMessages = events.filter(e => e.type === 'agent_message');
-    
+
     if (agentMessages.length === 0) {
       alert('No agent messages to replay');
       setIsReplaying(false);
       return;
     }
-    
+
     // Calculate relative timestamps (3 seconds between each message)
     const messageInterval = 3000;
-    
+
     agentMessages.forEach((event, index) => {
       const delay = index * messageInterval;
-      
+
       // Show bubble
       const showTimeout = setTimeout(() => {
         // Find agent by ID or name
-        const agent = AGENTS.find(a => 
-          a.id === event.agentId || 
-          a.name === event.agentId || 
+        const agent = AGENTS.find(a =>
+          a.id === event.agentId ||
+          a.name === event.agentId ||
           a.name === event.agentName
         );
-        
+
         const bubbleId = `replay_${agent?.id || event.agentId}_${index}`;
-        
+
         setReplayBubbles(prev => ({
           ...prev,
           [bubbleId]: {
@@ -370,7 +370,7 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
             timestamp: Date.now()
           }
         }));
-        
+
         // Remove bubble after 5 seconds
         const hideTimeout = setTimeout(() => {
           setReplayBubbles(prev => {
@@ -379,13 +379,13 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
             return newBubbles;
           });
         }, 5000);
-        
+
         replayTimeoutsRef.current.push(hideTimeout);
       }, delay);
-      
+
       replayTimeoutsRef.current.push(showTimeout);
     });
-    
+
     // End replay after all events complete
     const totalDuration = agentMessages.length * messageInterval + 6000;
     const endTimeout = setTimeout(() => {
@@ -394,28 +394,28 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
       setReplayBubbles({});
       replayTimeoutsRef.current = [];
     }, totalDuration);
-    
+
     replayTimeoutsRef.current.push(endTimeout);
-    
+
   }, []);
-  
+
   // Stop replay
   const stopReplay = useCallback(() => {
     console.log('⏹️ Stopping replay');
-    
+
     // Clear all timeouts
     replayTimeoutsRef.current.forEach(timeoutId => clearTimeout(timeoutId));
     replayTimeoutsRef.current = [];
-    
+
     if (replayTimerRef.current) {
       clearTimeout(replayTimerRef.current);
       replayTimerRef.current = null;
     }
-    
+
     setIsReplaying(false);
     setReplayBubbles({});
   }, []);
-  
+
   // Get bubble for specific agent (supports both live and replay mode)
   const getBubbleForAgent = useCallback((agentName) => {
     if (isReplaying) {
@@ -430,7 +430,7 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
       return bubbleFor(agentName);
     }
   }, [isReplaying, replayBubbles, bubbleFor]);
-  
+
   return (
     <div className="room-view">
       {/* Agents Indicator Bar */}
@@ -440,9 +440,9 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
           const medal = rank ? getRankMedal(rank) : null;
           const agentData = getAgentData(agent.id);
           const modelInfo = getModelIcon(agentData?.modelName, agentData?.modelProvider);
-          
+
           return (
-            <div 
+            <div
               key={agent.id}
               className={`agent-indicator ${speakingAgents[agent.id] ? 'speaking' : ''} ${hoveredAgent === agent.id ? 'hovered' : ''}`}
               onClick={() => handleAgentClick(agent.id)}
@@ -450,8 +450,8 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
               onMouseLeave={handleAgentMouseLeave}
             >
               <div className="agent-avatar-wrapper">
-                <img 
-                  src={agent.avatar} 
+                <img
+                  src={agent.avatar}
                   alt={agent.name}
                   className="agent-avatar"
                 />
@@ -462,7 +462,7 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
                   </span>
                 )}
                 {modelInfo.logoPath && (
-                  <img 
+                  <img
                     src={modelInfo.logoPath}
                     alt={modelInfo.provider}
                     className="agent-model-badge"
@@ -487,41 +487,41 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
             </div>
           );
         })}
-        
+
         {/* Hint Text */}
         <div className="agent-hint-text">
           Click avatar to view details
         </div>
       </div>
-      
+
       {/* Room Canvas */}
       <div className="room-canvas-container" ref={containerRef}>
         <div className="room-scene">
           <div className="room-scene-wrapper" style={{ width: Math.round(SCENE_NATIVE.width * scale), height: Math.round(SCENE_NATIVE.height * scale) }}>
             <canvas ref={canvasRef} className="room-canvas" />
-            
+
             {/* Speech Bubbles */}
             {AGENTS.map((agent, idx) => {
               const bubble = getBubbleForAgent(agent.name);
               if (!bubble) return null;
-              
+
               const bubbleKey = `${agent.id}_${bubble.timestamp || bubble.id || bubble.ts}`;
-              
+
               // Check if bubble is hidden
               if (hiddenBubbles[bubbleKey]) return null;
-              
+
               const pos = AGENT_SEATS[idx];
               const scaledWidth = SCENE_NATIVE.width * scale;
               const scaledHeight = SCENE_NATIVE.height * scale;
-              
+
               // Bubble left-bottom corner aligns to agent position
               const left = Math.round(pos.x * scaledWidth);
               const bottom = Math.round(pos.y * scaledHeight);
-              
+
               // Get agent data for model info
               const agentData = getAgentData(agent.id);
               const modelInfo = getModelIcon(agentData?.modelName, agentData?.modelProvider);
-              
+
               // Truncate long text - 200 collapsed, 500 expanded max
               const maxLength = 200;
               const maxExpandedLength = 500;
@@ -532,7 +532,7 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
                 : (isExpanded && bubble.text.length > maxExpandedLength)
                   ? bubble.text.substring(0, maxExpandedLength) + '...'
                   : bubble.text;
-              
+
               const toggleExpand = (e) => {
                 e.stopPropagation();
                 setExpandedBubbles(prev => ({
@@ -540,30 +540,30 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
                   [bubbleKey]: !prev[bubbleKey]
                 }));
               };
-              
+
               const handleJumpToFeed = (e) => {
                 e.stopPropagation();
                 if (onJumpToMessage) {
                   onJumpToMessage(bubble);
                 }
               };
-              
+
               return (
-                <div 
-                  key={agent.id} 
+                <div
+                  key={agent.id}
                   className="room-bubble"
                   style={{ left, bottom }}
                 >
                   {/* Action buttons */}
                   <div className="bubble-action-buttons">
-                    <button 
+                    <button
                       className="bubble-jump-btn"
                       onClick={handleJumpToFeed}
                       title="Jump to message in feed"
                     >
                       ↗
                     </button>
-                    <button 
+                    <button
                       className="bubble-close-btn"
                       onClick={(e) => handleCloseBubble(agent.id, bubbleKey, e)}
                       title="Close bubble"
@@ -571,11 +571,11 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
                       ×
                     </button>
                   </div>
-                  
+
                   {/* Agent header with model icon */}
                   <div className="room-bubble-header">
                     {modelInfo.logoPath && (
-                      <img 
+                      <img
                         src={modelInfo.logoPath}
                         alt={modelInfo.provider}
                         className="bubble-model-icon"
@@ -583,14 +583,14 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
                     )}
                     <div className="room-bubble-name">{bubble.agentName || agent.name}</div>
                   </div>
-                  
+
                   <div className="room-bubble-divider"></div>
-                  
+
                   {/* Message content */}
                   <div className="room-bubble-content">
                     {displayText}
                     {isTruncated && (
-                      <button 
+                      <button
                         className="bubble-expand-btn"
                         onClick={toggleExpand}
                       >
@@ -603,29 +603,29 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
             })}
           </div>
         </div>
-        
+
         {/* Agent Card - Dropdown style below indicator bar */}
         {selectedAgent && (
           <>
             {/* Transparent overlay to close card */}
-            <div 
+            <div
               className="agent-card-overlay"
               onClick={handleClose}
             />
-            
+
             {/* Agent Card */}
-            <AgentCard 
+            <AgentCard
               agent={selectedAgent}
               isClosing={isClosing}
               onClose={handleClose}
             />
           </>
         )}
-        
+
         {/* Replay Button - Only shown when market is closed and not replaying */}
         {showReplayButton && (
           <div className="replay-button-container">
-            <button 
+            <button
               className="replay-button"
               onClick={handleReplayClick}
               disabled={!lastDayHistory || lastDayHistory.length === 0}
@@ -636,14 +636,14 @@ export default function RoomView({ bubbles, bubbleFor, leaderboard, marketStatus
             </button>
           </div>
         )}
-        
+
         {/* Replay Indicator - Shown during replay */}
         {isReplaying && (
           <div className="replay-indicator">
             <span className="replay-status">
               REPLAYING LAST DAY
             </span>
-            <button 
+            <button
               className="stop-replay-button"
               onClick={stopReplay}
             >

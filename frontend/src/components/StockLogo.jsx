@@ -8,10 +8,10 @@ import { STOCK_LOGOS } from '../config/constants';
 export default function StockLogo({ ticker, size = 20 }) {
   const logoUrl = STOCK_LOGOS[ticker];
   if (!logoUrl) return null;
-  
+
   return (
-    <img 
-      src={logoUrl} 
+    <img
+      src={logoUrl}
       alt={ticker}
       style={{
         width: size,

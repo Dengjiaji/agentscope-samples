@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from pydantic import BaseModel
 
 
@@ -100,7 +101,7 @@ class InsiderTradeResponse(BaseModel):
 
 
 class CompanyNews(BaseModel):
-    category:str | None = None
+    category: str | None = None
     ticker: str
     title: str
     related: str | None = None
@@ -141,6 +142,7 @@ class CompanyFactsResponse(BaseModel):
 
 class Position(BaseModel):
     """Position information - for Portfolio mode"""
+
     long: int = 0  # Long position quantity (shares)
     short: int = 0  # Short position quantity (shares)
     long_cost_basis: float = 0.0  # Long position average cost
@@ -149,6 +151,7 @@ class Position(BaseModel):
 
 class Portfolio(BaseModel):
     """Portfolio - for Portfolio mode"""
+
     cash: float = 100000.0  # Available cash
     positions: dict[str, Position] = {}  # ticker -> Position mapping
     margin_requirement: float = 0.0  # Margin requirement (0.0 means shorting disabled, 0.5 means 50% margin)

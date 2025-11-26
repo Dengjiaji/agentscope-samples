@@ -8,10 +8,10 @@ export default function GlobalStyles() {
   return (
     <style>{`
       * { box-sizing: border-box; }
-      html, body, #root { 
-        height: 100%; 
+      html, body, #root {
+        height: 100%;
         width: 100%;
-        margin: 0; 
+        margin: 0;
         padding: 0;
         max-width: none;
       }
@@ -24,11 +24,11 @@ export default function GlobalStyles() {
         font-size: 11px;
         line-height: 1.5;
       }
-      
+
       /* Import fonts */
       @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap');
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-      
+
       /* Layout */
       .app {
         display: flex;
@@ -39,7 +39,7 @@ export default function GlobalStyles() {
         background: #f5f5f5;
         max-width: none;
       }
-      
+
       /* Header */
       .header {
         background: #ffffff;
@@ -53,7 +53,7 @@ export default function GlobalStyles() {
         max-width: none;
         flex-wrap: wrap;
       }
-      
+
       .header-title {
         padding: 18px 20px;
         font-size: 15px;
@@ -67,7 +67,7 @@ export default function GlobalStyles() {
         min-width: 0;
         flex-wrap: wrap;
       }
-      
+
       /* Align header links when wrapped */
       @media (max-width: 1200px) {
         .header-title {
@@ -75,17 +75,17 @@ export default function GlobalStyles() {
           width: 100%;
           gap: 12px;
         }
-        
+
         .header-title > span[style*="width: 2px"] {
           margin: 0 8px !important;
         }
       }
-      
+
       /* Header right section - responsive wrapping */
       .header-right {
         flex: 0 1 auto;
       }
-      
+
       /* Ensure header-right section takes full width when wrapped */
       @media (max-width: 1200px) {
         .header-right {
@@ -95,7 +95,7 @@ export default function GlobalStyles() {
           justify-content: center;
         }
       }
-      
+
       .header-link {
         font-size: 13px;
         font-weight: 600;
@@ -108,29 +108,29 @@ export default function GlobalStyles() {
         padding: 4px 8px;
         border-radius: 3px;
       }
-      
+
       .header-link:hover {
         color: #615CED;
         background: #f5f5f5;
       }
-      
+
       .link-arrow {
         font-size: 12px;
         color: #666666;
         transition: transform 0.2s;
       }
-      
+
       .header-link:hover .link-arrow {
         transform: translateY(-2px);
         color: #615CED;
       }
-      
+
       .header-tabs {
         display: flex;
         align-items: stretch;
         flex: 1;
       }
-      
+
       .header-tab {
         padding: 14px 24px;
         border: none;
@@ -147,23 +147,23 @@ export default function GlobalStyles() {
         text-transform: uppercase;
         position: relative;
       }
-      
+
       .header-tab:hover {
         background: #f5f5f5;
         color: #000000;
       }
-      
+
       .header-tab.active {
         background: #615CED;
         color: #ffffff;
       }
-      
+
       .header-tab:focus {
         background: #615CED;
         color: #ffffff;
         outline: none;
       }
-      
+
       .header-status {
         padding: 18px 20px;
         display: flex;
@@ -173,14 +173,14 @@ export default function GlobalStyles() {
         font-size: 13px;
         color: #666666;
       }
-      
+
       .last-update-text {
         font-size: 11px;
         color: #333333;
         font-family: 'IBM Plex Mono', monospace;
         font-weight: 600;
       }
-      
+
       .market-status-indicator {
         display: flex;
         align-items: center;
@@ -190,17 +190,17 @@ export default function GlobalStyles() {
         border: 1px solid;
         transition: all 0.2s;
       }
-      
+
       .market-status-indicator.live {
         background: linear-gradient(135deg, #23CD32 0%, #00380C 100%);
         border-color: #23CD32;
       }
-      
+
       .market-status-indicator.disconnected {
         background: linear-gradient(135deg, #FE2E50 0%, #00000E 100%);
         border-color: #FE2E50;
       }
-      
+
       .market-status-dot {
         width: 10px;
         height: 10px;
@@ -208,7 +208,7 @@ export default function GlobalStyles() {
         flex-shrink: 0;
         box-shadow: 0 0 4px rgba(255, 255, 255, 0.3);
       }
-      
+
       .market-status-text {
         font-size: 13px;
         font-weight: 600;
@@ -216,20 +216,20 @@ export default function GlobalStyles() {
         font-family: 'IBM Plex Mono', monospace;
         letter-spacing: 0.5px;
       }
-      
+
       .status-indicator {
         font-weight: 700;
         font-size: 13px;
       }
-      
-      .status-indicator.live { 
+
+      .status-indicator.live {
         color: #00C853;
       }
-      
-      .status-indicator.disconnected { 
+
+      .status-indicator.disconnected {
         color: #FF1744;
       }
-      
+
       /* Ticker Bar */
       .ticker-bar {
         background: #000000;
@@ -243,18 +243,18 @@ export default function GlobalStyles() {
         max-width: none;
         position: relative;
       }
-      
+
       .ticker-track {
         display: flex;
         align-items: center;
         animation: ticker-scroll 40s linear infinite;
         will-change: transform;
       }
-      
+
       .ticker-track:hover {
         animation-play-state: paused;
       }
-      
+
       @keyframes ticker-scroll {
         from {
           transform: translateX(0);
@@ -263,7 +263,7 @@ export default function GlobalStyles() {
           transform: translateX(calc(-100% / 2));
         }
       }
-      
+
       .ticker-group {
         display: flex;
         align-items: center;
@@ -271,7 +271,7 @@ export default function GlobalStyles() {
         padding: 0 16px;
         flex-shrink: 0;
       }
-      
+
       .ticker-item {
         display: flex;
         align-items: center;
@@ -279,14 +279,14 @@ export default function GlobalStyles() {
         white-space: nowrap;
         flex-shrink: 0;
       }
-      
+
       .ticker-symbol {
         font-size: 11px;
         font-weight: 700;
         color: #ffffff;
         letter-spacing: 1px;
       }
-      
+
       .ticker-price {
         font-size: 13px;
         font-weight: 700;
@@ -296,16 +296,16 @@ export default function GlobalStyles() {
         display: inline-block;
         min-width: 60px;
       }
-      
+
       .ticker-price-value {
         display: inline-block;
         transition: transform 0.3s ease-out;
       }
-      
+
       .ticker-price-value.rolling {
         animation: roll 0.5s ease-out;
       }
-      
+
       @keyframes roll {
         0% {
           transform: translateY(-100%);
@@ -319,29 +319,29 @@ export default function GlobalStyles() {
           opacity: 1;
         }
       }
-      
+
       .ticker-change {
         font-size: 10px;
         font-weight: 700;
         padding: 2px 6px;
         border-radius: 0;
       }
-      
+
       .ticker-change.positive {
         color: #00C853;
         background: rgba(0, 200, 83, 0.1);
       }
-      
+
       .ticker-change.negative {
         color: #FF1744;
         background: rgba(255, 23, 68, 0.1);
       }
-      
+
       .ticker-change:not(.positive):not(.negative) {
         color: #666666;
         background: transparent;
       }
-      
+
       .portfolio-value {
         position: absolute;
         right: 0;
@@ -354,7 +354,7 @@ export default function GlobalStyles() {
         background: #000000;
         z-index: 10;
       }
-      
+
       .portfolio-value::before {
         content: '';
         position: absolute;
@@ -365,20 +365,20 @@ export default function GlobalStyles() {
         background: linear-gradient(to right, transparent, #000000);
         pointer-events: none;
       }
-      
+
       .portfolio-label {
         font-size: 11px;
         font-weight: 700;
         color: #999999;
         letter-spacing: 1px;
       }
-      
+
       .portfolio-amount {
         font-size: 16px;
         font-weight: 700;
         color: #ffffff;
       }
-      
+
       /* Main Container */
       .main-container {
         flex: 1;
@@ -389,7 +389,7 @@ export default function GlobalStyles() {
         width: 100%;
         max-width: none;
       }
-      
+
       .left-panel {
         display: flex;
         flex-direction: column;
@@ -398,7 +398,7 @@ export default function GlobalStyles() {
         min-width: 400px;
         max-width: none;
       }
-      
+
       .resizer {
         width: 2px;
         background: #000000;
@@ -406,15 +406,15 @@ export default function GlobalStyles() {
         flex-shrink: 0;
         transition: background 0.2s;
       }
-      
+
       .resizer:hover {
         background: #000000;
       }
-      
+
       .resizer.resizing {
         background: #000000;
       }
-      
+
       .right-panel {
         display: flex;
         flex-direction: column;
@@ -423,7 +423,7 @@ export default function GlobalStyles() {
         min-width: 300px;
         max-width: none;
       }
-      
+
       /* Chart Section */
       .chart-section {
         flex: 1;
@@ -435,7 +435,7 @@ export default function GlobalStyles() {
         width: 100%;
         max-width: none;
       }
-      
+
       .chart-container {
         flex: 1;
         padding: 24px;
@@ -445,7 +445,7 @@ export default function GlobalStyles() {
         width: 100%;
         max-width: none;
       }
-      
+
       /* Room View */
       .room-view {
         flex: 1;
@@ -457,7 +457,7 @@ export default function GlobalStyles() {
         width: 100%;
         max-width: none;
       }
-      
+
       .room-agents-indicator {
         display: flex;
         justify-content: center;
@@ -471,7 +471,7 @@ export default function GlobalStyles() {
         position: relative;
         z-index: 1000;
       }
-      
+
       .agent-indicator {
         display: flex;
         flex-direction: column;
@@ -481,33 +481,33 @@ export default function GlobalStyles() {
         position: relative;
         cursor: pointer;
       }
-      
+
       .agent-indicator.speaking {
         transform: scale(1.05);
       }
-      
+
       .agent-indicator.hovered {
         transform: scale(1.1);
       }
-      
+
       .agent-indicator:hover {
         transform: scale(1.08);
       }
-      
+
       .agent-avatar-wrapper {
         position: relative;
         display: flex;
         align-items: center;
         justify-content: center;
       }
-      
+
       .agent-avatar {
         height: 48px;
         width: auto;
         object-fit: contain;
         display: block;
       }
-      
+
       .agent-indicator-dot {
         position: absolute;
         bottom: -2px;
@@ -519,14 +519,14 @@ export default function GlobalStyles() {
         border: 2px solid #ffffff;
         transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
       }
-      
+
       .agent-indicator.speaking .agent-indicator-dot {
         background: #00C853;
         box-shadow: 0 0 12px rgba(0, 200, 83, 0.8);
         transform: scale(1.2);
         animation: pulse 1.5s ease-in-out infinite;
       }
-      
+
       .agent-name {
         font-size: 10px;
         font-weight: 700;
@@ -535,11 +535,11 @@ export default function GlobalStyles() {
         text-align: center;
         transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
       }
-      
+
       .agent-indicator.speaking .agent-name {
         color: #000000;
       }
-      
+
       .agent-rank-medal {
         position: absolute;
         top: -8px;
@@ -549,7 +549,7 @@ export default function GlobalStyles() {
         filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
         z-index: 10;
       }
-      
+
       .agent-hint-text {
         position: absolute;
         bottom: -20px;
@@ -562,7 +562,7 @@ export default function GlobalStyles() {
         white-space: nowrap;
         opacity: 0.7;
       }
-      
+
       .agent-card-overlay {
         position: fixed;
         top: 0;
@@ -571,11 +571,11 @@ export default function GlobalStyles() {
         bottom: 0;
         z-index: 999;
       }
-      
+
       .room-scene-wrapper {
         position: relative;
       }
-      
+
       @keyframes pulse {
         0%, 100% {
           box-shadow: 0 0 12px rgba(0, 200, 83, 0.8);
@@ -584,7 +584,7 @@ export default function GlobalStyles() {
           box-shadow: 0 0 20px rgba(0, 200, 83, 1);
         }
       }
-      
+
       @keyframes cardAppear {
         0% {
           opacity: 0;
@@ -595,7 +595,7 @@ export default function GlobalStyles() {
           transform: translate(-50%, -50%) scale(1);
         }
       }
-      
+
       @keyframes fadeIn {
         0% {
           opacity: 0;
@@ -604,7 +604,7 @@ export default function GlobalStyles() {
           opacity: 1;
         }
       }
-      
+
       .room-canvas-container {
         flex: 1;
         display: flex;
@@ -614,20 +614,20 @@ export default function GlobalStyles() {
         padding: 24px;
         position: relative;
       }
-      
+
       .room-scene {
         position: relative;
         display: flex;
         align-items: center;
         justify-content: center;
       }
-      
+
       .room-canvas {
         display: block;
         image-rendering: pixelated;
         image-rendering: crisp-edges;
       }
-      
+
       .room-bubble {
         position: absolute;
         max-width: 300px;
@@ -641,7 +641,7 @@ export default function GlobalStyles() {
         line-height: 1.5;
         animation: bubbleAppear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
       }
-      
+
       @keyframes bubbleAppear {
         0% {
           opacity: 0;
@@ -652,7 +652,7 @@ export default function GlobalStyles() {
           transform: scale(1) translateY(0);
         }
       }
-      
+
       .room-bubble::after {
         content: "";
         position: absolute;
@@ -665,7 +665,7 @@ export default function GlobalStyles() {
         border-bottom: 2px solid #000000;
         transform: rotate(-45deg);
       }
-      
+
       .bubble-action-buttons {
         position: absolute;
         top: 8px;
@@ -674,7 +674,7 @@ export default function GlobalStyles() {
         gap: 4px;
         z-index: 10;
       }
-      
+
       .bubble-jump-btn,
       .bubble-close-btn {
         outline: none;
@@ -692,38 +692,38 @@ export default function GlobalStyles() {
         align-items: center;
         justify-content: center;
       }
-      
+
       .bubble-jump-btn:hover,
       .bubble-close-btn:hover {
         outline: none;
         color: #000000;
         transform: scale(1.15);
       }
-      
+
       .bubble-jump-btn:active,
       .bubble-close-btn:active {
         outline: none;
         transform: scale(0.95);
       }
-      
+
       .bubble-jump-btn:focus,
       .bubble-close-btn:focus {
         outline: none;
         box-shadow: none;
       }
-      
+
       .bubble-close-btn {
         font-size: 16px;
         font-weight: bold;
       }
-      
+
       .room-bubble-header {
         display: flex;
         align-items: center;
         gap: 8px;
         margin-bottom: 8px;
       }
-      
+
       .bubble-model-icon {
         width: 22px;
         height: 22px;
@@ -731,7 +731,7 @@ export default function GlobalStyles() {
         object-fit: contain;
         flex-shrink: 0;
       }
-      
+
       .room-bubble-name {
         font-weight: 900;
         font-size: 10px;
@@ -739,19 +739,19 @@ export default function GlobalStyles() {
         color: #000000;
         flex: 1;
       }
-      
+
       .room-bubble-divider {
         height: 1px;
         background: #e0e0e0;
         margin: 6px 0 8px;
       }
-      
+
       .room-bubble-content {
         word-wrap: break-word;
         white-space: pre-wrap;
         position: relative;
       }
-      
+
       .bubble-expand-btn {
         padding: 0;
         margin-left: 4px;
@@ -766,15 +766,15 @@ export default function GlobalStyles() {
         display: inline;
         vertical-align: baseline;
       }
-      
+
       .bubble-expand-btn:hover {
         color: #000000;
       }
-      
+
       .bubble-expand-btn:focus {
         outline: none;
       }
-      
+
       /* Replay Button Container */
       .replay-button-container {
         position: absolute;
@@ -783,7 +783,7 @@ export default function GlobalStyles() {
         transform: translateX(-50%);
         z-index: 100;
       }
-      
+
       .replay-button {
         display: flex;
         align-items: center;
@@ -801,28 +801,28 @@ export default function GlobalStyles() {
         box-shadow: 3px 3px 0 0 rgba(0, 0, 0, 0.2);
         transition: all 0.2s ease;
       }
-      
+
       .replay-button:hover:not(:disabled) {
         background: #333333;
         transform: translate(-1px, -1px);
         box-shadow: 4px 4px 0 0 rgba(0, 0, 0, 0.3);
       }
-      
+
       .replay-button:active:not(:disabled) {
         transform: translate(1px, 1px);
         box-shadow: 2px 2px 0 0 rgba(0, 0, 0, 0.2);
       }
-      
+
       .replay-button:disabled {
         opacity: 0.5;
         cursor: not-allowed;
       }
-      
+
       .replay-icon {
         font-size: 14px;
         animation: replayIconPulse 2s ease-in-out infinite;
       }
-      
+
       @keyframes replayIconPulse {
         0%, 100% {
           opacity: 1;
@@ -831,7 +831,7 @@ export default function GlobalStyles() {
           opacity: 0.7;
         }
       }
-      
+
       /* Replay Indicator */
       .replay-indicator {
         position: absolute;
@@ -848,7 +848,7 @@ export default function GlobalStyles() {
         z-index: 200;
         box-shadow: 3px 3px 0 0 rgba(0, 0, 0, 0.2);
       }
-      
+
       .replay-status {
         color: #ffffff;
         font-size: 11px;
@@ -857,7 +857,7 @@ export default function GlobalStyles() {
         letter-spacing: 0.5px;
         animation: replayStatusBlink 1.5s ease-in-out infinite;
       }
-      
+
       @keyframes replayStatusBlink {
         0%, 100% {
           opacity: 1;
@@ -866,7 +866,7 @@ export default function GlobalStyles() {
           opacity: 0.6;
         }
       }
-      
+
       .stop-replay-button {
         padding: 4px 10px;
         background: #ffffff;
@@ -880,16 +880,16 @@ export default function GlobalStyles() {
         cursor: pointer;
         transition: all 0.2s ease;
       }
-      
+
       .stop-replay-button:hover {
         background: #000000;
         color: #ffffff;
       }
-      
+
       .stop-replay-button:active {
         transform: translate(1px, 1px);
       }
-      
+
       /* View Toggle Button */
       .view-toggle-btn {
         position: absolute;
@@ -910,7 +910,7 @@ export default function GlobalStyles() {
         color: #666666;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
       }
-      
+
       .view-toggle-btn:hover {
         background: #000000;
         border-color: #000000;
@@ -918,27 +918,27 @@ export default function GlobalStyles() {
         transform: translateY(-50%) scale(1.1);
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
       }
-      
+
       .view-toggle-btn:active {
         transform: translateY(-50%) scale(0.95);
       }
-      
+
       .view-toggle-btn.left {
         left: 0;
         border-left: none;
         border-radius: 0 4px 4px 0;
       }
-      
+
       .view-toggle-btn.right {
         right: 0;
         border-right: none;
         border-radius: 4px 0 0 4px;
       }
-      
+
       .view-toggle-btn:focus {
         outline: none;
       }
-      
+
       /* View Transition */
       .view-container {
         position: relative;
@@ -947,7 +947,7 @@ export default function GlobalStyles() {
         overflow: hidden;
         padding-top: 40px;
       }
-      
+
       /* View Navigation Bar */
       .view-nav-bar {
         position: absolute;
@@ -962,7 +962,7 @@ export default function GlobalStyles() {
         border-radius: 10px;
         overflow: hidden;
       }
-      
+
       .view-nav-btn {
         padding: 4px 14px;
         background: #ffffff;
@@ -977,20 +977,20 @@ export default function GlobalStyles() {
         text-transform: uppercase;
         white-space: nowrap;
       }
-      
+
       .view-nav-btn:hover:not(.active) {
         background: #f5f5f5;
       }
-      
+
       .view-nav-btn.active {
         background: #000000;
         color: #ffffff;
       }
-      
+
       .view-nav-btn:focus {
         outline: none;
       }
-      
+
       /* Three-view slider (Room / Chart / Statistics) */
       .view-slider-three {
         position: absolute;
@@ -999,23 +999,23 @@ export default function GlobalStyles() {
         display: flex;
         transition: transform 1.6s cubic-bezier(0.34, 1.56, 0.64, 1);
       }
-      
+
       .view-slider-three.normal-speed {
         transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
       }
-      
+
       .view-slider-three.show-room {
         transform: translateX(0);
       }
-      
+
       .view-slider-three.show-chart {
         transform: translateX(-33.333%);
       }
-      
+
       .view-slider-three.show-statistics {
         transform: translateX(-66.666%);
       }
-      
+
       /* Four-view slider (Rules / Room / Chart / Statistics) */
       .view-slider-four {
         position: absolute;
@@ -1025,27 +1025,27 @@ export default function GlobalStyles() {
         display: flex;
         transition: transform 1.6s cubic-bezier(0.34, 1.56, 0.64, 1);
       }
-      
+
       .view-slider-four.normal-speed {
         transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
       }
-      
+
       .view-slider-four.show-rules {
         transform: translateX(0);
       }
-      
+
       .view-slider-four.show-room {
         transform: translateX(-25%);
       }
-      
+
       .view-slider-four.show-chart {
         transform: translateX(-50%);
       }
-      
+
       .view-slider-four.show-statistics {
         transform: translateX(-75%);
       }
-      
+
       .view-panel {
         flex: 0 0 33.333%;
         width: 33.333%;
@@ -1054,13 +1054,13 @@ export default function GlobalStyles() {
         flex-direction: column;
         overflow: hidden;
       }
-      
+
       /* View panel for four-view slider */
       .view-slider-four .view-panel {
         flex: 0 0 25%;
         width: 25%;
       }
-      
+
       /* Chart Tabs - Floating inside chart */
       .chart-tabs-floating {
         position: absolute;
@@ -1072,7 +1072,7 @@ export default function GlobalStyles() {
         background: #ffffff;
         z-index: 10;
       }
-      
+
       .chart-tab {
         padding: 4px 8px;
         border: none;
@@ -1087,26 +1087,26 @@ export default function GlobalStyles() {
         cursor: pointer;
         transition: all 0.15s;
       }
-      
+
       .chart-tab:last-child {
         border-right: none;
       }
-      
+
       .chart-tab:hover {
         background: #f5f5f5;
         color: #000000;
       }
-      
+
       .chart-tab.active {
         background: #000000;
         color: #ffffff;
         border-color: #000000;
       }
-      
+
       .chart-tab:focus {
         outline: none;
       }
-      
+
       /* Agent Feed - Minimalist Design */
       .agent-feed {
         display: flex;
@@ -1117,7 +1117,7 @@ export default function GlobalStyles() {
         max-width: none;
         background: transparent;
       }
-      
+
       .feed-header {
         padding: 20px 20px 12px;
         background: transparent;
@@ -1126,7 +1126,7 @@ export default function GlobalStyles() {
         position: relative;
         text-align: center;
       }
-      
+
       .feed-title {
         font-size: 18px;
         font-weight: 700;
@@ -1139,7 +1139,7 @@ export default function GlobalStyles() {
         position: relative;
         display: inline-block;
       }
-      
+
       .feed-title::after {
         content: '';
         position: absolute;
@@ -1150,7 +1150,7 @@ export default function GlobalStyles() {
         height: 1px;
         background: #cccccc;
       }
-      
+
       .feed-subtitle {
         font-size: 10px;
         color: #666666;
@@ -1158,7 +1158,7 @@ export default function GlobalStyles() {
         margin-top: 16px;
         line-height: 1.4;
       }
-      
+
       .feed-content {
         flex: 1;
         overflow-y: auto;
@@ -1170,25 +1170,25 @@ export default function GlobalStyles() {
         width: 100%;
         max-width: none;
       }
-      
+
       /* Feed Item - Ultra Minimal with Subtle Background */
       .feed-item {
         border-bottom: 1px solid #f5f5f5;
         padding: 16px 20px;
         transition: all 0.15s ease;
       }
-      
+
       .feed-item:hover {
         filter: brightness(0.98);
       }
-      
+
       .feed-item-header {
         display: flex;
         align-items: center;
         gap: 10px;
         margin-bottom: 8px;
       }
-      
+
       .feed-item-title {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         font-size: 11px;
@@ -1196,28 +1196,28 @@ export default function GlobalStyles() {
         letter-spacing: 0.8px;
         text-transform: uppercase;
       }
-      
+
       .feed-item-time {
         margin-left: auto;
         font-size: 10px;
         color: #999999;
         font-family: 'IBM Plex Mono', monospace;
       }
-      
+
       .feed-live-badge {
         font-size: 9px;
         font-weight: 700;
         color: #00C853;
         letter-spacing: 0.5px;
       }
-      
+
       .feed-item-subtitle {
         font-size: 12px;
         font-weight: 600;
         margin-bottom: 10px;
         line-height: 1.4;
       }
-      
+
       .feed-item-content {
         font-size: 13px;
         line-height: 1.6;
@@ -1226,7 +1226,7 @@ export default function GlobalStyles() {
         font-family: 'IBM Plex Mono', monospace;
         white-space: pre-wrap;
       }
-      
+
       /* Conference Messages */
       .conference-messages {
         display: flex;
@@ -1234,13 +1234,13 @@ export default function GlobalStyles() {
         gap: 10px;
         margin-top: 10px;
       }
-      
+
       .conf-message-item {
         font-size: 12px;
         line-height: 1.5;
         color: #333333;
       }
-      
+
       .conf-agent-name {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         font-weight: 700;
@@ -1248,14 +1248,14 @@ export default function GlobalStyles() {
         letter-spacing: 0.3px;
         margin-bottom: 4px;
       }
-      
+
       .conf-message-content-wrapper {
         padding-left: 4ch;
         display: flex;
         align-items: flex-start;
         gap: 8px;
       }
-      
+
       .conf-message-content {
         font-family: 'IBM Plex Mono', monospace;
         font-size: 12px;
@@ -1264,7 +1264,7 @@ export default function GlobalStyles() {
         min-width: 0;
         white-space: pre-wrap;
       }
-      
+
       .conf-expand-btn {
         padding: 0;
         border: none;
@@ -1277,15 +1277,15 @@ export default function GlobalStyles() {
         transition: color 0.15s;
         flex-shrink: 0;
       }
-      
+
       .conf-expand-btn:hover {
         color: #000000;
       }
-      
+
       .conf-expand-btn:focus {
         outline: none;
       }
-      
+
       /* Expand Button */
       .feed-expand-btn {
         margin-top: 8px;
@@ -1300,15 +1300,15 @@ export default function GlobalStyles() {
         transition: color 0.15s;
         text-align: left;
       }
-      
+
       .feed-expand-btn:hover {
         color: #000000;
       }
-      
+
       .feed-expand-btn:focus {
         outline: none;
       }
-      
+
       /* Statistics/Performance Pages */
       .leaderboard-page, .performance-page {
         flex: 1;
@@ -1318,7 +1318,7 @@ export default function GlobalStyles() {
         width: 100%;
         max-width: none;
       }
-      
+
       .section {
         margin-bottom: 20px;
         background: #ffffff;
@@ -1327,7 +1327,7 @@ export default function GlobalStyles() {
         width: 100%;
         max-width: none;
       }
-      
+
       .section-header {
         display: flex;
         align-items: center;
@@ -1336,7 +1336,7 @@ export default function GlobalStyles() {
         padding-bottom: 12px;
         border-bottom: 2px solid #000000;
       }
-      
+
       .section-title {
         font-size: 16px;
         font-weight: bold;
@@ -1345,13 +1345,13 @@ export default function GlobalStyles() {
         color: #000000;
         text-transform: uppercase;
       }
-      
+
       .section-tabs {
         display: flex;
         gap: 0;
         border: 1px solid #000000;
       }
-      
+
       .section-tab {
         padding: 8px 16px;
         border: none;
@@ -1366,24 +1366,24 @@ export default function GlobalStyles() {
         cursor: pointer;
         transition: all 0.15s;
       }
-      
+
       .section-tab:last-child {
         border-right: none;
       }
-      
+
       .section-tab:hover {
         background: #f5f5f5;
       }
-      
+
       .section-tab.active {
         background: #000000;
         color: #ffffff;
       }
-      
+
       .section-tab:focus {
         outline: none;
       }
-      
+
       /* Tables */
       .data-table {
         width: 100%;
@@ -1392,13 +1392,13 @@ export default function GlobalStyles() {
         table-layout: auto;
         max-width: none;
       }
-      
+
       .table-wrapper {
         width: 100%;
         overflow-x: auto;
         max-width: none;
       }
-      
+
       .data-table thead th {
         background: #000000;
         color: #ffffff;
@@ -1413,25 +1413,25 @@ export default function GlobalStyles() {
         top: 0;
         z-index: 10;
       }
-      
+
       .data-table thead th:last-child {
         border-right: none;
       }
-      
+
       .data-table tbody tr {
         border-bottom: 1px solid #f0f0f0;
         transition: all 0.1s;
       }
-      
+
       .data-table tbody tr:hover {
         background: #fafafa;
       }
-      
+
       .data-table tbody td {
         padding: 10px 12px;
         color: #000000;
       }
-      
+
       .rank-badge {
         display: inline-flex;
         align-items: center;
@@ -1444,25 +1444,25 @@ export default function GlobalStyles() {
         font-size: 11px;
         color: #000000;
       }
-      
+
       .rank-badge.first {
         background: #000000;
         border-color: #000000;
         color: #ffffff;
       }
-      
+
       .rank-badge.second {
         background: #ffffff;
         border-color: #000000;
         color: #000000;
       }
-      
+
       .rank-badge.third {
         background: #ffffff;
         border-color: #666666;
         color: #666666;
       }
-      
+
       /* Stats Grid */
       .stats-grid {
         display: grid;
@@ -1471,19 +1471,19 @@ export default function GlobalStyles() {
         width: 100%;
         max-width: none;
       }
-      
+
       .stat-card {
         border: 1px solid #000000;
         padding: 16px;
         background: #fafafa;
         transition: all 0.2s;
       }
-      
+
       .stat-card:hover {
         border-color: #000000;
         box-shadow: 0 2px 2px rgba(0,0,0,0.1);
       }
-      
+
       .stat-card-label {
         font-size: 11px;
         color: #666666;
@@ -1492,16 +1492,16 @@ export default function GlobalStyles() {
         margin-bottom: 8px;
         text-transform: uppercase;
       }
-      
+
       .stat-card-value {
         font-size: 28px;
         font-weight: 700;
         color: #000000;
       }
-      
+
       .stat-card-value.positive { color: #00C853; }
       .stat-card-value.negative { color: #FF1744; }
-      
+
       /* Empty State */
       .empty-state {
         text-align: center;
@@ -1510,7 +1510,7 @@ export default function GlobalStyles() {
         font-size: 12px;
         letter-spacing: 0.5px;
       }
-      
+
       /* Pagination Controls */
       .pagination-controls {
         display: flex;
@@ -1520,7 +1520,7 @@ export default function GlobalStyles() {
         margin-top: 16px;
         border-top: 1px solid #e0e0e0;
       }
-      
+
       .pagination-btn {
         padding: 6px 12px;
         border: 1px solid #000000;
@@ -1535,23 +1535,23 @@ export default function GlobalStyles() {
         transition: all 0.15s;
         text-transform: uppercase;
       }
-      
+
       .pagination-btn:hover:not(:disabled) {
         background: #000000;
         color: #ffffff;
       }
-      
+
       .pagination-btn:disabled {
         border-color: #e0e0e0;
         color: #cccccc;
         cursor: not-allowed;
         opacity: 0.4;
       }
-      
+
       .pagination-btn:focus {
         outline: none;
       }
-      
+
       .pagination-info {
         font-size: 10px;
         font-weight: 700;
@@ -1559,44 +1559,44 @@ export default function GlobalStyles() {
         letter-spacing: -0.01em;
         font-family: 'IBM Plex Mono', monospace;
       }
-      
+
       /* Scrollbar */
       ::-webkit-scrollbar {
         width: 8px;
         height: 8px;
       }
-      
+
       ::-webkit-scrollbar-track {
         background: #f0f0f0;
       }
-      
+
       ::-webkit-scrollbar-thumb {
         background: #cccccc;
         border-radius: 0;
       }
-      
+
       ::-webkit-scrollbar-thumb:hover {
         background: #999999;
       }
-      
+
       /* Hide scrollbar for statistics tables */
       .statistics-table-container {
         overflow-y: auto;
         scrollbar-width: none; /* Firefox */
         -ms-overflow-style: none; /* IE and Edge */
       }
-      
+
       .statistics-table-container::-webkit-scrollbar {
         display: none; /* Chrome, Safari, Opera */
       }
-      
+
       /* Responsive */
       @media (max-width: 900px) {
         .app {
           height: auto;
           min-height: 100vh;
         }
-        
+
         .main-container {
           flex-direction: column;
           overflow-y: auto;
@@ -1604,11 +1604,11 @@ export default function GlobalStyles() {
           height: auto;
           flex: 1;
         }
-        
+
         .resizer {
           display: none;
         }
-        
+
         .left-panel {
           width: 100% !important;
           min-width: 100%;
@@ -1617,7 +1617,7 @@ export default function GlobalStyles() {
           flex: 0 0 auto;
           border-bottom: 2px solid #000000;
         }
-        
+
         .right-panel {
           width: 100% !important;
           min-width: 100%;
@@ -1626,51 +1626,51 @@ export default function GlobalStyles() {
           flex: 0 0 auto;
           overflow-y: visible;
         }
-        
+
         .agent-feed {
           height: auto;
           overflow-y: visible;
         }
-        
+
         .feed-content {
           overflow-y: visible;
         }
       }
-      
+
       @media (max-width: 600px) {
         .header-tabs {
           overflow-x: auto;
         }
-        
+
         .header-tab {
           padding: 12px 16px;
           font-size: 11px;
         }
-        
+
         .leaderboard-page, .performance-page {
           padding: 16px;
         }
-        
+
         .section {
           padding: 12px;
         }
-        
+
         .data-table {
           font-size: 10px;
           display: block;
           overflow-x: auto;
         }
-        
+
         .data-table thead th,
         .data-table tbody td {
           padding: 8px 6px;
           white-space: nowrap;
         }
-        
+
         .stats-grid {
           grid-template-columns: 1fr;
         }
-        
+
         .ticker-bar {
           padding: 8px 12px;
           gap: 16px;

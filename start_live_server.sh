@@ -1,6 +1,6 @@
 #!/bin/bash
 # 启动在线交易模式的便捷脚本
-# 
+#
 # 功能说明：
 # 1. 脚本启动后立即开始实时更新股票价格板
 # 2. 在线模式会高频获取实时价格，更新净值曲线、持仓盈亏等
@@ -137,7 +137,7 @@ if [ "$MOCK_MODE" = false ]; then
         echo ""
         exit 1
     fi
-    
+
     # 检查 FINNHUB_API_KEY
     . .env
     if [ -z "$FINNHUB_API_KEY" ] || [ "$FINNHUB_API_KEY" = "your-finnhub-api-key-here" ]; then
@@ -152,7 +152,7 @@ if [ "$MOCK_MODE" = false ]; then
         echo ""
         exit 1
     fi
-    
+
     echo "✅ FINNHUB_API_KEY 已配置"
 fi
 
@@ -178,15 +178,15 @@ echo "✅ 依赖检查完成"
 if [ "$MOCK_MODE" = false ]; then
     echo ""
     echo "📊 检查历史数据更新..."
-    
+
     if python -m backend.data.ret_data_updater --help &> /dev/null; then
         echo "🔄 正在更新历史数据..."
-        
+
         python -m backend.data.ret_data_updater || {
             echo "⚠️  历史数据更新失败（可能是周末或假期），但将继续启动服务器"
             echo "💡 提示: 系统将使用现有历史数据运行"
         }
-        
+
         if [ $? -eq 0 ]; then
             echo "✅ 历史数据更新完成"
         fi
@@ -205,13 +205,13 @@ if [ -d "$BASE_DATA_DIR" ] && [ "$(ls -A $BASE_DATA_DIR 2>/dev/null)" ]; then
     echo ""
     echo "🔍 检测到以往运行记录:"
     echo "   数据目录: $BASE_DATA_DIR"
-    
+
     # 显示目录大小
     if command -v du &> /dev/null; then
         DIR_SIZE=$(du -sh "$BASE_DATA_DIR" 2>/dev/null | cut -f1)
         echo "   目录大小: $DIR_SIZE"
     fi
-    
+
     # 显示最后修改时间
     if [ -d "$BASE_DATA_DIR/state" ]; then
         LAST_STATE=$(find "$BASE_DATA_DIR/state" -type f -name "*.json" 2>/dev/null | head -1)
@@ -220,9 +220,9 @@ if [ -d "$BASE_DATA_DIR" ] && [ "$(ls -A $BASE_DATA_DIR 2>/dev/null)" ]; then
             echo "   最后更新: $LAST_MODIFIED"
         fi
     fi
-    
+
     echo ""
-    
+
     # 如果设置了自动清空，跳过询问
     if [ "$AUTO_CLEAN" = true ]; then
         echo "⚠️  已设置 --clean 参数，将清空历史记录"
@@ -237,7 +237,7 @@ if [ -d "$BASE_DATA_DIR" ] && [ "$(ls -A $BASE_DATA_DIR 2>/dev/null)" ]; then
     #         if [ -z "$response" ]; then
     #             response="n"
     #         fi
-            
+
     #         case "$response" in
     #             [yY]|[yY][eE][sS])
     #                 CLEAN_HISTORY=true
@@ -253,12 +253,12 @@ if [ -d "$BASE_DATA_DIR" ] && [ "$(ls -A $BASE_DATA_DIR 2>/dev/null)" ]; then
     #         esac
         # done
     fi
-    
+
     # 执行清空操作
     if [ "$CLEAN_HISTORY" = true ]; then
         echo ""
         echo "🗑️  正在清空历史记录..."
-        
+
         # 备份重要配置文件（如果存在）
         BACKUP_DIR="${BASE_DATA_DIR}_backup_$(date +%Y%m%d_%H%M%S)"
         if [ -d "$BASE_DATA_DIR" ]; then
@@ -269,7 +269,7 @@ if [ -d "$BASE_DATA_DIR" ] && [ "$(ls -A $BASE_DATA_DIR 2>/dev/null)" ]; then
                 [ -f "$BASE_DATA_DIR/config.json" ] && cp "$BASE_DATA_DIR/config.json" "$BACKUP_DIR/"
                 echo "   💾 配置文件已备份到: $BACKUP_DIR"
             fi
-            
+
             # 删除整个目录
             rm -rf "$BASE_DATA_DIR"
             echo "   ✅ 历史记录已清空"

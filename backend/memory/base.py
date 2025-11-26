@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Long-term Memory Base Interface
 Reference AgentScope design, provides unified memory interface
@@ -10,89 +11,98 @@ from typing import Dict, List, Any, Optional
 
 class LongTermMemory(ABC):
     """Long-term memory abstract base class"""
-    
+
     @abstractmethod
-    def add(self, content: str, user_id: str, metadata: Optional[Dict[str, Any]] = None) -> str:
+    def add(
+        self,
+        content: str,
+        user_id: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> str:
         """
         Add memory
-        
+
         Args:
             content: Memory content
             user_id: User/analyst ID
             metadata: Metadata
-            
+
         Returns:
             Memory ID
         """
         pass
-    
+
     @abstractmethod
-    def search(self, query: str, user_id: str, top_k: int = 5) -> List[Dict[str, Any]]:
+    def search(
+        self,
+        query: str,
+        user_id: str,
+        top_k: int = 5,
+    ) -> List[Dict[str, Any]]:
         """
         Search memory
-        
+
         Args:
             query: Search query
             user_id: User/analyst ID
             top_k: Number of results to return
-            
+
         Returns:
             Search result list
         """
         pass
-    
+
     @abstractmethod
     def update(self, memory_id: str, content: str, user_id: str) -> bool:
         """
         Update memory
-        
+
         Args:
             memory_id: Memory ID
             content: New content
             user_id: User/analyst ID
-            
-        Returns:
-            Whether successful
-        """
-        pass
-    
-    @abstractmethod
-    def delete(self, memory_id: str, user_id: str) -> bool:
-        """
-        Delete memory
-        
-        Args:
-            memory_id: Memory ID
-            user_id: User/analyst ID
-            
-        Returns:
-            Whether successful
-        """
-        pass
-    
-    @abstractmethod
-    def get_all(self, user_id: str) -> List[Dict[str, Any]]:
-        """
-        Get all memories for a user
-        
-        Args:
-            user_id: User/analyst ID
-            
-        Returns:
-            Memory list
-        """
-        pass
-    
-    @abstractmethod
-    def delete_all(self, user_id: str) -> bool:
-        """
-        Delete all memories for a user
-        
-        Args:
-            user_id: User/analyst ID
-            
+
         Returns:
             Whether successful
         """
         pass
 
+    @abstractmethod
+    def delete(self, memory_id: str, user_id: str) -> bool:
+        """
+        Delete memory
+
+        Args:
+            memory_id: Memory ID
+            user_id: User/analyst ID
+
+        Returns:
+            Whether successful
+        """
+        pass
+
+    @abstractmethod
+    def get_all(self, user_id: str) -> List[Dict[str, Any]]:
+        """
+        Get all memories for a user
+
+        Args:
+            user_id: User/analyst ID
+
+        Returns:
+            Memory list
+        """
+        pass
+
+    @abstractmethod
+    def delete_all(self, user_id: str) -> bool:
+        """
+        Delete all memories for a user
+
+        Args:
+            user_id: User/analyst ID
+
+        Returns:
+            Whether successful
+        """
+        pass

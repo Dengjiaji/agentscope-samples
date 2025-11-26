@@ -15,7 +15,7 @@ export default function PerformanceView({ leaderboard }) {
         <div className="section-header">
           <h2 className="section-title">Agent Performance - Signal Accuracy</h2>
         </div>
-        
+
         {rankedAgents.length === 0 ? (
           <div className="empty-state">No leaderboard data available</div>
         ) : (
@@ -97,32 +97,32 @@ export default function PerformanceView({ leaderboard }) {
           </div>
         )}
       </div>
-      
+
       {/* Signal History with Dates */}
       {rankedAgents.length > 0 && rankedAgents.some(agent => agent.signals && agent.signals.length > 0) && (
         <div className="section" style={{ marginTop: 32 }}>
           <div className="section-header">
             <h2 className="section-title">Signal History</h2>
           </div>
-          
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 20 }}>
             {rankedAgents.map(agent => {
               if (!agent.signals || agent.signals.length === 0) return null;
-              
+
               // Sort by date descending (newest first)
-              const sortedSignals = [...agent.signals].sort((a, b) => 
+              const sortedSignals = [...agent.signals].sort((a, b) =>
                 new Date(b.date).getTime() - new Date(a.date).getTime()
               );
-              
+
               return (
-                <div key={agent.agentId} style={{ 
-                  border: '1px solid #e0e0e0', 
+                <div key={agent.agentId} style={{
+                  border: '1px solid #e0e0e0',
                   padding: 16,
                   background: '#fafafa'
                 }}>
-                  <div style={{ 
-                    fontWeight: 700, 
-                    fontSize: 12, 
+                  <div style={{
+                    fontWeight: 700,
+                    fontSize: 12,
                     marginBottom: 12,
                     paddingBottom: 8,
                     borderBottom: '2px solid #000000',
@@ -131,12 +131,12 @@ export default function PerformanceView({ leaderboard }) {
                   }}>
                     {agent.name}
                   </div>
-                  <div style={{ 
-                    maxHeight: 500, 
+                  <div style={{
+                    maxHeight: 500,
                     overflowY: 'auto',
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    gap: 8 
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8
                   }}>
                     {sortedSignals.map((signal, idx) => {
                       const signalType = signal.signal.toLowerCase();
@@ -158,8 +158,8 @@ export default function PerformanceView({ leaderboard }) {
                       const statusSymbol = isResultUnknown ? '?' : (isCorrect ? '✓' : '✗');
 
                       return (
-                        <div key={idx} style={{ 
-                          fontSize: 11, 
+                        <div key={idx} style={{
+                          fontSize: 11,
                           fontFamily: '"Courier New", monospace',
                           lineHeight: 1.4,
                           padding: '8px 10px',
@@ -170,7 +170,7 @@ export default function PerformanceView({ leaderboard }) {
                           alignItems: 'center'
                         }}>
                           <div style={{ flex: 1 }}>
-                            <span style={{ 
+                            <span style={{
                               color: '#666666',
                               fontSize: 10,
                               marginRight: 10,
@@ -178,21 +178,21 @@ export default function PerformanceView({ leaderboard }) {
                             }}>
                               {signal.date}
                             </span>
-                            <span style={{ 
+                            <span style={{
                               fontWeight: 700,
                               color: isBull ? '#00C853' : isBear ? '#FF1744' : '#999999'
                             }}>
                               {signal.ticker}
                             </span>
-                            <span style={{ 
-                              marginLeft: 6, 
+                            <span style={{
+                              marginLeft: 6,
                               color: isBull ? '#00C853' : isBear ? '#FF1744' : '#999999',
                               fontSize: 12
                             }}>
                               {isBull ? 'Bull' : isBear ? 'Bear' : 'Neutral'}
                             </span>
                             {!isNeutral && (
-                              <span style={{ 
+                              <span style={{
                                 marginLeft: 8,
                                 fontSize: 10,
                                 color: realReturnColor
@@ -202,7 +202,7 @@ export default function PerformanceView({ leaderboard }) {
                             )}
                           </div>
                           {!isNeutral && (
-                            <span style={{ 
+                            <span style={{
                               fontSize: 14,
                               marginLeft: 10,
                               color: statusColor
