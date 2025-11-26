@@ -7,18 +7,12 @@ Provides notification decision-making and other functionality
 import json
 import math
 import re
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from datetime import datetime
 import logging
 
-try:
-    import numpy as _np
-except Exception:
-    _np = None
-try:
-    import pandas as _pd
-except Exception:
-    _pd = None
+import numpy as np
+import pandas as pd
 
 from backend.graph.state import AgentState
 from backend.llm.models import get_model
@@ -38,20 +32,20 @@ def _make_json_safe(obj: Any) -> Any:
     if isinstance(obj, datetime):
         return obj.isoformat()
 
-    if _np is not None:
-        if isinstance(obj, (_np.integer,)):
+    if np is not None:
+        if isinstance(obj, (np.integer,)):
             return int(obj)
-        if isinstance(obj, (_np.floating,)):
+        if isinstance(obj, (np.floating,)):
             val = float(obj)
             return None if math.isnan(val) or math.isinf(val) else val
-        if isinstance(obj, (_np.bool_,)):
+        if isinstance(obj, (np.bool_,)):
             return bool(obj)
-        if obj is _np.nan:
+        if obj is np.nan:
             return None
 
-    if _pd is not None:
+    if pd is not None:
         try:
-            if _pd.isna(obj):
+            if pd.isna(obj):
                 return None
         except Exception:
             pass

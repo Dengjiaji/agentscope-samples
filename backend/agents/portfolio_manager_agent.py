@@ -4,10 +4,7 @@ Provides unified portfolio management interface (based on AgentScope)
 """
 from typing import Dict, Any, Optional, Literal, List
 import json
-import pdb
-import os
 from pathlib import Path
-from datetime import datetime, timedelta
 from agentscope.agent import AgentBase
 from agentscope.message import Msg
 
@@ -212,7 +209,7 @@ class PortfolioManagerAgent(AgentBase):
             "signals_by_ticker": json.dumps(signals_by_ticker, indent=2),
             "analyst_weights_info": analyst_weights_info,
             "analyst_weights_separator": "\n" if analyst_weights_info else "",
-            "relevant_past_experiences": formatted_memories,  # ⭐ Inject historical experience
+            "relevant_past_experiences": formatted_memories,
         }
 
         # Load prompt
@@ -266,8 +263,6 @@ class PortfolioManagerAgent(AgentBase):
             
             remaining_limit = risk_data.get("remaining_position_limit", 0)
             price = current_prices.get(ticker, 0)
-            
-            
 
         # Get analyst weights
         formatted_memories = self._format_memories_for_prompt(relevant_memories)
@@ -318,9 +313,7 @@ class PortfolioManagerAgent(AgentBase):
             )
         
         progress.update_status(self.agent_id, None, "Generating decisions based on signals and historical experience")
-                # 保存到文件	        
-      
-        # pdb.set_trace()
+
         return tool_call(
             messages=messages,
             pydantic_model=PortfolioManagerOutput,

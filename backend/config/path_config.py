@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 # logs_and_memory directory is placed in the project parent directory
 LOGS_AND_MEMORY_DIR = PROJECT_ROOT.parent / "logs_and_memory"
