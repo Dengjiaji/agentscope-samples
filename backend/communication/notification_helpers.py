@@ -240,9 +240,9 @@ Please regenerate the correct JSON format reply."""
                 logger.warning(
                     f"❌ {agent_id} reached maximum retry count, using fallback decision",
                 )
-                fallback_decision = {
+                return {
                     "should_notify": False,
                     "reason": "Notification decision processing failed, "
                     f"retried {max_retries} times: {str(e)}",
                 }
-                return fallback_decision
+    return {"should_notify": False, "reason": "Unexpected error"}

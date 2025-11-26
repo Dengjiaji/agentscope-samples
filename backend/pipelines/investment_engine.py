@@ -1196,6 +1196,7 @@ class InvestmentEngine:
                 final_decisions = initial_decisions
                 last_decision_dump = None
                 communication_results = {}
+                updated_signals: dict = {}
 
                 for cycle in range(1, max_cycles + 1):
                     # Get analyst signals (refresh each round)
@@ -1207,7 +1208,9 @@ class InvestmentEngine:
                                     "analyst_signals"
                                 ][agent_id]
                     else:
-                        analyst_signals = updated_signals
+                        analyst_signals = (
+                            updated_signals if updated_signals else {}
+                        )
 
                     # Decide communication strategy
                     communication_decision = (
