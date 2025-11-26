@@ -1,7 +1,4 @@
 from typing_extensions import Annotated, Sequence, TypedDict, Dict, Any, List
-import operator
-import json
-from agentscope.message import Msg
 
 # Define agent state
 class AgentState(TypedDict):

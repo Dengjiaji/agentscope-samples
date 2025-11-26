@@ -6,10 +6,6 @@ Provides AgentScope-compatible model calling interface while maintaining support
 import os
 from typing import Dict, Any, List, Optional, Union
 from enum import Enum
-import json
-from agentscope.model import OpenAIChatModel
-import agentscope
-
 
 class ModelProvider(str, Enum):
     """Supported LLM provider enumeration"""

@@ -1,5 +1,4 @@
 # Risk Level Configuration
-# Risk level configuration
 
 # Risk level classification based on annualized volatility
 volatility_thresholds:
