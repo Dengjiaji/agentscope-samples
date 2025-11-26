@@ -4,7 +4,7 @@
 Notification System Helper Functions
 Provides notification decision-making and other functionality
 """
-
+# flake8: noqa: E501
 import json
 import logging
 import math

@@ -6,6 +6,7 @@ Provides 5 main data interfaces for frontend: summary, holdings, stats, trades, 
 """
 # flake8: noqa: E501
 # pylint: disable=C0301
+# pylint: disable=W0613
 import json
 import math
 from datetime import datetime, timedelta

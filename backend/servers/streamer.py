@@ -53,20 +53,16 @@ class BaseStreamer:
 
 class ConsoleStreamer(BaseStreamer):
     def system(self, content: str):
-        ts = self._bump()
         print(f"[system] {content}")
 
     def agent(self, role_key: str, content: str):
-        ts = self._bump()
         agent_id = ROLE_TO_AGENT.get(role_key or "", ROLE_TO_AGENT["_default"])
         print(f"[agent:{agent_id}] {content}")
 
     def price(self, value: float):
-        ts = self._bump()
         print(f"[price] {float(value):.4f}")
 
     def default_print(self, content: str, type: str):
-        ts = self._bump()
         print(f"[{type}] {content}")
 
 

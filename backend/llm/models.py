@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 AgentScope Model Wrapper
-
-Provides AgentScope-compatible model calling interface while maintaining support for existing model providers
 """
 import os
 from enum import Enum

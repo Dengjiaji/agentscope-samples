@@ -14,6 +14,7 @@ Use cases:
 - Develop and test frontend real-time data display
 - Demonstrate system functionality
 """
+# flake8: noqa: E501
 import logging
 import os
 import random

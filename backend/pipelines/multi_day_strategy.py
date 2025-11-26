@@ -4,6 +4,7 @@
 Multi-Day Strategy Manager
 Handles multi-day running, state persistence, performance analysis, and reporting
 """
+# flake8: noqa: E501
 
 import json
 import os

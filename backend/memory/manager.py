@@ -37,7 +37,8 @@ def get_memory(base_dir: str) -> LongTermMemory:
     # If instance for this base_dir already exists, return directly
     if base_dir in _memory_instances:
         logger.debug(
-            f"   Returning cached instance: {type(_memory_instances[base_dir]).__name__}",
+            "   Returning cached instance: "
+            f"{type(_memory_instances[base_dir]).__name__}",
         )
         return _memory_instances[base_dir]
 
@@ -52,7 +53,8 @@ def get_memory(base_dir: str) -> LongTermMemory:
         _memory_instances[base_dir] = Mem0Memory(base_dir)
 
     logger.debug(
-        f"   ✅ Memory instance created: {type(_memory_instances[base_dir]).__name__}",
+        "   ✅ Memory instance created: "
+        f"{type(_memory_instances[base_dir]).__name__}",
     )
 
     return _memory_instances[base_dir]

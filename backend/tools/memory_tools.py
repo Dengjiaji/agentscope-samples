@@ -4,6 +4,7 @@
 Memory Management Toolkit
 Provides memory operation functionality in AgentScope Toolkit format for Portfolio Manager
 """
+# flake8: noqa: E501
 
 from typing import Annotated, Any, Dict
 

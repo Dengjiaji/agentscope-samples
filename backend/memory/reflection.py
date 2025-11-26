@@ -6,7 +6,7 @@ Supports two modes:
 - central_review: Unified LLM processes all agent memories
 - individual_review: Each agent independently processes its own memories
 """
-
+# flake8: noqa: E501
 import json
 import logging
 import os

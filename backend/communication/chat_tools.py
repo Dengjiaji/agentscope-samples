@@ -4,6 +4,7 @@
 Communication Tools - Implementation of private chat and meeting features
 """
 # flake8: noqa: E501
+# pylint: disable=C0301
 import json
 import re
 import uuid
