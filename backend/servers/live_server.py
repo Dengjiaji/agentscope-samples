@@ -18,6 +18,11 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
+# Set up path before importing backend modules
+BASE_DIR = Path(__file__).resolve().parents[2]
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
 import pandas_market_calendars as mcal
 import websockets
 from dotenv import load_dotenv
@@ -32,10 +37,6 @@ from backend.servers.polling_price_manager import PollingPriceManager
 from backend.servers.state_manager import StateManager
 from backend.servers.streamer import BroadcastStreamer
 from backend.utils.virtual_clock import get_virtual_clock, init_virtual_clock
-
-BASE_DIR = Path(__file__).resolve().parents[2]
-if str(BASE_DIR) not in sys.path:
-    sys.path.append(str(BASE_DIR))
 
 
 _NYSE_CALENDAR = mcal.get_calendar("NYSE")

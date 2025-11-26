@@ -27,18 +27,22 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+# Set up path before importing backend modules
+BASE_DIR = Path(__file__).resolve().parents[2]
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
 from dotenv import load_dotenv
-from investment_engine import InvestmentEngine
-from multi_day_strategy import MultiDayStrategy
 
 from backend.config.constants import ANALYST_TYPES
 from backend.config.env_config import LiveThinkingFundConfig
 from backend.dashboard.team_dashboard import TeamDashboardGenerator
 from backend.memory import MemoryReflectionSystem, get_memory
+from backend.pipelines.investment_engine import InvestmentEngine
+from backend.pipelines.multi_day_strategy import MultiDayStrategy
 from backend.servers.streamer import ConsoleStreamer
 
 load_dotenv()
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Import refactored modules
