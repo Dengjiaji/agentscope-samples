@@ -43,6 +43,8 @@ logger = logging.getLogger(__name__)
 class DataUpdater:
     """Data updater"""
 
+    data_dir: Path
+
     def __init__(
         self,
         api_key: str,

@@ -25,6 +25,8 @@ _personas_config = _prompt_loader.load_yaml_config("analyst", "personas")
 class AnalystAgent(AgentBase):
     """Analyst Agent - Uses LLM for intelligent tool selection and analysis"""
 
+    analyst_persona: str
+
     def __init__(
         self,
         analyst_type: str,
@@ -178,7 +180,7 @@ class AnalystAgent(AgentBase):
         self,
         ticker: str,
         end_date: str,
-        state: Dict[str, Any],
+        state: AgentState,
         start_date: Optional[str],
         llm,
         analysis_objective: str,

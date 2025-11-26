@@ -5,6 +5,7 @@ Multi-Day Strategy Manager
 Handles multi-day running, state persistence, performance analysis, and reporting
 """
 # flake8: noqa: E501
+# pylint: disable=C0301
 
 import json
 import os
@@ -12,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
+import exchange_calendars as xcals
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
@@ -850,8 +852,9 @@ class MultiDayStrategy:
             return str(chart_path)
 
         except Exception as e:
-            print(f"Failed to generate {ticker} return chart: {e}")
-            return None
+            raise RuntimeError(
+                f"Failed to generate {ticker} return chart: {e}",
+            )
 
     def create_stocks_comparison_chart(self, individual_data: Dict) -> str:
         """Create stock comparison chart"""
@@ -940,5 +943,6 @@ class MultiDayStrategy:
             return str(chart_path)
 
         except Exception as e:
-            print(f"Failed to generate stock comparison chart: {e}")
-            return None
+            raise RuntimeError(
+                f"Failed to generate stock comparison chart: {e}",
+            )

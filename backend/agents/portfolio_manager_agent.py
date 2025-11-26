@@ -287,9 +287,9 @@ class PortfolioManagerAgent(AgentBase):
                 {"role": "user", "content": human_prompt},
             ]
         except FileNotFoundError:
-            raise (
+            raise FileNotFoundError(
                 "Failed to load prompts. "
-                "please check prompt file path for: direction_decision_human"
+                "please check prompt file path for: direction_decision_human",
             )
 
         # Create default factory
@@ -344,11 +344,11 @@ class PortfolioManagerAgent(AgentBase):
         for ticker in tickers:
             # Get position limit from risk manager
             risk_manager_id = self._get_risk_manager_id()
-            risk_data = (
-                state["data"]["analyst_signals"]
-                .get(risk_manager_id, {})
-                .get(ticker, {})
-            )
+            # risk_data = (
+            #     state["data"]["analyst_signals"]
+            #     .get(risk_manager_id, {})
+            #     .get(ticker, {})
+            # )
 
             # remaining_limit = risk_data.get("remaining_position_limit", 0)
             # price = current_prices.get(ticker, 0)
@@ -640,7 +640,7 @@ class PortfolioManagerAgent(AgentBase):
         for agent_id, signal_data in ticker_signals.items():
             if signal_data.get("type") == "investment_signal":
                 direction = signal_data.get("signal", "")
-                confidence = signal_data.get("confidence", 0)
+                # confidence = signal_data.get("confidence", 0)
 
                 signal_directions.append(direction)
 
@@ -765,7 +765,7 @@ class PortfolioManagerAgent(AgentBase):
 
         # Load summary data (contains benchmark returns)
         benchmark_returns = {}
-        equity_history = []
+
         if summary_file.exists():
             try:
                 with open(summary_file, "r", encoding="utf-8") as f:

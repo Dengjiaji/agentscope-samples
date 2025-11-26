@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 Simplified Notification System
-No longer depends on memory system, only provides basic notification broadcast functionality
+No longer depends on memory system,
+only provides basic notification broadcast functionality
 """
 
 from datetime import datetime
@@ -48,7 +49,7 @@ class SimpleNotificationSystem:
 
     def __init__(self):
         self.agent_memories = {}
-        self.global_notifications: List[Notification] = []
+        self.global_notifications = []
 
     def register_agent(self, agent_id: str):
         """Register agent"""
@@ -79,7 +80,7 @@ class SimpleNotificationSystem:
         self.global_notifications.append(notification)
 
         # Send to all registered agents
-        for agent_id, agent_memory in self.agent_memories.items():
+        for _, agent_memory in self.agent_memories.items():
             agent_memory.add_notification(notification)
 
         return notification.id

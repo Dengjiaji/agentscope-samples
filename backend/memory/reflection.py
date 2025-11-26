@@ -7,6 +7,7 @@ Supports two modes:
 - individual_review: Each agent independently processes its own memories
 """
 # flake8: noqa: E501
+# pylint: disable=C0301
 import json
 import logging
 import os
@@ -85,11 +86,13 @@ class MemoryReflectionSystem:
             ModelProvider.OPENAI,
         )
 
-        api_keys = {}
-        if model_provider == ModelProvider.OPENAI:
-            api_keys["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
-        elif model_provider == ModelProvider.ANTHROPIC:
-            api_keys["ANTHROPIC_API_KEY"] = os.getenv("ANTHROPIC_API_KEY")
+        api_keys: Dict[str, str] = {}
+        openai_key = os.getenv("OPENAI_API_KEY")
+        anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+        if model_provider == ModelProvider.OPENAI and openai_key:
+            api_keys["OPENAI_API_KEY"] = openai_key
+        elif model_provider == ModelProvider.ANTHROPIC and anthropic_key:
+            api_keys["ANTHROPIC_API_KEY"] = anthropic_key
 
         # Create memory management toolkit and memory instance
         from backend.memory import get_memory
@@ -767,7 +770,7 @@ Stock Real Return: {real_return:+.2%}"""
         analyst_signals = agent_data.get("analyst_signals", {})
         actual_returns = agent_data.get("actual_returns", {})
         real_returns = agent_data.get("real_returns", {})
-        portfolio_summary = agent_data.get("portfolio_summary", {})
+        # portfolio_summary = agent_data.get("portfolio_summary", {})
         analyst_stats = agent_data.get("analyst_stats", {})  # ⭐ 获取历史统计
 
         # Build portfolio data
@@ -814,7 +817,7 @@ Stock Real Return: {real_return:+.2%}"""
         # Build decision data
         decisions_data = ""
         for ticker, decision_data in pm_decisions.items():
-            actual_return = actual_returns.get(ticker, 0)
+            # actual_return = actual_returns.get(ticker, 0)
             action = decision_data.get("action", "N/A")
             quantity = decision_data.get("quantity", 0)
             confidence = decision_data.get("confidence", "N/A")

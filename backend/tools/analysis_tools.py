@@ -3,6 +3,7 @@
 Unified analysis tools collection
 Contains all tools for fundamental analysis, technical analysis, sentiment analysis, and valuation analysis
 """
+# flake8: noqa: E501
 # pylint: disable=C0301
 from statistics import median
 from typing import Any, Dict, Optional
@@ -875,7 +876,7 @@ def analyze_news_sentiment(
                 "news_list": news_list,
                 "reasoning": "News data analysis: Using Finnhub API, returning raw news data for LLM sentiment analysis",
             }
-
+        return {}
     except Exception as e:
         return {"error": str(e)}
 

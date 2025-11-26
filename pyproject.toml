@@ -47,7 +47,7 @@ dependencies = [
     "typer",
     "mem0ai",
     "reme-ai==0.1.9",
-    
+
 
 ]
 

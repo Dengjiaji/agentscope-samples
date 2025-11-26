@@ -4,6 +4,7 @@
 import datetime
 import os
 import time
+from typing import Optional
 
 import finnhub
 import pandas as pd
@@ -129,7 +130,7 @@ def get_prices(
     ticker: str,
     start_date: str,
     end_date: str,
-    api_key: str,
+    api_key: Optional[str] = None,
     data_source: str = "finnhub",
 ) -> list[Price]:
     """
@@ -239,7 +240,7 @@ def get_financial_metrics(
     end_date: str,
     period: str = "ttm",
     limit: int = 10,
-    api_key: str = None,
+    api_key: Optional[str] = None,
     data_source: str = "finnhub",
 ) -> list[FinancialMetrics]:
     """
@@ -724,7 +725,7 @@ def get_company_news(
 def get_market_cap(
     ticker: str,
     end_date: str,
-    api_key: str = None,
+    api_key: Optional[str] = None,
     data_source: str = "finnhub",
 ) -> float | None:
     """

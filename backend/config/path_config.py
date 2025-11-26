@@ -13,7 +13,7 @@ SANDBOX_LOGS_DIR = None
 
 
 def get_logs_and_memory_dir() -> Path:
-    """Get logs_and_memory directory path (located in project parent directory)"""
+    """Get logs_and_memory directory path"""
     return LOGS_AND_MEMORY_DIR
 
 

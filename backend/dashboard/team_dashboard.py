@@ -20,6 +20,8 @@ import pandas_market_calendars as mcal
 class TeamDashboardGenerator:
     """Team Dashboard Data Generator"""
 
+    price_data_dir: Path
+
     # Agent information configuration
     TEAM_ROLES = {"portfolio_manager", "risk_manager"}
 
@@ -588,6 +590,8 @@ class TeamDashboardGenerator:
                 if price is not None:
                     return price
 
+        raise ValueError(f"No price history found for {date}")
+
     def _get_ticker_price(
         self,
         ticker: str,
@@ -595,7 +599,7 @@ class TeamDashboardGenerator:
         signal_info: Dict,
         portfolio_state: Dict,
         real_returns: Dict,
-    ) -> float:
+    ) -> Optional[float]:
         """
         Get stock price (try multiple sources)
 
@@ -650,7 +654,7 @@ class TeamDashboardGenerator:
         portfolio_state = state["portfolio_state"]
 
         # Get portfolio information
-        portfolio_summary = live_env.get("portfolio_summary", {})
+        # portfolio_summary = live_env.get("portfolio_summary", {})
         updated_portfolio = live_env.get("updated_portfolio", {})
 
         # If updated_portfolio exists, use it directly
@@ -769,7 +773,7 @@ class TeamDashboardGenerator:
 
         for ticker, signal_info in pm_signals.items():
             signal = signal_info.get("signal", "neutral")
-            action = signal_info.get("action", "hold")
+            # action = signal_info.get("action", "hold")
 
             # if action == 'hold':
             #     continue
@@ -808,6 +812,8 @@ class TeamDashboardGenerator:
                 new_qty = old_qty + quantity
                 # Calculate new average cost
                 if new_qty > 0:
+                    if price is None:
+                        raise ValueError(f"Price is None for {ticker}")
                     new_cost = (
                         old_qty * old_cost + quantity * price
                     ) / new_qty
@@ -821,15 +827,11 @@ class TeamDashboardGenerator:
                         del portfolio_state["positions"][ticker]
 
             # Calculate P&L (treat as 0 when return is unknown)
-            pnl = (
-                quantity
-                * price
-                * (
-                    numeric_real_return
-                    if numeric_real_return is not None
-                    else 0.0
-                )
-            )
+            if price is None:
+                raise ValueError(f"Price is None for {ticker}")
+            if numeric_real_return is None:
+                raise ValueError(f"numeric_real_return is None for {ticker}")
+            pnl = quantity * price * numeric_real_return
 
             # Generate trade ID
             trade_count = len(
@@ -841,6 +843,8 @@ class TeamDashboardGenerator:
             )
             trade_id = f"t_{date.replace('-', '')}_{ticker}_{trade_count}"
 
+            if price is None:
+                raise ValueError(f"Price is None for {ticker}")
             trade_record = {
                 "id": trade_id,
                 "ts": timestamp_ms,
@@ -940,16 +944,26 @@ class TeamDashboardGenerator:
                     agent_perf["bull_count"] += 1
                     if result_unknown:
                         agent_perf["bull_unknown"] += 1
-                    elif numeric_real_return > 0:
-                        is_correct = True
-                        agent_perf["bull_win"] += 1
+                    else:
+                        if numeric_real_return is None:
+                            raise ValueError(
+                                f"numeric_real_return is None for {ticker}",
+                            )
+                        if numeric_real_return > 0:
+                            is_correct = True
+                            agent_perf["bull_win"] += 1
                 elif is_bear:
                     agent_perf["bear_count"] += 1
                     if result_unknown:
                         agent_perf["bear_unknown"] += 1
-                    elif numeric_real_return < 0:
-                        is_correct = True
-                        agent_perf["bear_win"] += 1
+                    else:
+                        if numeric_real_return is None:
+                            raise ValueError(
+                                f"numeric_real_return is None for {ticker}",
+                            )
+                        if numeric_real_return < 0:
+                            is_correct = True
+                            agent_perf["bear_win"] += 1
                 elif is_neutral:
                     agent_perf["neutral_count"] += 1
                     # neutral signals are not included in win rate statistics
@@ -1067,16 +1081,26 @@ class TeamDashboardGenerator:
                 pm_perf["bull_count"] += 1
                 if result_unknown:
                     pm_perf["bull_unknown"] += 1
-                elif numeric_real_return > 0:
-                    is_correct = True
-                    pm_perf["bull_win"] += 1
+                else:
+                    if numeric_real_return is None:
+                        raise ValueError(
+                            f"numeric_real_return is None for {ticker}",
+                        )
+                    if numeric_real_return > 0:
+                        is_correct = True
+                        pm_perf["bull_win"] += 1
             elif is_bear:
                 pm_perf["bear_count"] += 1
                 if result_unknown:
                     pm_perf["bear_unknown"] += 1
-                elif numeric_real_return < 0:
-                    is_correct = True
-                    pm_perf["bear_win"] += 1
+                else:
+                    if numeric_real_return is None:
+                        raise ValueError(
+                            f"numeric_real_return is None for {ticker}",
+                        )
+                    if numeric_real_return < 0:
+                        is_correct = True
+                        pm_perf["bear_win"] += 1
             elif is_neutral:
                 pm_perf["neutral_count"] += 1
 
@@ -1392,11 +1416,13 @@ class TeamDashboardGenerator:
             quantity = int(allocated_cash / price)
 
             if quantity > 0:
+                if price is None:
+                    raise ValueError(f"Price is None for {ticker}")
                 initial_allocation[ticker] = {
                     "qty": quantity,
                     "buy_price": price,
                     "buy_date": date,
-                    "weight": weight,  # Record market cap weight
+                    "weight": float(weight),  # Record market cap weight
                     "market_cap": mcap,
                 }
                 total_invested += quantity * price
@@ -1409,7 +1435,8 @@ class TeamDashboardGenerator:
         )
         for ticker, info in initial_allocation.items():
             print(
-                f"   {ticker}: {info['qty']} shares @ ${info['buy_price']:.2f} (weight: {info['weight']*100:.2f}%)",
+                f"   {ticker}: {info['qty']} shares @ ${info['buy_price']:.2f} "
+                f"(weight: {float(info['weight'])*100:.2f}%)",  # type: ignore
             )
 
     def _calculate_buy_and_hold_vw_value(
@@ -2094,7 +2121,6 @@ class TeamDashboardGenerator:
 
             evaluated_bull = max(bull_count - bull_unknown, 0)
             evaluated_bear = max(bear_count - bear_unknown, 0)
-            total_count = bull_count + bear_count
             total_win = bull_win + bear_win
             evaluated_total = evaluated_bull + evaluated_bear
             win_rate = (

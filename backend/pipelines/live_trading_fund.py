@@ -258,15 +258,15 @@ class LiveTradingFund:
         )
 
         # Use defaultdict to simplify initialization
-        live_env = {
+        ana_signals_dict: Dict[str, Dict[str, Any]] = defaultdict(dict)
+        real_returns_dict: Dict[str, float] = defaultdict(float)
+        daily_returns_dict: Dict[str, float] = defaultdict(float)
+
+        live_env: Dict[str, Any] = {
             "pm_signals": {},
-            "ana_signals": defaultdict(
-                lambda: defaultdict(str),
-            ),  # Automatically create nested dict, default value is empty string
-            "real_returns": defaultdict(
-                float,
-            ),  # Auto-create, default value is 0.0
-            "daily_returns": defaultdict(float),
+            "ana_signals": ana_signals_dict,
+            "real_returns": real_returns_dict,
+            "daily_returns": daily_returns_dict,
             "state": result.get(
                 "state",
             ),  # Add state for memory reflection and deferred trade execution
@@ -492,7 +492,7 @@ class LiveTradingFund:
         self,
         date: str,
         tickers: List[str],
-        live_env: Dict[str, Any],
+        live_env: Optional[Dict[str, Any]],
     ) -> Dict[str, Any]:
         """Run post-market review"""
         self.streamer.print(
@@ -502,7 +502,7 @@ class LiveTradingFund:
             f"Review targets: {', '.join(tickers)}",
         )
 
-        if live_env != "Not trading day":
+        if live_env is not None:
             # Post-market review logic
             result = self._perform_post_market_review(date, tickers, live_env)
 
@@ -583,7 +583,7 @@ class LiveTradingFund:
             # Portfolio mode: Display value changes
             for ticker in tickers:
                 if ticker in real_returns:
-                    daily_ret = daily_returns[ticker] * 100
+                    # daily_ret = daily_returns[ticker] * 100
                     real_ret = real_returns[ticker] * 100
                     signal_info = pm_signals.get(ticker, {})
                     action = signal_info.get("action", "N/A")
@@ -1943,7 +1943,7 @@ class LiveTradingFund:
             results["post_market"] = self.run_post_market_review(
                 date,
                 tickers,
-                "Not trading day",
+                None,
             )
 
         # Generate day summary
@@ -1953,7 +1953,8 @@ class LiveTradingFund:
         if self.mode == "portfolio":
             results["portfolio_state"] = self.strategy.portfolio_state
 
-        self._print_day_summary(results["summary"])
+        summary: Dict[str, Any] = results["summary"]
+        self._print_day_summary(summary)
 
         return results
 

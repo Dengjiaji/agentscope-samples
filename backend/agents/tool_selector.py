@@ -177,7 +177,7 @@ class Toolselector:
 
         except Exception as e:
             print(f"⚠️ LLM tool selection failed: {str(e)}")
-            return []
+            return {}
 
     def _extract_json(self, text: str) -> str:
         """Extract JSON from response text"""
@@ -227,7 +227,9 @@ class Toolselector:
         api_key = os.getenv(key_name)
 
         if not api_key:
-            print(f"⚠️ API key not found: {key_name} for {tool_name}")
+            raise ValueError(
+                f"⚠️ API key not found: {key_name} for {tool_name}",
+            )
 
         return api_key
 

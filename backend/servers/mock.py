@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+# flake8: noqa: E501
+# pylint: disable=C0301
 
 import asyncio
 import logging
@@ -71,6 +73,7 @@ class MockSimulator:
         """Generate leaderboard data"""
         leaderboard = []
         for idx, agent in enumerate(self.agents, 1):
+            return_pct = random.uniform(-50, 80)
             leaderboard.append(
                 {
                     "agentId": agent["id"],
@@ -79,7 +82,7 @@ class MockSimulator:
                     "rank": idx,
                     "accountValue": self.initial_cash
                     * random.uniform(0.5, 1.5),
-                    "returnPct": random.uniform(-50, 80),
+                    "returnPct": return_pct,
                     "totalPL": random.uniform(-5000, 8000),
                     "fees": random.uniform(200, 1500),
                     "winRate": random.uniform(0.2, 0.7),
@@ -90,7 +93,7 @@ class MockSimulator:
                 },
             )
 
-        leaderboard.sort(key=lambda x: x["returnPct"], reverse=True)
+        leaderboard.sort(key=lambda x: float(x["returnPct"]), reverse=True)  # type: ignore
         for idx, agent in enumerate(leaderboard, 1):
             agent["rank"] = idx
 
@@ -341,11 +344,14 @@ class MockSimulator:
         """Send agent message"""
         agent = random.choice(self.agents)
         messages = [
-            f"Analyzing {random.choice(self.tickers)} - showing strong momentum",
-            f"Risk alert: volatility increasing in {random.choice(self.tickers)}",
-            f"Portfolio rebalancing recommended",
-            f"Technical indicators suggest buying opportunity in {random.choice(self.tickers)}",
-            f"Market sentiment turning positive",
+            f"Analyzing {random.choice(self.tickers)}"
+            " - showing strong momentum",
+            "Risk alert: volatility increasing in "
+            f"{random.choice(self.tickers)}",
+            "Portfolio rebalancing recommended",
+            "Technical indicators suggest buying opportunity in "
+            f"{random.choice(self.tickers)}",
+            "Market sentiment turning positive",
         ]
 
         await self.broadcast(

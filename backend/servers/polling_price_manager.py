@@ -5,6 +5,7 @@ Polling-based Price Manager - Uses Finnhub REST API
 Supports high-frequency real-time price fetching (default 10 seconds, recommended for online mode)
 Uses Finnhub Quote API: https://finnhub.io/docs/api/quote
 """
+# flake8: noqa: E501
 import logging
 import threading
 import time
@@ -22,9 +23,10 @@ class PollingPriceManager:
         """
         Args:
             api_key: Finnhub API Key (Free registration: https://finnhub.io/register)
-            poll_interval: Polling interval (seconds), default 30 seconds (recommended for online mode)
-                          - Free account: Recommend 10-60 seconds
-                          - Paid account: Can set shorter intervals
+            poll_interval: Polling interval (seconds),
+            default 30 seconds (recommended for online mode)
+                - Free account: Recommend 10-60 seconds
+                - Paid account: Can set shorter intervals
         """
         self.api_key = api_key
         self.poll_interval = poll_interval
@@ -150,7 +152,8 @@ class PollingPriceManager:
                             (current_price - old_price) / old_price
                         ) * 100
                         logger.info(
-                            f"💹 {symbol}: ${current_price:.2f} ({change:+.2f}% from last) [Open ret: {ret:+.2f}%]",
+                            f"💹 {symbol}: ${current_price:.2f} "
+                            f"({change:+.2f}% from last) [Open ret: {ret:+.2f}%]",
                         )
                     else:
                         logger.info(

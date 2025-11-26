@@ -95,15 +95,16 @@ class InvestmentEngine:
             if analyst_type == "comprehensive":
                 continue  # Skip comprehensive analyst in core_analysts
 
-            agent_id = config["agent_id"]
+            agent_id: str = config["agent_id"]
+            description: str = config["description"]
             self.core_analysts[agent_id] = {
                 "name": config["display_name"],
                 "agent": AnalystAgent(
                     analyst_type=analyst_type,
                     agent_id=agent_id,
-                    description=config["description"],
+                    description=description,
                 ),
-                "description": config["description"],
+                "description": description,
             }
 
         logging.info("Investment engine initialized")
@@ -619,20 +620,18 @@ class InvestmentEngine:
 
                     # Use thread lock to protect notification system's global state
                     with self._notification_lock:
-                        notification_id = (
-                            notification_system.broadcast_notification(
-                                sender_agent=agent_id,
-                                content=notification_decision["content"],
-                                urgency=notification_decision.get(
-                                    "urgency",
-                                    "medium",
-                                ),
-                                category=notification_decision.get(
-                                    "category",
-                                    "general",
-                                ),
-                                backtest_date=backtest_date,
-                            )
+                        notification_system.broadcast_notification(
+                            sender_agent=agent_id,
+                            content=notification_decision["content"],
+                            urgency=notification_decision.get(
+                                "urgency",
+                                "medium",
+                            ),
+                            category=notification_decision.get(
+                                "category",
+                                "general",
+                            ),
+                            backtest_date=backtest_date,
                         )
 
                     # Broadcast notification to all agents' memory
@@ -1197,6 +1196,7 @@ class InvestmentEngine:
                 final_decisions = initial_decisions
                 last_decision_dump = None
                 communication_results = {}
+                updated_signals: dict = {}
 
                 for cycle in range(1, max_cycles + 1):
                     # Get analyst signals (refresh each round)
@@ -1208,7 +1208,9 @@ class InvestmentEngine:
                                     "analyst_signals"
                                 ][agent_id]
                     else:
-                        analyst_signals = updated_signals
+                        analyst_signals = (
+                            updated_signals if updated_signals else {}
+                        )
 
                     # Decide communication strategy
                     communication_decision = (
@@ -1811,7 +1813,7 @@ class InvestmentEngine:
                     pm_decisions=decisions,
                     current_prices=current_prices,
                     portfolio=portfolio,
-                    current_date=state["data"].get("end_date"),
+                    current_date=state["data"].get("end_date", ""),
                 )
 
                 # Update portfolio in state
@@ -1833,7 +1835,7 @@ class InvestmentEngine:
 
                 execution_report = execute_trading_decisions(
                     pm_decisions=decisions,
-                    current_date=state["data"].get("end_date"),
+                    current_date=state["data"].get("end_date", ""),
                 )
 
                 # Add execution report to state

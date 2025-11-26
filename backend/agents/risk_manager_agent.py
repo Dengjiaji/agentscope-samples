@@ -4,6 +4,7 @@ Risk Manager Agent - Risk Management Agent
 Provides unified risk assessment and position management interface (based on AgentScope)
 """
 # flake8: noqa: E501
+# pylint: disable=C0301
 
 import json
 import os
@@ -101,7 +102,7 @@ class RiskManagerAgent(AgentBase):
                 "Fetching price data and calculating volatility",
             )
 
-            # ⭐ Strategy:
+            # Strategy:
             # 1. Volatility calculation: Use historical data (up to T-1 day) to avoid incomplete data
             # 2. Current price:
             #    - Live mode (live_server.py): Use T-1 day closing price (previous trading day)
@@ -389,10 +390,8 @@ class RiskManagerAgent(AgentBase):
             risk_level = "low"
             base_score = 25
             if vol_percentile < 30:
-                risk_score = base_score - 10
                 assessment = f"Low risk stock, annualized volatility {annualized_vol:.1%}, currently at historically low volatility level"
             else:
-                risk_score = base_score
                 assessment = f"Low risk stock, annualized volatility {annualized_vol:.1%}, price volatility relatively mild"
         elif annualized_vol < 0.30:
             risk_level = "medium"

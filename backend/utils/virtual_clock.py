@@ -8,7 +8,7 @@ Features:
 3. Global singleton, entire system uses unified virtual time
 4. Can pause/resume/reset
 """
-
+# flake8: noqa: E501
 import asyncio
 import threading
 from datetime import datetime, timedelta, timezone
@@ -53,7 +53,7 @@ class VirtualClock:
         # Pause state
         self.paused = False
         self.pause_real_time = None
-        self.pause_virtual_time = None
+        self.pause_virtual_time = self.virtual_start_time
 
         # Thread lock
         self.lock = threading.Lock()
