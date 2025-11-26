@@ -1,8 +1,8 @@
-# EvoTraders: A Self-Evolving Multi-Agent Trading System
-
 <p align="center">
   <img src="./docs/assets/evotraders_logo.png" width="45%">
 </p>
+
+<h2 align="center">EvoTraders: A Self-Evolving Multi-Agent Trading System</h2>
 
 <p align="center">
   📌 <a href="https://trading.evoagents.com">Visit us at EvoTraders website !</a>
@@ -176,6 +176,7 @@ export const AGENTS = [
     avatar: `${ASSET_BASE_URL}/...`,
     colors: { bg: '#F9FDFF', text: '#1565C0', accent: '#1565C0' }
   }
+]
 ```
 
 ### Custom Models

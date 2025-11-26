@@ -1,8 +1,9 @@
-# EvoTraders：自我进化的多智能体交易系统
-
 <p align="center">
   <img src="./docs/assets/evotraders_logo.png" width="45%">
 </p>
+
+<h2 align="center">EvoTraders：自我进化的多智能体交易系统</h2>
+
 
 <p align="center">
   📌 <a href="https://trading.evoagents.com">Visit us at EvoTraders website !</a>
@@ -180,6 +181,7 @@ export const AGENTS = [
     avatar: `${ASSET_BASE_URL}/...`,
     colors: { bg: '#F9FDFF', text: '#1565C0', accent: '#1565C0' }
   }
+  ]
 ```
 
 
