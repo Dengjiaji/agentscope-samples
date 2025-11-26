@@ -1737,12 +1737,6 @@ class LiveTradingServer:
                     "content": f"✅ Updated previous trading day ({prev_date}) agent performance",
                 },
             )
-            self.broadcast(
-                {
-                    "type": "system",
-                    "content": f"✅ Updated previous trading day's agent perf: {prev_date}",
-                },
-            )
 
         if result.get("status") == "success":
             await self.broadcast(

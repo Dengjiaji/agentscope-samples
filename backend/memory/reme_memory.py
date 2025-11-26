@@ -233,7 +233,8 @@ class ReMeMemory(LongTermMemory):
         # If content exceeds maximum length, split into multiple records
         if content_len > MAX_CONTENT_LENGTH:
             logger.info(
-                f"   Content length ({content_len}) exceeds limit ({MAX_CONTENT_LENGTH}), will split into multiple records",
+                f"   Content length ({content_len}) exceeds limit "
+                f"({MAX_CONTENT_LENGTH}), will split into multiple records",
             )
 
             # Split content by MAX_CONTENT_LENGTH

@@ -16,11 +16,12 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import pandas_market_calendars as mcal
+
 import seaborn as sns
 from dateutil.relativedelta import relativedelta
 from matplotlib import rcParams
-
+import pandas_market_calendars as mcal
+import exchange_calendars as xcals
 from backend.config.path_config import get_directory_config
 from backend.tools.data_tools import (
     get_company_news,
@@ -28,6 +29,7 @@ from backend.tools.data_tools import (
     get_insider_trades,
     get_prices,
 )
+
 
 # Setup plotting style
 rcParams["axes.unicode_minus"] = False
@@ -850,8 +852,7 @@ class MultiDayStrategy:
             return str(chart_path)
 
         except Exception as e:
-            print(f"Failed to generate {ticker} return chart: {e}")
-            return None
+            raise (f"Failed to generate {ticker} return chart: {e}")
 
     def create_stocks_comparison_chart(self, individual_data: Dict) -> str:
         """Create stock comparison chart"""
@@ -940,5 +941,4 @@ class MultiDayStrategy:
             return str(chart_path)
 
         except Exception as e:
-            print(f"Failed to generate stock comparison chart: {e}")
-            return None
+            raise (f"Failed to generate stock comparison chart: {e}")

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime, timezone
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Optional
 
 from rich.console import Console
 from rich.live import Live
@@ -15,13 +15,11 @@ class AgentProgress:
     """Manages progress tracking for multiple agents."""
 
     def __init__(self):
-        self.agent_status: Dict[str, Dict[str, str]] = {}
+        self.agent_status = {}
         self.table = Table(show_header=False, box=None, padding=(0, 1))
         self.live = Live(self.table, console=console, refresh_per_second=4)
         self.started = False
-        self.update_handlers: List[
-            Callable[[str, Optional[str], str], None]
-        ] = []
+        self.update_handlers = []
 
     def register_handler(
         self,
@@ -99,7 +97,7 @@ class AgentProgress:
         self.table.columns.clear()
         self.table.add_column(width=100)
 
-        # Sort agents with Risk Management and Portfolio Management at the bottom
+        # Sort Risk Management and Portfolio Management at the bottom
         def sort_key(item):
             agent_name = item[0]
             if "risk_manager" in agent_name:

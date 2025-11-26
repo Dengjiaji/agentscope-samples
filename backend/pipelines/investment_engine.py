@@ -95,15 +95,16 @@ class InvestmentEngine:
             if analyst_type == "comprehensive":
                 continue  # Skip comprehensive analyst in core_analysts
 
-            agent_id = config["agent_id"]
+            agent_id: str = config["agent_id"]
+            description: str = config["description"]
             self.core_analysts[agent_id] = {
                 "name": config["display_name"],
                 "agent": AnalystAgent(
                     analyst_type=analyst_type,
                     agent_id=agent_id,
-                    description=config["description"],
+                    description=description,
                 ),
-                "description": config["description"],
+                "description": description,
             }
 
         logging.info("Investment engine initialized")
@@ -1809,7 +1810,7 @@ class InvestmentEngine:
                     pm_decisions=decisions,
                     current_prices=current_prices,
                     portfolio=portfolio,
-                    current_date=state["data"].get("end_date"),
+                    current_date=state["data"].get("end_date", ""),
                 )
 
                 # Update portfolio in state
@@ -1831,7 +1832,7 @@ class InvestmentEngine:
 
                 execution_report = execute_trading_decisions(
                     pm_decisions=decisions,
-                    current_date=state["data"].get("end_date"),
+                    current_date=state["data"].get("end_date", ""),
                 )
 
                 # Add execution report to state

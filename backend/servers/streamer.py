@@ -170,7 +170,7 @@ class MultiStreamer(BaseStreamer):
 
 class BroadcastStreamer(BaseStreamer):
     """
-    Thread-safe broadcast Streamer, used to forward messages from synchronous code to asynchronous broadcast system
+    Thread-safe broadcast Streamer, used o asynchronous broadcast system
     """
 
     def __init__(
@@ -182,7 +182,7 @@ class BroadcastStreamer(BaseStreamer):
     ):
         """
         Args:
-            broadcast_callback: Async callback function, receives message dict as parameter
+            broadcast_callback: Async callback function
             event_loop: asyncio event loop
             step_ms: Time step (milliseconds)
             console_output: Whether to also output to console
@@ -289,17 +289,17 @@ class BroadcastStreamer(BaseStreamer):
         message = self._normalize_message(type, content)
         self._broadcast(message)
 
-    def print(self, event_type: str = "", content: str = "", **kwargs):
+    def print(self, type: str = "", content: str = "", **kwargs):
         """
         Generic print interface (enhanced version)
         Supports arbitrary event types and custom fields
         """
-        if event_type in ("system", ""):
+        if type in ("system", ""):
             self.system(content)
-        elif event_type == "agent":
+        elif type == "agent":
             role_key = kwargs.get("role_key", "_default")
             self.agent(role_key, content)
-        elif event_type == "price":
+        elif type == "price":
             try:
                 value = float(content)
                 self.price(value)
@@ -307,5 +307,5 @@ class BroadcastStreamer(BaseStreamer):
                 self.price(0.0)
         else:
             # Handle all other message types
-            message = self._normalize_message(event_type, content, **kwargs)
+            message = self._normalize_message(type, content, **kwargs)
             self._broadcast(message)

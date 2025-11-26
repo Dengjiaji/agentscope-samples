@@ -19,7 +19,8 @@ class PromptLoader:
         Initialize Prompt loader
 
         Args:
-            prompts_dir: Prompts directory path, defaults to prompts/ directory of current file
+            prompts_dir: Prompts directory path,
+                         defaults to prompts/ directory of current file
         """
         if prompts_dir is None:
             self.prompts_dir = Path(__file__).parent / "prompts"
@@ -48,9 +49,9 @@ class PromptLoader:
             Rendered prompt string
 
         Examples:
-            >>> loader = PromptLoader()
-            >>> prompt = loader.load_prompt("analyst", "tool_selection",
-            ...                            {"analyst_persona": "Technical Analyst"})
+            loader = PromptLoader()
+            prompt = loader.load_prompt("analyst", "tool_selection",
+            {"analyst_persona": "Technical Analyst"})
         """
         cache_key = f"{agent_type}/{prompt_name}"
 

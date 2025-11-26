@@ -71,8 +71,11 @@ class Mem0Memory(LongTermMemory):
         }
 
         # Ensure directories exist
-        os.makedirs(os.path.dirname(config["history_db_path"]), exist_ok=True)
-        os.makedirs(config["vector_store"]["config"]["path"], exist_ok=True)
+        history_path: str = config["history_db_path"]
+        vector_path: str = config["vector_store"]["config"]["path"]
+
+        os.makedirs(os.path.dirname(history_path), exist_ok=True)
+        os.makedirs(vector_path, exist_ok=True)
 
         # Create shared Memory instance
         self.memory = Memory.from_config(config)
@@ -140,7 +143,7 @@ class Mem0Memory(LongTermMemory):
             logger.debug(f"   Formatted result: {len(formatted)} records")
             return formatted
 
-        logger.warning(f"   ⚠️ Result format abnormal, returning empty list")
+        logger.warning("   ⚠️ Result format abnormal, returning empty list")
         return []
 
     def update(self, memory_id: str, content: str, user_id: str) -> bool:

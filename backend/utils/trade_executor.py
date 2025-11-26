@@ -7,7 +7,7 @@ Trading Execution Engine - Supports Two Modes
 # flake8: noqa: E501
 from copy import deepcopy
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 
 class DirectionSignalRecorder:
@@ -35,7 +35,7 @@ class DirectionSignalRecorder:
         if current_date is None:
             current_date = datetime.now().strftime("%Y-%m-%d")
 
-        signal_report = {
+        signal_report: Dict[str, Any] = {
             "recorded_signals": {},
             "date": current_date,
             "timestamp": datetime.now().isoformat(),
@@ -110,6 +110,10 @@ def parse_pm_decisions(pm_output: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
 class PortfolioTradeExecutor:
     """Portfolio mode trade executor, executes specific trades and tracks positions"""
 
+    portfolio: Dict[str, Any]
+    trade_history: List[Dict[str, Any]]
+    portfolio_history: List[Dict[str, Any]]
+
     def __init__(self, initial_portfolio: Optional[Dict[str, Any]] = None):
         """
         Initialize Portfolio trade executor
@@ -117,6 +121,7 @@ class PortfolioTradeExecutor:
         Args:
             initial_portfolio: Initial portfolio state
         """
+
         if initial_portfolio is None:
             self.portfolio = {
                 "cash": 100000.0,
@@ -151,7 +156,7 @@ class PortfolioTradeExecutor:
         if current_date is None:
             current_date = datetime.now().strftime("%Y-%m-%d")
 
-        execution_report = {
+        execution_report: Dict[str, Any] = {
             "date": current_date,
             "timestamp": datetime.now().isoformat(),
             "executed_trades": [],

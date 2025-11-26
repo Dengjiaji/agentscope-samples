@@ -20,6 +20,8 @@ import pandas_market_calendars as mcal
 class TeamDashboardGenerator:
     """Team Dashboard Data Generator"""
 
+    price_data_dir: Path
+
     # Agent information configuration
     TEAM_ROLES = {"portfolio_manager", "risk_manager"}
 
@@ -588,6 +590,8 @@ class TeamDashboardGenerator:
                 if price is not None:
                     return price
 
+        raise ValueError(f"No price history found for {date}")
+
     def _get_ticker_price(
         self,
         ticker: str,
@@ -595,7 +599,7 @@ class TeamDashboardGenerator:
         signal_info: Dict,
         portfolio_state: Dict,
         real_returns: Dict,
-    ) -> float:
+    ) -> Optional[float]:
         """
         Get stock price (try multiple sources)
 

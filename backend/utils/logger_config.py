@@ -15,7 +15,8 @@ def setup_logging(level=logging.WARNING, log_file=None, quiet_mode=True):
     Args:
         level: Log level, default WARNING
         log_file: Log file path, if None then no file writing
-        quiet_mode: Whether to enable quiet mode, disable detailed logs for HTTP requests, etc.
+        quiet_mode: Whether to enable quiet mode,
+                    disable detailed logs for HTTP requests, etc.
     """
     handlers = []
 
@@ -24,7 +25,7 @@ def setup_logging(level=logging.WARNING, log_file=None, quiet_mode=True):
 
     # Add file handler (if specified)
     if log_file:
-        # Get directory path, skip directory creation if file is in current directory
+        # Get directory path, skip if file is in current directory
         log_dir = os.path.dirname(log_file)
         if log_dir:  # Only create directory if directory path is not empty
             os.makedirs(log_dir, exist_ok=True)

@@ -341,11 +341,14 @@ class MockSimulator:
         """Send agent message"""
         agent = random.choice(self.agents)
         messages = [
-            f"Analyzing {random.choice(self.tickers)} - showing strong momentum",
-            f"Risk alert: volatility increasing in {random.choice(self.tickers)}",
-            f"Portfolio rebalancing recommended",
-            f"Technical indicators suggest buying opportunity in {random.choice(self.tickers)}",
-            f"Market sentiment turning positive",
+            f"Analyzing {random.choice(self.tickers)}"
+            " - showing strong momentum",
+            "Risk alert: volatility increasing in "
+            f"{random.choice(self.tickers)}",
+            "Portfolio rebalancing recommended",
+            "Technical indicators suggest buying opportunity in "
+            f"{random.choice(self.tickers)}",
+            "Market sentiment turning positive",
         ]
 
         await self.broadcast(
