@@ -592,27 +592,32 @@ class LiveTradingServer:
         self,
         values: List[Dict[str, Any]],
     ) -> List[Dict[str, Any]]:
-        """Calculate cumulative returns for live mode
+        """Calculate cumulative returns for live mode (current trading session only).
 
-        For live mode, we calculate returns relative to the last value before
-        the current trading session (22:30). This ensures all strategies start
-        at 0% at the beginning of the trading session.
+        For live mode, we:
+        1) Identify the most recent trading session (22:30 - 05:00, next day, Asia/Shanghai).
+        2) Use the last portfolio value *before* this session as the base.
+        3) Return cumulative percentage returns for all points *within* this session.
+        4) Always prepend a synthetic 0% point at (session_start - 1ms) so that
+           all strategies can align at the same initial timestamp.
 
         Args:
             values: List of {t: timestamp_ms, v: value} data points
 
         Returns:
             List of {t: timestamp_ms, v: cumulative_return_percentage} data points
-            where the first point (session start) is 0%
+            restricted to the current trading session, with the first point being 0%.
         """
-        if not values or len(values) == 0:
+        if not values:
             return []
 
+        # Use virtual or real time, consistent with the rest of the server
         current_time = self._get_current_time_for_data()
 
         current_hour = current_time.hour
         current_minute = current_time.minute
 
+        # Trading session: 22:30 - 05:00 (next day), Asia/Shanghai equivalent
         is_in_trading_session = (
             (current_hour == 22 and current_minute >= 30)
             or current_hour >= 23
@@ -627,29 +632,63 @@ class LiveTradingServer:
             microsecond=0,
         )
         if not is_in_trading_session or current_time < session_start_time:
+            # If we are outside the trading session, use the previous day's session
             session_start_time = session_start_time - timedelta(days=1)
 
         session_start_timestamp = int(session_start_time.timestamp() * 1000)
 
-        initial_value = None
-        for i in range(len(values) - 1, -1, -1):
-            if values[i]["t"] < session_start_timestamp:
-                initial_value = values[i]["v"]
+        # Find base value: last value strictly before session start.
+        base_value = None
+        for point in reversed(values):
+            if point.get("t") is None or point.get("v") is None:
+                continue
+            if point["t"] < session_start_timestamp:
+                base_value = point["v"]
                 break
 
-        if initial_value is None:
-            if len(values) > 0:
-                initial_value = values[0]["v"]
-            else:
+        # Fallback: use the first available value as base if nothing before session
+        if base_value is None:
+            first_valid = next(
+                (p for p in values if p.get("t") is not None and p.get("v") is not None),
+                None,
+            )
+            if not first_valid:
                 return []
+            base_value = first_valid["v"]
 
-        if initial_value == 0:
+        # Guard against division by zero
+        if not base_value:
             return []
 
-        returns = []
-        for point in values:
+        # Collect data points that fall within the current session
+        session_points: List[Dict[str, Any]] = [
+            p
+            for p in values
+            if p
+            and isinstance(p.get("t"), (int, float))
+            and p["t"] >= session_start_timestamp
+            and p.get("v") is not None
+        ]
+
+        if not session_points:
+            # No data in the current session -> nothing to plot
+            return []
+
+        returns: List[Dict[str, Any]] = []
+
+        # Synthetic 0% return point just before session start.
+        # This ensures all strategies share the same initial timestamp.
+        returns.append(
+            {
+                "t": session_start_timestamp - 1,
+                "v": 0.0,
+            },
+        )
+
+        # Then cumulative returns for all in-session points
+        for point in session_points:
             cumulative_return = (
-                (point["v"] - initial_value) / initial_value * 100
+                (point["v"] - base_value) / base_value * 100
             )
             returns.append(
                 {

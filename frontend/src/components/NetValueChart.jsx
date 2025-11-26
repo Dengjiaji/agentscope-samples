@@ -58,9 +58,9 @@ function getRecentTradingSessionStart(virtualTime = null) {
 
 /**
  * Helper function to filter strategy data for live view
- * Returns data matching the structure of filteredEquity (with start point if applicable)
- * strategyData should be an array of { t: timestamp, v: value } objects
- * @param {Date|null} virtualTime - Virtual time from server (for mock mode), or null to use real time
+ * NOTE: Live mode returns are now pre-processed by the backend, restricted to the
+ * latest trading session and already starting at 0% at session start. This helper
+ * is kept for potential future use but is no longer used in live mode.
  */
 function filterStrategyDataForLive(strategyData, equity, sessionStartTime) {
   if (!strategyData || strategyData.length === 0 || !equity || equity.length === 0) return [];
@@ -150,22 +150,22 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
   }, [chartTab, equity, baseline, baseline_vw, momentum, equity_return, baseline_return, baseline_vw_return, momentum_return]);
   // Filter equity data based on chartTab
   const filteredEquity = useMemo(() => {
-    const sourceEquity = dataSource.equity;
-    if (!sourceEquity || sourceEquity.length === 0) return [];
-
     if (chartTab === 'all') {
-      // All图：每天只显示最后一个点
-      // 逻辑：保留每日22:30以前的最后一个equity值（美国下一个交易日开盘前的最后一个equity value）
-      // 22:30之后的数据属于下一个交易日的交易时段，不在此图中显示
-      // 时间处理：时间戳(ms) -> UTC -> Asia/Shanghai时区，然后以Asia/Shanghai时间为基准进行分组和判断
+      const sourceEquity = dataSource.equity;
+      if (!sourceEquity || sourceEquity.length === 0) return [];
+
+      // ALL chart: Show only the last point per day
+      // Logic: Keep the last equity value before 22:30 each day (the last equity value before US next trading day opens)
+      // Data after 22:30 belongs to the next trading day's session and is not shown in this chart
+      // Time handling: timestamp(ms) -> UTC -> Asia/Shanghai timezone, then group and filter based on Asia/Shanghai time
       const dailyData = {};
 
       sourceEquity.forEach((d) => {
-        // 时间戳是毫秒数，先创建UTC时间，然后转换为Asia/Shanghai时区
-        // 等价于: pd.to_datetime(timestamp, unit='ms', utc=True).dt.tz_convert('Asia/Shanghai')
-        const utcDate = new Date(d.t); // 时间戳(ms) -> UTC时间
+        // Timestamp is in milliseconds, first create UTC time, then convert to Asia/Shanghai timezone
+        // Equivalent to: pd.to_datetime(timestamp, unit='ms', utc=True).dt.tz_convert('Asia/Shanghai')
+        const utcDate = new Date(d.t); // timestamp(ms) -> UTC time
 
-        // 使用Intl API获取Asia/Shanghai时区的日期时间组件
+        // Use Intl API to get date/time components in Asia/Shanghai timezone
         const formatter = new Intl.DateTimeFormat('en-US', {
           timeZone: 'Asia/Shanghai',
           year: 'numeric',
@@ -183,66 +183,31 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
         const hour = parseInt(parts.find(p => p.type === 'hour').value);
         const minute = parseInt(parts.find(p => p.type === 'minute').value);
 
-        // 判断是否在22:30之前（Asia/Shanghai时区）
+        // Check if before 22:30 (Asia/Shanghai timezone)
         const isBefore2230 = hour < 22 || (hour === 22 && minute < 30);
 
-        // 只处理22:30之前的数据
+        // Only process data before 22:30
         if (isBefore2230) {
-          // 使用Asia/Shanghai时区的日期作为key
+          // Use Asia/Shanghai timezone date as key
           const dateKey = `${year}-${month}-${day}`;
 
-          // 如果这一天还没有数据，或者当前数据的时间更晚，则更新
+          // Update if this day has no data yet, or if current data is later in time
           if (!dailyData[dateKey] || new Date(d.t) > new Date(dailyData[dateKey].t)) {
             dailyData[dateKey] = d;
           }
         }
       });
 
-      // 转换为数组并按时间排序
+      // Convert to array and sort by time
       return Object.values(dailyData).sort((a, b) => a.t - b.t);
     } else if (chartTab === 'live') {
-      // Live图：显示最近一次交易时段（22:30-05:00）的所有更新
-      if (sourceEquity.length === 0) return [];
-      try {
-        const sessionStartTime = getRecentTradingSessionStart(virtualTime);
-        if (!sessionStartTime || isNaN(sessionStartTime.getTime())) {
-          console.warn('Invalid sessionStartTime, returning all equity data');
-          return sourceEquity;
-        }
-        const sessionStartTimestamp = sessionStartTime.getTime();
-        // 找到上一个交易日最后的net_value（sessionStartTime之前最后一个点）
-        let lastValueBeforeSession = null;
-        for (let i = sourceEquity.length - 1; i >= 0; i--) {
-          if (sourceEquity[i] && typeof sourceEquity[i].t === 'number' && sourceEquity[i].t < sessionStartTimestamp) {
-            lastValueBeforeSession = sourceEquity[i].v;
-            break;
-          }
-        }
-        // 如果找不到上一个交易日的值，使用equity的第一个值
-        if (lastValueBeforeSession === null && sourceEquity.length > 0 && sourceEquity[0]) {
-          lastValueBeforeSession = sourceEquity[0].v;
-        }
-        // 找到sessionStartTime之后的所有点
-        const sessionData = sourceEquity.filter(d => d && typeof d.t === 'number' && d.t >= sessionStartTimestamp);
-        // 如果有上一个交易日的最后值，在session数据前添加一个起点
-        if (lastValueBeforeSession !== null && sessionData.length > 0) {
-        // 如果有上一个交易日的最后值，在session数据前添加一个起点
-
-          const startPoint = {
-            t: sessionStartTimestamp - 1,
-            v: lastValueBeforeSession
-          };
-          return [startPoint, ...sessionData];
-        }
-
-        return sessionData;
-      } catch (error) {
-        console.error('Error filtering equity for live view:', error);
-        // Fallback: return all equity data
-        return sourceEquity;
-      }
+      // LIVE chart: Show all updates from the most recent trading session (22:30-05:00)
+      // Live mode: Backend has already returned return curves for "current trading session + 0% starting point", frontend can use directly
+      const sourceEquity = dataSource.equity;
+      if (!sourceEquity || sourceEquity.length === 0) return [];
+      return sourceEquity;
     }
-    return sourceEquity;
+    return dataSource.equity || [];
   }, [dataSource.equity, chartTab, virtualTime]);
   // Helper function to get daily indices for 'all' view
   const getDailyIndices = useMemo(() => {
@@ -266,10 +231,10 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
       const hour = parseInt(parts.find(p => p.type === 'hour').value);
       const minute = parseInt(parts.find(p => p.type === 'minute').value);
 
-      // 判断是否在22:30之前（Asia/Shanghai时区）
+      // Check if before 22:30 (Asia/Shanghai timezone)
       const isBefore2230 = hour < 22 || (hour === 22 && minute < 30);
 
-      // 只处理22:30之前的数据
+      // Only process data before 22:30
       if (isBefore2230) {
         const year = parts.find(p => p.type === 'year').value;
         const month = parts.find(p => p.type === 'month').value;
@@ -293,8 +258,8 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
     if (chartTab === 'all') {
       return sourceBaseline.filter((_, idx) => getDailyIndices.has(idx));
     } else if (chartTab === 'live') {
-      const sessionStartTime = getRecentTradingSessionStart(virtualTime);
-      return filterStrategyDataForLive(sourceBaseline, equity, sessionStartTime);
+      // Live mode: Use backend pre-processed baseline return curves directly
+      return sourceBaseline;
     }
     return sourceBaseline;
   }, [dataSource.baseline, equity, chartTab, getDailyIndices, virtualTime]);
@@ -304,8 +269,8 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
     if (chartTab === 'all') {
       return sourceBaselineVw.filter((_, idx) => getDailyIndices.has(idx));
     } else if (chartTab === 'live') {
-      const sessionStartTime = getRecentTradingSessionStart(virtualTime);
-      return filterStrategyDataForLive(sourceBaselineVw, equity, sessionStartTime);
+      // Live mode: Use backend pre-processed baseline return curves directly
+      return sourceBaselineVw;
     }
     return sourceBaselineVw;
   }, [dataSource.baseline_vw, equity, chartTab, getDailyIndices, virtualTime]);
@@ -315,8 +280,8 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
     if (chartTab === 'all') {
       return sourceMomentum.filter((_, idx) => getDailyIndices.has(idx));
     } else if (chartTab === 'live') {
-      const sessionStartTime = getRecentTradingSessionStart(virtualTime);
-      return filterStrategyDataForLive(sourceMomentum, equity, sessionStartTime);
+      // Live mode: Use backend pre-processed momentum return curves directly
+      return sourceMomentum;
     }
     return sourceMomentum;
   }, [dataSource.momentum, equity, chartTab, getDailyIndices, virtualTime]);
@@ -335,6 +300,84 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
     if (!filteredEquity || filteredEquity.length === 0) return [];
 
     try {
+      // LIVE mode: Align all curves by timestamp with forward filling to ensure consistent point counts and aligned starting points
+      if (chartTab === 'live') {
+        // Build timestamp -> value mapping
+        const toMap = (arr) => {
+          const m = new Map();
+          if (Array.isArray(arr)) {
+            arr.forEach((p) => {
+              if (p && typeof p.t === 'number' && typeof p.v === 'number') {
+                m.set(p.t, p.v);
+              }
+            });
+          }
+          return m;
+        };
+
+        const portfolioMap = toMap(filteredEquity);
+        const baselineMap = toMap(filteredBaseline);
+        const baselineVwMap = toMap(filteredBaselineVw);
+        const momentumMap = toMap(filteredMomentum);
+        const strategyMap = toMap(filteredStrategies);
+
+        // Collect all timestamps, sort by time
+        const timestampSet = new Set();
+        [filteredEquity, filteredBaseline, filteredBaselineVw, filteredMomentum, filteredStrategies].forEach(arr => {
+          if (Array.isArray(arr)) {
+            arr.forEach(p => {
+              if (p && typeof p.t === 'number') timestampSet.add(p.t);
+            });
+          }
+        });
+
+        const timestamps = Array.from(timestampSet).sort((a, b) => a - b);
+        if (timestamps.length === 0) return [];
+
+        // Current values for forward filling, initialized to 0% to ensure starting point alignment
+        let currentPortfolio = 0;
+        let currentBaseline = 0;
+        let currentBaselineVw = 0;
+        let currentMomentum = 0;
+        let currentStrategy = 0;
+
+        return timestamps.map((t, idx) => {
+          if (portfolioMap.has(t)) currentPortfolio = portfolioMap.get(t);
+          if (baselineMap.has(t)) currentBaseline = baselineMap.get(t);
+          if (baselineVwMap.has(t)) currentBaselineVw = baselineVwMap.get(t);
+          if (momentumMap.has(t)) currentMomentum = momentumMap.get(t);
+          if (strategyMap.has(t)) currentStrategy = strategyMap.get(t);
+
+          const date = new Date(t);
+          if (isNaN(date.getTime())) {
+            console.warn('Invalid timestamp in live chart data:', t);
+            return null;
+          }
+
+          return {
+            index: idx,
+            time:
+              date.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+              }) +
+              ' ' +
+              date.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+              }),
+            timestamp: t,
+            portfolio: currentPortfolio,
+            baseline: currentBaseline,
+            baseline_vw: currentBaselineVw,
+            momentum: currentMomentum,
+            strategy: currentStrategy,
+          };
+        }).filter(item => item !== null);
+      }
+
+      // ALL mode: Keep the original index-based alignment logic
       return filteredEquity.map((d, idx) => {
         if (!d || typeof d.t !== 'number' || typeof d.v !== 'number') {
           console.warn('Invalid equity data point:', d);
@@ -347,34 +390,42 @@ export default function NetValueChart({ equity, baseline, baseline_vw, momentum,
           return null;
         }
 
-        // For live view, strategy data might have different timestamps, so we need to match by index
-        // For all view, indices should align
-        const baselineVal = filteredBaseline?.[idx] ?
-          (typeof filteredBaseline[idx] === 'object' ? filteredBaseline[idx].v : filteredBaseline[idx]) : null;
-        const baselineVwVal = filteredBaselineVw?.[idx] ?
-          (typeof filteredBaselineVw[idx] === 'object' ? filteredBaselineVw[idx].v : filteredBaselineVw[idx]) : null;
-        const momentumVal = filteredMomentum?.[idx] ?
-          (typeof filteredMomentum[idx] === 'object' ? filteredMomentum[idx].v : filteredMomentum[idx]) : null;
-        const strategyVal = filteredStrategies?.[idx] ?
-          (typeof filteredStrategies[idx] === 'object' ? filteredStrategies[idx].v : filteredStrategies[idx]) : null;
+        const baselineVal = filteredBaseline?.[idx]
+          ? (typeof filteredBaseline[idx] === 'object' ? filteredBaseline[idx].v : filteredBaseline[idx])
+          : null;
+        const baselineVwVal = filteredBaselineVw?.[idx]
+          ? (typeof filteredBaselineVw[idx] === 'object' ? filteredBaselineVw[idx].v : filteredBaselineVw[idx])
+          : null;
+        const momentumVal = filteredMomentum?.[idx]
+          ? (typeof filteredMomentum[idx] === 'object' ? filteredMomentum[idx].v : filteredMomentum[idx])
+          : null;
+        const strategyVal = filteredStrategies?.[idx]
+          ? (typeof filteredStrategies[idx] === 'object' ? filteredStrategies[idx].v : filteredStrategies[idx])
+          : null;
 
         return {
           index: idx,
-          time: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
-                ' ' + date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+          time:
+            date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+            ' ' +
+            date.toLocaleTimeString('en-US', {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+            }),
           timestamp: d.t,
           portfolio: d.v,
           baseline: baselineVal || null,
           baseline_vw: baselineVwVal || null,
           momentum: momentumVal || null,
-          strategy: strategyVal || null
+          strategy: strategyVal || null,
         };
       }).filter(item => item !== null); // Remove null entries
     } catch (error) {
       console.error('Error processing chart data:', error);
       return [];
     }
-  }, [filteredEquity, filteredBaseline, filteredBaselineVw, filteredMomentum, filteredStrategies]);
+  }, [filteredEquity, filteredBaseline, filteredBaselineVw, filteredMomentum, filteredStrategies, chartTab]);
 
   const { yMin, yMax, xTickIndices } = useMemo(() => {
     if (chartData.length === 0) return { yMin: 0, yMax: 1, xTickIndices: [] };
