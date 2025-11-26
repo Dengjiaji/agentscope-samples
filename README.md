@@ -1,6 +1,10 @@
 # EvoTraders：自我进化的多智能体交易系统
 
 <p align="center">
+  <img src="./docs/assets/evotraders_logo.png" width="45%">
+</p>
+
+<p align="center">
   📌 <a href="https://trading.evoagents.com">Visit us at EvoTraders website !</a>
 </p>
 
