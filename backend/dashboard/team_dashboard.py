@@ -947,7 +947,7 @@ class TeamDashboardGenerator:
                     else:
                         if numeric_real_return is None:
                             raise ValueError(
-                                f"numeric_real_return is None for {ticker}"
+                                f"numeric_real_return is None for {ticker}",
                             )
                         if numeric_real_return > 0:
                             is_correct = True
@@ -959,7 +959,7 @@ class TeamDashboardGenerator:
                     else:
                         if numeric_real_return is None:
                             raise ValueError(
-                                f"numeric_real_return is None for {ticker}"
+                                f"numeric_real_return is None for {ticker}",
                             )
                         if numeric_real_return < 0:
                             is_correct = True
@@ -1084,7 +1084,7 @@ class TeamDashboardGenerator:
                 else:
                     if numeric_real_return is None:
                         raise ValueError(
-                            f"numeric_real_return is None for {ticker}"
+                            f"numeric_real_return is None for {ticker}",
                         )
                     if numeric_real_return > 0:
                         is_correct = True
@@ -1096,7 +1096,7 @@ class TeamDashboardGenerator:
                 else:
                     if numeric_real_return is None:
                         raise ValueError(
-                            f"numeric_real_return is None for {ticker}"
+                            f"numeric_real_return is None for {ticker}",
                         )
                     if numeric_real_return < 0:
                         is_correct = True
