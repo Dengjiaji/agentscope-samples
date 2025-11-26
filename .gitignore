@@ -80,7 +80,7 @@ live_trading/
 sandbox_logs/
 
 debug_tool_schema.py
-debug_api_functions.py 
+debug_api_functions.py
 
 *.md
 !README.md

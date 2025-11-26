@@ -49,16 +49,20 @@ class BaseStreamer:
 
 class ConsoleStreamer(BaseStreamer):
     def system(self, content: str):
+        ts = self._bump()
         print(f"[system] {content}")
 
     def agent(self, role_key: str, content: str):
+        ts = self._bump()
         agent_id = ROLE_TO_AGENT.get(role_key or "", ROLE_TO_AGENT["_default"])
         print(f"[agent:{agent_id}] {content}")
 
     def price(self, value: float):
+        ts = self._bump()
         print(f"[price] {float(value):.4f}")
 
     def default_print(self, content: str, type: str):
+        ts = self._bump()
         print(f"[{type}] {content}")
 
 
@@ -88,7 +92,7 @@ class WebSocketStreamer(BaseStreamer):
                     await self.ws.send(json.dumps(payload, ensure_ascii=False))
                 except Exception:
                     logging.exception(
-                        "WebSocket send failed during cancel flush",
+                        "WebSocket send failed during cancel flush"
                     )
                 finally:
                     self._queue.task_done()
@@ -112,9 +116,11 @@ class WebSocketStreamer(BaseStreamer):
                 await self._worker
 
     def system(self, content: str):
+        ts = self._bump()
         self._enqueue({"type": "system", "content": content, "ts": ts})
 
     def agent(self, role_key: str, content: str):
+        ts = self._bump()
         agent_id = ROLE_TO_AGENT.get(role_key or "", ROLE_TO_AGENT["_default"])
         self._enqueue(
             {
@@ -122,13 +128,15 @@ class WebSocketStreamer(BaseStreamer):
                 "agentId": agent_id,
                 "content": content,
                 "ts": ts,
-            },
+            }
         )
 
     def price(self, value: float):
+        ts = self._bump()
         self._enqueue({"type": "price", "price": float(value), "ts": ts})
 
     def default_print(self, content: str, type: str):
+        ts = self._bump()
         self._enqueue({"type": type, "content": content, "ts": ts})
 
 
@@ -139,7 +147,7 @@ class MultiStreamer(BaseStreamer):
 
     def _fanout(self, fn_name: str, *args, **kwargs):
         # Unified step, then "copy" the same ts to child streamers:
-
+        ts = self._bump()
         for s in self.streamers:
             # Align child streamer's ts (maintain timeline order)
             s.ts = (
@@ -199,10 +207,7 @@ class BroadcastStreamer(BaseStreamer):
             print(f"[{msg_type}] {content}")
 
     def _normalize_message(
-        self,
-        event_type: str,
-        content: str,
-        **kwargs,
+        self, event_type: str, content: str, **kwargs
     ) -> dict:
         """Normalize message format, handle various special types"""
         from datetime import datetime
@@ -227,14 +232,14 @@ class BroadcastStreamer(BaseStreamer):
 
         elif event_type == "conference_message":
             message["conferenceId"] = kwargs.get("conferenceId") or kwargs.get(
-                "conference_id",
+                "conference_id"
             )
             message["agent"] = kwargs.get("agent") or kwargs.get("agentId")
             message["role"] = kwargs.get("role", "Agent")
 
         elif event_type == "conference_end":
             message["conferenceId"] = kwargs.get("conferenceId") or kwargs.get(
-                "conference_id",
+                "conference_id"
             )
 
         elif event_type in ("agent_message", "agent"):
@@ -261,18 +266,14 @@ class BroadcastStreamer(BaseStreamer):
         """Agent message"""
         agent_id = ROLE_TO_AGENT.get(role_key or "", ROLE_TO_AGENT["_default"])
         message = self._normalize_message(
-            "agent_message",
-            content,
-            agentId=agent_id,
+            "agent_message", content, agentId=agent_id
         )
         self._broadcast(message)
 
     def price(self, value: float):
         """Price update"""
         message = self._normalize_message(
-            "price",
-            str(value),
-            price=float(value),
+            "price", str(value), price=float(value)
         )
         self._broadcast(message)
 
@@ -281,17 +282,17 @@ class BroadcastStreamer(BaseStreamer):
         message = self._normalize_message(type, content)
         self._broadcast(message)
 
-    def print(self, type: str = "", content: str = "", **kwargs):
+    def print(self, event_type: str = "", content: str = "", **kwargs):
         """
         Generic print interface (enhanced version)
         Supports arbitrary event types and custom fields
         """
-        if type in ("system", ""):
+        if event_type in ("system", ""):
             self.system(content)
-        elif type == "agent":
+        elif event_type == "agent":
             role_key = kwargs.get("role_key", "_default")
             self.agent(role_key, content)
-        elif type == "price":
+        elif event_type == "price":
             try:
                 value = float(content)
                 self.price(value)
@@ -299,5 +300,5 @@ class BroadcastStreamer(BaseStreamer):
                 self.price(0.0)
         else:
             # Handle all other message types
-            message = self._normalize_message(type, content, **kwargs)
+            message = self._normalize_message(event_type, content, **kwargs)
             self._broadcast(message)
