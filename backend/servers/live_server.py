@@ -40,7 +40,6 @@ from backend.servers.state_manager import StateManager
 from backend.servers.streamer import BroadcastStreamer
 from backend.utils.virtual_clock import get_virtual_clock, init_virtual_clock
 
-
 _NYSE_CALENDAR = mcal.get_calendar("NYSE")
 
 

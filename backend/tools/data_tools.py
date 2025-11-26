@@ -4,12 +4,13 @@
 import datetime
 import os
 import time
+from typing import Optional
 
 import finnhub
 import pandas as pd
 import pandas_market_calendars as mcal
 import requests
-from typing import Optional
+
 from backend.data.cache import get_cache
 from backend.data.schema import (
     CompanyFactsResponse,

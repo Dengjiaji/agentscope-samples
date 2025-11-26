@@ -66,7 +66,7 @@ class PrivateChatSystem:
     """Private chat system"""
 
     def __init__(self):
-        self.chat_histories: Dict[str, List[PrivateChatMessage]] = {}
+        self.chat_histories = {}
 
     def start_private_chat(
         self,

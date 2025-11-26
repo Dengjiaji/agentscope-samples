@@ -4,6 +4,7 @@ Risk Manager Agent - Risk Management Agent
 Provides unified risk assessment and position management interface (based on AgentScope)
 """
 # flake8: noqa: E501
+# pylint: C0301
 
 import json
 import os

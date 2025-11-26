@@ -7,7 +7,7 @@ Trading Execution Engine - Supports Two Modes
 # flake8: noqa: E501
 from copy import deepcopy
 from datetime import datetime
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, List, Optional
 
 
 class DirectionSignalRecorder:

@@ -287,9 +287,9 @@ class PortfolioManagerAgent(AgentBase):
                 {"role": "user", "content": human_prompt},
             ]
         except FileNotFoundError:
-            raise (
+            raise FileNotFoundError(
                 "Failed to load prompts. "
-                "please check prompt file path for: direction_decision_human"
+                "please check prompt file path for: direction_decision_human",
             )
 
         # Create default factory

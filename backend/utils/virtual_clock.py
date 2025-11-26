@@ -53,7 +53,7 @@ class VirtualClock:
         # Pause state
         self.paused = False
         self.pause_real_time = None
-        self.pause_virtual_time = None
+        self.pause_virtual_time = self.virtual_start_time
 
         # Thread lock
         self.lock = threading.Lock()
