@@ -4,11 +4,11 @@ Prompt Loader - Unified management and loading of Agent Prompts
 Supports Markdown and YAML formats
 Uses simple string replacement, does not depend on Jinja2
 """
-import os
-import yaml
 import re
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
+import yaml
 
 
 class PromptLoader:

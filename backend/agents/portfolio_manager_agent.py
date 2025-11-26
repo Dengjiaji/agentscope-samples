@@ -3,19 +3,19 @@
 Portfolio Manager Agent - Portfolio Management Agent
 Provides unified portfolio management interface (based on AgentScope)
 """
-from typing import Dict, Any, Optional, Literal, List
 import json
 from pathlib import Path
+from typing import Any, Dict, List, Literal, Optional
+
 from agentscope.agent import AgentBase
 from agentscope.message import Msg
+from pydantic import BaseModel, Field
 
 from ..graph.state import AgentState
-from ..utils.progress import progress
-from pydantic import BaseModel, Field
-from .prompt_loader import PromptLoader
-from typing_extensions import Literal as LiteralType
-from ..utils.tool_call import tool_call
 from ..memory.manager import get_memory
+from ..utils.progress import progress
+from ..utils.tool_call import tool_call
+from .prompt_loader import PromptLoader
 
 
 class PortfolioDecision(BaseModel):
@@ -378,9 +378,9 @@ class PortfolioManagerAgent(AgentBase):
             "margin_requirement": f"{portfolio.get('margin_requirement', 0):.2f}",
             "total_margin_used": f"{portfolio.get('margin_used', 0):.2f}",
             "analyst_performance_info": analyst_performance_info,
-            "analyst_performance_separator": "\n"
-            if analyst_performance_info
-            else "",
+            "analyst_performance_separator": (
+                "\n" if analyst_performance_info else ""
+            ),
             "relevant_past_experiences": formatted_memories,
             "recent_memory": recent_memory,
             "recent_memory_separator": "\n" if recent_memory else "",
@@ -488,9 +488,11 @@ class PortfolioManagerAgent(AgentBase):
         # Sort by win rate (highest first)
         sorted_analysts = sorted(
             analyst_stats.items(),
-            key=lambda x: x[1].get("win_rate", 0)
-            if x[1].get("win_rate") is not None
-            else 0,
+            key=lambda x: (
+                x[1].get("win_rate", 0)
+                if x[1].get("win_rate") is not None
+                else 0
+            ),
             reverse=True,
         )
 

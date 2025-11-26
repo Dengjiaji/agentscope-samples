@@ -10,9 +10,9 @@ Features:
 """
 
 import asyncio
+import threading
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-import threading
 
 
 class VirtualClock:

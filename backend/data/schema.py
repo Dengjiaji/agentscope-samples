@@ -154,7 +154,8 @@ class Portfolio(BaseModel):
 
     cash: float = 100000.0  # Available cash
     positions: dict[str, Position] = {}  # ticker -> Position mapping
-    margin_requirement: float = 0.0  # Margin requirement (0.0 means shorting disabled, 0.5 means 50% margin)
+    # Margin requirement (0.0 means shorting disabled, 0.5 means 50% margin)
+    margin_requirement: float = 0.0
     margin_used: float = 0.0  # Margin used
 
 

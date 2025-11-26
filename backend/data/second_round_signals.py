@@ -5,9 +5,10 @@ Data models for second-round analysis
 Used for LLM-based investment signal generation
 """
 
-from pydantic import BaseModel, Field
-from typing import Literal, Dict, Any, List
 from datetime import datetime
+from typing import List, Literal
+
+from pydantic import BaseModel, Field
 
 
 class TickerSignal(BaseModel):

@@ -3,8 +3,9 @@
 Agent Model Configuration - Support different models for different agents/roles
 """
 import os
-from typing import Dict, Optional, Tuple
 from dataclasses import dataclass
+from typing import Dict, Optional, Tuple
+
 from backend.llm.models import ModelProvider
 
 

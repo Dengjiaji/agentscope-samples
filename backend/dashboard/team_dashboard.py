@@ -7,14 +7,11 @@ Provides 5 main data interfaces for frontend: summary, holdings, stats, trades, 
 
 import json
 import math
-from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timedelta
-from collections import defaultdict
-import os
-import pdb
-import pandas as pd
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
+import pandas as pd
 import pandas_market_calendars as mcal
 
 
@@ -180,11 +177,13 @@ class TeamDashboardGenerator:
             self.state_file,
             {
                 "equity_history": [],  # [{t: timestamp, v: value}]
-                "baseline_history": [],  # Buy & Hold baseline history (equal weight)
+                # Buy & Hold baseline history (equal weight)
+                "baseline_history": [],
                 "baseline_vw_history": [],  # Buy & Hold value-weighted baseline history
                 "momentum_history": [],  # Momentum strategy history
                 "all_trades": [],  # All trade history
-                "daily_position_history": {},  # {date: {ticker: qty}} - Daily position snapshots for fast lookup
+                # {date: {ticker: qty}} - Daily position snapshots for fast lookup
+                "daily_position_history": {},
                 "agent_performance": {},  # agent_id -> {signals: [], bull_count: 0, bull_win: 0, ...}
                 "portfolio_state": {  # Current position state
                     "cash": self.initial_cash,
@@ -2122,9 +2121,9 @@ class TeamDashboardGenerator:
                 "role": agent_config["role"],
                 "avatar": agent_config["avatar"],
                 "rank": 0,  # Fill later
-                "winRate": round(win_rate, 4)
-                if win_rate is not None
-                else None,
+                "winRate": (
+                    round(win_rate, 4) if win_rate is not None else None
+                ),
                 "bull": {
                     "n": bull_count,
                     "win": bull_win,
@@ -2223,8 +2222,10 @@ class TeamDashboardGenerator:
                 },
                 "logs": [],
                 "signals": [],
-                "modelName": model_name,  # Agent's model name (available from env/config)
-                "modelProvider": model_provider,  # Agent's model provider (available from env/config)
+                # Agent's model name (available from env/config)
+                "modelName": model_name,
+                # Agent's model provider (available from env/config)
+                "modelProvider": model_provider,
             }
 
             if agent_id in self.TEAM_ROLES:

@@ -5,14 +5,13 @@ Memory Manager - Ultra-simple memory manager
 Creates corresponding memory instance based on environment variables
 """
 
-import os
 import logging
-from typing import Optional, Dict
+import os
+from typing import Dict
 
 from .base import LongTermMemory
 from .mem0_memory import Mem0Memory
 from .reme_memory import ReMeMemory
-
 
 logger = logging.getLogger(__name__)
 

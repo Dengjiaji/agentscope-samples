@@ -7,16 +7,16 @@ Supports two modes:
 - individual_review: Each agent independently processes its own memories
 """
 
-import os
 import json
 import logging
-from typing import Dict, List, Any, Optional
+import os
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from backend.llm.models import get_model, ModelProvider
 from backend.agents.prompt_loader import PromptLoader
 from backend.config.constants import ROLE_TO_AGENT
 from backend.config.path_config import get_logs_and_memory_dir
+from backend.llm.models import ModelProvider, get_model
 
 logger = logging.getLogger(__name__)
 
@@ -92,12 +92,12 @@ class MemoryReflectionSystem:
             api_keys["ANTHROPIC_API_KEY"] = os.getenv("ANTHROPIC_API_KEY")
 
         # Create memory management toolkit and memory instance
+        from backend.memory import get_memory
         from backend.tools.memory_tools import (
-            create_memory_toolkit,
             _set_base_dir,
+            create_memory_toolkit,
             set_memory_tools_streamer,
         )
-        from backend.memory import get_memory
 
         _set_base_dir(base_dir)  # Set base_dir for memory_tools to use
         self.toolkit = create_memory_toolkit()

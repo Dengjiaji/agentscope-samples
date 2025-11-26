@@ -12,30 +12,31 @@ import json
 import logging
 import os
 import sys
+from datetime import datetime
+from datetime import time as datetime_time
+from datetime import timedelta
 from pathlib import Path
-from datetime import datetime, timedelta, time as datetime_time
-from typing import Set, Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional, Set
+
+import pandas_market_calendars as mcal
+import websockets
 from dotenv import load_dotenv
+from websockets.server import WebSocketServerProtocol
+
+from backend.config.env_config import LiveThinkingFundConfig
+from backend.config.path_config import get_logs_and_memory_dir
+from backend.memory import get_memory
+from backend.pipelines.live_trading_fund import LiveTradingFund
+from backend.servers.mock_price_manager import MockPriceManager
+from backend.servers.polling_price_manager import PollingPriceManager
+from backend.servers.state_manager import StateManager
+from backend.servers.streamer import BroadcastStreamer
+from backend.utils.virtual_clock import get_virtual_clock, init_virtual_clock
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 if str(BASE_DIR) not in sys.path:
     sys.path.append(str(BASE_DIR))
-from backend.config.path_config import get_logs_and_memory_dir
 
-import websockets
-from websockets.server import WebSocketServerProtocol
-
-from backend.memory import get_memory
-from backend.servers.streamer import BroadcastStreamer
-from backend.servers.polling_price_manager import PollingPriceManager
-from backend.servers.mock_price_manager import MockPriceManager
-from backend.servers.state_manager import StateManager
-from backend.pipelines.live_trading_fund import LiveTradingFund
-from backend.config.env_config import LiveThinkingFundConfig
-from backend.utils.virtual_clock import init_virtual_clock, get_virtual_clock
-
-
-import pandas_market_calendars as mcal
 
 _NYSE_CALENDAR = mcal.get_calendar("NYSE")
 
@@ -59,8 +60,10 @@ class LiveTradingServer:
         self.config = config
         self.mock_mode = mock_mode
         self.pause_before_trade = pause_before_trade
-        self.time_accelerator = time_accelerator  # Time accelerator for debugging (1.0=normal, 60.0=1 minute as 1 hour)
-        self.virtual_start_time = virtual_start_time  # Virtual start time (for Mock mode backtesting)
+        # Time accelerator for debugging (1.0=normal, 60.0=1 minute as 1 hour)
+        self.time_accelerator = time_accelerator
+        # Virtual start time (for Mock mode backtesting)
+        self.virtual_start_time = virtual_start_time
         self.connected_clients: Set[WebSocketServerProtocol] = set()
         self.lock = asyncio.Lock()
         self.loop = None
@@ -185,7 +188,8 @@ class LiveTradingServer:
         self.is_today = False
         self.market_is_open = False
         self.last_trading_date = None  # Record last trading execution date
-        self.last_executed_date = None  # Record last actual trading execution US date (for cross-day detection)
+        # Record last actual trading execution US date (for cross-day detection)
+        self.last_executed_date = None
         self.trading_executed_today = (
             False  # Flag whether trading was executed today
         )
@@ -1200,7 +1204,9 @@ class LiveTradingServer:
                 elif not leaderboard_data:
                     initial_state["leaderboard"] = []
 
-                logger.info(f"✅ Successfully loaded Dashboard data from files")
+                logger.info(
+                    f"✅ Successfully loaded Dashboard data from files",
+                )
 
                 # Broadcast all Dashboard data immediately after connection (ensure frontend receives)
                 # Use small delay to ensure initial_state message is sent first
@@ -1592,9 +1598,11 @@ class LiveTradingServer:
             self.thinking_fund.run_trade_execution_and_update_prev_perf,
             date=date,
             tickers=self.config.tickers,
-            pre_market_result=current_day_data.get("pre_market_result")
-            if current_day_data
-            else None,
+            pre_market_result=(
+                current_day_data.get("pre_market_result")
+                if current_day_data
+                else None
+            ),
             prev_date=prev_date,
             prev_signals=prev_signals,
         )
@@ -1893,7 +1901,9 @@ class LiveTradingServer:
                     hasattr(self.price_manager, "running")
                     and self.price_manager.running
                 ):
-                    logger.info("🛑 Off-market period, stopping price fetching")
+                    logger.info(
+                        "🛑 Off-market period, stopping price fetching",
+                    )
                     self.price_manager.stop()
 
             next_open = self._get_next_market_open_time_beijing()

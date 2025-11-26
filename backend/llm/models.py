@@ -5,8 +5,8 @@ AgentScope Model Wrapper
 Provides AgentScope-compatible model calling interface while maintaining support for existing model providers
 """
 import os
-from typing import Dict, Any, List, Optional, Union
 from enum import Enum
+from typing import Any, Dict, List, Optional, Union
 
 
 class ModelProvider(str, Enum):
@@ -184,7 +184,6 @@ class ModelWrapper:
         if not api_key:
             raise ValueError("GigaChat API key not found")
         # Implementation needed based on GigaChat's actual API
-        pass
 
     def __call__(
         self,
@@ -312,9 +311,11 @@ class ModelWrapper:
             "role": "assistant",
             "metadata": {
                 "model": self.model_name,
-                "usage": response.usage.model_dump()
-                if hasattr(response.usage, "model_dump")
-                else dict(response.usage),
+                "usage": (
+                    response.usage.model_dump()
+                    if hasattr(response.usage, "model_dump")
+                    else dict(response.usage)
+                ),
             },
         }
 

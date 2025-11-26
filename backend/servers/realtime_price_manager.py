@@ -4,11 +4,11 @@
 Real-time Price Data Manager - Finnhub REST API Integration
 Uses scheduled polling to fetch minute-level OHLCV data, simulates real-time price updates
 """
-import time
 import logging
 import threading
-from typing import Dict, Set, Callable, Optional
+import time
 from datetime import datetime, timedelta
+from typing import Callable, Dict, Optional, Set
 
 logger = logging.getLogger(__name__)
 

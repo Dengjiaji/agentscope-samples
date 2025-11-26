@@ -5,28 +5,28 @@ Multi-Day Strategy Manager
 Handles multi-day running, state persistence, performance analysis, and reporting
 """
 
-import os
 import json
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
-from typing import Dict, List, Optional, Any, Callable
+import os
+from datetime import datetime
 from pathlib import Path
-import matplotlib.pyplot as plt
+from typing import Any, Callable, Dict, List, Optional
+
 import matplotlib.dates as mdates
-from matplotlib import rcParams
-import seaborn as sns
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import pandas_market_calendars as mcal
+import seaborn as sns
+from dateutil.relativedelta import relativedelta
+from matplotlib import rcParams
 
-
+from backend.config.path_config import get_directory_config
 from backend.tools.data_tools import (
-    get_prices,
+    get_company_news,
     get_financial_metrics,
     get_insider_trades,
-    get_company_news,
+    get_prices,
 )
-from backend.config.path_config import get_directory_config
 
 # Setup plotting style
 rcParams["axes.unicode_minus"] = False
@@ -552,12 +552,16 @@ class MultiDayStrategy:
             "session_id": self.session_id,
             "summary_timestamp": datetime.now().isoformat(),
             "period": {
-                "start_date": self.daily_results[0]["date"]
-                if self.daily_results
-                else None,
-                "end_date": self.daily_results[-1]["date"]
-                if self.daily_results
-                else None,
+                "start_date": (
+                    self.daily_results[0]["date"]
+                    if self.daily_results
+                    else None
+                ),
+                "end_date": (
+                    self.daily_results[-1]["date"]
+                    if self.daily_results
+                    else None
+                ),
                 "total_days": len(self.daily_results),
                 "successful_days": len(successful_results),
                 "failed_days": len(
@@ -569,12 +573,14 @@ class MultiDayStrategy:
                 "portfolio_values": portfolio_values,
             },
             "performance_analysis": {
-                "individual_stocks": self.calculate_individual_stock_performance(
-                    successful_results,
-                    tickers,
-                )
-                if tickers
-                else {},
+                "individual_stocks": (
+                    self.calculate_individual_stock_performance(
+                        successful_results,
+                        tickers,
+                    )
+                    if tickers
+                    else {}
+                ),
             },
         }
 
@@ -677,13 +683,15 @@ class MultiDayStrategy:
                     "hold_decisions": len(
                         [d for d in daily_decisions if d["action"] == "hold"],
                     ),
-                    "avg_confidence": round(
-                        sum(d["confidence"] for d in daily_decisions)
-                        / len(daily_decisions),
-                        2,
-                    )
-                    if daily_decisions
-                    else 0,
+                    "avg_confidence": (
+                        round(
+                            sum(d["confidence"] for d in daily_decisions)
+                            / len(daily_decisions),
+                            2,
+                        )
+                        if daily_decisions
+                        else 0
+                    ),
                     "win_rate": round(
                         len([r for r in daily_returns if r > 0])
                         / len(daily_returns)
@@ -714,8 +722,8 @@ class MultiDayStrategy:
             action: Trading action ('long', 'short', 'hold')
         """
         # Get price data for this stock (get larger range to ensure sufficient data for return calculation)
-        from datetime import datetime, timedelta
         import datetime as dt
+        from datetime import datetime
 
         # Handle date parameter, ensure conversion to date object
         if isinstance(date, str):

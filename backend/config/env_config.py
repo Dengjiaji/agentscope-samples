@@ -6,10 +6,10 @@ Supports loading configuration parameters from .env file and provides default va
 """
 
 import os
-from pathlib import Path
-from typing import Dict, Any, Optional, List
+from dataclasses import field
 from datetime import datetime, timedelta
-from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Dict
 
 
 def load_env_file(env_file_path: str = None) -> Dict[str, str]:

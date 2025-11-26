@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from typing_extensions import TypedDict, Dict, Any, List
+from typing_extensions import Any, Dict, List, TypedDict
 
 
 # Define agent state

@@ -4,10 +4,10 @@ State Manager - Manages server state persistence and history
 """
 import json
 import logging
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, List, Optional
-from dataclasses import dataclass, asdict, field
+from typing import Any, Dict, List, Optional
 
 from backend.config.path_config import get_logs_and_memory_dir
 

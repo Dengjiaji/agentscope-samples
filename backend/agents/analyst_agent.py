@@ -4,19 +4,19 @@ Analyst Agent - Unified Analyst Agent implementation
 Based on AgentScope AgentBase, uses Toolkit and Msg
 """
 import asyncio
-from typing import Dict, Any, Optional
 import json
+from typing import Any, Dict, Optional
 
 from agentscope.agent import AgentBase
 from agentscope.message import Msg
 
-from ..graph.state import AgentState
-from ..utils.progress import progress
-from ..llm.models import get_model
-from .tool_selector import Toolselector
-from ..tools.data_tools import get_last_tradeday
 from ..config.constants import ANALYST_TYPES
+from ..graph.state import AgentState
+from ..llm.models import get_model
+from ..tools.data_tools import get_last_tradeday
+from ..utils.progress import progress
 from .prompt_loader import PromptLoader
+from .tool_selector import Toolselector
 
 _prompt_loader = PromptLoader()
 _personas_config = _prompt_loader.load_yaml_config("analyst", "personas")
@@ -276,9 +276,9 @@ class AnalystAgent(AgentBase):
                 "analyst_type": self.analyst_type_key,
                 "analysis_date": end_date,
                 "llm_enhanced": llm is not None,
-                "selection_method": "LLM intelligent selection"
-                if llm
-                else "Default selection",
+                "selection_method": (
+                    "LLM intelligent selection" if llm else "Default selection"
+                ),
                 "synthesis_method": combined_result.get(
                     "synthesis_method",
                     "unknown",

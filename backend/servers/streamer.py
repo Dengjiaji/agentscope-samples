@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
-import asyncio, json, time, logging
+import asyncio
 import contextlib
+import json
+import logging
+import time
+
 from backend.config.constants import ROLE_TO_AGENT
 
 
@@ -92,7 +96,7 @@ class WebSocketStreamer(BaseStreamer):
                     await self.ws.send(json.dumps(payload, ensure_ascii=False))
                 except Exception:
                     logging.exception(
-                        "WebSocket send failed during cancel flush"
+                        "WebSocket send failed during cancel flush",
                     )
                 finally:
                     self._queue.task_done()
@@ -128,7 +132,7 @@ class WebSocketStreamer(BaseStreamer):
                 "agentId": agent_id,
                 "content": content,
                 "ts": ts,
-            }
+            },
         )
 
     def price(self, value: float):
@@ -207,7 +211,10 @@ class BroadcastStreamer(BaseStreamer):
             print(f"[{msg_type}] {content}")
 
     def _normalize_message(
-        self, event_type: str, content: str, **kwargs
+        self,
+        event_type: str,
+        content: str,
+        **kwargs,
     ) -> dict:
         """Normalize message format, handle various special types"""
         from datetime import datetime
@@ -232,14 +239,14 @@ class BroadcastStreamer(BaseStreamer):
 
         elif event_type == "conference_message":
             message["conferenceId"] = kwargs.get("conferenceId") or kwargs.get(
-                "conference_id"
+                "conference_id",
             )
             message["agent"] = kwargs.get("agent") or kwargs.get("agentId")
             message["role"] = kwargs.get("role", "Agent")
 
         elif event_type == "conference_end":
             message["conferenceId"] = kwargs.get("conferenceId") or kwargs.get(
-                "conference_id"
+                "conference_id",
             )
 
         elif event_type in ("agent_message", "agent"):
@@ -266,14 +273,18 @@ class BroadcastStreamer(BaseStreamer):
         """Agent message"""
         agent_id = ROLE_TO_AGENT.get(role_key or "", ROLE_TO_AGENT["_default"])
         message = self._normalize_message(
-            "agent_message", content, agentId=agent_id
+            "agent_message",
+            content,
+            agentId=agent_id,
         )
         self._broadcast(message)
 
     def price(self, value: float):
         """Price update"""
         message = self._normalize_message(
-            "price", str(value), price=float(value)
+            "price",
+            str(value),
+            price=float(value),
         )
         self._broadcast(message)
 

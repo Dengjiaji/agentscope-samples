@@ -2,10 +2,12 @@
 """Helper functions for LLM"""
 
 import json
-from pydantic import BaseModel
 from typing import Optional, Union
-from backend.llm.models import get_model, ModelProvider
+
+from pydantic import BaseModel
+
 from backend.graph.state import AgentState
+from backend.llm.models import ModelProvider, get_model
 
 
 def tool_call(
@@ -57,9 +59,11 @@ def tool_call(
             response = llm(
                 messages,
                 temperature=0.7,
-                response_format={"type": "json_object"}
-                if model_provider == ModelProvider.OPENAI
-                else None,
+                response_format=(
+                    {"type": "json_object"}
+                    if model_provider == ModelProvider.OPENAI
+                    else None
+                ),
             )
             content = response["content"]
 

@@ -4,31 +4,32 @@ LLM-based intelligent tool selector
 Enables analysts to intelligently select and use analysis tools through LLM
 Uses AgentScope's Toolkit to manage tools
 """
-import os
 import json
-from typing import Dict, Any, List
+import os
+from typing import Any, Dict, List
+
 from agentscope.tool import Toolkit
-import pdb
-from .prompt_loader import PromptLoader
 
 # Import all available analysis tools
 from backend.tools.analysis_tools import (
-    analyze_profitability,
-    analyze_growth,
-    analyze_financial_health,
-    analyze_valuation_ratios,
     analyze_efficiency_ratios,
-    analyze_trend_following,
+    analyze_financial_health,
+    analyze_growth,
+    analyze_insider_trading,
     analyze_mean_reversion,
     analyze_momentum,
-    analyze_volatility,
-    analyze_insider_trading,
     analyze_news_sentiment,
+    analyze_profitability,
+    analyze_trend_following,
+    analyze_valuation_ratios,
+    analyze_volatility,
     dcf_valuation_analysis,
-    owner_earnings_valuation_analysis,
     ev_ebitda_valuation_analysis,
+    owner_earnings_valuation_analysis,
     residual_income_valuation_analysis,
 )
+
+from .prompt_loader import PromptLoader
 
 
 class Toolselector:
@@ -399,7 +400,7 @@ class Toolselector:
             "reasoning": f"Failed to synthesize results after {max_retries} attempts",
             "tool_impact_analysis": "",
             "synthesis_method": "error",
-            "error_details": str(last_exception)
-            if last_exception
-            else "Unknown error",
+            "error_details": (
+                str(last_exception) if last_exception else "Unknown error"
+            ),
         }

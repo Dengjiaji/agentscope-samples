@@ -6,7 +6,7 @@ Reference AgentScope design, provides unified memory interface
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 
 
 class LongTermMemory(ABC):
@@ -30,7 +30,6 @@ class LongTermMemory(ABC):
         Returns:
             Memory ID
         """
-        pass
 
     @abstractmethod
     def search(
@@ -50,7 +49,6 @@ class LongTermMemory(ABC):
         Returns:
             Search result list
         """
-        pass
 
     @abstractmethod
     def update(self, memory_id: str, content: str, user_id: str) -> bool:
@@ -65,7 +63,6 @@ class LongTermMemory(ABC):
         Returns:
             Whether successful
         """
-        pass
 
     @abstractmethod
     def delete(self, memory_id: str, user_id: str) -> bool:
@@ -79,7 +76,6 @@ class LongTermMemory(ABC):
         Returns:
             Whether successful
         """
-        pass
 
     @abstractmethod
     def get_all(self, user_id: str) -> List[Dict[str, Any]]:
@@ -92,7 +88,6 @@ class LongTermMemory(ABC):
         Returns:
             Memory list
         """
-        pass
 
     @abstractmethod
     def delete_all(self, user_id: str) -> bool:
@@ -105,4 +100,3 @@ class LongTermMemory(ABC):
         Returns:
             Whether successful
         """
-        pass

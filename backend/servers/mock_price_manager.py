@@ -14,13 +14,12 @@ Use cases:
 - Develop and test frontend real-time data display
 - Demonstrate system functionality
 """
-import os
-import time
-import random
 import logging
+import os
+import random
 import threading
-from typing import Dict, List, Callable, Optional
-from datetime import datetime
+import time
+from typing import Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

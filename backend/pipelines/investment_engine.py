@@ -5,49 +5,49 @@ Investment Engine - Core investment analysis engine
 Handles single-day analysis workflow: analysts → risk → portfolio manager → communications
 """
 
-import sys
-import os
-import json
-import traceback
-import logging
-from datetime import datetime
-from typing import Dict, List, Any, Optional
 import concurrent.futures
-from copy import deepcopy
+import json
+import logging
+import os
+import sys
 import threading
-import pdb
+import traceback
+from copy import deepcopy
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from agentscope.message import Msg
+
+from backend.agents.analyst_agent import AnalystAgent
+from backend.agents.portfolio_manager_agent import PortfolioManagerAgent
+from backend.agents.prompt_loader import PromptLoader
+from backend.agents.risk_manager_agent import RiskManagerAgent
+from backend.communication import should_send_notification
+from backend.communication.chat_tools import (
+    CommunicationDecision,
+    communication_manager,
+)
+from backend.communication.notification_system import notification_system
+from backend.config.agent_model_config import AgentModelRequest
+from backend.config.constants import ANALYST_TYPES
+from backend.data.second_round_signals import SecondRoundAnalysis
+from backend.graph.state import AgentState
+from backend.utils.logger_config import setup_logging
+from backend.utils.tool_call import tool_call
 
 # Add project path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
 
-from backend.graph.state import AgentState
-from backend.config.constants import ANALYST_TYPES
-from backend.agents.analyst_agent import AnalystAgent
-from agentscope.message import Msg
-from backend.config.agent_model_config import AgentModelRequest
 
 # Import notification system
-from backend.communication.notification_system import notification_system
-from backend.communication import should_send_notification
-from backend.utils.tool_call import tool_call
-from backend.data.second_round_signals import SecondRoundAnalysis, TickerSignal
-from agentscope.tool import Toolkit
 
 # Import risk manager and portfolio manager - new architecture
-from backend.agents.risk_manager_agent import RiskManagerAgent
-from backend.agents.portfolio_manager_agent import PortfolioManagerAgent
 
 # Import communication system
-from backend.communication.chat_tools import (
-    communication_manager,
-    CommunicationDecision,
-)
 
 # Import logging configuration
-from backend.utils.logger_config import setup_logging
 
-from backend.agents.prompt_loader import PromptLoader
 
 _prompt_loader = PromptLoader()
 _personas_config = _prompt_loader.load_yaml_config("analyst", "personas")
@@ -1647,7 +1647,7 @@ class InvestmentEngine:
                                 )
             return {}
         except Exception as e:
-            import traceback
+            pass
 
             return {}
 

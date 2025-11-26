@@ -7,18 +7,17 @@ This module provides easy-to-use commands for running backtest, live trading,
 and frontend development server.
 """
 
-import sys
 import os
-import subprocess
 import shutil
+import subprocess
+import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
-from datetime import datetime
 
 import typer
 from rich.console import Console
 from rich.panel import Panel
-from rich import print as rprint
 from rich.prompt import Confirm
 
 from backend.config.path_config import get_logs_and_memory_dir
@@ -544,7 +543,6 @@ def main():
 
     Use 'evotraders --help' to see available commands.
     """
-    pass
 
 
 if __name__ == "__main__":

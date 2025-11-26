@@ -5,14 +5,15 @@ Mem0 Long-term Memory Implementation
 Directly uses mem0, no adapter layer
 """
 
-import os
 import logging
-from typing import Dict, List, Any, Optional
+import os
+from typing import Any, Dict, List, Optional
+
 from mem0 import Memory
 
-from .base import LongTermMemory
 from backend.config.path_config import get_logs_and_memory_dir
 
+from .base import LongTermMemory
 
 logger = logging.getLogger(__name__)
 

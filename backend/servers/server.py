@@ -11,28 +11,29 @@ import json
 import logging
 import os
 import sys
-from pathlib import Path
 from datetime import datetime
-from typing import Set, Dict, Any
+from pathlib import Path
+from typing import Any, Dict, Set
+
+import websockets
 from dotenv import load_dotenv
+from websockets.exceptions import ConnectionClosedError
+from websockets.server import WebSocketServerProtocol
+
+from backend.config.env_config import LiveThinkingFundConfig
+from backend.config.path_config import get_logs_and_memory_dir
+from backend.memory import get_memory
+from backend.pipelines.live_trading_fund import LiveTradingFund
+from backend.servers.mock import MockSimulator
+from backend.servers.polling_price_manager import PollingPriceManager
+from backend.servers.state_manager import StateManager
+from backend.servers.streamer import BroadcastStreamer, ConsoleStreamer
+from backend.utils.progress import progress
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 if str(BASE_DIR) not in sys.path:
     sys.path.append(str(BASE_DIR))
 
-import websockets
-from websockets.server import WebSocketServerProtocol
-from websockets.exceptions import ConnectionClosedError
-
-from backend.memory import get_memory
-from backend.servers.streamer import ConsoleStreamer, BroadcastStreamer
-from backend.servers.polling_price_manager import PollingPriceManager
-from backend.servers.state_manager import StateManager
-from backend.servers.mock import MockSimulator
-from backend.pipelines.live_trading_fund import LiveTradingFund
-from backend.config.env_config import LiveThinkingFundConfig
-from backend.config.path_config import get_logs_and_memory_dir
-from backend.utils.progress import progress
 
 load_dotenv()
 logging.basicConfig(
@@ -575,7 +576,9 @@ class Server:
                 if leaderboard_data:
                     initial_state["leaderboard"] = leaderboard_data
 
-                logger.info(f"✅ Successfully loaded Dashboard data from files")
+                logger.info(
+                    f"✅ Successfully loaded Dashboard data from files",
+                )
             except Exception as e:
                 logger.error(
                     f"⚠️ Failed to load Dashboard data from files: {e}",

@@ -5,19 +5,21 @@ ReMe Long-term Memory Implementation
 Uses global singleton ChromaVectorStore, distinguishes different users via workspace_id
 """
 
+import logging
 import os
 import uuid
-import logging
-from typing import Dict, List, Any, Optional
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from .base import LongTermMemory
 import chromadb
 from chromadb.config import Settings
-from flowllm.storage.vector_store import ChromaVectorStore
 from flowllm.embedding_model import OpenAICompatibleEmbeddingModel
 from flowllm.schema.vector_node import VectorNode
+from flowllm.storage.vector_store import ChromaVectorStore
+
 from backend.config.path_config import get_logs_and_memory_dir
+
+from .base import LongTermMemory
 
 logger = logging.getLogger(__name__)
 

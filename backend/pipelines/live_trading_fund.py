@@ -18,31 +18,30 @@ python live_trading_fund.py --date 2025-01-15 --config_name my_config
 # Force run
 python live_trading_fund.py --date 2025-01-15 --force-run --config_name my_config
 """
-import pdb
-import os
-import sys
 import argparse
 import json
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import List, Dict, Any, Optional
+import os
+import sys
 from collections import defaultdict
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 from dotenv import load_dotenv
+from investment_engine import InvestmentEngine
+from multi_day_strategy import MultiDayStrategy
 
 from backend.config.constants import ANALYST_TYPES
+from backend.config.env_config import LiveThinkingFundConfig
+from backend.dashboard.team_dashboard import TeamDashboardGenerator
 from backend.memory import MemoryReflectionSystem, get_memory
 from backend.servers.streamer import ConsoleStreamer
-from backend.dashboard.team_dashboard import TeamDashboardGenerator
 
 load_dotenv()
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Import refactored modules
-from investment_engine import InvestmentEngine
-from multi_day_strategy import MultiDayStrategy
-
-from backend.config.env_config import LiveThinkingFundConfig
 
 
 class LiveTradingFund:
@@ -548,7 +547,9 @@ class LiveTradingFund:
 
                     # Add decision reasoning
                     if reasoning:
-                        pm_review_lines.append(f"    💭 Reasoning: {reasoning}")
+                        pm_review_lines.append(
+                            f"    💭 Reasoning: {reasoning}",
+                        )
                 else:
                     pm_review_lines.append(f"  {ticker}: No signal data")
         else:
@@ -562,7 +563,9 @@ class LiveTradingFund:
                     )
                     # Add decision reasoning
                     if reasoning:
-                        pm_review_lines.append(f"    💭 Reasoning: {reasoning}")
+                        pm_review_lines.append(
+                            f"    💭 Reasoning: {reasoning}",
+                        )
                 else:
                     pm_review_lines.append(f"  {ticker}: No signal data")
 
@@ -1054,9 +1057,9 @@ class LiveTradingFund:
             "analyst_signals": ana_signals,
             "actual_returns": daily_returns,
             "real_returns": real_returns,
-            "llm_memory_decision": llm_decision
-            if "llm_decision" in locals()
-            else None,
+            "llm_memory_decision": (
+                llm_decision if "llm_decision" in locals() else None
+            ),
             "memory_tool_calls_results": execution_results,
             "timestamp": datetime.now().isoformat(),
         }
@@ -1125,9 +1128,11 @@ class LiveTradingFund:
 
                         my_signals[ticker] = {
                             "signal": signal_value,
-                            "confidence": signal_data.get("confidence", 0)
-                            if isinstance(signal_data, dict)
-                            else 0,
+                            "confidence": (
+                                signal_data.get("confidence", 0)
+                                if isinstance(signal_data, dict)
+                                else 0
+                            ),
                             "reasoning": reasoning_text,
                         }
 
@@ -1609,8 +1614,9 @@ class LiveTradingFund:
 
         # Step 1: Update historical data (to get today's closing prices)
         try:
-            from backend.data.ret_data_updater import DataUpdater
             import os
+
+            from backend.data.ret_data_updater import DataUpdater
 
             api_key = os.getenv("FINNHUB_API_KEY")
             if api_key:
@@ -2140,7 +2146,8 @@ Example usage:
             streamer=console_streamer,
             mode=config.mode,  # Pass running mode
             initial_cash=config.initial_cash,  # Portfolio mode initial cash
-            margin_requirement=config.margin_requirement,  # Portfolio mode margin requirement
+            # Portfolio mode margin requirement
+            margin_requirement=config.margin_requirement,
         )
 
         tickers = args.tickers.split(",") if args.tickers else config.tickers

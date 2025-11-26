@@ -5,13 +5,12 @@ Memory Management Toolkit
 Provides memory operation functionality in AgentScope Toolkit format for Portfolio Manager
 """
 
-from typing import Dict, Any, Annotated
-from pydantic import Field
-from agentscope.tool import Toolkit
+from typing import Annotated, Any, Dict
 
+from agentscope.tool import Toolkit
+from pydantic import Field
 
 from backend.memory import get_memory
-
 
 # Global base_dir cache
 _cached_base_dir = None

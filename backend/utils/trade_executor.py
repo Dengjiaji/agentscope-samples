@@ -5,9 +5,9 @@ Trading Execution Engine - Supports Two Modes
 2. Portfolio mode: Executes specific trades and tracks positions
 """
 
-from typing import Dict, Any, Optional
-from datetime import datetime
 from copy import deepcopy
+from datetime import datetime
+from typing import Any, Dict, Optional
 
 
 class DirectionSignalRecorder:
@@ -121,7 +121,8 @@ class PortfolioTradeExecutor:
             self.portfolio = {
                 "cash": 100000.0,
                 "positions": {},
-                "margin_requirement": 0.0,  # Default 0.0 (short selling disabled)
+                # Default 0.0 (short selling disabled)
+                "margin_requirement": 0.0,
                 "margin_used": 0.0,
             }
         else:
@@ -579,16 +580,18 @@ class PortfolioTradeExecutor:
                         "short_value": short_value,
                         "long_cost_basis": position["long_cost_basis"],
                         "short_cost_basis": position["short_cost_basis"],
-                        "long_pnl": long_value
-                        - (position["long"] * position["long_cost_basis"])
-                        if position["long"] > 0
-                        else 0,
+                        "long_pnl": (
+                            long_value
+                            - (position["long"] * position["long_cost_basis"])
+                            if position["long"] > 0
+                            else 0
+                        ),
                         "short_pnl": (
-                            position["short"] * position["short_cost_basis"]
-                        )
-                        - short_value
-                        if position["short"] > 0
-                        else 0,
+                            (position["short"] * position["short_cost_basis"])
+                            - short_value
+                            if position["short"] > 0
+                            else 0
+                        ),
                     },
                 )
 

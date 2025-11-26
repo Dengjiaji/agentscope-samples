@@ -4,20 +4,19 @@ Unified analysis tools collection
 Contains all tools for fundamental analysis, technical analysis, sentiment analysis, and valuation analysis
 """
 
-from typing import Dict, Any, List, Optional, Tuple
-
-import pandas as pd
-import numpy as np
-
 from statistics import median
+from typing import Any, Dict, Optional
+
+import numpy as np
+import pandas as pd
 
 from backend.tools.data_tools import (
-    get_financial_metrics,
-    get_prices,
-    get_insider_trades,
     get_company_news,
-    prices_to_df,
+    get_financial_metrics,
+    get_insider_trades,
     get_market_cap,
+    get_prices,
+    prices_to_df,
     search_line_items,
 )
 
@@ -406,9 +405,15 @@ def analyze_trend_following(
                 "macd_signal": macd_signal,
                 "macd_histogram": macd_histogram,
                 "trend_slope": safe_float(
-                    np.polyfit(range(len(recent_prices)), recent_prices, 1)[0]
-                    if len(recent_prices) >= 5
-                    else 0,
+                    (
+                        np.polyfit(
+                            range(len(recent_prices)),
+                            recent_prices,
+                            1,
+                        )[0]
+                        if len(recent_prices) >= 5
+                        else 0
+                    ),
                 ),
                 "distance_from_200ma_pct": distance_from_200ma_pct,
             },

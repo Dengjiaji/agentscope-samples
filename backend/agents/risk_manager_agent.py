@@ -3,20 +3,20 @@
 Risk Manager Agent - Risk Management Agent
 Provides unified risk assessment and position management interface (based on AgentScope)
 """
-import os
-from typing import Dict, Any, Optional, Literal
 import json
+import os
+from typing import Any, Dict, Literal, Optional
+
+import dotenv
 import numpy as np
 import pandas as pd
-import dotenv
 from agentscope.agent import AgentBase
 from agentscope.message import Msg
-from .prompt_loader import PromptLoader
 
 from ..graph.state import AgentState
+from ..tools.data_tools import get_last_tradeday, get_prices, prices_to_df
 from ..utils.progress import progress
-from ..tools.data_tools import get_prices, prices_to_df, get_last_tradeday
-import pdb
+from .prompt_loader import PromptLoader
 
 dotenv.load_dotenv()
 
@@ -359,15 +359,17 @@ class RiskManagerAgent(AgentBase):
             current_vol_percentile = 50.0
 
         return {
-            "daily_volatility": float(daily_vol)
-            if not np.isnan(daily_vol)
-            else 0.025,
-            "annualized_volatility": float(annualized_vol)
-            if not np.isnan(annualized_vol)
-            else 0.25,
-            "volatility_percentile": float(current_vol_percentile)
-            if not np.isnan(current_vol_percentile)
-            else 50.0,
+            "daily_volatility": (
+                float(daily_vol) if not np.isnan(daily_vol) else 0.025
+            ),
+            "annualized_volatility": (
+                float(annualized_vol) if not np.isnan(annualized_vol) else 0.25
+            ),
+            "volatility_percentile": (
+                float(current_vol_percentile)
+                if not np.isnan(current_vol_percentile)
+                else 50.0
+            ),
             "data_points": len(recent_returns),
         }
 

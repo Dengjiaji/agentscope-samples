@@ -1,28 +1,27 @@
 # -*- coding: utf-8 -*-
 import datetime
 import os
-import pandas as pd
-import requests
 import time
+
 import finnhub
+import pandas as pd
+import pandas_market_calendars as mcal
+import requests
+
 from backend.data.cache import get_cache
 from backend.data.schema import (
+    CompanyFactsResponse,
     CompanyNews,
     CompanyNewsResponse,
     FinancialMetrics,
     FinancialMetricsResponse,
-    Price,
-    PriceResponse,
-    LineItem,
-    LineItemResponse,
     InsiderTrade,
     InsiderTradeResponse,
-    CompanyFactsResponse,
+    LineItem,
+    LineItemResponse,
+    Price,
+    PriceResponse,
 )
-
-
-import pandas_market_calendars as mcal
-
 
 # Global cache instance
 _cache = get_cache()
@@ -492,13 +491,14 @@ def get_insider_trades(
                         ),
                         transaction_value=abs(trade.get("change", 0))
                         * trade.get("transactionPrice", 0.0),
-                        shares_owned_before_transaction=shares_after
-                        - trade.get("change", 0)
-                        if shares_after and trade.get("change")
-                        else None,
-                        shares_owned_after_transaction=float(shares_after)
-                        if shares_after
-                        else None,
+                        shares_owned_before_transaction=(
+                            shares_after - trade.get("change", 0)
+                            if shares_after and trade.get("change")
+                            else None
+                        ),
+                        shares_owned_after_transaction=(
+                            float(shares_after) if shares_after else None
+                        ),
                         security_title=None,  # Not provided by Finnhub
                         filing_date=trade.get("filingDate", ""),
                     )
@@ -640,12 +640,14 @@ def get_company_news(
                             "",
                         ),  # Finnhub doesn't provide author
                         source=news_item.get("source", ""),
-                        date=datetime.datetime.fromtimestamp(
-                            news_item.get("datetime", 0),
-                            datetime.timezone.utc,
-                        ).strftime("%Y-%m-%d")
-                        if news_item.get("datetime")
-                        else None,
+                        date=(
+                            datetime.datetime.fromtimestamp(
+                                news_item.get("datetime", 0),
+                                datetime.timezone.utc,
+                            ).strftime("%Y-%m-%d")
+                            if news_item.get("datetime")
+                            else None
+                        ),
                         url=news_item.get("url", ""),
                         summary=news_item.get("summary", ""),
                         category=news_item.get("category", ""),

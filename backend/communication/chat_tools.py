@@ -5,15 +5,16 @@ Communication Tools - Implementation of private chat and meeting features
 """
 
 import json
-import uuid
 import re
+import uuid
 from datetime import datetime
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field
 
+from backend.agents.prompt_loader import PromptLoader
 from backend.llm.models import get_model as get_agentscope_model
 from backend.memory.manager import get_memory
-from backend.agents.prompt_loader import PromptLoader
 
 
 class PrivateChatMessage(BaseModel):
@@ -287,9 +288,9 @@ class CommunicationManager:
         response = llm(
             messages=messages,
             temperature=0.7,
-            response_format={"type": "json_object"}
-            if llm._use_json_mode
-            else None,
+            response_format=(
+                {"type": "json_object"} if llm._use_json_mode else None
+            ),
         )
 
         # Use more robust JSON parsing method
@@ -1061,9 +1062,11 @@ class CommunicationManager:
                 state,
             )
             print(
-                f"   memory_query: {memory_query[:100]}..."
-                if memory_query
-                else "   memory_query: None",
+                (
+                    f"   memory_query: {memory_query[:100]}..."
+                    if memory_query
+                    else "   memory_query: None"
+                ),
             )
 
             # 2. Use generated query to retrieve relevant memories
@@ -1147,9 +1150,11 @@ class CommunicationManager:
         # ========== Stage 2: Generate response based on retrieved memories ⭐⭐⭐ ==========
         prompt_data = {
             "analyst_id": analyst_id,
-            "relevant_memories": relevant_memories
-            if relevant_memories
-            else "No relevant past memories found for this topic.",
+            "relevant_memories": (
+                relevant_memories
+                if relevant_memories
+                else "No relevant past memories found for this topic."
+            ),
             "current_signal": json.dumps(current_signal, ensure_ascii=False),
             "topic": topic,
             "conversation_history": self._format_conversation_history(
@@ -1185,9 +1190,9 @@ class CommunicationManager:
         response = llm(
             messages=messages,
             temperature=0.7,
-            response_format={"type": "json_object"}
-            if llm._use_json_mode
-            else None,
+            response_format=(
+                {"type": "json_object"} if llm._use_json_mode else None
+            ),
         )
 
         # Use more robust JSON parsing method
@@ -1485,9 +1490,11 @@ class CommunicationManager:
         # ========== Stage 2: Generate statement based on retrieved memories ⭐⭐⭐ ==========
         prompt_data = {
             "analyst_id": analyst_id,
-            "relevant_memories": relevant_memories
-            if relevant_memories
-            else "No relevant past memories found for this topic.",
+            "relevant_memories": (
+                relevant_memories
+                if relevant_memories
+                else "No relevant past memories found for this topic."
+            ),
             "round_num": round_num,
             "current_signal": json.dumps(current_signal, ensure_ascii=False),
             "topic": topic,
@@ -1528,9 +1535,9 @@ class CommunicationManager:
         response = llm(
             messages=messages,
             temperature=0.7,
-            response_format={"type": "json_object"}
-            if llm._use_json_mode
-            else None,
+            response_format=(
+                {"type": "json_object"} if llm._use_json_mode else None
+            ),
         )
 
         # Use more robust JSON parsing method
@@ -1650,11 +1657,13 @@ class CommunicationManager:
             "analyst_id": analyst_id,
             "topic": topic,
             "tickers": ", ".join(tickers),
-            "conversation_history": self._format_conversation_history(
-                conversation_history[-3:],
-            )
-            if conversation_history
-            else "No previous conversation",
+            "conversation_history": (
+                self._format_conversation_history(
+                    conversation_history[-3:],
+                )
+                if conversation_history
+                else "No previous conversation"
+            ),
         }
 
         system_prompt = self.prompt_loader.load_prompt(
@@ -1709,11 +1718,13 @@ class CommunicationManager:
             "analyst_id": analyst_id,
             "topic": topic,
             "tickers": ", ".join(tickers),
-            "meeting_transcript": self._format_meeting_transcript(
-                meeting_transcript[-5:],
-            )
-            if meeting_transcript
-            else "Meeting just started",
+            "meeting_transcript": (
+                self._format_meeting_transcript(
+                    meeting_transcript[-5:],
+                )
+                if meeting_transcript
+                else "Meeting just started"
+            ),
         }
 
         system_prompt = self.prompt_loader.load_prompt(
@@ -1736,7 +1747,9 @@ class CommunicationManager:
             llm = self._get_llm_model(state, agent_id=analyst_id)
             response = llm(messages=messages, temperature=0.7)
             query = response["content"].strip()
-            print(f"📝 {analyst_id} generated memory query in meeting: {query}")
+            print(
+                f"📝 {analyst_id} generated memory query in meeting: {query}",
+            )
             return query
         except Exception as e:
             print(
@@ -1776,9 +1789,11 @@ class CommunicationManager:
             if response_match:
                 return {
                     "response": response_match.group(1),
-                    "signal_adjustment": adjustment_match.group(1) == "true"
-                    if adjustment_match
-                    else False,
+                    "signal_adjustment": (
+                        adjustment_match.group(1) == "true"
+                        if adjustment_match
+                        else False
+                    ),
                 }
 
         except Exception as e:

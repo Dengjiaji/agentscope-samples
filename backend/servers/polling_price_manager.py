@@ -5,10 +5,11 @@ Polling-based Price Manager - Uses Finnhub REST API
 Supports high-frequency real-time price fetching (default 10 seconds, recommended for online mode)
 Uses Finnhub Quote API: https://finnhub.io/docs/api/quote
 """
-import time
 import logging
 import threading
-from typing import Dict, List, Callable, Optional
+import time
+from typing import Callable, Dict, List, Optional
+
 import finnhub
 
 logger = logging.getLogger(__name__)

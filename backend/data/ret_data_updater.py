@@ -11,18 +11,19 @@ Features:
 5. Support batch updates for multiple stocks
 """
 
+import logging
 import os
 import sys
-from pathlib import Path
 from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Dict, List, Optional
+
+import exchange_calendars as xcals
 import pandas as pd
-import logging
-from typing import List, Optional, Dict
-from dotenv import load_dotenv
 
 # Try importing US trading calendar packages
 import pandas_market_calendars as mcal
-import exchange_calendars as xcals
+from dotenv import load_dotenv
 
 # Add project root directory to path
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -129,7 +130,9 @@ class DataUpdater:
         csv_path = self.data_dir / f"{ticker}.csv"
 
         if not csv_path.exists():
-            logger.info(f"📂 {ticker}.csv does not exist, will create new file")
+            logger.info(
+                f"📂 {ticker}.csv does not exist, will create new file",
+            )
             return None
 
         try:
@@ -256,7 +259,9 @@ class DataUpdater:
                 # Recalculate returns (ensure continuity)
                 combined["ret"] = combined["close"].pct_change().shift(-1)
 
-                logger.info(f"📊 {ticker} merged data: {len(combined)} records")
+                logger.info(
+                    f"📊 {ticker} merged data: {len(combined)} records",
+                )
             else:
                 combined = new_data
                 logger.info(f"📊 {ticker} new file: {len(combined)} records")
@@ -385,7 +390,9 @@ class DataUpdater:
                 )
             else:
                 start_date = datetime.strptime(self.start_date, "%Y-%m-%d")
-                logger.info(f"📅 First update, start date: {start_date.date()}")
+                logger.info(
+                    f"📅 First update, start date: {start_date.date()}",
+                )
 
         # End date is today
         end_date = datetime.now()
