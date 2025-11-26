@@ -1,4 +1,4 @@
-# EvoTraders：自我进化的多智能体交易系统
+# EvoTraders: A Self-Evolving Multi-Agent Trading System
 
 <p align="center">
   <img src="./docs/assets/evotraders_logo.png" width="45%">
@@ -8,135 +8,131 @@
   📌 <a href="https://trading.evoagents.com">Visit us at EvoTraders website !</a>
 </p>
 
-![系统演示](./docs/assets/trading_room.png)
+![System Demo](./docs/assets/trading_room.png)
 
-EvoTraders是一个开源的金融交易智能体框架，通过多智能体协作和记忆系统，构建能够在真实市场中持续学习与进化的交易系统。
+EvoTraders is an open-source financial trading agent framework that builds a trading system capable of continuous learning and evolution in real markets through multi-agent collaboration and memory systems.
 
 ---
 
-## 核心特性
+## Core Features
 
-**多智能体协作交易**  
-6名成员，包含4种专业分析师角色（基本面、技术面、情绪、估值）+ 投资组合经理 + 风险管理，像真实交易团队一样协作决策。
+**Multi-Agent Collaborative Trading**  
+A team of 6 members, including 4 specialized analyst roles (fundamentals, technical, sentiment, valuation) + portfolio manager + risk management, collaborating to make decisions like a real trading team.
 
-你可以在这里自定义你的Agents：[自定义配置](#自定义配置)
+You can customize your Agents here: [Custom Configuration](#custom-configuration)
 
-**持续学习与进化**  
-基于 ReMe 记忆框架，智能体在每次交易后反思总结，跨回合保留经验，形成独特的投资方法论。
+**Continuous Learning and Evolution**  
+Based on the ReMe memory framework, agents reflect and summarize after each trade, preserving experience across rounds, and forming unique investment methodologies.
 
-通过这样的设计，我们希望当 AI Agents 组成团队进入实时市场，它们会逐渐形成自己的交易风格和决策偏好，而不是一次性的随机推理
+Through this design, we hope that when AI Agents form a team and enter the real-time market, they will gradually develop their own trading styles and decision preferences, rather than one-time random inference.
 
+**Real-Time Market Trading**  
+Supports real-time market data integration, providing backtesting mode and live trading mode, allowing AI Agents to learn and make decisions in real market fluctuations.
 
-**实时市场交易**  
-支持实时行情接入，提供回测模式和实盘模式，让 AI Agents 在真实市场波动中学习和决策。
-
-**可视化交易信息**  
-实时观察 Agents 的分析过程、沟通记录和决策演化，完整追踪收益曲线和分析师表现。
-
+**Visualized Trading Information**  
+Observe agents' analysis processes, communication records, and decision evolution in real-time, with complete tracking of return curves and analyst performance.
 
 <p>
   <img src="./docs/assets/performance.png" width="45%">
   <img src="./docs/assets/dashboard.jpg" width="45%">
 </p>
 
-
 ---
 
-## 快速开始
+## Quick Start
 
-### 安装
+### Installation
 
 ```bash
-# 克隆仓库
+# Clone repository
 git clone https://github.com/agentscope-ai/agentscope-samples
 cd agentscope-samples/EvoTraders
 
-# 安装依赖
+# Install dependencies
 pip install -e .
 
-# 配置环境变量
+# Configure environment variables
 cp env.template .env
-# 编辑 .env 文件，添加你的 API Keys
+# Edit .env file and add your API Keys
 # finance data API
 # LLM API for Agents
 # LLM & embedding API for Memory
 ```
 
-### 运行
+### Running
 
-**回测模式：**
+**Backtest Mode:**
 ```bash
 evotraders backtest --start 2025-11-01 --end 2025-12-01
 ```
 
-**实盘交易：**
+**Live Trading:**
 ```bash
-evotraders live                    # 实时模式，需要配置 finnhub 带有tick级别数据权限的 API
-evotraders live --mock             # Mock 模式（测试）
+evotraders live                    # Real-time mode, requires finnhub API with tick-level data permissions
+evotraders live --mock             # Mock mode (testing)
 ```
 
-**启动可视化界面：**
+**Launch Visualization Interface:**
 ```bash
-# 确保已安装 npm
-evotraders frontend                # 默认连接 8765 端口, 你可以修改 ./frontend/env.local 中的地址从而修改端口号
+# Ensure npm is installed
+evotraders frontend                # Default connects to port 8765, you can modify the address in ./frontend/env.local to change the port number
 ```
 
-访问 `http://localhost:5173/` 查看交易大厅，选择日期并点击 Run/Replay 观察决策过程。
+Visit `http://localhost:5173/` to view the trading room, select a date and click Run/Replay to observe the decision-making process.
 
 ---
 
-## 系统架构
+## System Architecture
 
-![架构图](./docs/assets/evotraders_pipeline.png)
+![Architecture Diagram](./docs/assets/evotraders_pipeline.png)
 
-### 智能体设计
+### Agent Design
 
-**分析师团队：**
-- **基本面分析师**：财务健康度、盈利能力、增长质量
-- **技术分析师**：价格趋势、技术指标、动量分析
-- **情绪分析师**：市场情绪、新闻舆情、内部人交易
-- **估值分析师**：DCF、剩余收益、EV/EBITDA
+**Analyst Team:**
+- **Fundamentals Analyst**: Financial health, profitability, growth quality
+- **Technical Analyst**: Price trends, technical indicators, momentum analysis
+- **Sentiment Analyst**: Market sentiment, news sentiment, insider trading
+- **Valuation Analyst**: DCF, residual income, EV/EBITDA
 
-**决策层：**
-- **投资组合经理**：整合来自分析师的分析信号，执行沟通策略，结合分析师和团队历史表现、近期投资记忆和长期投资经验，进行最终决策
-- **风险管理**：实时价格与波动率监控、头寸限制，多层风险预警
+**Decision Layer:**
+- **Portfolio Manager**: Integrates analysis signals from analysts, executes communication strategies, combines analyst and team historical performance, recent investment memories, and long-term investment experience to make final decisions
+- **Risk Management**: Real-time price and volatility monitoring, position limits, multi-layer risk warnings
 
-### 决策流程
+### Decision Process
 
 ```
-实时行情 → 独立分析 → 智能沟通 (1v1/1vN/NvN) → 决策执行 → 收益评估 → 学习与进化（记忆更新）
+Real-time Market Data → Independent Analysis → Intelligent Communication (1v1/1vN/NvN) → Decision Execution → Performance Evaluation → Learning and Evolution (Memory Update)
 ```
 
-每个交易日经历五个阶段：
+Each trading day goes through five stages:
 
-1. **分析阶段**：各智能体基于各自工具和历史经验独立分析
-2. **沟通阶段**：通过私聊、通知、会议等方式交换观点
-3. **决策阶段**：投资组合经理综合判断，给出最终交易
-4. **评估阶段**
-   - **业绩图表**: 追踪组合收益曲线 vs. 基准策略（等权、市值加权、动量）。用于评估整体策略有效性。
+1. **Analysis Stage**: Each agent independently analyzes based on their respective tools and historical experience
+2. **Communication Stage**: Exchange views through private chats, notifications, meetings, etc.
+3. **Decision Stage**: Portfolio manager makes comprehensive judgments and provides final trades
+4. **Evaluation Stage**
+   - **Performance Charts**: Track portfolio return curves vs. benchmark strategies (equal-weighted, market-cap weighted, momentum). Used to evaluate overall strategy effectiveness.
 
-   - **分析师排名**: 在 Trading Room 点击头像查看分析师表现（胜率、牛/熊市胜率）。用于了解哪些分析师提供最有价值的洞察。
+   - **Analyst Rankings**: Click on avatars in the Trading Room to view analyst performance (win rate, bull/bear market win rate). Used to understand which analysts provide the most valuable insights.
 
-   - **统计数据**: 详细的持仓和交易历史。用于深入分析仓位管理和执行质量。
+   - **Statistics**: Detailed position and trading history. Used for in-depth analysis of position management and execution quality.
 
-4. **复盘阶段**：Agents 根据当日实际收益反思决策、总结经验，并存入 ReMe 记忆框架以持续改进
+5. **Review Stage**: Agents reflect on decisions and summarize experiences based on actual returns of the day, and store them in the ReMe memory framework for continuous improvement
 
 ---
 
-### 模块支持
+### Module Support
 
-- **智能体框架**：[AgentScope](https://github.com/agentscope-ai/agentscope)
-- **记忆系统**：[ReMe](https://github.com/agentscope-ai/reme)
-- **LLM 支持**：OpenAI、DeepSeek、Qwen、Moonshot、Zhipu AI 等
-
+- **Agent Framework**: [AgentScope](https://github.com/agentscope-ai/agentscope)
+- **Memory System**: [ReMe](https://github.com/agentscope-ai/reme)
+- **LLM Support**: OpenAI, DeepSeek, Qwen, Moonshot, Zhipu AI, etc.
 
 ---
 
-## 自定义配置
+## Custom Configuration
 
-### 自定义分析师角色
+### Custom Analyst Roles
 
-1. 在 [./backend/agents/prompts/analyst/personas.yaml](./backend/agents/prompts/analyst/personas.yaml) 中注册角色信息，例如：
+1. Register role information in [./backend/agents/prompts/analyst/personas.yaml](./backend/agents/prompts/analyst/personas.yaml), for example:
 
 ```yaml
 comprehensive_analyst:
@@ -152,14 +148,14 @@ comprehensive_analyst:
     As a comprehensive analyst ...
 ```
 
-2. 在 [./backend/config/constants.py](./backend/config/constants.py) 添加角色定义
+2. Add role definition in [./backend/config/constants.py](./backend/config/constants.py)
 ```python
 ROLE_TO_AGENT = {
-    # 增加映射关系，确保和前端配置一致
+    # Add mapping relationship, ensure consistency with frontend configuration
     "comprehensive_analyst": "Comprehensive Analyst"
 }
 ANALYST_TYPES = {
-    # 增加新的分析师
+    # Add new analyst
     "comprehensive_analyst": {
         "display_name": "Comprehensive Analyst",
         "agent_id": "comprehensive_analyst",
@@ -169,10 +165,10 @@ ANALYST_TYPES = {
 }
 ```
 
-3. 在前端配置 [./frontend/src/config/constants.js](./frontend/src/config/constants.js) 中引入新角色（可选）
+3. Introduce new role in frontend configuration [./frontend/src/config/constants.js](./frontend/src/config/constants.js) (optional)
 ```javascript
 export const AGENTS = [
-    // 覆盖掉其中某一个agent
+    // Override one of the agents
   { 
     id: "comprehensive_analyst",
     name: "Comprehensive Analyst",
@@ -182,38 +178,36 @@ export const AGENTS = [
   }
 ```
 
+### Custom Models
 
-
-### 自定义模型
-
-在 [.env](.env) 文件中配置不同智能体使用的模型：
+Configure models used by different agents in the [.env](.env) file:
 
 ```bash
 AGENT_SENTIMENT_ANALYST_MODEL_NAME=qwen3-max-preview
-AGENT_FUNDAMENTAL_ANALYST_MODEL_NAME=deepseek-chat
+AGENT_FUNDAMENTALS_ANALYST_MODEL_NAME=deepseek-chat
 AGENT_TECHNICAL_ANALYST_MODEL_NAME=glm-4-plus
 AGENT_VALUATION_ANALYST_MODEL_NAME=moonshot-v1-32k
 ```
 
-### 项目结构
+### Project Structure
 
 ```
 EvoTraders/
 ├── backend/
-│   ├── agents/           # 智能体实现
-│   ├── communication/    # 通信系统
-│   ├── memory/          # 记忆系统 (ReMe)
-│   ├── tools/           # 分析工具集
-│   ├── servers/         # WebSocket 服务
-│   └── cli.py           # CLI 入口
-├── frontend/            # React 可视化界面
-└── logs_and_memory/     # 日志和记忆数据
+│   ├── agents/           # Agent implementation
+│   ├── communication/    # Communication system
+│   ├── memory/          # Memory system (ReMe)
+│   ├── tools/           # Analysis toolset
+│   ├── servers/         # WebSocket services
+│   └── cli.py           # CLI entry point
+├── frontend/            # React visualization interface
+└── logs_and_memory/     # Logs and memory data
 ```
 
 ---
 
-## 许可与免责
+## License and Disclaimer
 
-EvoTraders 是一个研究和教育项目，采用 Apache 2.0 许可协议开源。
+EvoTraders is a research and educational project, open-sourced under the Apache 2.0 license.
 
-**风险提示**：在实际资金交易前，请务必进行充分的测试和风险评估。历史表现不代表未来收益，投资有风险，决策需谨慎。
+**Risk Warning**: Before trading with real funds, please conduct thorough testing and risk assessment. Past performance does not guarantee future returns. Investment involves risks, and decisions should be made with caution.
