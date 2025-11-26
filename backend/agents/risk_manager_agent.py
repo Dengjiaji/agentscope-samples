@@ -101,7 +101,7 @@ class RiskManagerAgent(AgentBase):
                 "Fetching price data and calculating volatility",
             )
 
-            # ⭐ Strategy:
+            # Strategy:
             # 1. Volatility calculation: Use historical data (up to T-1 day) to avoid incomplete data
             # 2. Current price:
             #    - Live mode (live_server.py): Use T-1 day closing price (previous trading day)
@@ -391,7 +391,6 @@ class RiskManagerAgent(AgentBase):
             if vol_percentile < 30:
                 assessment = f"Low risk stock, annualized volatility {annualized_vol:.1%}, currently at historically low volatility level"
             else:
-                risk_score = base_score
                 assessment = f"Low risk stock, annualized volatility {annualized_vol:.1%}, price volatility relatively mild"
         elif annualized_vol < 0.30:
             risk_level = "medium"

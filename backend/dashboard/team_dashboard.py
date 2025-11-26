@@ -812,6 +812,8 @@ class TeamDashboardGenerator:
                 new_qty = old_qty + quantity
                 # Calculate new average cost
                 if new_qty > 0:
+                    if price is None:
+                        raise ValueError(f"Price is None for {ticker}")
                     new_cost = (
                         old_qty * old_cost + quantity * price
                     ) / new_qty
@@ -825,15 +827,11 @@ class TeamDashboardGenerator:
                         del portfolio_state["positions"][ticker]
 
             # Calculate P&L (treat as 0 when return is unknown)
-            pnl = (
-                quantity
-                * price
-                * (
-                    numeric_real_return
-                    if numeric_real_return is not None
-                    else 0.0
-                )
-            )
+            if price is None:
+                raise ValueError(f"Price is None for {ticker}")
+            if numeric_real_return is None:
+                raise ValueError(f"numeric_real_return is None for {ticker}")
+            pnl = quantity * price * numeric_real_return
 
             # Generate trade ID
             trade_count = len(
@@ -845,6 +843,8 @@ class TeamDashboardGenerator:
             )
             trade_id = f"t_{date.replace('-', '')}_{ticker}_{trade_count}"
 
+            if price is None:
+                raise ValueError(f"Price is None for {ticker}")
             trade_record = {
                 "id": trade_id,
                 "ts": timestamp_ms,
@@ -944,16 +944,26 @@ class TeamDashboardGenerator:
                     agent_perf["bull_count"] += 1
                     if result_unknown:
                         agent_perf["bull_unknown"] += 1
-                    elif numeric_real_return > 0:
-                        is_correct = True
-                        agent_perf["bull_win"] += 1
+                    else:
+                        if numeric_real_return is None:
+                            raise ValueError(
+                                f"numeric_real_return is None for {ticker}"
+                            )
+                        if numeric_real_return > 0:
+                            is_correct = True
+                            agent_perf["bull_win"] += 1
                 elif is_bear:
                     agent_perf["bear_count"] += 1
                     if result_unknown:
                         agent_perf["bear_unknown"] += 1
-                    elif numeric_real_return < 0:
-                        is_correct = True
-                        agent_perf["bear_win"] += 1
+                    else:
+                        if numeric_real_return is None:
+                            raise ValueError(
+                                f"numeric_real_return is None for {ticker}"
+                            )
+                        if numeric_real_return < 0:
+                            is_correct = True
+                            agent_perf["bear_win"] += 1
                 elif is_neutral:
                     agent_perf["neutral_count"] += 1
                     # neutral signals are not included in win rate statistics
@@ -1071,16 +1081,26 @@ class TeamDashboardGenerator:
                 pm_perf["bull_count"] += 1
                 if result_unknown:
                     pm_perf["bull_unknown"] += 1
-                elif numeric_real_return > 0:
-                    is_correct = True
-                    pm_perf["bull_win"] += 1
+                else:
+                    if numeric_real_return is None:
+                        raise ValueError(
+                            f"numeric_real_return is None for {ticker}"
+                        )
+                    if numeric_real_return > 0:
+                        is_correct = True
+                        pm_perf["bull_win"] += 1
             elif is_bear:
                 pm_perf["bear_count"] += 1
                 if result_unknown:
                     pm_perf["bear_unknown"] += 1
-                elif numeric_real_return < 0:
-                    is_correct = True
-                    pm_perf["bear_win"] += 1
+                else:
+                    if numeric_real_return is None:
+                        raise ValueError(
+                            f"numeric_real_return is None for {ticker}"
+                        )
+                    if numeric_real_return < 0:
+                        is_correct = True
+                        pm_perf["bear_win"] += 1
             elif is_neutral:
                 pm_perf["neutral_count"] += 1
 
@@ -1396,6 +1416,8 @@ class TeamDashboardGenerator:
             quantity = int(allocated_cash / price)
 
             if quantity > 0:
+                if price is None:
+                    raise ValueError(f"Price is None for {ticker}")
                 initial_allocation[ticker] = {
                     "qty": quantity,
                     "buy_price": price,

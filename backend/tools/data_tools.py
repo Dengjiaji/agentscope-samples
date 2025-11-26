@@ -9,7 +9,7 @@ import finnhub
 import pandas as pd
 import pandas_market_calendars as mcal
 import requests
-
+from typing import Optional
 from backend.data.cache import get_cache
 from backend.data.schema import (
     CompanyFactsResponse,
@@ -129,7 +129,7 @@ def get_prices(
     ticker: str,
     start_date: str,
     end_date: str,
-    api_key: str,
+    api_key: Optional[str] = None,
     data_source: str = "finnhub",
 ) -> list[Price]:
     """
@@ -239,7 +239,7 @@ def get_financial_metrics(
     end_date: str,
     period: str = "ttm",
     limit: int = 10,
-    api_key: str = None,
+    api_key: Optional[str] = None,
     data_source: str = "finnhub",
 ) -> list[FinancialMetrics]:
     """
@@ -724,7 +724,7 @@ def get_company_news(
 def get_market_cap(
     ticker: str,
     end_date: str,
-    api_key: str = None,
+    api_key: Optional[str] = None,
     data_source: str = "finnhub",
 ) -> float | None:
     """

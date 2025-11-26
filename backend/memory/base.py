@@ -18,7 +18,7 @@ class LongTermMemory(ABC):
         content: str,
         user_id: str,
         metadata: Optional[Dict[str, Any]] = None,
-    ) -> str:
+    ) -> Optional[str]:
         """
         Add memory
 

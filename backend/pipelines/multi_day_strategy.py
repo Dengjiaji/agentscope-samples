@@ -852,7 +852,9 @@ class MultiDayStrategy:
             return str(chart_path)
 
         except Exception as e:
-            raise (f"Failed to generate {ticker} return chart: {e}")
+            raise RuntimeError(
+                f"Failed to generate {ticker} return chart: {e}",
+            )
 
     def create_stocks_comparison_chart(self, individual_data: Dict) -> str:
         """Create stock comparison chart"""
@@ -941,4 +943,6 @@ class MultiDayStrategy:
             return str(chart_path)
 
         except Exception as e:
-            raise (f"Failed to generate stock comparison chart: {e}")
+            raise RuntimeError(
+                f"Failed to generate stock comparison chart: {e}",
+            )
