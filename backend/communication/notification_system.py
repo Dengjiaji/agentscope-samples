@@ -79,7 +79,7 @@ class SimpleNotificationSystem:
         self.global_notifications.append(notification)
 
         # Send to all registered agents
-        for agent_id, agent_memory in self.agent_memories.items():
+        for _, agent_memory in self.agent_memories.items():
             agent_memory.add_notification(notification)
 
         return notification.id

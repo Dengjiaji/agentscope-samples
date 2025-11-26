@@ -389,7 +389,6 @@ class RiskManagerAgent(AgentBase):
             risk_level = "low"
             base_score = 25
             if vol_percentile < 30:
-                risk_score = base_score - 10
                 assessment = f"Low risk stock, annualized volatility {annualized_vol:.1%}, currently at historically low volatility level"
             else:
                 risk_score = base_score

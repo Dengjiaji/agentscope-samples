@@ -126,8 +126,8 @@ class Server:
         self.initial_cash = config.initial_cash
 
         # Initialize memory system
-        console_streamer = ConsoleStreamer()
-        memory_instance = get_memory(config.config_name)
+        # console_streamer = ConsoleStreamer()
+        # memory_instance = get_memory(config.config_name)
         logger.info(f"✅ Memory system initialized")
 
         # Memory system initialization complete (no need to pre-register analysts)

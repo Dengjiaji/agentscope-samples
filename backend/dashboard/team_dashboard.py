@@ -650,7 +650,7 @@ class TeamDashboardGenerator:
         portfolio_state = state["portfolio_state"]
 
         # Get portfolio information
-        portfolio_summary = live_env.get("portfolio_summary", {})
+        # portfolio_summary = live_env.get("portfolio_summary", {})
         updated_portfolio = live_env.get("updated_portfolio", {})
 
         # If updated_portfolio exists, use it directly
@@ -769,7 +769,7 @@ class TeamDashboardGenerator:
 
         for ticker, signal_info in pm_signals.items():
             signal = signal_info.get("signal", "neutral")
-            action = signal_info.get("action", "hold")
+            # action = signal_info.get("action", "hold")
 
             # if action == 'hold':
             #     continue
@@ -2094,7 +2094,6 @@ class TeamDashboardGenerator:
 
             evaluated_bull = max(bull_count - bull_unknown, 0)
             evaluated_bear = max(bear_count - bear_unknown, 0)
-            total_count = bull_count + bear_count
             total_win = bull_win + bear_win
             evaluated_total = evaluated_bull + evaluated_bear
             win_rate = (

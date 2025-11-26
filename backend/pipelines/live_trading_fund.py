@@ -583,7 +583,7 @@ class LiveTradingFund:
             # Portfolio mode: Display value changes
             for ticker in tickers:
                 if ticker in real_returns:
-                    daily_ret = daily_returns[ticker] * 100
+                    # daily_ret = daily_returns[ticker] * 100
                     real_ret = real_returns[ticker] * 100
                     signal_info = pm_signals.get(ticker, {})
                     action = signal_info.get("action", "N/A")

@@ -154,7 +154,8 @@ class RealtimePriceManager:
                 return False
             else:
                 logger.warning(
-                    f"⚠️ {symbol}: API returned abnormal status: {data.get('s') if data else 'None'}",
+                    f"⚠️ {symbol}: API returned abnormal status: "
+                    f"{data.get('s') if data else 'None'}",
                 )
                 return False
 

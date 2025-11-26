@@ -768,7 +768,7 @@ Stock Real Return: {real_return:+.2%}"""
         analyst_signals = agent_data.get("analyst_signals", {})
         actual_returns = agent_data.get("actual_returns", {})
         real_returns = agent_data.get("real_returns", {})
-        portfolio_summary = agent_data.get("portfolio_summary", {})
+        # portfolio_summary = agent_data.get("portfolio_summary", {})
         analyst_stats = agent_data.get("analyst_stats", {})  # ⭐ 获取历史统计
 
         # Build portfolio data
@@ -815,7 +815,7 @@ Stock Real Return: {real_return:+.2%}"""
         # Build decision data
         decisions_data = ""
         for ticker, decision_data in pm_decisions.items():
-            actual_return = actual_returns.get(ticker, 0)
+            # actual_return = actual_returns.get(ticker, 0)
             action = decision_data.get("action", "N/A")
             quantity = decision_data.get("quantity", 0)
             confidence = decision_data.get("confidence", "N/A")

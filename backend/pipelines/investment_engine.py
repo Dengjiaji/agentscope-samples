@@ -619,20 +619,18 @@ class InvestmentEngine:
 
                     # Use thread lock to protect notification system's global state
                     with self._notification_lock:
-                        notification_id = (
-                            notification_system.broadcast_notification(
-                                sender_agent=agent_id,
-                                content=notification_decision["content"],
-                                urgency=notification_decision.get(
-                                    "urgency",
-                                    "medium",
-                                ),
-                                category=notification_decision.get(
-                                    "category",
-                                    "general",
-                                ),
-                                backtest_date=backtest_date,
-                            )
+                        notification_system.broadcast_notification(
+                            sender_agent=agent_id,
+                            content=notification_decision["content"],
+                            urgency=notification_decision.get(
+                                "urgency",
+                                "medium",
+                            ),
+                            category=notification_decision.get(
+                                "category",
+                                "general",
+                            ),
+                            backtest_date=backtest_date,
                         )
 
                     # Broadcast notification to all agents' memory
