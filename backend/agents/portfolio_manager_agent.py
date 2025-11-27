@@ -332,7 +332,7 @@ class PortfolioManagerAgent(AgentBase):
             pydantic_model=PortfolioManagerOutput,
             agent_name=self.agent_id,
             state=state,
-            default_factory=create_default_output,
+            _default_factory=create_default_output,
         )
 
     def _generate_portfolio_decision(
@@ -433,7 +433,7 @@ class PortfolioManagerAgent(AgentBase):
             pydantic_model=PortfolioManagerOutput,
             agent_name=self.agent_id,
             state=state,
-            default_factory=create_default_output,
+            _default_factory=create_default_output,
         )
 
     def _get_risk_manager_id(self) -> str:
