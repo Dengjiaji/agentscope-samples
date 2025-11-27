@@ -268,105 +268,32 @@ class PortfolioTradeExecutor:
         trades_executed = []  # Record actually executed trade steps
 
         if action == "long":
-            # Add position: Buy target_quantity shares (or cover shorts first)
-            print(
-                f"\n📈 {ticker} Long operation: Current Long {current_long}, "
-                f"Short {current_short} → Target quantity {target_quantity}",
+            result = self._execute_long_action(
+                ticker,
+                target_quantity,
+                price,
+                date,
+                current_long,
+                current_short,
+                trades_executed,
             )
-
-            if target_quantity > 0:
-                remaining = target_quantity
-
-                # 🔧 FIX: If has short position, cover first
-                if current_short > 0:
-                    cover_qty = min(remaining, current_short)
-                    print(f"   1️⃣ Cover short: {cover_qty} shares")
-                    cover_result = self._cover_short_position(
-                        ticker,
-                        cover_qty,
-                        price,
-                        date,
-                    )
-                    if cover_result["status"] == "failed":
-                        return cover_result
-                    trades_executed.append(f"Cover {cover_qty} shares")
-                    remaining -= cover_qty
-
-                # If still has remaining quantity, buy long
-                if remaining > 0:
-                    print(f"   2️⃣ Buy long: {remaining} shares")
-                    buy_result = self._buy_long_position(
-                        ticker,
-                        remaining,
-                        price,
-                        date,
-                    )
-                    if buy_result["status"] == "failed":
-                        return buy_result
-                    trades_executed.append(f"Buy {remaining} shares")
-
-                # Display final result
-                final_long = self.portfolio["positions"][ticker]["long"]
-                final_short = self.portfolio["positions"][ticker]["short"]
-                print(
-                    f"   ✅ Final state: Long {final_long} shares, Short {final_short} shares",
-                )
-            else:
-                print("   ⏸️ Quantity is 0, no trade needed")
+            if result["status"] == "failed":
+                return result
 
         elif action == "short":
-            # Short: First sell long positions, if quantity is larger, short the remainder
-            print(
-                f"\n📉 {ticker} Short operation (quantity={target_quantity} shares):",
+            result = self._execute_short_action(
+                ticker,
+                target_quantity,
+                price,
+                date,
+                current_long,
+                current_short,
+                trades_executed,
             )
-            print(
-                f"   Current state: Long {current_long} shares, Short {current_short} shares",
-            )
-
-            if target_quantity > 0:
-                remaining_quantity = target_quantity
-
-                # Step 1: If there are long positions, sell first
-                if current_long > 0:
-                    sell_quantity = min(remaining_quantity, current_long)
-                    print(f"   1️⃣ Sell long: {sell_quantity} shares")
-                    sell_result = self._sell_long_position(
-                        ticker,
-                        sell_quantity,
-                        price,
-                        date,
-                    )
-                    if sell_result["status"] == "failed":
-                        return sell_result
-                    trades_executed.append(f"Sell {sell_quantity} shares")
-                    remaining_quantity -= sell_quantity
-
-                # Step 2: If there's remaining quantity, establish or increase short position
-                if remaining_quantity > 0:
-                    print(f"   2️⃣ Short: {remaining_quantity} shares")
-                    short_result = self._open_short_position(
-                        ticker,
-                        remaining_quantity,
-                        price,
-                        date,
-                    )
-                    if short_result["status"] == "failed":
-                        return short_result
-                    trades_executed.append(
-                        f"Short {remaining_quantity} shares",
-                    )
-
-                # Display final result
-                final_long = self.portfolio["positions"][ticker]["long"]
-                final_short = self.portfolio["positions"][ticker]["short"]
-                print(
-                    "   ✅ Final state: Long {final_long} shares, Short {final_short} shares",
-                )
-            else:
-                print("   ⏸️ Quantity is 0, no trade needed")
+            if result["status"] == "failed":
+                return result
 
         elif action == "hold":
-            # Hold: No trade
             print(f"\n⏸️ {ticker} Position unchanged: {current_long} shares")
 
         # Record trade
@@ -385,12 +312,132 @@ class PortfolioTradeExecutor:
 
         return trade_record
 
+    def _execute_long_action(
+        self,
+        ticker: str,
+        target_quantity: int,
+        price: float,
+        date: str,
+        current_long: int,
+        current_short: int,
+        trades_executed: list,
+    ) -> Dict[str, Any]:
+        """Execute long action: Buy shares or cover shorts first"""
+        print(
+            f"\n📈 {ticker} Long operation: Current Long {current_long}, "
+            f"Short {current_short} → Target quantity {target_quantity}",
+        )
+
+        if target_quantity <= 0:
+            print("   ⏸️ Quantity is 0, no trade needed")
+            return {"status": "success"}
+
+        remaining = target_quantity
+
+        # If has short position, cover first
+        if current_short > 0:
+            cover_qty = min(remaining, current_short)
+            print(f"   1️⃣ Cover short: {cover_qty} shares")
+            cover_result = self._cover_short_position(
+                ticker,
+                cover_qty,
+                price,
+                date,
+            )
+            if cover_result["status"] == "failed":
+                return cover_result
+            trades_executed.append(f"Cover {cover_qty} shares")
+            remaining -= cover_qty
+
+        # If still has remaining quantity, buy long
+        if remaining > 0:
+            print(f"   2️⃣ Buy long: {remaining} shares")
+            buy_result = self._buy_long_position(
+                ticker,
+                remaining,
+                price,
+                date,
+            )
+            if buy_result["status"] == "failed":
+                return buy_result
+            trades_executed.append(f"Buy {remaining} shares")
+
+        # Display final result
+        final_long = self.portfolio["positions"][ticker]["long"]
+        final_short = self.portfolio["positions"][ticker]["short"]
+        print(
+            f"   ✅ Final state: Long {final_long} shares, Short {final_short} shares",
+        )
+
+        return {"status": "success"}
+
+    def _execute_short_action(
+        self,
+        ticker: str,
+        target_quantity: int,
+        price: float,
+        date: str,
+        current_long: int,
+        current_short: int,
+        trades_executed: list,
+    ) -> Dict[str, Any]:
+        """Execute short action: Sell long positions first, then short if needed"""
+        print(
+            f"\n📉 {ticker} Short operation (quantity={target_quantity} shares):",
+        )
+        print(
+            f"   Current state: Long {current_long} shares, Short {current_short} shares",
+        )
+
+        if target_quantity <= 0:
+            print("   ⏸️ Quantity is 0, no trade needed")
+            return {"status": "success"}
+
+        remaining_quantity = target_quantity
+
+        # Step 1: If there are long positions, sell first
+        if current_long > 0:
+            sell_quantity = min(remaining_quantity, current_long)
+            print(f"   1️⃣ Sell long: {sell_quantity} shares")
+            sell_result = self._sell_long_position(
+                ticker,
+                sell_quantity,
+                price,
+                date,
+            )
+            if sell_result["status"] == "failed":
+                return sell_result
+            trades_executed.append(f"Sell {sell_quantity} shares")
+            remaining_quantity -= sell_quantity
+
+        # Step 2: If there's remaining quantity, establish or increase short position
+        if remaining_quantity > 0:
+            print(f"   2️⃣ Short: {remaining_quantity} shares")
+            short_result = self._open_short_position(
+                ticker,
+                remaining_quantity,
+                price,
+                date,
+            )
+            if short_result["status"] == "failed":
+                return short_result
+            trades_executed.append(f"Short {remaining_quantity} shares")
+
+        # Display final result
+        final_long = self.portfolio["positions"][ticker]["long"]
+        final_short = self.portfolio["positions"][ticker]["short"]
+        print(
+            f"   ✅ Final state: Long {final_long} shares, Short {final_short} shares",
+        )
+
+        return {"status": "success"}
+
     def _buy_long_position(
         self,
         ticker: str,
         quantity: int,
         price: float,
-        date: str,
+        _date: str,
     ) -> Dict[str, Any]:
         """Buy long position"""
         position = self.portfolio["positions"][ticker]
@@ -424,7 +471,8 @@ class PortfolioTradeExecutor:
             ) / new_long
             print(
                 f"      New cost: ${new_cost_basis:.2f} = "
-                f"(({old_long} × ${old_cost_basis:.2f}) + ({quantity} × ${price:.2f})) / {new_long}",
+                f"(({old_long} × ${old_cost_basis:.2f}) + "
+                f"({quantity} × ${price:.2f})) / {new_long}",
             )
             position["long_cost_basis"] = new_cost_basis
         position["long"] = new_long
@@ -439,7 +487,7 @@ class PortfolioTradeExecutor:
         ticker: str,
         quantity: int,
         price: float,
-        date: str,
+        _date: str,
     ) -> Dict[str, Any]:
         """Sell long position"""
         position = self.portfolio["positions"][ticker]
@@ -471,7 +519,7 @@ class PortfolioTradeExecutor:
         ticker: str,
         quantity: int,
         price: float,
-        date: str,
+        _date: str,
     ) -> Dict[str, Any]:
         """Open short position"""
         position = self.portfolio["positions"][ticker]
@@ -510,7 +558,7 @@ class PortfolioTradeExecutor:
         ticker: str,
         quantity: int,
         price: float,
-        date: str,
+        _date: str,
     ) -> Dict[str, Any]:
         """Cover short position"""
         position = self.portfolio["positions"][ticker]
