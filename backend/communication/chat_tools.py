@@ -229,13 +229,12 @@ class CommunicationManager:
         llm = get_agentscope_model(model_name, model_provider, api_keys)
 
         # Store flag for whether to use JSON mode, for use when calling
-        llm._use_json_mode = use_json_mode
+        llm.use_json_mode = use_json_mode
 
         return llm
 
     def decide_communication_strategy(
         self,
-        manager_signals: Dict[str, Any],
         analyst_signals: Dict[str, Any],
         state,
     ) -> CommunicationDecision:
@@ -290,7 +289,7 @@ class CommunicationManager:
             messages=messages,
             temperature=0.7,
             response_format=(
-                {"type": "json_object"} if llm._use_json_mode else None
+                {"type": "json_object"} if llm.use_json_mode else None
             ),
         )
 
@@ -327,30 +326,30 @@ class CommunicationManager:
 
     def conduct_private_chat(
         self,
-        manager_id: str,
-        analyst_id: str,
-        topic: str,
-        analyst_signal: Dict[str, Any],
+        manager_id,
+        analyst_id,
+        topic,
+        analyst_signal,
         state,
-        max_rounds: int = 1,
+        max_rounds=1,
         streamer=None,
-    ) -> Dict[str, Any]:
+    ):
         """Conduct private chat"""
         print(f"Starting private chat: {manager_id} <-> {analyst_id}")
         print(f"Topic: {topic}")
 
-        # Output private chat info to frontend
         if streamer:
             streamer.print(
                 "system",
                 f"Starting private chat: {manager_id} <-> {analyst_id}\nTopic: {topic}",
             )
 
-        # Note: Communication logging functionality has been simplified, no longer records start_communication
-        # If needed, can directly add memory via memory.add()
-
-        # Start private chat
-        initial_message = f"Regarding {topic}, I would like to discuss your analysis results with you. Your current signal is: {json.dumps(analyst_signal, ensure_ascii=False)}"
+        # Initialize chat
+        initial_message = (
+            f"Regarding {topic}, I would like to discuss your analysis "
+            f"results with you. Your current signal is: "
+            f"{json.dumps(analyst_signal, ensure_ascii=False)}"
+        )
 
         chat_id = self.private_chat_system.start_private_chat(
             manager_id,
@@ -361,256 +360,308 @@ class CommunicationManager:
         conversation_history = []
         current_analyst_signal = analyst_signal.copy()
         adjustments_made_counter = 0
-
         max_chars = self._get_max_chars(state)
+
+        # Main chat loop
         for round_num in range(max_rounds):
-            print(f"\nPrivate chat round {round_num + 1}:")
-
-            # Output round to frontend
-            if streamer:
-                streamer.print(
-                    "system",
-                    f"--- Round {round_num + 1} conversation ---",
-                )
-
-            # Analyst response
-            analyst_response = self._get_analyst_chat_response(
+            current_analyst_signal, adjustment_count = self._run_chat_round(
+                round_num,
+                max_rounds,
                 analyst_id,
+                manager_id,
                 topic,
                 conversation_history,
                 current_analyst_signal,
                 state,
-                streamer=streamer,
+                streamer,
+                max_chars,
             )
-            # # Truncate analyst response
-            # if isinstance(analyst_response, dict) and "response" in analyst_response:
-            #     analyst_response["response"] = self._truncate_text(analyst_response["response"], max_chars)
-            # pdb.set_trace()
-            conversation_history.append(
-                {
-                    "speaker": analyst_id,
-                    "content": analyst_response["response"],
-                    "round": round_num + 1,
-                },
-            )
+            adjustments_made_counter += adjustment_count
 
-            print(f"🗣️ {analyst_id}: {analyst_response['response']}")
-
-            # Output analyst response to frontend
-            if streamer:
-                response_text = analyst_response.get("response", "")
-                # Limit output length
-                max_display_length = 300
-                if len(response_text) > max_display_length:
-                    response_text = response_text[:max_display_length] + "..."
-                streamer.print("agent", response_text, role_key=analyst_id)
-
-            # Record analyst response to memory
-            # if analyst_memory and communication_id:
-            #     analyst_memory.add_communication_message(
-            #         communication_id, analyst_id, analyst_response['response']
-            #     )
-
-            # Check for signal adjustment
-            if analyst_response.get(
-                "signal_adjustment",
-            ) and analyst_response.get("adjusted_signal"):
-                original_signal = current_analyst_signal
-                current_analyst_signal = analyst_response["adjusted_signal"]
-                print(
-                    f"Signal adjusted: {analyst_response['signal_adjustment']}",
-                )
-                adjustments_made_counter += 1
-                print(analyst_response)
-
-                # Output signal adjustment to frontend
-                if streamer:
-                    # Parse signals before and after adjustment
-                    adjusted_signal = analyst_response.get(
-                        "adjusted_signal",
-                        {},
-                    )
-
-                    # Handle two possible signal formats
-                    if isinstance(adjusted_signal, dict):
-                        # Format 1: {ticker: {signal: ..., confidence: ...}}
-                        if "ticker_signals" in adjusted_signal:
-                            # Format 2: {ticker_signals: [{ticker: ..., signal: ..., confidence: ...}]}
-                            adjustment_details = []
-                            for ticker_signal in adjusted_signal.get(
-                                "ticker_signals",
-                                [],
-                            ):
-                                ticker = ticker_signal.get("ticker", "N/A")
-                                new_signal = ticker_signal.get("signal", "N/A")
-                                new_confidence = ticker_signal.get(
-                                    "confidence",
-                                    "N/A",
-                                )
-
-                                # Get original signal
-                                original_ticker_signal = {}
-                                if isinstance(original_signal, dict):
-                                    if "ticker_signals" in original_signal:
-                                        original_ticker_signal = next(
-                                            (
-                                                s
-                                                for s in original_signal.get(
-                                                    "ticker_signals",
-                                                    [],
-                                                )
-                                                if s.get("ticker") == ticker
-                                            ),
-                                            {},
-                                        )
-                                    elif ticker in original_signal:
-                                        original_ticker_signal = (
-                                            original_signal.get(ticker, {})
-                                        )
-
-                                old_signal = original_ticker_signal.get(
-                                    "signal",
-                                    "N/A",
-                                )
-                                old_confidence = original_ticker_signal.get(
-                                    "confidence",
-                                    "N/A",
-                                )
-
-                                adjustment_details.append(
-                                    f"  {ticker}: {old_signal}({old_confidence}%) → {new_signal}({new_confidence}%)",
-                                )
-
-                            if adjustment_details:
-                                streamer.print(
-                                    "agent",
-                                    "I adjusted the signal:\n"
-                                    + "\n".join(adjustment_details),
-                                    role_key=analyst_id,
-                                )
-                            else:
-                                streamer.print(
-                                    "agent",
-                                    "I adjusted the signal",
-                                    role_key=analyst_id,
-                                )
-                        else:
-                            # Simple ticker: {signal, confidence} format
-                            adjustment_details = []
-                            for ticker, signal_data in adjusted_signal.items():
-                                if (
-                                    isinstance(signal_data, dict)
-                                    and "signal" in signal_data
-                                ):
-                                    new_signal = signal_data.get(
-                                        "signal",
-                                        "N/A",
-                                    )
-                                    new_confidence = signal_data.get(
-                                        "confidence",
-                                        "N/A",
-                                    )
-
-                                    old_signal_data = original_signal.get(
-                                        ticker,
-                                        {},
-                                    )
-                                    old_signal = old_signal_data.get(
-                                        "signal",
-                                        "N/A",
-                                    )
-                                    old_confidence = old_signal_data.get(
-                                        "confidence",
-                                        "N/A",
-                                    )
-
-                                    adjustment_details.append(
-                                        f"  {ticker}: {old_signal}({old_confidence}%) → {new_signal}({new_confidence}%)",
-                                    )
-
-                            if adjustment_details:
-                                streamer.print(
-                                    "agent",
-                                    "I adjusted the signal:\n"
-                                    + "\n".join(adjustment_details),
-                                    role_key=analyst_id,
-                                )
-                            else:
-                                streamer.print(
-                                    "agent",
-                                    "I adjusted the signal",
-                                    role_key=analyst_id,
-                                )
-                    else:
-                        streamer.print(
-                            "agent",
-                            "I adjusted the signal",
-                            role_key=analyst_id,
-                        )
-
-                # # Record signal adjustment to memory
-                # if analyst_memory and communication_id:
-                #     analyst_memory.record_signal_adjustment(
-                #         communication_id,
-                #         original_signal,
-                #         current_analyst_signal,
-                #         f"Adjustment after private chat discussion on {topic}"
-                #     )
-
-            # Manager response (if not last round)
-            if round_num < max_rounds - 1:
-                manager_response = self._get_manager_chat_response(
-                    manager_id,
-                    analyst_id,
-                    conversation_history,
-                    current_analyst_signal,
-                    state,
-                )
-                manager_response = self._truncate_text(
-                    manager_response,
-                    max_chars,
-                )
-
-                conversation_history.append(
-                    {
-                        "speaker": manager_id,
-                        "content": manager_response,
-                        "round": round_num + 1,
-                    },
-                )
-
-                print(f"🗣️ {manager_id}: {manager_response}")
-
-                # Output manager response to frontend
-                if streamer:
-                    max_display_length = 300
-                    manager_display = (
-                        manager_response
-                        if len(manager_response) <= max_display_length
-                        else manager_response[:max_display_length] + "..."
-                    )
-                    streamer.print(
-                        "agent",
-                        manager_display,
-                        role_key=manager_id,
-                    )
-
-                # # Record manager response to memory
-                # if analyst_memory and communication_id:
-                #     analyst_memory.add_communication_message(
-                #         communication_id, manager_id, manager_response
-                #     )
-
-        # pdb.set_trace()
         print("Private chat ended")
 
-        # Output private chat end to frontend
         if streamer:
             streamer.print(
                 "system",
-                f"Private chat ended, conducted {max_rounds} rounds of conversation, {adjustments_made_counter} signal adjustments",
+                f"Private chat ended, conducted {max_rounds} rounds of conversation, "
+                f"{adjustments_made_counter} signal adjustments",
             )
 
+        # Store to memory
+        self._store_conversation_to_memory(
+            conversation_history,
+            manager_id,
+            analyst_id,
+            topic,
+            chat_id,
+            state,
+        )
+
+        return {
+            "chat_history": conversation_history,
+            "final_analyst_signal": current_analyst_signal,
+            "adjustments_made": adjustments_made_counter,
+        }
+
+    def _format_signal_adjustment_display(
+        self,
+        original_signal,
+        adjusted_signal,
+    ):
+        """Format signal adjustment for display"""
+        if not isinstance(adjusted_signal, dict):
+            return "I adjusted the signal"
+
+        if "ticker_signals" in adjusted_signal:
+            return self._format_ticker_signals_adjustment(
+                original_signal,
+                adjusted_signal.get("ticker_signals", []),
+            )
+
+        return self._format_simple_ticker_adjustment(
+            original_signal,
+            adjusted_signal,
+        )
+
+    def _format_ticker_signals_adjustment(
+        self,
+        original_signal,
+        ticker_signals,
+    ):
+        """Format ticker_signals style adjustment"""
+        adjustment_details = []
+        for ticker_signal in ticker_signals:
+            ticker = ticker_signal.get("ticker", "N/A")
+            new_signal = ticker_signal.get("signal", "N/A")
+            new_confidence = ticker_signal.get("confidence", "N/A")
+
+            original_ticker_signal = self._get_original_ticker_signal(
+                original_signal,
+                ticker,
+            )
+            old_signal = original_ticker_signal.get("signal", "N/A")
+            old_confidence = original_ticker_signal.get("confidence", "N/A")
+
+            adjustment_details.append(
+                f"  {ticker}: {old_signal}({old_confidence}%) → {new_signal}({new_confidence}%)",
+            )
+
+        if adjustment_details:
+            return "I adjusted the signal:\n" + "\n".join(adjustment_details)
+        return "I adjusted the signal"
+
+    def _get_original_ticker_signal(self, original_signal, ticker):
+        """Get original signal for a ticker"""
+        if not isinstance(original_signal, dict):
+            return {}
+
+        if "ticker_signals" in original_signal:
+            return next(
+                (
+                    s
+                    for s in original_signal.get("ticker_signals", [])
+                    if s.get("ticker") == ticker
+                ),
+                {},
+            )
+
+        if ticker in original_signal:
+            return original_signal.get(ticker, {})
+
+        return {}
+
+    def _format_simple_ticker_adjustment(
+        self,
+        original_signal,
+        adjusted_signal,
+    ):
+        """Format simple ticker style adjustment"""
+        adjustment_details = []
+        for ticker, signal_data in adjusted_signal.items():
+            if isinstance(signal_data, dict) and "signal" in signal_data:
+                new_signal = signal_data.get("signal", "N/A")
+                new_confidence = signal_data.get("confidence", "N/A")
+
+                old_signal_data = original_signal.get(ticker, {})
+                old_signal = old_signal_data.get("signal", "N/A")
+                old_confidence = old_signal_data.get("confidence", "N/A")
+
+                adjustment_details.append(
+                    f"  {ticker}: {old_signal}({old_confidence}%) → {new_signal}({new_confidence}%)",
+                )
+
+        if adjustment_details:
+            return "I adjusted the signal:\n" + "\n".join(adjustment_details)
+        return "I adjusted the signal"
+
+    def _should_record_signal_adjustment(self, analyst_response):
+        """Check if signal adjustment should be recorded"""
+        return analyst_response.get(
+            "signal_adjustment",
+        ) and analyst_response.get("adjusted_signal")
+
+    def _truncate_for_display(self, text, max_length=300):
+        """Truncate text for display"""
+        if len(text) > max_length:
+            return text[:max_length] + "..."
+        return text
+
+    def _process_analyst_response(
+        self,
+        analyst_id,
+        analyst_response,
+        conversation_history,
+        current_analyst_signal,
+        round_num,
+        streamer,
+    ):
+        """Process analyst response in one round"""
+        conversation_history.append(
+            {
+                "speaker": analyst_id,
+                "content": analyst_response["response"],
+                "round": round_num + 1,
+            },
+        )
+
+        print(f"🗣️ {analyst_id}: {analyst_response['response']}")
+
+        if streamer:
+            response_text = self._truncate_for_display(
+                analyst_response.get("response", ""),
+                max_length=300,
+            )
+            streamer.print("agent", response_text, role_key=analyst_id)
+
+        adjustment_count = 0
+        if self._should_record_signal_adjustment(analyst_response):
+            original_signal = current_analyst_signal
+            current_analyst_signal = analyst_response["adjusted_signal"]
+            adjustment_count = 1
+            print(f"Signal adjusted: {analyst_response['signal_adjustment']}")
+
+            if streamer:
+                adjustment_message = self._format_signal_adjustment_display(
+                    original_signal,
+                    analyst_response.get("adjusted_signal", {}),
+                )
+                streamer.print(
+                    "agent",
+                    adjustment_message,
+                    role_key=analyst_id,
+                )
+
+        return current_analyst_signal, adjustment_count
+
+    def _add_manager_response(
+        self,
+        manager_id,
+        analyst_id,
+        conversation_history,
+        current_analyst_signal,
+        state,
+        round_num,
+        max_chars,
+        streamer,
+    ):
+        """Add manager response to conversation"""
+        manager_response = self._get_manager_chat_response(
+            manager_id,
+            analyst_id,
+            conversation_history,
+            current_analyst_signal,
+            state,
+        )
+        manager_response = self._truncate_text(manager_response, max_chars)
+
+        conversation_history.append(
+            {
+                "speaker": manager_id,
+                "content": manager_response,
+                "round": round_num + 1,
+            },
+        )
+
+        print(f"🗣️ {manager_id}: {manager_response}")
+
+        if streamer:
+            manager_display = self._truncate_for_display(manager_response, 300)
+            streamer.print("agent", manager_display, role_key=manager_id)
+
+    def _run_chat_round(
+        self,
+        round_num,
+        max_rounds,
+        analyst_id,
+        manager_id,
+        topic,
+        conversation_history,
+        current_analyst_signal,
+        state,
+        streamer,
+        max_chars,
+    ):
+        """Run one round of private chat"""
+        print(f"\nPrivate chat round {round_num + 1}:")
+
+        if streamer:
+            streamer.print(
+                "system",
+                f"--- Round {round_num + 1} conversation ---",
+            )
+
+        analyst_response = self._get_analyst_chat_response(
+            analyst_id,
+            topic,
+            conversation_history,
+            current_analyst_signal,
+            state,
+            streamer=streamer,
+        )
+
+        (
+            current_analyst_signal,
+            adjustment_count,
+        ) = self._process_analyst_response(
+            analyst_id,
+            analyst_response,
+            conversation_history,
+            current_analyst_signal,
+            round_num,
+            streamer,
+        )
+
+        if round_num < max_rounds - 1:
+            self._add_manager_response(
+                manager_id,
+                analyst_id,
+                conversation_history,
+                current_analyst_signal,
+                state,
+                round_num,
+                max_chars,
+                streamer,
+            )
+
+        return current_analyst_signal, adjustment_count
+
+    def _store_to_agent_memory(self, memory, content, agent_id, memory_format):
+        """Store content to specific agent's memory"""
+        metadata = memory_format["metadata"].copy()
+        metadata["stored_in"] = agent_id
+        memory.add(content, agent_id, metadata)
+        print(f"✅ Conversation history stored to {agent_id}'s memory")
+
+    def _store_conversation_to_memory(
+        self,
+        conversation_history,
+        manager_id,
+        analyst_id,
+        topic,
+        chat_id,
+        state,
+    ):
+        """Store conversation history to memory"""
         memory_format = self._convert_private_chat_to_memory_format(
             conversation_history,
             manager_id,
@@ -619,10 +670,6 @@ class CommunicationManager:
             chat_id,
         )
 
-        # Store conversation history to each participant's memory
-        from backend.memory import get_memory
-
-        # Get base_dir from state (if exists)
         base_dir = (
             state.get("metadata", {}).get("config_name", "default")
             if state
@@ -635,32 +682,24 @@ class CommunicationManager:
                 [msg.get("content", "") for msg in memory_format["messages"]],
             )
 
-            # Store to analyst's memory
-            analyst_metadata = memory_format["metadata"].copy()
-            analyst_metadata["stored_in"] = analyst_id
-            memory.add(memory_content, analyst_id, analyst_metadata)
-            print(f"✅ Conversation history stored to {analyst_id}'s memory")
-
-            # Also store to manager's memory
-            manager_metadata = memory_format["metadata"].copy()
-            manager_metadata["stored_in"] = manager_id
-            memory.add(memory_content, manager_id, manager_metadata)
-            print(f"✅ Conversation history stored to {manager_id}'s memory")
+            self._store_to_agent_memory(
+                memory,
+                memory_content,
+                analyst_id,
+                memory_format,
+            )
+            self._store_to_agent_memory(
+                memory,
+                memory_content,
+                manager_id,
+                memory_format,
+            )
 
         except Exception as e:
             print(f"❌ Failed to store conversation history: {e}")
             import traceback
 
             traceback.print_exc()
-
-        # pdb.set_trace()
-        result = {
-            "chat_history": conversation_history,
-            "final_analyst_signal": current_analyst_signal,
-            "adjustments_made": adjustments_made_counter,
-        }
-
-        return result
 
     def conduct_meeting(
         self,
@@ -678,7 +717,6 @@ class CommunicationManager:
         print(f"Topic: {topic}")
         print(f"Participants: {', '.join([manager_id] + analyst_ids)}")
 
-        # Output meeting ID to frontend
         if streamer:
             streamer.print(
                 "conference_start",
@@ -687,12 +725,6 @@ class CommunicationManager:
                 participants=[manager_id] + analyst_ids,
             )
 
-        # Record meeting start for each analyst
-        # Get trading_date as analysis_date
-        # Note: Communication logging functionality has been simplified, no longer records start_communication
-        # If needed, can directly add memory via memory.add()
-
-        # Initialize meeting info (only for logging)
         print(f"Meeting created successfully - ID: {meeting_id}")
 
         current_signals = analyst_signals.copy()
@@ -701,238 +733,105 @@ class CommunicationManager:
 
         # Manager opening
         opening_message = f"Let's discuss {topic}. Please share your viewpoints and analysis results."
+        self._add_meeting_message(
+            meeting_transcript,
+            manager_id,
+            opening_message,
+            1,
+            streamer,
+        )
+
+        max_chars = self._get_max_chars(state)
+
+        # Main meeting rounds
+        for round_num in range(max_rounds):
+            adjustments_made_counter += self._conduct_meeting_round(
+                round_num,
+                analyst_ids,
+                topic,
+                meeting_transcript,
+                current_signals,
+                state,
+                streamer,
+            )
+
+        # Manager summary
+        self._add_meeting_summary(
+            meeting_transcript,
+            manager_id,
+            current_signals,
+            state,
+            round_num,
+            max_chars,
+            streamer,
+        )
+
+        print("Meeting ended")
+        if streamer:
+            streamer.print("conference_end", conference_id=meeting_id)
+
+        # Store to memory
+        self._store_meeting_to_memory(
+            meeting_transcript,
+            meeting_id,
+            topic,
+            manager_id,
+            analyst_ids,
+            max_rounds,
+            state,
+        )
+
+        return {
+            "meeting_id": meeting_id,
+            "transcript": meeting_transcript,
+            "final_signals": current_signals,
+            "adjustments_made": adjustments_made_counter,
+        }
+
+    # ========== Meeting Helper Methods ==========
+
+    def _add_meeting_message(
+        self,
+        meeting_transcript,
+        speaker_id,
+        content,
+        round_num,
+        streamer,
+        message_type="agent",
+    ):
+        """Add a message to meeting transcript"""
         meeting_transcript.append(
             {
-                "speaker": manager_id,
-                "content": opening_message,
-                "round": 1,
+                "speaker": speaker_id,
+                "content": content,
+                "round": round_num,
                 "timestamp": datetime.now().isoformat(),
             },
         )
 
-        # Output opening statement to frontend
         if streamer:
+            prefix = (
+                "[Opening] "
+                if round_num == 1 and message_type == "agent"
+                else ""
+            )
             streamer.print(
-                "agent",
-                f"[Opening] {opening_message}",
-                role_key=manager_id,
+                message_type,
+                f"{prefix}{content}",
+                role_key=speaker_id,
             )
 
-        max_chars = self._get_max_chars(state)
-        for round_num in range(max_rounds):
-            print(f"\nMeeting round {round_num + 1} statements:")
-
-            # Output round to frontend
-            if streamer:
-                streamer.print(
-                    "system",
-                    f"--- Round {round_num + 1} statements ---",
-                )
-
-            # Debug: print current meeting transcript status
-            if round_num > 0:
-                print(
-                    f"Current meeting transcript entries: {len(meeting_transcript)}",
-                )
-                # if meeting_transcript:
-                #     print(f"Last entry: {meeting_transcript[-1]}")
-
-            # Each analyst speaks
-            for analyst_id in analyst_ids:
-                analyst_response = self._get_analyst_meeting_response(
-                    analyst_id,
-                    topic,
-                    meeting_transcript,
-                    current_signals.get(analyst_id, {}),
-                    current_signals,
-                    state,
-                    round_num + 1,
-                    streamer=streamer,
-                )
-                # # Truncate analyst statement
-                # if isinstance(analyst_response, dict) and "response" in analyst_response:
-                #     analyst_response["response"] = self._truncate_text(analyst_response["response"], max_chars)
-
-                meeting_transcript.append(
-                    {
-                        "speaker": analyst_id,
-                        "content": analyst_response["response"],
-                        "round": round_num + 1,
-                        "timestamp": datetime.now().isoformat(),
-                    },
-                )
-
-                # print(f"{analyst_id}: {analyst_response}")
-
-                # Output analyst statement to frontend
-                if streamer:
-                    response_text = analyst_response.get("response", "")
-                    streamer.print("agent", response_text, role_key=analyst_id)
-
-                # Record statement to analyst memory
-                # analyst_memory = memory_manager.get_analyst_memory(analyst_id)
-                # if analyst_memory and analyst_id in communication_ids:
-                #     analyst_memory.add_communication_message(
-                #         communication_ids[analyst_id], analyst_id, analyst_response['response']
-                #     )
-
-                # Check signal adjustment
-                if analyst_response.get(
-                    "signal_adjustment",
-                ) and analyst_response.get("adjusted_signal"):
-                    original_signal = current_signals[analyst_id]
-                    current_signals[analyst_id] = analyst_response[
-                        "adjusted_signal"
-                    ]
-                    print(f"{analyst_id} adjusted signal")
-                    adjustments_made_counter += 1
-
-                    # Output signal adjustment to frontend
-                    if streamer:
-                        # Parse signals before and after adjustment
-                        adjusted_signal = analyst_response.get(
-                            "adjusted_signal",
-                            {},
-                        )
-
-                        # Handle two possible signal formats
-                        if isinstance(adjusted_signal, dict):
-                            # Format 1: {ticker: {signal: ..., confidence: ...}}
-                            if "ticker_signals" in adjusted_signal:
-                                # Format 2: {ticker_signals: [{ticker: ..., signal: ..., confidence: ...}]}
-                                adjustment_details = []
-                                for ticker_signal in adjusted_signal.get(
-                                    "ticker_signals",
-                                    [],
-                                ):
-                                    ticker = ticker_signal.get("ticker", "N/A")
-                                    new_signal = ticker_signal.get(
-                                        "signal",
-                                        "N/A",
-                                    )
-                                    new_confidence = ticker_signal.get(
-                                        "confidence",
-                                        "N/A",
-                                    )
-
-                                    # Get original signal
-                                    original_ticker_signal = {}
-                                    if isinstance(original_signal, dict):
-                                        if "ticker_signals" in original_signal:
-                                            original_ticker_signal = next(
-                                                (
-                                                    s
-                                                    for s in original_signal.get(
-                                                        "ticker_signals",
-                                                        [],
-                                                    )
-                                                    if s.get("ticker")
-                                                    == ticker
-                                                ),
-                                                {},
-                                            )
-                                        elif ticker in original_signal:
-                                            original_ticker_signal = (
-                                                original_signal.get(ticker, {})
-                                            )
-
-                                    old_signal = original_ticker_signal.get(
-                                        "signal",
-                                        "N/A",
-                                    )
-                                    old_confidence = (
-                                        original_ticker_signal.get(
-                                            "confidence",
-                                            "N/A",
-                                        )
-                                    )
-
-                                    adjustment_details.append(
-                                        f"  {ticker}: {old_signal}({old_confidence}%) → {new_signal}({new_confidence}%)",
-                                    )
-
-                                if adjustment_details:
-                                    streamer.print(
-                                        "agent",
-                                        "I adjusted the signal:\n"
-                                        + "\n".join(adjustment_details),
-                                        role_key=analyst_id,
-                                    )
-                                else:
-                                    streamer.print(
-                                        "agent",
-                                        "I adjusted the signal",
-                                        role_key=analyst_id,
-                                    )
-                            else:
-                                # Simple ticker: {signal, confidence} format
-                                adjustment_details = []
-                                for (
-                                    ticker,
-                                    signal_data,
-                                ) in adjusted_signal.items():
-                                    if (
-                                        isinstance(signal_data, dict)
-                                        and "signal" in signal_data
-                                    ):
-                                        new_signal = signal_data.get(
-                                            "signal",
-                                            "N/A",
-                                        )
-                                        new_confidence = signal_data.get(
-                                            "confidence",
-                                            "N/A",
-                                        )
-
-                                        old_signal_data = original_signal.get(
-                                            ticker,
-                                            {},
-                                        )
-                                        old_signal = old_signal_data.get(
-                                            "signal",
-                                            "N/A",
-                                        )
-                                        old_confidence = old_signal_data.get(
-                                            "confidence",
-                                            "N/A",
-                                        )
-
-                                        adjustment_details.append(
-                                            f"  {ticker}: {old_signal}({old_confidence}%) → {new_signal}({new_confidence}%)",
-                                        )
-
-                                if adjustment_details:
-                                    streamer.print(
-                                        "agent",
-                                        "I adjusted the signal:\n"
-                                        + "\n".join(adjustment_details),
-                                        role_key=analyst_id,
-                                    )
-                                else:
-                                    streamer.print(
-                                        "agent",
-                                        "I adjusted the signal",
-                                        role_key=analyst_id,
-                                    )
-                        else:
-                            streamer.print(
-                                "agent",
-                                "I adjusted the signal",
-                                role_key=analyst_id,
-                            )
-
-                    # Record signal adjustment to memory
-                    # if analyst_memory and analyst_id in communication_ids:
-                    #     analyst_memory.record_signal_adjustment(
-                    #         communication_ids[analyst_id],
-                    #         original_signal,
-                    #         analyst_response["adjusted_signal"],
-                    #         f"Adjustment after meeting discussion on {topic}"
-                    #     )
-
-            # Proceed to next round (round management automatically handled in meeting_transcript)
-
-        # Manager summary
+    def _add_meeting_summary(
+        self,
+        meeting_transcript,
+        manager_id,
+        current_signals,
+        state,
+        round_num,
+        max_chars,
+        streamer,
+    ):
+        """Add manager summary to meeting"""
         summary = self._get_manager_meeting_summary(
             manager_id,
             meeting_transcript,
@@ -952,15 +851,11 @@ class CommunicationManager:
 
         print(f"Meeting summary: {summary}")
 
-        # Output meeting summary to frontend
         if streamer:
             streamer.print("system", "--- Meeting Summary ---")
-            # Limit summary length
-            max_summary_length = 400
-            summary_display = (
-                summary
-                if len(summary) <= max_summary_length
-                else summary[:max_summary_length] + "..."
+            summary_display = self._truncate_for_display(
+                summary,
+                max_length=400,
             )
             streamer.print(
                 "agent",
@@ -968,64 +863,219 @@ class CommunicationManager:
                 role_key=manager_id,
             )
 
-        print("Meeting ended")
-        streamer.print("conference_end", conference_id=meeting_id)
+    def _conduct_meeting_round(
+        self,
+        round_num,
+        analyst_ids,
+        topic,
+        meeting_transcript,
+        current_signals,
+        state,
+        streamer,
+    ):
+        """Conduct one round of meeting"""
+        print(f"\nMeeting round {round_num + 1} statements:")
 
-        # Save meeting transcript to each participant's memory
+        if streamer:
+            streamer.print(
+                "system",
+                f"--- Round {round_num + 1} statements ---",
+            )
+
+        if round_num > 0:
+            print(
+                f"Current meeting transcript entries: {len(meeting_transcript)}",
+            )
+
+        adjustments_count = 0
+        for analyst_id in analyst_ids:
+            adjustment_made = self._process_analyst_meeting_statement(
+                analyst_id,
+                topic,
+                meeting_transcript,
+                current_signals,
+                state,
+                round_num,
+                streamer,
+            )
+            adjustments_count += adjustment_made
+
+        return adjustments_count
+
+    def _process_analyst_meeting_statement(
+        self,
+        analyst_id,
+        topic,
+        meeting_transcript,
+        current_signals,
+        state,
+        round_num,
+        streamer,
+    ):
+        """Process one analyst's statement in meeting"""
+        analyst_response = self._get_analyst_meeting_response(
+            analyst_id,
+            topic,
+            meeting_transcript,
+            current_signals.get(analyst_id, {}),
+            current_signals,
+            state,
+            round_num + 1,
+            streamer=streamer,
+        )
+
+        meeting_transcript.append(
+            {
+                "speaker": analyst_id,
+                "content": analyst_response["response"],
+                "round": round_num + 1,
+                "timestamp": datetime.now().isoformat(),
+            },
+        )
+
+        if streamer:
+            response_text = analyst_response.get("response", "")
+            streamer.print("agent", response_text, role_key=analyst_id)
+
+        adjustment_made = 0
+        if self._should_record_signal_adjustment(analyst_response):
+            adjustment_made = self._handle_meeting_signal_adjustment(
+                analyst_id,
+                analyst_response,
+                current_signals,
+                streamer,
+            )
+
+        return adjustment_made
+
+    def _handle_meeting_signal_adjustment(
+        self,
+        analyst_id,
+        analyst_response,
+        current_signals,
+        streamer,
+    ):
+        """Handle signal adjustment in meeting"""
+        original_signal = current_signals[analyst_id]
+        current_signals[analyst_id] = analyst_response["adjusted_signal"]
+        print(f"{analyst_id} adjusted signal")
+
+        if streamer:
+            adjustment_message = self._format_signal_adjustment_display(
+                original_signal,
+                analyst_response.get("adjusted_signal", {}),
+            )
+            streamer.print("agent", adjustment_message, role_key=analyst_id)
+
+        return 1
+
+    def _build_meeting_memory_content(
+        self,
+        meeting_transcript,
+        topic,
+        meeting_id,
+    ):
+        """Build meeting memory content"""
+        return (
+            f"Meeting Transcript\nTopic: {topic}\nMeeting ID: {meeting_id}\n\n"
+            + "\n".join(
+                [
+                    f"[Round {entry.get('round', 'N/A')}] "
+                    f"{entry.get('speaker', '')}: {entry.get('content', '')}"
+                    for entry in meeting_transcript
+                ],
+            )
+        )
+
+    def _build_meeting_metadata(
+        self,
+        meeting_id,
+        topic,
+        max_rounds,
+        meeting_transcript,
+        manager_id,
+        analyst_ids,
+    ):
+        """Build meeting metadata"""
+        participants_str = ",".join([manager_id] + analyst_ids)
+        return {
+            "meeting_id": meeting_id,
+            "topic": topic,
+            "total_rounds": max_rounds,
+            "total_messages": len(meeting_transcript),
+            "participants": participants_str,
+            "communication_type": "meeting",
+            "manager_id": manager_id,
+        }
+
+    def _store_meeting_for_participant(
+        self,
+        memory,
+        memory_content,
+        participant_id,
+        base_metadata,
+    ):
+        """Store meeting to one participant's memory"""
+        try:
+            participant_metadata = base_metadata.copy()
+            participant_metadata["stored_in"] = participant_id
+            memory.add(memory_content, participant_id, participant_metadata)
+            print(f"✅ Meeting transcript stored to {participant_id}'s memory")
+        except Exception as e:
+            print(f"❌ Failed to store for {participant_id}: {e}")
+
+    def _store_meeting_to_memory(
+        self,
+        meeting_transcript,
+        meeting_id,
+        topic,
+        manager_id,
+        analyst_ids,
+        max_rounds,
+        state,
+    ):
+        """Store meeting transcript to all participants' memory"""
         try:
             base_dir = state.get("metadata", {}).get("config_name", "default")
             memory = get_memory(base_dir)
 
-            # Build meeting transcript content
-            memory_content = (
-                f"Meeting Transcript\nTopic: {topic}\nMeeting ID: {meeting_id}\n\n"
-                + "\n".join(
-                    [
-                        f"[Round {entry.get('round', 'N/A')}] {entry.get('speaker', '')}: {entry.get('content', '')}"
-                        for entry in meeting_transcript
-                    ],
-                )
+            memory_content = self._build_meeting_memory_content(
+                meeting_transcript,
+                topic,
+                meeting_id,
             )
 
-            # Build metadata (ensure all values are basic types)
-            participants_str = ",".join([manager_id] + analyst_ids)
-            metadata = {
-                "meeting_id": meeting_id,
-                "topic": topic,
-                "total_rounds": max_rounds,
-                "total_messages": len(meeting_transcript),
-                "participants": participants_str,  # Convert to string
-                "communication_type": "meeting",
-                "manager_id": manager_id,
-            }
+            base_metadata = self._build_meeting_metadata(
+                meeting_id,
+                topic,
+                max_rounds,
+                meeting_transcript,
+                manager_id,
+                analyst_ids,
+            )
 
-            # Save meeting transcript for each analyst
+            # Store for all analysts
             for analyst_id in analyst_ids:
-                analyst_metadata = metadata.copy()
-                analyst_metadata["stored_in"] = analyst_id
-                memory.add(memory_content, analyst_id, analyst_metadata)
-                print(f"✅ Meeting transcript stored to {analyst_id}'s memory")
+                self._store_meeting_for_participant(
+                    memory,
+                    memory_content,
+                    analyst_id,
+                    base_metadata,
+                )
 
-            # Also save to manager's memory
-            manager_metadata = metadata.copy()
-            manager_metadata["stored_in"] = manager_id
-            memory.add(memory_content, manager_id, manager_metadata)
-            print(f"✅ Meeting transcript stored to {manager_id}'s memory")
+            # Store for manager
+            self._store_meeting_for_participant(
+                memory,
+                memory_content,
+                manager_id,
+                base_metadata,
+            )
 
         except Exception as e:
             print(f"❌ Failed to store meeting transcript: {e}")
             import traceback
 
             traceback.print_exc()
-        # pdb.set_trace()
-
-        result = {
-            "meeting_id": meeting_id,
-            "transcript": meeting_transcript,
-            "final_signals": current_signals,
-            "adjustments_made": adjustments_made_counter,
-        }
-        return result
 
     def _get_analyst_chat_response(
         self,
@@ -1039,6 +1089,98 @@ class CommunicationManager:
         """Get analyst's response in private chat (two-stage memory retrieval)"""
 
         # ========== Stage 1: Let analyst generate memory query ⭐⭐⭐ ==========
+        relevant_memories = self._retrieve_analyst_memories(
+            analyst_id,
+            topic,
+            conversation_history,
+            state,
+            streamer,
+        )
+
+        # ========== Stage 2: Generate response based on retrieved memories ⭐⭐⭐ ==========
+        prompt_data = {
+            "analyst_id": analyst_id,
+            "relevant_memories": (
+                relevant_memories
+                if relevant_memories
+                else "No relevant past memories found for this topic."
+            ),
+            "current_signal": json.dumps(current_signal, ensure_ascii=False),
+            "topic": topic,
+            "conversation_history": self._format_conversation_history(
+                conversation_history,
+            ),
+            "max_chars": self._get_max_chars(state),
+        }
+
+        system_prompt = self.prompt_loader.load_prompt(
+            "communication",
+            "analyst_chat_system",
+            variables=prompt_data,
+        )
+        human_prompt = self.prompt_loader.load_prompt(
+            "communication",
+            "analyst_chat_human",
+            variables=prompt_data,
+        )
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": human_prompt},
+        ]
+
+        # Get LLM model (enable JSON mode)
+        llm = self._get_llm_model(
+            state,
+            agent_id=analyst_id,
+            use_json_mode=True,
+        )
+
+        # Call model (using AgentScope method)
+        response = llm(
+            messages=messages,
+            temperature=0.7,
+            response_format=(
+                {"type": "json_object"} if llm.use_json_mode else None
+            ),
+        )
+
+        # Use more robust JSON parsing method
+        try:
+            # First try direct parsing
+            return json.loads(response["content"])
+        except json.JSONDecodeError as e:
+            print(
+                f"Warning: Analyst chat response JSON parsing failed: {str(e)}",
+            )
+            print(f"Response content: {response['content'][:200]}...")
+
+            # Use fallback parsing method
+            parsed_response = self._extract_and_clean_json(response["content"])
+            if parsed_response:
+                print(
+                    "Successfully parsed analyst chat response JSON using fallback method",
+                )
+                return parsed_response
+            else:
+                print(
+                    "Error: All analyst chat response JSON parsing methods failed",
+                )
+                # Return default response
+                return {
+                    "response": "Parsing response failed, using default response",
+                    "signal_adjustment": False,
+                }
+
+    def _retrieve_analyst_memories(
+        self,
+        analyst_id: str,
+        topic: str,
+        conversation_history: List[Dict],
+        state,
+        streamer=None,
+    ) -> str:
+        """Retrieve relevant memories for analyst chat"""
         relevant_memories = ""
 
         try:
@@ -1113,7 +1255,6 @@ class CommunicationManager:
                                 agent_id=analyst_id,
                                 operation_type="search_success",
                             )
-                        # print(relevant_memories)
                     else:
                         print(
                             f"   ⚠️ {analyst_id} did not retrieve relevant memories",
@@ -1148,80 +1289,7 @@ class CommunicationManager:
             traceback.print_exc()
             relevant_memories = ""
 
-        # ========== Stage 2: Generate response based on retrieved memories ⭐⭐⭐ ==========
-        prompt_data = {
-            "analyst_id": analyst_id,
-            "relevant_memories": (
-                relevant_memories
-                if relevant_memories
-                else "No relevant past memories found for this topic."
-            ),
-            "current_signal": json.dumps(current_signal, ensure_ascii=False),
-            "topic": topic,
-            "conversation_history": self._format_conversation_history(
-                conversation_history,
-            ),
-            "max_chars": self._get_max_chars(state),
-        }
-
-        system_prompt = self.prompt_loader.load_prompt(
-            "communication",
-            "analyst_chat_system",
-            variables=prompt_data,
-        )
-        human_prompt = self.prompt_loader.load_prompt(
-            "communication",
-            "analyst_chat_human",
-            variables=prompt_data,
-        )
-
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": human_prompt},
-        ]
-
-        # Get LLM model (enable JSON mode)
-        llm = self._get_llm_model(
-            state,
-            agent_id=analyst_id,
-            use_json_mode=True,
-        )
-
-        # Call model (using AgentScope method)
-        response = llm(
-            messages=messages,
-            temperature=0.7,
-            response_format=(
-                {"type": "json_object"} if llm._use_json_mode else None
-            ),
-        )
-
-        # Use more robust JSON parsing method
-        try:
-            # First try direct parsing
-            return json.loads(response["content"])
-        except json.JSONDecodeError as e:
-            print(
-                f"Warning: Analyst chat response JSON parsing failed: {str(e)}",
-            )
-            print(f"Response content: {response['content'][:200]}...")
-
-            # Use fallback parsing method
-            parsed_response = self._extract_and_clean_json(response["content"])
-            if parsed_response:
-                print(
-                    "Successfully parsed analyst chat response JSON using fallback method",
-                )
-                return parsed_response
-            else:
-                print(
-                    "Error: All analyst chat response JSON parsing methods failed",
-                )
-                # Return default response
-                return {
-                    "response": "Parsing response failed, using default response",
-                    "signal_adjustment": False,
-                }
+        return relevant_memories
 
     def _convert_transcript_to_memory_format(
         self,
@@ -1267,7 +1335,7 @@ class CommunicationManager:
             "total_rounds": total_rounds,
             "total_messages": len(meeting_transcript),
             "participants": list(
-                set([entry["speaker"] for entry in meeting_transcript]),
+                {entry["speaker"] for entry in meeting_transcript},
             ),
             "communication_type": "meeting",
         }
@@ -1351,8 +1419,8 @@ class CommunicationManager:
 
     def _get_manager_chat_response(
         self,
-        manager_id: str,
-        analyst_id: str,
+        _manager_id: str,
+        _analyst_id: str,
         conversation_history: List[Dict],
         current_signal: Dict[str, Any],
         state,
@@ -1537,7 +1605,7 @@ class CommunicationManager:
             messages=messages,
             temperature=0.7,
             response_format=(
-                {"type": "json_object"} if llm._use_json_mode else None
+                {"type": "json_object"} if llm.use_json_mode else None
             ),
         )
 
@@ -1570,7 +1638,7 @@ class CommunicationManager:
 
     def _get_manager_meeting_summary(
         self,
-        manager_id: str,
+        _manager_id: str,
         meeting_transcript: List[Dict],
         final_signals: Dict[str, Any],
         state,
