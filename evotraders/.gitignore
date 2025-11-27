@@ -72,7 +72,6 @@ backend/data/ret_data/
 
 *.ipynb
 *.log
-NOTIFICATION_SYSTEM_README.md
 # Alembic (keep migration files, but ignore generated/cache files)
 app/backend/alembic/versions/__pycache__/
 
@@ -81,9 +80,6 @@ analysis_results_logs/
 memory_data/
 live_trading/
 sandbox_logs/
-
-debug_tool_schema.py
-debug_api_functions.py
 
 *.md
 !README.md
