@@ -322,7 +322,7 @@ class ModelWrapper:
         messages: List[Dict[str, str]],
         max_tokens: Optional[int],
         temperature: float,
-        **kwargs,
+        **_kwargs,
     ) -> Dict[str, Any]:
         """Call Anthropic API"""
         response = self.client.messages.create(
@@ -349,7 +349,7 @@ class ModelWrapper:
         messages: List[Dict[str, str]],
         max_tokens: Optional[int],
         temperature: float,
-        **kwargs,
+        **_kwargs,
     ) -> Dict[str, Any]:
         """Call Google Gemini API"""
         # Google Gemini requires special message format handling
@@ -378,7 +378,7 @@ class ModelWrapper:
         messages: List[Dict[str, str]],
         max_tokens: Optional[int],
         temperature: float,
-        **kwargs,
+        **_kwargs,
     ) -> Dict[str, Any]:
         """Call Ollama API"""
         response = self.client.chat(
