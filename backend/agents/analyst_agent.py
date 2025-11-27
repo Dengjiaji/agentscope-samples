@@ -210,16 +210,15 @@ class AnalystAgent(AgentBase):
         adjusted_end_date = get_last_tradeday(end_date)
 
         # 1. Generate market conditions
-        market_conditions = {
-            "analysis_date": end_date,
-        }
+        # market_conditions = {
+        #     "analysis_date": end_date,
+        # }
 
         # 2. Use LLM to select tools
         selection_result = await self.tool_selector.select_tools_with_llm(
             llm,
             self.analyst_persona,
             ticker,
-            market_conditions,
             analysis_objective,
         )
 
