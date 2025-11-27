@@ -10,7 +10,7 @@ import logging
 import math
 import re
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import numpy as np
 import pandas as pd
@@ -23,26 +23,23 @@ logger = logging.getLogger(__name__)
 
 def _make_json_safe(obj: Any) -> Any:
     """Recursively convert object to JSON-serializable native types"""
-    if obj is None or isinstance(obj, (str, int, float, bool)):
-        if isinstance(obj, float):
-            if math.isnan(obj) or math.isinf(obj):
-                return None
+
+    # 处理基本类型
+    if obj is None or isinstance(obj, (str, int, bool)):
         return obj
+
+    if isinstance(obj, float):
+        return None if (math.isnan(obj) or math.isinf(obj)) else obj
 
     if isinstance(obj, datetime):
         return obj.isoformat()
 
-    if np is not None:
-        if isinstance(obj, (np.integer,)):
-            return int(obj)
-        if isinstance(obj, (np.floating,)):
-            val = float(obj)
-            return None if math.isnan(val) or math.isinf(val) else val
-        if isinstance(obj, (np.bool_,)):
-            return bool(obj)
-        if obj is np.nan:
-            return None
+    # 处理NumPy类型
+    result = _handle_numpy_types(obj)
+    if result is not NotImplemented:
+        return result
 
+    # 处理Pandas类型
     if pd is not None:
         try:
             if pd.isna(obj):
@@ -50,10 +47,35 @@ def _make_json_safe(obj: Any) -> Any:
         except Exception:
             pass
 
+    # 处理容器类型
+    return _handle_container_types(obj)
+
+
+def _handle_numpy_types(obj: Any) -> Any:
+    """Handle NumPy type conversions"""
+    if np is None:
+        return NotImplemented
+
+    if isinstance(obj, np.integer):
+        return int(obj)
+    if isinstance(obj, np.floating):
+        val = float(obj)
+        return None if (math.isnan(val) or math.isinf(val)) else val
+    if isinstance(obj, np.bool_):
+        return bool(obj)
+    if obj is np.nan:
+        return None
+
+    return NotImplemented
+
+
+def _handle_container_types(obj: Any) -> Any:
+    """Handle dict, list, tuple, set and object conversions"""
     if isinstance(obj, dict):
         return {
             str(_make_json_safe(k)): _make_json_safe(v) for k, v in obj.items()
         }
+
     if isinstance(obj, (list, tuple, set)):
         return [_make_json_safe(v) for v in obj]
 
@@ -73,11 +95,27 @@ def robust_json_parse(text: str) -> Dict[str, Any]:
     """Robust JSON parsing function"""
     text = text.strip()
 
+    # Try direct JSON parsing
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         pass
 
+    # Try extracting JSON from code blocks
+    result = _try_extract_from_code_blocks(text)
+    if result is not None:
+        return result
+
+    # Try extracting JSON object from text
+    result = _try_extract_json_object(text)
+    if result is not None:
+        return result
+
+    raise json.JSONDecodeError("Unable to parse JSON from text", text, 0)
+
+
+def _try_extract_from_code_blocks(text: str) -> Optional[Dict[str, Any]]:
+    """Try to extract JSON from markdown code blocks"""
     json_code_block_patterns = [
         r"```json\s*\n(.*?)\n```",
         r"```\s*\n(.*?)\n```",
@@ -93,43 +131,50 @@ def robust_json_parse(text: str) -> Dict[str, Any]:
                 return json.loads(json_content)
             except json.JSONDecodeError:
                 continue
+    return None
 
+
+def _try_extract_json_object(text: str) -> Optional[Dict[str, Any]]:
+    """Try to extract JSON object by finding matching braces"""
+    # Try simple regex match first
     json_object_pattern = r"\{.*?\}"
     match = re.search(json_object_pattern, text, re.DOTALL)
     if match:
-        json_content = match.group(0)
+        try:
+            return json.loads(match.group(0))
+        except json.JSONDecodeError:
+            pass
+
+    # Try manual brace matching
+    start_idx = text.find("{")
+    if start_idx == -1:
+        return None
+
+    brace_count = 0
+    end_idx = start_idx
+    for i, char in enumerate(text[start_idx:], start_idx):
+        if char == "{":
+            brace_count += 1
+        elif char == "}":
+            brace_count -= 1
+            if brace_count == 0:
+                end_idx = i + 1
+                break
+
+    if brace_count == 0:
+        json_content = text[start_idx:end_idx]
         try:
             return json.loads(json_content)
         except json.JSONDecodeError:
             pass
 
-    start_idx = text.find("{")
-    if start_idx != -1:
-        brace_count = 0
-        end_idx = start_idx
-        for i, char in enumerate(text[start_idx:], start_idx):
-            if char == "{":
-                brace_count += 1
-            elif char == "}":
-                brace_count -= 1
-                if brace_count == 0:
-                    end_idx = i + 1
-                    break
-
-        if brace_count == 0:
-            json_content = text[start_idx:end_idx]
-            try:
-                return json.loads(json_content)
-            except json.JSONDecodeError:
-                pass
-
-    raise json.JSONDecodeError("Unable to parse JSON from text", text, 0)
+    return None
 
 
 def should_send_notification(
     agent_id: str,
     analysis_result: Dict,
-    agent_memory,
+    _agent_memory,
     state: AgentState,
 ) -> Dict[str, Any]:
     """
