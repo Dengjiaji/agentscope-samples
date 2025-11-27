@@ -532,7 +532,7 @@ Stock Real Return: {real_return:+.2%}"""
         tickers: List[str],
         pm_signals: Dict,
         analyst_signals: Dict,
-        actual_returns: Dict,
+        _actual_returns: Dict,
         real_returns: Dict,
         portfolio_summary: Dict = None,
         executed_trades: List = None,
@@ -546,157 +546,42 @@ Stock Real Return: {real_return:+.2%}"""
         Build Central Review prompt (Enhanced version with more context data)
         Uses original memory_decision.md template but with enriched information
         """
-        # Build PM signals section with enhanced details
-        pm_signals_section = ""
-        for ticker in tickers:
-            if ticker in pm_signals:
-                decision_data = pm_signals[ticker]
-                action = decision_data.get("action", "N/A")
-                signal = decision_data.get(
-                    "signal",
-                    action,
-                )  # fallback to action if signal not present
-                quantity = decision_data.get("quantity", 0)
-                confidence = decision_data.get("confidence", "N/A")
-                reasoning = decision_data.get("reasoning", "")
+        # Extract live environment data if available
+        portfolio_data = self._extract_portfolio_data(
+            live_env,
+            pre_portfolio_state,
+            updated_portfolio,
+            executed_trades,
+            failed_trades,
+        )
 
-                # Ensure reasoning is a string
-                if not isinstance(reasoning, str):
-                    reasoning = str(reasoning) if reasoning else ""
+        # Build all sections
+        pm_signals_section = self._build_pm_signals_section(
+            tickers,
+            pm_signals,
+            real_returns,
+        )
+        analyst_signals_section = self._build_analyst_signals_section(
+            tickers,
+            analyst_signals,
+            real_returns,
+            analyst_stats,
+        )
+        portfolio_context = self._build_portfolio_context(
+            portfolio_summary,
+            portfolio_data["executed_trades"],
+            portfolio_data["failed_trades"],
+        )
+        analyst_performance_summary = self._build_analyst_performance_summary(
+            analyst_stats,
+        )
 
-                pm_signals_section += f"{ticker}: PM decision {signal} "
-                pm_signals_section += f"(Action: {action}, Quantity: {quantity} shares, Confidence: {confidence}%), "
-                pm_signals_section += f"Stock real daily return: {real_returns.get(ticker, 0):.2%}\n"
-                if reasoning:
-                    pm_signals_section += f"  Reasoning: {reasoning}\n"
-
-        # Build analyst signals section with enhanced details
-        analyst_signals_section = ""
-        for analyst_id, signals in analyst_signals.items():
-            from backend.config.constants import ANALYST_TYPES
-
-            display_name = ANALYST_TYPES.get(analyst_id, {}).get(
-                "display_name",
-                analyst_id,
-            )
-
-            analyst_signals_section += f"\n**{display_name} ({analyst_id}):**"
-
-            # Add historical performance stats if available
-            if analyst_stats and analyst_id in analyst_stats:
-                stats = analyst_stats[analyst_id]
-                win_rate = stats.get("win_rate")
-                if win_rate is not None:
-                    analyst_signals_section += (
-                        f" [Historical Win Rate: {win_rate:.1%}]"
-                    )
-
-            analyst_signals_section += "\n"
-
-            for ticker in tickers:
-                if ticker in signals:
-                    analyst_signal = signals[ticker]
-                    if isinstance(analyst_signal, dict):
-                        signal = analyst_signal.get("signal", "N/A")
-                        confidence = analyst_signal.get("confidence", "N/A")
-                        analyst_signals_section += f"  {ticker}: {signal} (Confidence: {confidence}%), "
-                    else:
-                        analyst_signals_section += (
-                            f"  {ticker}: {analyst_signal}, "
-                        )
-                    analyst_signals_section += f"Stock real daily return: {real_returns.get(ticker, 0):.2%}\n"
-
-        # Build portfolio context section (new addition)
-        portfolio_context = ""
-
-        # Use live_env if available
-        if live_env:
-            pre_portfolio_state = live_env.get(
-                "pre_portfolio_state",
-                pre_portfolio_state,
-            )
-            updated_portfolio = live_env.get(
-                "updated_portfolio",
-                updated_portfolio,
-            )
-            executed_trades = live_env.get(
-                "executed_trades",
-                executed_trades or [],
-            )
-            failed_trades = live_env.get("failed_trades", failed_trades or [])
-
-        if portfolio_summary or executed_trades or failed_trades:
-            portfolio_context = "\n## Portfolio Performance Context\n\n"
-
-            if portfolio_summary:
-                total_value = portfolio_summary.get("total_value", "N/A")
-                cash = portfolio_summary.get("cash", "N/A")
-                portfolio_context += (
-                    f"- Total Portfolio Value: ${total_value:,.2f}"
-                    if isinstance(total_value, (int, float))
-                    else f"- Total Portfolio Value: {total_value}\n"
-                )
-                portfolio_context += (
-                    f"- Cash Position: ${cash:,.2f}\n"
-                    if isinstance(cash, (int, float))
-                    else f"- Cash Position: {cash}\n"
-                )
-
-            if executed_trades:
-                portfolio_context += (
-                    f"- Successfully Executed Trades: {len(executed_trades)}\n"
-                )
-                for trade in executed_trades[:3]:  # Show first 3 trades
-                    if isinstance(trade, dict):
-                        ticker = trade.get("ticker", "N/A")
-                        action = trade.get("action", "N/A")
-                        quantity = trade.get("quantity", 0)
-                        portfolio_context += (
-                            f"  * {ticker}: {action} {quantity} shares\n"
-                        )
-
-            if failed_trades:
-                portfolio_context += f"- Failed Trades: {len(failed_trades)}\n"
-                for trade in failed_trades[:3]:  # Show first 3 failed trades
-                    if isinstance(trade, dict):
-                        ticker = trade.get("ticker", "N/A")
-                        reason = trade.get("reason", "Unknown")
-                        portfolio_context += f"  * {ticker}: {reason}\n"
-
-        # Build analyst historical performance summary (new addition)
-        analyst_performance_summary = ""
-        if analyst_stats:
-            analyst_performance_summary = (
-                "\n## Analyst Historical Performance Summary\n\n"
-            )
-
-            # Sort by win rate (descending)
-            sorted_analysts = sorted(
-                analyst_stats.items(),
-                key=lambda x: (
-                    x[1]["win_rate"] is not None,
-                    x[1]["win_rate"] or 0,
-                ),
-                reverse=True,
-            )
-
-            for analyst_id, stats in sorted_analysts:
-                win_rate = stats.get("win_rate")
-                total = stats.get("total_predictions", 0)
-                correct = stats.get("correct_predictions", 0)
-
-                # Skip if no data
-                if win_rate is None or total == 0:
-                    continue
-
-                from backend.config.constants import ANALYST_TYPES
-
-                display_name = ANALYST_TYPES.get(analyst_id, {}).get(
-                    "display_name",
-                    analyst_id,
-                )
-
-                analyst_performance_summary += f"- **{display_name}**: Win Rate {win_rate:.1%} ({correct}/{total} predictions)\n"
+        # Combine sections
+        enhanced_pm_section = (
+            pm_signals_section
+            + portfolio_context
+            + analyst_performance_summary
+        )
 
         # Use original memory_decision template with enhanced data
         prompt = self.prompt_loader.load_prompt(
@@ -704,14 +589,271 @@ Stock Real Return: {real_return:+.2%}"""
             "memory_decision",
             {
                 "date": date,
-                "pm_signals_section": pm_signals_section
-                + portfolio_context
-                + analyst_performance_summary,
+                "pm_signals_section": enhanced_pm_section,
                 "analyst_signals_section": analyst_signals_section,
             },
         )
 
         return prompt
+
+    def _extract_portfolio_data(
+        self,
+        live_env: Dict,
+        pre_portfolio_state: Dict,
+        updated_portfolio: Dict,
+        executed_trades: List,
+        failed_trades: List,
+    ) -> Dict:
+        """Extract portfolio data from live_env or fallback to provided data."""
+        if not live_env:
+            return {
+                "pre_portfolio_state": pre_portfolio_state,
+                "updated_portfolio": updated_portfolio,
+                "executed_trades": executed_trades or [],
+                "failed_trades": failed_trades or [],
+            }
+
+        return {
+            "pre_portfolio_state": live_env.get(
+                "pre_portfolio_state",
+                pre_portfolio_state,
+            ),
+            "updated_portfolio": live_env.get(
+                "updated_portfolio",
+                updated_portfolio,
+            ),
+            "executed_trades": live_env.get(
+                "executed_trades",
+                executed_trades or [],
+            ),
+            "failed_trades": live_env.get(
+                "failed_trades",
+                failed_trades or [],
+            ),
+        }
+
+    def _build_pm_signals_section(
+        self,
+        tickers: List[str],
+        pm_signals: Dict,
+        real_returns: Dict,
+    ) -> str:
+        """Build PM signals section with enhanced details."""
+        section = ""
+        for ticker in tickers:
+            if ticker in pm_signals:
+                section += self._format_pm_signal(
+                    ticker,
+                    pm_signals[ticker],
+                    real_returns,
+                )
+        return section
+
+    def _format_pm_signal(
+        self,
+        ticker: str,
+        decision_data: Dict,
+        real_returns: Dict,
+    ) -> str:
+        """Format a single PM signal entry."""
+        action = decision_data.get("action", "N/A")
+        signal = decision_data.get("signal", action)
+        quantity = decision_data.get("quantity", 0)
+        confidence = decision_data.get("confidence", "N/A")
+        reasoning = decision_data.get("reasoning", "")
+
+        # Ensure reasoning is a string
+        reasoning = (
+            str(reasoning)
+            if reasoning and not isinstance(reasoning, str)
+            else reasoning or ""
+        )
+
+        real_return = real_returns.get(ticker, 0)
+
+        lines = [
+            f"{ticker}: PM decision {signal} ",
+            f"(Action: {action}, Quantity: {quantity} shares, Confidence: {confidence}%), ",
+            f"Stock real daily return: {real_return:.2%}\n",
+        ]
+
+        if reasoning:
+            lines.append(f"  Reasoning: {reasoning}\n")
+
+        return "".join(lines)
+
+    def _build_analyst_signals_section(
+        self,
+        tickers: List[str],
+        analyst_signals: Dict,
+        real_returns: Dict,
+        analyst_stats: Dict = None,
+    ) -> str:
+        """Build analyst signals section with enhanced details."""
+        from backend.config.constants import ANALYST_TYPES
+
+        section = ""
+        for analyst_id, signals in analyst_signals.items():
+            display_name = ANALYST_TYPES.get(analyst_id, {}).get(
+                "display_name",
+                analyst_id,
+            )
+
+            # Add analyst header with historical performance
+            section += f"\n**{display_name} ({analyst_id}):**"
+            section += self._format_analyst_win_rate(analyst_id, analyst_stats)
+            section += "\n"
+
+            # Add signals for each ticker
+            for ticker in tickers:
+                if ticker in signals:
+                    section += self._format_analyst_signal(
+                        ticker,
+                        signals[ticker],
+                        real_returns,
+                    )
+
+        return section
+
+    def _format_analyst_win_rate(
+        self,
+        analyst_id: str,
+        analyst_stats: Dict,
+    ) -> str:
+        """Format analyst historical win rate if available."""
+        if not analyst_stats or analyst_id not in analyst_stats:
+            return ""
+
+        win_rate = analyst_stats[analyst_id].get("win_rate")
+        if win_rate is not None:
+            return f" [Historical Win Rate: {win_rate:.1%}]"
+        return ""
+
+    def _format_analyst_signal(
+        self,
+        ticker: str,
+        analyst_signal,
+        real_returns: Dict,
+    ) -> str:
+        """Format a single analyst signal entry."""
+        if isinstance(analyst_signal, dict):
+            signal = analyst_signal.get("signal", "N/A")
+            confidence = analyst_signal.get("confidence", "N/A")
+            signal_text = f"{ticker}: {signal} (Confidence: {confidence}%), "
+        else:
+            signal_text = f"{ticker}: {analyst_signal}, "
+
+        real_return = real_returns.get(ticker, 0)
+        return f"  {signal_text}Stock real daily return: {real_return:.2%}\n"
+
+    def _build_portfolio_context(
+        self,
+        portfolio_summary: Dict,
+        executed_trades: List,
+        failed_trades: List,
+    ) -> str:
+        """Build portfolio context section."""
+        if not (portfolio_summary or executed_trades or failed_trades):
+            return ""
+
+        context = "\n## Portfolio Performance Context\n\n"
+
+        if portfolio_summary:
+            context += self._format_portfolio_summary(portfolio_summary)
+
+        if executed_trades:
+            context += self._format_executed_trades(executed_trades)
+
+        if failed_trades:
+            context += self._format_failed_trades(failed_trades)
+
+        return context
+
+    def _format_portfolio_summary(self, portfolio_summary: Dict) -> str:
+        """Format portfolio summary information."""
+        lines = []
+
+        total_value = portfolio_summary.get("total_value", "N/A")
+        if isinstance(total_value, (int, float)):
+            lines.append(f"- Total Portfolio Value: ${total_value:,.2f}\n")
+        else:
+            lines.append(f"- Total Portfolio Value: {total_value}\n")
+
+        cash = portfolio_summary.get("cash", "N/A")
+        if isinstance(cash, (int, float)):
+            lines.append(f"- Cash Position: ${cash:,.2f}\n")
+        else:
+            lines.append(f"- Cash Position: {cash}\n")
+
+        return "".join(lines)
+
+    def _format_executed_trades(self, executed_trades: List) -> str:
+        """Format executed trades information."""
+        lines = [f"- Successfully Executed Trades: {len(executed_trades)}\n"]
+
+        for trade in executed_trades[:3]:  # Show first 3 trades
+            if isinstance(trade, dict):
+                ticker = trade.get("ticker", "N/A")
+                action = trade.get("action", "N/A")
+                quantity = trade.get("quantity", 0)
+                lines.append(f"  * {ticker}: {action} {quantity} shares\n")
+
+        return "".join(lines)
+
+    def _format_failed_trades(self, failed_trades: List) -> str:
+        """Format failed trades information."""
+        lines = [f"- Failed Trades: {len(failed_trades)}\n"]
+
+        for trade in failed_trades[:3]:  # Show first 3 failed trades
+            if isinstance(trade, dict):
+                ticker = trade.get("ticker", "N/A")
+                reason = trade.get("reason", "Unknown")
+                lines.append(f"  * {ticker}: {reason}\n")
+
+        return "".join(lines)
+
+    def _build_analyst_performance_summary(self, analyst_stats: Dict) -> str:
+        """Build analyst historical performance summary."""
+        if not analyst_stats:
+            return ""
+
+        summary = "\n## Analyst Historical Performance Summary\n\n"
+
+        # Sort by win rate (descending)
+        sorted_analysts = sorted(
+            analyst_stats.items(),
+            key=lambda x: (
+                x[1]["win_rate"] is not None,
+                x[1]["win_rate"] or 0,
+            ),
+            reverse=True,
+        )
+
+        for analyst_id, stats in sorted_analysts:
+            analyst_line = self._format_analyst_stats(analyst_id, stats)
+            if analyst_line:
+                summary += analyst_line
+
+        return summary
+
+    def _format_analyst_stats(self, analyst_id: str, stats: Dict) -> str:
+        """Format a single analyst's performance stats."""
+        win_rate = stats.get("win_rate")
+        total = stats.get("total_predictions", 0)
+        correct = stats.get("correct_predictions", 0)
+
+        # Skip if no data
+        if win_rate is None or total == 0:
+            return ""
+
+        from backend.config.constants import ANALYST_TYPES
+
+        display_name = ANALYST_TYPES.get(analyst_id, {}).get(
+            "display_name",
+            analyst_id,
+        )
+
+        return f"- **{display_name}**: Win Rate {win_rate:.1%} ({correct}/{total} predictions)\n"
 
     def _build_analyst_reflection_prompt(
         self,
@@ -761,131 +903,30 @@ Stock Real Return: {real_return:+.2%}"""
 
     def _build_pm_reflection_prompt(
         self,
-        agent_role: str,
+        _agent_role: str,
         date: str,
         agent_data: Dict,
     ) -> str:
         """Build PM reflection prompt"""
         pm_decisions = agent_data.get("my_decisions", {})
         analyst_signals = agent_data.get("analyst_signals", {})
-        actual_returns = agent_data.get("actual_returns", {})
         real_returns = agent_data.get("real_returns", {})
-        # portfolio_summary = agent_data.get("portfolio_summary", {})
-        analyst_stats = agent_data.get("analyst_stats", {})  # ⭐ 获取历史统计
-
-        # Build portfolio data
-        portfolio_data = ""
+        analyst_stats = agent_data.get("analyst_stats", {})
 
         # Build analyst historical performance data
-        analyst_performance_data = ""
-        if analyst_stats:
-            # Sort by win rate (descending)
-            sorted_analysts = sorted(
-                analyst_stats.items(),
-                key=lambda x: (
-                    x[1]["win_rate"] is not None,
-                    x[1]["win_rate"] or 0,
-                ),
-                reverse=True,
-            )
+        analyst_performance_data = self._build_analyst_performance_data(
+            analyst_stats,
+        )
 
-            for analyst_id, stats in sorted_analysts:
-                win_rate = stats.get("win_rate")
-                total = stats.get("total_predictions", 0)
-                correct = stats.get("correct_predictions", 0)
-                bull_stats = stats.get("bull", {})
-                bear_stats = stats.get("bear", {})
-
-                # Skip if no data
-                if win_rate is None or total == 0:
-                    continue
-
-                # Get display name
-                from backend.config.constants import ANALYST_TYPES
-
-                display_name = ANALYST_TYPES.get(analyst_id, {}).get(
-                    "display_name",
-                    analyst_id,
-                )
-
-                analyst_performance_data += f"""
-    {display_name} ({analyst_id})
-    - Historical Win Rate: {win_rate:.1%} ({correct}/{total} correct)
-    - Bull Signals: {bull_stats.get('win', 0)}/{bull_stats.get('count', 0)} correct
-    - Bear Signals: {bear_stats.get('win', 0)}/{bear_stats.get('count', 0)} correct
-    """
         # Build decision data
-        decisions_data = ""
-        for ticker, decision_data in pm_decisions.items():
-            # actual_return = actual_returns.get(ticker, 0)
-            action = decision_data.get("action", "N/A")
-            quantity = decision_data.get("quantity", 0)
-            confidence = decision_data.get("confidence", "N/A")
-            reasoning = decision_data.get("reasoning", "")
+        decisions_data = self._build_decisions_data(
+            pm_decisions,
+            analyst_signals,
+            real_returns,
+        )
 
-            # Ensure reasoning is a string
-            if not isinstance(reasoning, str):
-                reasoning = str(reasoning) if reasoning else ""
-
-            # is_correct = self._evaluate_decision(action, actual_return)
-            # status_emoji = "✅" if is_correct else "❌"
-
-            decisions_data += f"""
-{ticker}:
-  - Your decision: {action}
-  - Quantity: {quantity} shares
-  - Confidence: {confidence}%
-  - Decision reasoning: {reasoning if reasoning else 'N/A'}
-  - Stock real daily return: {real_returns.get(ticker, 0):.2%}
-"""
-
-            # Add analyst opinion comparison
-            decisions_data += "  - Analyst opinions:\n"
-            for analyst_id, signals in analyst_signals.items():
-                if ticker in signals:
-                    analyst_signal = signals[ticker]
-                    if isinstance(analyst_signal, dict):
-                        signal = analyst_signal.get("signal", "N/A")
-                        actual_return = analyst_signal.get("actual_return", 0)
-                        decisions_data += f"    * {analyst_id}: {signal}, Stock real daily return: {real_returns.get(ticker, 0):.2%}\n"
-                    else:
-                        actual_return = analyst_signal.get("actual_return", 0)
-                        decisions_data += f"    * {analyst_id}: {analyst_signal}, Stock real daily return: {real_returns.get(ticker, 0):.2%}\n"
-        live_env = agent_data["live_env"]
-        pre_portfolio_state = live_env["pre_portfolio_state"]
-        updated_portfolio_state = live_env["updated_portfolio"]
-
-        # Filter out timestamp from trades
-        executed_trades = live_env["executed_trades"]
-        failed_trades = live_env["failed_trades"]
-
-        # Remove timestamp field from each trade
-        executed_trades_filtered = []
-        for trade in executed_trades:
-            if isinstance(trade, dict):
-                filtered_trade = {
-                    k: v for k, v in trade.items() if k != "timestamp"
-                }
-                executed_trades_filtered.append(filtered_trade)
-            else:
-                executed_trades_filtered.append(trade)
-
-        failed_trades_filtered = []
-        for trade in failed_trades:
-            if isinstance(trade, dict):
-                filtered_trade = {
-                    k: v for k, v in trade.items() if k != "timestamp"
-                }
-                failed_trades_filtered.append(filtered_trade)
-            else:
-                failed_trades_filtered.append(trade)
-
-        portfolio_data = f"""
-- Pre portfolio state: {pre_portfolio_state}
-- Updated portfolio state: {updated_portfolio_state}
-- Today Executed trades: {executed_trades_filtered}
-- Today Failed trades: {failed_trades_filtered}
-"""
+        # Build portfolio data
+        portfolio_data = self._build_portfolio_data(agent_data["live_env"])
 
         prompt = self.prompt_loader.load_prompt(
             "reflection",
@@ -899,6 +940,117 @@ Stock Real Return: {real_return:+.2%}"""
         )
 
         return prompt
+
+    def _build_analyst_performance_data(self, analyst_stats: Dict) -> str:
+        """Build analyst historical performance data"""
+        if not analyst_stats:
+            return ""
+
+        analyst_performance_data = ""
+        sorted_analysts = sorted(
+            analyst_stats.items(),
+            key=lambda x: (
+                x[1]["win_rate"] is not None,
+                x[1]["win_rate"] or 0,
+            ),
+            reverse=True,
+        )
+
+        for analyst_id, stats in sorted_analysts:
+            win_rate = stats.get("win_rate")
+            total = stats.get("total_predictions", 0)
+            correct = stats.get("correct_predictions", 0)
+            bull_stats = stats.get("bull", {})
+            bear_stats = stats.get("bear", {})
+
+            # Skip if no data
+            if win_rate is None or total == 0:
+                continue
+
+            # Get display name
+            from backend.config.constants import ANALYST_TYPES
+
+            display_name = ANALYST_TYPES.get(analyst_id, {}).get(
+                "display_name",
+                analyst_id,
+            )
+
+            analyst_performance_data += f"""
+    {display_name} ({analyst_id})
+    - Historical Win Rate: {win_rate:.1%} ({correct}/{total} correct)
+    - Bull Signals: {bull_stats.get('win', 0)}/{bull_stats.get('count', 0)} correct
+    - Bear Signals: {bear_stats.get('win', 0)}/{bear_stats.get('count', 0)} correct
+    """
+        return analyst_performance_data
+
+    def _build_decisions_data(
+        self,
+        pm_decisions: Dict,
+        analyst_signals: Dict,
+        real_returns: Dict,
+    ) -> str:
+        """Build decision data"""
+        decisions_data = ""
+        for ticker, decision_data in pm_decisions.items():
+            action = decision_data.get("action", "N/A")
+            quantity = decision_data.get("quantity", 0)
+            confidence = decision_data.get("confidence", "N/A")
+            reasoning = decision_data.get("reasoning", "")
+
+            # Ensure reasoning is a string
+            if not isinstance(reasoning, str):
+                reasoning = str(reasoning) if reasoning else ""
+
+            decisions_data += f"""
+    {ticker}:
+    - Your decision: {action}
+    - Quantity: {quantity} shares
+    - Confidence: {confidence}%
+    - Decision reasoning: {reasoning if reasoning else 'N/A'}
+    - Stock real daily return: {real_returns.get(ticker, 0):.2%}
+    """
+
+            # Add analyst opinion comparison
+            decisions_data += "  - Analyst opinions:\n"
+            for analyst_id, signals in analyst_signals.items():
+                if ticker in signals:
+                    analyst_signal = signals[ticker]
+                    if isinstance(analyst_signal, dict):
+                        signal = analyst_signal.get("signal", "N/A")
+                        decisions_data += f"    * {analyst_id}: {signal}, Stock real daily return: {real_returns.get(ticker, 0):.2%}\n"
+                    else:
+                        decisions_data += f"    * {analyst_id}: {analyst_signal}, Stock real daily return: {real_returns.get(ticker, 0):.2%}\n"
+
+        return decisions_data
+
+    def _build_portfolio_data(self, live_env: Dict) -> str:
+        """Build portfolio data"""
+        pre_portfolio_state = live_env["pre_portfolio_state"]
+        updated_portfolio_state = live_env["updated_portfolio"]
+        executed_trades = live_env["executed_trades"]
+        failed_trades = live_env["failed_trades"]
+
+        # Remove timestamp field from each trade
+        executed_trades_filtered = [
+            {k: v for k, v in trade.items() if k != "timestamp"}
+            if isinstance(trade, dict)
+            else trade
+            for trade in executed_trades
+        ]
+
+        failed_trades_filtered = [
+            {k: v for k, v in trade.items() if k != "timestamp"}
+            if isinstance(trade, dict)
+            else trade
+            for trade in failed_trades
+        ]
+
+        return f"""
+    - Pre portfolio state: {pre_portfolio_state}
+    - Updated portfolio state: {updated_portfolio_state}
+    - Today Executed trades: {executed_trades_filtered}
+    - Today Failed trades: {failed_trades_filtered}
+    """
 
     def _evaluate_prediction(self, signal: str, actual_return: float) -> bool:
         """Evaluate if prediction is correct"""
