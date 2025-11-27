@@ -52,8 +52,9 @@ EvoTraders是一个开源的金融交易智能体框架，通过多智能体协�
 git clone https://github.com/agentscope-ai/agentscope-samples
 cd agentscope-samples/EvoTraders
 
-# 安装依赖
-pip install -e .
+# 安装依赖(推荐使用uv）
+uv pip install -e .
+# (可选）pip install -e .
 
 # 配置环境变量
 cp env.template .env

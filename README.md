@@ -48,8 +48,10 @@ Observe agents' analysis processes, communication records, and decision evolutio
 git clone https://github.com/agentscope-ai/agentscope-samples
 cd agentscope-samples/EvoTraders
 
-# Install dependencies
-pip install -e .
+# Install dependencies (Recommend uv!)
+uv pip install -e .
+# optional: pip install -e .
+
 
 # Configure environment variables
 cp env.template .env
