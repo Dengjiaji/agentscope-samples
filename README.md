@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/assets/evotraders_logo.png" width="45%">
+  <img src="./docs/assets/evotraders_logo.jpg" width="45%">
 </p>
 
 <h2 align="center">EvoTraders: A Self-Evolving Multi-Agent Trading System</h2>

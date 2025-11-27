@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/assets/evotraders_logo.png" width="45%">
+  <img src="./docs/assets/evotraders_logo.jpg" width="45%">
 </p>
 
 <h2 align="center">EvoTraders：自我进化的多智能体交易系统</h2>
@@ -9,7 +9,7 @@
   📌 <a href="https://trading.evoagents.com">Visit us at EvoTraders website !</a>
 </p>
 
-![系统演示](./docs/assets/trading_room.png)
+![系统演示](./docs/assets/evotraders_demo.gif)
 
 EvoTraders是一个开源的金融交易智能体框架，通过多智能体协作和记忆系统，构建能够在真实市场中持续学习与进化的交易系统。
 

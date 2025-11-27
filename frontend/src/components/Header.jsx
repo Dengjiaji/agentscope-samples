@@ -25,8 +25,13 @@ export default function Header({
       <span
         className="header-link"
         onClick={handleEvoTradersClick}
-        style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: '3px' }}
+        style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: '3px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
       >
+        <img 
+          src="/trading_logo.png" 
+          alt="EvoTraders Logo" 
+          style={{ height: '24px', width: 'auto' }}
+        />
         EvoTraders {evoTradersLinkStyle === 'close' ? (
           <span className="link-arrow">↙</span>
         ) : (
