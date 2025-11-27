@@ -218,46 +218,80 @@ class Server:
 
     def _update_dashboard_files_with_price(self, symbol: str, price: float):
         """Update prices and related calculations in holdings.json, stats.json and summary.json files"""
+
+        # Load all dashboard files
+        holdings, stats, _summary = self._load_dashboard_files()
+        if holdings is None or stats is None:
+            return
+
+        # Update holdings and calculate totals
+        updated, total_value, cash = self._update_holdings_data(
+            holdings,
+            symbol,
+            price,
+        )
+
+        if not updated:
+            return
+
+        # Recalculate weights
+        self._recalculate_holdings_weights(holdings, total_value)
+
+        # Save updated holdings
+        self._save_dashboard_file(
+            "holdings",
+            holdings,
+            f"Updated holdings.json: {symbol} = ${price:.2f}",
+        )
+
+        # Update and save stats
+        self._update_and_save_stats(stats, holdings, total_value, cash)
+
+    def _load_dashboard_files(self):
+        """Load holdings, stats, and summary files"""
         holdings_file = self.dashboard_files.get("holdings")
         stats_file = self.dashboard_files.get("stats")
         summary_file = self.dashboard_files.get("summary")
 
-        if not holdings_file or not holdings_file.exists():
-            logger.warning(
-                "holdings.json file does not exist, skipping update",
-            )
-            return
+        # Validate files exist
+        if not self._validate_file_exists(holdings_file, "holdings.json"):
+            return None, None, None
+        if not self._validate_file_exists(stats_file, "stats.json"):
+            return None, None, None
 
-        if not stats_file or not stats_file.exists():
-            logger.warning("stats.json file does not exist, skipping update")
-            return
-
-        # Read holdings.json
-        try:
-            with open(holdings_file, "r", encoding="utf-8") as f:
-                holdings = json.load(f)
-        except Exception as e:
-            logger.error(f"Failed to read holdings.json: {e}")
-            return
-
-        # Read stats.json
-        try:
-            with open(stats_file, "r", encoding="utf-8") as f:
-                stats = json.load(f)
-        except Exception as e:
-            logger.error(f"Failed to read stats.json: {e}")
-            return
-
-        # Read summary.json (if exists)
+        # Load files
+        holdings = self._load_json_file(holdings_file, "holdings.json")
+        stats = self._load_json_file(stats_file, "stats.json")
         summary = None
-        if summary_file and summary_file.exists():
-            try:
-                with open(summary_file, "r", encoding="utf-8") as f:
-                    summary = json.load(f)
-            except Exception as e:
-                logger.error(f"Failed to read summary.json: {e}")
 
-        # Update prices in holdings
+        if summary_file and summary_file.exists():
+            summary = self._load_json_file(summary_file, "summary.json")
+
+        return holdings, stats, summary
+
+    def _validate_file_exists(self, file_path, file_name: str) -> bool:
+        """Check if file exists and log warning if not"""
+        if not file_path or not file_path.exists():
+            logger.warning(f"{file_name} file does not exist, skipping update")
+            return False
+        return True
+
+    def _load_json_file(self, file_path, file_name: str):
+        """Load JSON file with error handling"""
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Failed to read {file_name}: {e}")
+            return None
+
+    def _update_holdings_data(
+        self,
+        holdings: list,
+        symbol: str,
+        price: float,
+    ) -> tuple:
+        """Update holdings data with new price and return (updated, total_value, cash)"""
         updated = False
         total_value = 0.0
         cash = 0.0
@@ -270,73 +304,90 @@ class Server:
                 cash = holding.get("marketValue", 0)
                 total_value += cash
             elif ticker == symbol:
-                # Update current price
+                # Update target symbol
                 holding["currentPrice"] = round(price, 2)
                 market_value = quantity * price
                 holding["marketValue"] = round(market_value, 2)
                 total_value += market_value
                 updated = True
             else:
-                # Accumulate market value of other holdings
+                # Accumulate other holdings
                 total_value += holding.get("marketValue", 0)
 
-        # Recalculate weights
-        if total_value > 0:
-            for holding in holdings:
-                market_value = holding.get("marketValue", 0)
-                weight = market_value / total_value
-                holding["weight"] = round(weight, 4)
+        return updated, total_value, cash
 
-        # If updated, save holdings.json
-        if updated:
-            try:
-                with open(holdings_file, "w", encoding="utf-8") as f:
-                    json.dump(holdings, f, indent=2, ensure_ascii=False)
-                logger.debug(
-                    f"✅ Updated holdings.json: {symbol} = ${price:.2f}",
-                )
-            except Exception as e:
-                logger.error(f"Failed to save holdings.json: {e}")
-                return
+    def _recalculate_holdings_weights(
+        self,
+        holdings: list,
+        total_value: float,
+    ):
+        """Recalculate weight for each holding"""
+        if total_value <= 0:
+            return
 
-        # Update stats.json
+        for holding in holdings:
+            market_value = holding.get("marketValue", 0)
+            weight = market_value / total_value
+            holding["weight"] = round(weight, 4)
+
+    def _save_dashboard_file(
+        self,
+        file_key: str,
+        data,
+        success_message: str = None,
+    ):
+        """Save data to dashboard file"""
+        file_path = self.dashboard_files.get(file_key)
+        if not file_path:
+            return False
+
+        try:
+            with open(file_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            if success_message:
+                logger.debug(f"✅ {success_message}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to save {file_key}.json: {e}")
+            return False
+
+    def _update_and_save_stats(
+        self,
+        stats: dict,
+        holdings: list,
+        total_value: float,
+        cash: float,
+    ):
+        """Update stats data and save to file"""
         total_return = (
             ((total_value - self.initial_cash) / self.initial_cash * 100)
             if self.initial_cash > 0
             else 0.0
         )
 
-        # Update tickerWeights
-        ticker_weights = {}
-        for holding in holdings:
-            ticker = holding.get("ticker")
-            if ticker != "CASH":
-                ticker_weights[ticker] = holding.get("weight", 0)
+        # Build ticker weights
+        ticker_weights = {
+            holding.get("ticker"): holding.get("weight", 0)
+            for holding in holdings
+            if holding.get("ticker") != "CASH"
+        }
 
-        stats["totalAssetValue"] = round(total_value, 2)
-        stats["totalReturn"] = round(total_return, 2)
-        stats["cashPosition"] = round(cash, 2)
-        stats["tickerWeights"] = ticker_weights
+        # Update stats
+        stats.update(
+            {
+                "totalAssetValue": round(total_value, 2),
+                "totalReturn": round(total_return, 2),
+                "cashPosition": round(cash, 2),
+                "tickerWeights": ticker_weights,
+            },
+        )
 
-        # Save stats.json
-        try:
-            with open(stats_file, "w", encoding="utf-8") as f:
-                json.dump(stats, f, indent=2, ensure_ascii=False)
-            if updated:
-                logger.debug(
-                    f"✅ Updated stats.json: Total assets=${total_value:.2f}, Return={total_return:.2f}%",
-                )
-        except Exception as e:
-            logger.error(f"Failed to save stats.json: {e}")
-
-        # Note: Do not update equity curve in summary.json
-        # Reasons:
-        # 1. For mock t mode (normal mode), equity curve should be updated by mock system (TeamDashboardGenerator) at end of each day
-        # 2. Real-time price updates are only for displaying current prices, should not modify historical equity curves
-        # 3. Equity curve updates should be completed through _update_equity_curve method during mock process, not through price update callback
-        #
-        # If need to update other fields in summary.json (such as balance, pnlPct) for real-time display,
-        # can add here, but do not modify equity curve
+        # Save stats file
+        self._save_dashboard_file(
+            "stats",
+            stats,
+            f"Updated stats.json: Total assets=${total_value:.2f}, Return={total_return:.2f}%",
+        )
 
     async def broadcast(self, message: Dict[str, Any]):
         """Broadcast message to all connected clients"""
@@ -517,187 +568,238 @@ class Server:
 
     async def handle_client(self, websocket: WebSocketServerProtocol):
         """Handle client connection"""
-        client_id = id(websocket)
-
         try:
-            async with self.lock:
-                self.connected_clients.add(websocket)
-
-            logger.info(
-                f"✅ New client connected (total connections: {len(self.connected_clients)})",
-            )
-            # Prepare initial state to send to new client (don't modify global state)
-            initial_state = self.state_manager.get_full_state()
-
-            # ========== Solution B: Load Dashboard data from files ⭐⭐⭐ ==========
-            try:
-                summary_data = self._load_dashboard_file("summary")
-                holdings_data = self._load_dashboard_file("holdings")
-                stats_data = self._load_dashboard_file("stats")
-                trades_data = self._load_dashboard_file("trades")
-                leaderboard_data = self._load_dashboard_file("leaderboard")
-
-                initial_state["dashboard"] = {
-                    "summary": summary_data,
-                    "holdings": holdings_data,
-                    "stats": stats_data,
-                    "trades": trades_data,
-                    "leaderboard": leaderboard_data,
-                }
-
-                # Map summary data to portfolio (for frontend use)
-                if summary_data and "portfolio" in initial_state:
-                    initial_state["portfolio"].update(
-                        {
-                            "total_value": summary_data.get("balance"),
-                            "pnl_percent": summary_data.get("pnlPct"),
-                            "equity": summary_data.get("equity", []),
-                            "baseline": summary_data.get(
-                                "baseline",
-                                [],
-                            ),  # ⭐ Equal-weight baseline
-                            "baseline_vw": summary_data.get(
-                                "baseline_vw",
-                                [],
-                            ),  # ⭐ Value-weighted baseline
-                            "momentum": summary_data.get(
-                                "momentum",
-                                [],
-                            ),  # ⭐ Momentum strategy
-                        },
-                    )
-
-                # Update other data
-                if holdings_data:
-                    initial_state["holdings"] = holdings_data
-                if stats_data:
-                    initial_state["stats"] = stats_data
-                if trades_data:
-                    initial_state["trades"] = trades_data
-                if leaderboard_data:
-                    initial_state["leaderboard"] = leaderboard_data
-
-                logger.info(
-                    "✅ Successfully loaded Dashboard data from files",
-                )
-            except Exception as e:
-                logger.error(
-                    f"⚠️ Failed to load Dashboard data from files: {e}",
-                )
-                initial_state["dashboard"] = {
-                    "summary": None,
-                    "holdings": [],
-                    "stats": None,
-                    "trades": [],
-                    "leaderboard": [],
-                }
-
-            # Load historical equity data and merge into portfolio (only for new clients)
-            historical_data = self.state_manager.load_historical_equity()
-            if historical_data and "portfolio" in initial_state:
-                # Create copy to avoid modifying global state
-                initial_portfolio = dict(initial_state["portfolio"])
-
-                # Only merge if current equity data is empty or less than historical data
-                current_equity = initial_portfolio.get("equity", [])
-                historical_equity = historical_data.get("equity", [])
-
-                if not current_equity or len(current_equity) < len(
-                    historical_equity,
-                ):
-                    # Merge historical data (prioritize current data)
-                    initial_portfolio["equity"] = (
-                        historical_equity + current_equity
-                    )
-                    if "baseline" in historical_data:
-                        initial_portfolio["baseline"] = historical_data[
-                            "baseline"
-                        ]
-                    if "strategies" in historical_data:
-                        initial_portfolio["strategies"] = historical_data[
-                            "strategies"
-                        ]
-
-                initial_state["portfolio"] = initial_portfolio
-
-            # Add server mode identifier (backtest mode)
-            initial_state["server_mode"] = "backtest"
-            initial_state["market_status"] = {
-                "status": "backtest",
-                "status_text": "Backtest Mode",
-            }
-
-            # Send complete state to newly connected client
-            await websocket.send(
-                json.dumps(
-                    {
-                        "type": "initial_state",
-                        "state": initial_state,
-                    },
-                    ensure_ascii=False,
-                    default=str,
-                ),
-            )
-
-            # Keep connection and receive messages (read-only mode, don't process commands)
-            try:
-                async for message in websocket:
-                    try:
-                        data = json.loads(message)
-                        msg_type = data.get("type", "unknown")
-
-                        # Respond to heartbeat
-                        if msg_type == "ping":
-                            await websocket.send(
-                                json.dumps(
-                                    {
-                                        "type": "pong",
-                                        "timestamp": datetime.now().isoformat(),
-                                    },
-                                    ensure_ascii=False,
-                                    default=str,
-                                ),
-                            )
-
-                        # Can add some read-only query functions
-                        elif msg_type == "get_state":
-                            await websocket.send(
-                                json.dumps(
-                                    {
-                                        "type": "state_response",
-                                        "state": self.state_manager.get_full_state(),
-                                    },
-                                    ensure_ascii=False,
-                                    default=str,
-                                ),
-                            )
-
-                    except json.JSONDecodeError:
-                        logger.warning("Received non-JSON message")
-                    except Exception as e:
-                        logger.error(f"Error processing message: {e}")
-            except websockets.ConnectionClosed as e:
-                logger.debug(f"Connection closed: code={e.code}")
-            except Exception as e:
-                logger.error(f"Connection error: {e}")
-
-        except ConnectionClosedError:
-            # WebSocket handshake failed or connection closed abnormally
-            logger.debug(
-                "WebSocket connection closed abnormally (may be browser refresh or network issue)",
-            )
-        except websockets.ConnectionClosed:
-            # Normal disconnect
-            logger.debug("Client disconnected normally")
+            await self._register_client(websocket)
+            initial_state = await self._prepare_initial_state()
+            await self._send_initial_state(websocket, initial_state)
+            await self._handle_client_messages(websocket)
+        except (ConnectionClosedError, websockets.ConnectionClosed) as e:
+            self._log_connection_closed(e)
         except Exception as e:
             logger.error(f"Connection handling error: {e}")
         finally:
-            # Cleanup: remove from connection pool
-            async with self.lock:
-                self.connected_clients.discard(websocket)
-            logger.info(
-                f"Client disconnected (remaining connections: {len(self.connected_clients)})",
+            await self._unregister_client(websocket)
+
+    async def _register_client(self, websocket: WebSocketServerProtocol):
+        """Register a new client connection"""
+        async with self.lock:
+            self.connected_clients.add(websocket)
+        logger.info(
+            f"✅ New client connected (total connections: {len(self.connected_clients)})",
+        )
+
+    async def _unregister_client(self, websocket: WebSocketServerProtocol):
+        """Unregister a client connection"""
+        async with self.lock:
+            self.connected_clients.discard(websocket)
+        logger.info(
+            f"Client disconnected (remaining connections: {len(self.connected_clients)})",
+        )
+
+    async def _prepare_initial_state(self) -> dict:
+        """Prepare initial state for new client"""
+        initial_state = self.state_manager.get_full_state()
+
+        # Load dashboard data
+        self._load_dashboard_data(initial_state)
+
+        # Load historical equity data
+        self._load_historical_equity(initial_state)
+
+        # Set server mode
+        self._set_server_mode(initial_state)
+
+        return initial_state
+
+    def _load_dashboard_data(self, initial_state: dict):
+        """Load dashboard data from files"""
+        try:
+            dashboard_files = {
+                "summary": self._load_dashboard_file("summary"),
+                "holdings": self._load_dashboard_file("holdings"),
+                "stats": self._load_dashboard_file("stats"),
+                "trades": self._load_dashboard_file("trades"),
+                "leaderboard": self._load_dashboard_file("leaderboard"),
+            }
+
+            initial_state["dashboard"] = dashboard_files
+
+            # Update portfolio with summary data
+            self._update_portfolio_from_summary(
+                initial_state,
+                dashboard_files["summary"],
             )
+
+            # Update other state sections
+            self._update_state_sections(initial_state, dashboard_files)
+
+            logger.info("✅ Successfully loaded Dashboard data from files")
+
+        except Exception as e:
+            logger.error(f"⚠️ Failed to load Dashboard data from files: {e}")
+            initial_state["dashboard"] = {
+                "summary": None,
+                "holdings": [],
+                "stats": None,
+                "trades": [],
+                "leaderboard": [],
+            }
+
+    def _update_portfolio_from_summary(
+        self,
+        initial_state: dict,
+        summary_data: dict,
+    ):
+        """Update portfolio section with summary data"""
+        if not summary_data or "portfolio" not in initial_state:
+            return
+
+        initial_state["portfolio"].update(
+            {
+                "total_value": summary_data.get("balance"),
+                "pnl_percent": summary_data.get("pnlPct"),
+                "equity": summary_data.get("equity", []),
+                "baseline": summary_data.get("baseline", []),
+                "baseline_vw": summary_data.get("baseline_vw", []),
+                "momentum": summary_data.get("momentum", []),
+            },
+        )
+
+    def _update_state_sections(
+        self,
+        initial_state: dict,
+        dashboard_files: dict,
+    ):
+        """Update various state sections with dashboard data"""
+        section_mapping = {
+            "holdings": "holdings",
+            "stats": "stats",
+            "trades": "trades",
+            "leaderboard": "leaderboard",
+        }
+
+        for key, section in section_mapping.items():
+            if dashboard_files[key]:
+                initial_state[section] = dashboard_files[key]
+
+    def _load_historical_equity(self, initial_state: dict):
+        """Load and merge historical equity data"""
+        historical_data = self.state_manager.load_historical_equity()
+
+        if not historical_data or "portfolio" not in initial_state:
+            return
+
+        initial_portfolio = dict(initial_state["portfolio"])
+        current_equity = initial_portfolio.get("equity", [])
+        historical_equity = historical_data.get("equity", [])
+
+        # Merge if historical data is more complete
+        if not current_equity or len(current_equity) < len(historical_equity):
+            initial_portfolio["equity"] = historical_equity + current_equity
+
+            if "baseline" in historical_data:
+                initial_portfolio["baseline"] = historical_data["baseline"]
+            if "strategies" in historical_data:
+                initial_portfolio["strategies"] = historical_data["strategies"]
+
+            initial_state["portfolio"] = initial_portfolio
+
+    def _set_server_mode(self, initial_state: dict):
+        """Set server mode and market status"""
+        initial_state["server_mode"] = "backtest"
+        initial_state["market_status"] = {
+            "status": "backtest",
+            "status_text": "Backtest Mode",
+        }
+
+    async def _send_initial_state(
+        self,
+        websocket: WebSocketServerProtocol,
+        state: dict,
+    ):
+        """Send initial state to client"""
+        message = json.dumps(
+            {
+                "type": "initial_state",
+                "state": state,
+            },
+            ensure_ascii=False,
+            default=str,
+        )
+        await websocket.send(message)
+
+    async def _handle_client_messages(
+        self,
+        websocket: WebSocketServerProtocol,
+    ):
+        """Handle incoming messages from client"""
+        async for message in websocket:
+            try:
+                data = json.loads(message)
+                await self._process_message(websocket, data)
+            except json.JSONDecodeError:
+                logger.warning("Received non-JSON message")
+            except Exception as e:
+                logger.error(f"Error processing message: {e}")
+
+    async def _process_message(
+        self,
+        websocket: WebSocketServerProtocol,
+        data: dict,
+    ):
+        """Process a single client message"""
+        msg_type = data.get("type", "unknown")
+
+        handlers = {
+            "ping": self._handle_ping,
+            "get_state": self._handle_get_state,
+        }
+
+        handler = handlers.get(msg_type)
+        if handler:
+            await handler(websocket, data)
+
+    async def _handle_ping(
+        self,
+        websocket: WebSocketServerProtocol,
+        _data: dict,
+    ):
+        """Handle ping message"""
+        response = json.dumps(
+            {
+                "type": "pong",
+                "timestamp": datetime.now().isoformat(),
+            },
+            ensure_ascii=False,
+            default=str,
+        )
+        await websocket.send(response)
+
+    async def _handle_get_state(
+        self,
+        websocket: WebSocketServerProtocol,
+        _data: dict,
+    ):
+        """Handle get_state message"""
+        response = json.dumps(
+            {
+                "type": "state_response",
+                "state": self.state_manager.get_full_state(),
+            },
+            ensure_ascii=False,
+            default=str,
+        )
+        await websocket.send(response)
+
+    def _log_connection_closed(self, error: Exception):
+        """Log connection closed events"""
+        if isinstance(error, ConnectionClosedError):
+            logger.debug(
+                "WebSocket connection closed abnormally "
+                "(may be browser refresh or network issue)",
+            )
+        elif isinstance(error, websockets.ConnectionClosed):
+            logger.debug("Client disconnected normally")
 
     async def run_continuous_simulation(self):
         """Continuously run trading simulation"""
@@ -708,11 +810,11 @@ class Server:
 
         # Register progress handler to capture agent status updates
         def progress_handler(
-            agent_name: str,
+            _agent_name: str,
             ticker,
             status: str,
             analysis,
-            timestamp,
+            _timestamp,
         ):
             """Capture agent progress updates and broadcast to frontend"""
             if loop.is_running():
@@ -722,21 +824,33 @@ class Server:
                 if analysis:
                     content = f"{content}: {analysis}"
 
-                # asyncio.run_coroutine_threadsafe(
-                #     self.broadcast({
-                #         'type': 'agent_message',
-                #         'agentId': agent_name,
-                #         'agentName': agent_name.replace('_agent', '').replace('_', ' ').title(),
-                #         'content': content,
-                #         'timestamp': timestamp
-                #     }),
-                #     loop
-                # )
-
         # Register handler
         progress.register_handler(progress_handler)
 
-        # Create broadcast streamer (using unified BroadcastStreamer class)
+        try:
+            # Initialize components
+            await self._initialize_trading_system(loop)
+
+            # Generate and validate trading days
+            trading_days = self._prepare_trading_days()
+
+            # Setup initial state
+            self._setup_initial_state(trading_days)
+            await self._broadcast_system_start(trading_days)
+
+            # Run simulation for each trading day
+            await self._run_trading_days(trading_days)
+
+            # Finalize
+            await self._finalize_simulation()
+
+        finally:
+            # Cleanup: unregister progress handler
+            progress.unregister_handler(progress_handler)
+
+    async def _initialize_trading_system(self, loop):
+        """Initialize trading system components"""
+        # Create broadcast streamer
         broadcast_streamer = BroadcastStreamer(
             broadcast_callback=self.broadcast,
             event_loop=loop,
@@ -760,7 +874,8 @@ class Server:
                 f"✅ Subscribed to real-time prices: {self.config.tickers}",
             )
 
-        # Generate trading day list
+    def _prepare_trading_days(self):
+        """Generate and validate trading days"""
         start_date = self.config.start_date
         end_date = self.config.end_date
 
@@ -772,10 +887,16 @@ class Server:
         )
         logger.info(f"📅 Planning to run {len(trading_days)} trading days")
 
+        return trading_days
+
+    def _setup_initial_state(self, trading_days):
+        """Setup initial state before simulation"""
         self.state_manager.update("status", "running")
         self.state_manager.update("trading_days_total", len(trading_days))
         self.state_manager.update("trading_days_completed", 0)
 
+    async def _broadcast_system_start(self, trading_days):
+        """Broadcast system start message"""
         await self.broadcast(
             {
                 "type": "system",
@@ -783,147 +904,163 @@ class Server:
             },
         )
 
-        # Run day by day
+    async def _run_trading_days(self, trading_days):
+        """Run simulation for each trading day"""
         for idx, date in enumerate(trading_days, 1):
-            logger.info(f"===== [{idx}/{len(trading_days)}] {date} =====")
-            self.state_manager.update("current_date", date)
-            self.state_manager.update("trading_days_completed", idx)
+            await self._run_single_day(date, idx, len(trading_days))
+            await asyncio.sleep(1)  # Brief delay
 
-            # Start new day
-            self.state_manager.start_new_day()
+    async def _run_single_day(self, date, idx, total_days):
+        """Run simulation for a single trading day"""
+        logger.info(f"===== [{idx}/{total_days}] {date} =====")
 
-            await self.broadcast(
-                {
-                    "type": "day_start",
-                    "date": date,
-                    "progress": idx / len(trading_days),
-                },
+        # Update state
+        self.state_manager.update("current_date", date)
+        self.state_manager.update("trading_days_completed", idx)
+        self.state_manager.start_new_day()
+
+        await self.broadcast(
+            {
+                "type": "day_start",
+                "date": date,
+                "progress": idx / total_days,
+            },
+        )
+
+        # Run day simulation
+        result = await self._execute_day_simulation(date)
+
+        # Process results
+        await self._process_day_results(date, result)
+
+        # Save state
+        self.state_manager.end_current_day()
+        self.state_manager.save()
+
+    async def _execute_day_simulation(self, date):
+        """Execute the actual day simulation"""
+        result = await asyncio.to_thread(
+            self.thinking_fund.run_full_day_simulation,
+            date=date,
+            tickers=self.config.tickers,
+            max_comm_cycles=self.config.max_comm_cycles,
+            force_run=False,
+            enable_communications=not self.config.disable_communications,
+            enable_notifications=not self.config.disable_notifications,
+        )
+
+        # Ensure result is dict type
+        if not isinstance(result, dict):
+            logger.warning(
+                f"⚠️ Unexpected result type: {type(result)}, value: {result}",
+            )
+            return {}
+
+        return result
+
+    async def _process_day_results(self, date, result):
+        """Process and broadcast day results"""
+        portfolio_summary = self._update_state_from_result(result)
+
+        await self.broadcast(
+            {
+                "type": "day_complete",
+                "date": date,
+                "result": {"portfolio_summary": portfolio_summary},
+                "timestamp": datetime.now().isoformat(),
+            },
+        )
+
+    def _update_state_from_result(self, result):
+        """Update state manager from simulation result"""
+        portfolio_summary = None
+
+        if not result.get("pre_market"):
+            return portfolio_summary
+
+        # Update signals
+        signals = result["pre_market"]["live_env"].get("pm_signals", {})
+        self.state_manager.update("latest_signals", signals)
+
+        # Update portfolio if in portfolio mode
+        if self.config.mode == "portfolio":
+            portfolio_summary = self._update_portfolio_state(
+                result["pre_market"],
             )
 
-            # Run in separate thread (avoid blocking)
-            result = await asyncio.to_thread(
-                self.thinking_fund.run_full_day_simulation,
-                date=date,
-                tickers=self.config.tickers,
-                max_comm_cycles=self.config.max_comm_cycles,
-                force_run=False,
-                enable_communications=not self.config.disable_communications,
-                enable_notifications=not self.config.disable_notifications,
+        return portfolio_summary
+
+    def _update_portfolio_state(self, pre_market_data):
+        """Update portfolio state from pre-market data"""
+        live_env = pre_market_data.get("live_env", {})
+        portfolio_summary = live_env.get("portfolio_summary", {})
+        updated_portfolio = live_env.get("updated_portfolio", {})
+
+        if not (portfolio_summary and updated_portfolio):
+            return None
+
+        # Update portfolio summary
+        portfolio = self.state_manager.get("portfolio", {})
+        portfolio.update(
+            {
+                "total_value": portfolio_summary.get("total_value"),
+                "cash": portfolio_summary.get("cash"),
+                "pnl_percent": portfolio_summary.get("pnl_percent", 0),
+            },
+        )
+        self.state_manager.update("portfolio", portfolio)
+
+        # Update holdings
+        holdings_list = self._build_holdings_list(updated_portfolio)
+        self.state_manager.update("holdings", holdings_list)
+
+        return portfolio_summary
+
+    def _build_holdings_list(self, updated_portfolio):
+        """Build holdings list from portfolio positions"""
+        realtime_prices = self.state_manager.get("realtime_prices", {})
+        holdings_list = []
+
+        positions = updated_portfolio.get("positions", {})
+        for symbol, position_data in positions.items():
+            if not isinstance(position_data, dict):
+                continue
+
+            holding = self._create_holding_entry(
+                symbol,
+                position_data,
+                realtime_prices,
             )
+            if holding:
+                holdings_list.append(holding)
 
-            # Ensure result is dict type
-            if not isinstance(result, dict):
-                logger.warning(
-                    f"⚠️ Unexpected result type: {type(result)}, value: {result}",
-                )
-                result = {}
+        return holdings_list
 
-            # Update current state and extract portfolio_summary
-            portfolio_summary = None
-            if result.get("pre_market"):
-                signals = result["pre_market"]["live_env"].get(
-                    "pm_signals",
-                    {},
-                )
-                self.state_manager.update("latest_signals", signals)
+    def _create_holding_entry(self, symbol, position_data, realtime_prices):
+        """Create a single holding entry"""
+        long_qty = position_data.get("long", 0)
+        short_qty = position_data.get("short", 0)
+        net_qty = long_qty - short_qty
 
-                # Update Portfolio positions (if portfolio mode) ⭐ Bug fix
-                if self.config.mode == "portfolio":
-                    live_env = result["pre_market"].get("live_env", {})
-                    portfolio_summary = live_env.get("portfolio_summary", {})
-                    updated_portfolio = live_env.get("updated_portfolio", {})
+        if net_qty == 0:
+            return None
 
-                    if portfolio_summary and updated_portfolio:
-                        # Note: Normal mode (backtest mode) doesn't need portfolio_calculator
-                        # Portfolio data is updated by backtest system (TeamDashboardGenerator) and written to Dashboard files
-                        # Here only update in-memory state for frontend display, don't do real-time calculation
+        long_cost = position_data.get("long_cost_basis", 0)
+        short_cost = position_data.get("short_cost_basis", 0)
+        avg_price = long_cost if net_qty > 0 else short_cost
+        current_price = realtime_prices.get(symbol, {}).get("price", avg_price)
 
-                        # Update portfolio state (read from backtest results)
-                        portfolio = self.state_manager.get("portfolio", {})
-                        portfolio.update(
-                            {
-                                "total_value": portfolio_summary.get(
-                                    "total_value",
-                                ),
-                                "cash": portfolio_summary.get("cash"),
-                                "pnl_percent": portfolio_summary.get(
-                                    "pnl_percent",
-                                    0,
-                                ),
-                            },
-                        )
-                        self.state_manager.update("portfolio", portfolio)
+        return {
+            "ticker": symbol,
+            "qty": net_qty,
+            "avg": avg_price,
+            "currentPrice": current_price,
+            "pl": (current_price - avg_price) * net_qty,
+            "weight": 0,
+        }
 
-                        # Update holdings (convert to frontend format)
-                        realtime_prices = self.state_manager.get(
-                            "realtime_prices",
-                            {},
-                        )
-                        holdings_list = []
-                        positions = updated_portfolio.get("positions", {})
-                        for symbol, position_data in positions.items():
-                            if isinstance(position_data, dict):
-                                long_qty = position_data.get("long", 0)
-                                short_qty = position_data.get("short", 0)
-                                net_qty = long_qty - short_qty
-
-                                if (
-                                    net_qty != 0
-                                ):  # Only show stocks with positions
-                                    long_cost = position_data.get(
-                                        "long_cost_basis",
-                                        0,
-                                    )
-                                    short_cost = position_data.get(
-                                        "short_cost_basis",
-                                        0,
-                                    )
-                                    avg_price = (
-                                        long_cost
-                                        if net_qty > 0
-                                        else short_cost
-                                    )
-                                    current_price = realtime_prices.get(
-                                        symbol,
-                                        {},
-                                    ).get("price", avg_price)
-
-                                    holdings_list.append(
-                                        {
-                                            "ticker": symbol,
-                                            "qty": net_qty,
-                                            "avg": avg_price,
-                                            "currentPrice": current_price,
-                                            "pl": (current_price - avg_price)
-                                            * net_qty,
-                                            "weight": 0,  # Weight needs to be calculated separately
-                                        },
-                                    )
-                        self.state_manager.update("holdings", holdings_list)
-
-            # Build simplified result for broadcast (avoid sending too large data)
-            broadcast_result = {
-                "portfolio_summary": portfolio_summary,
-            }
-
-            await self.broadcast(
-                {
-                    "type": "day_complete",
-                    "date": date,
-                    "result": broadcast_result,
-                    "timestamp": datetime.now().isoformat(),
-                },
-            )
-
-            # End current day (save for replay)
-            self.state_manager.end_current_day()
-
-            # Save state (after each day ends)
-            self.state_manager.save()
-
-            # Brief delay (avoid too fast)
-            await asyncio.sleep(1)
-
+    async def _finalize_simulation(self):
+        """Finalize simulation after all days complete"""
         logger.info("✅ All trading days completed")
         self.state_manager.update("status", "completed")
 
@@ -933,9 +1070,6 @@ class Server:
                 "content": "All trading days completed",
             },
         )
-
-        # Cleanup: unregister progress handler
-        progress.unregister_handler(progress_handler)
 
     async def _periodic_state_saver(self):
         """Periodically save state (every 5 minutes)"""
