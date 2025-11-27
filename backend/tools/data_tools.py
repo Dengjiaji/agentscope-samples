@@ -214,7 +214,7 @@ def get_prices(
         url = f"https://api.financialdatasets.ai/prices/?ticker={ticker}&interval=day&interval_multiplier=1&start_date={start_date}&end_date={end_date}"
         response = _make_api_request(url, headers)
         if response.status_code != 200:
-            raise Exception(
+            raise ValueError(
                 f"Error fetching data: {ticker} - {response.status_code} - {response.text}",
             )
 
@@ -288,52 +288,9 @@ def get_financial_metrics(
         metric_data = financials.get("metric", {})
 
         # Create a FinancialMetrics object with available data
-        # Note: Finnhub's metric names don't match our model exactly, so we map what we can
-        metric = FinancialMetrics(
-            ticker=ticker,
-            report_period=end_date,
-            period=period,
-            currency="USD",  # Finnhub doesn't provide currency, assume USD
-            market_cap=metric_data.get("marketCapitalization"),
-            enterprise_value=None,  # Not directly available
-            price_to_earnings_ratio=metric_data.get("peBasicExclExtraTTM"),
-            price_to_book_ratio=metric_data.get("pbAnnual"),
-            price_to_sales_ratio=metric_data.get("psAnnual"),
-            enterprise_value_to_ebitda_ratio=None,
-            enterprise_value_to_revenue_ratio=None,
-            free_cash_flow_yield=None,
-            peg_ratio=None,
-            gross_margin=metric_data.get("grossMarginTTM"),
-            operating_margin=metric_data.get("operatingMarginTTM"),
-            net_margin=metric_data.get("netProfitMarginTTM"),
-            return_on_equity=metric_data.get("roeTTM"),
-            return_on_assets=metric_data.get("roaTTM"),
-            return_on_invested_capital=metric_data.get("roicTTM"),
-            asset_turnover=metric_data.get("assetTurnoverTTM"),
-            inventory_turnover=metric_data.get("inventoryTurnoverTTM"),
-            receivables_turnover=metric_data.get("receivablesTurnoverTTM"),
-            days_sales_outstanding=None,
-            operating_cycle=None,
-            working_capital_turnover=None,
-            current_ratio=metric_data.get("currentRatioAnnual"),
-            quick_ratio=metric_data.get("quickRatioAnnual"),
-            cash_ratio=None,
-            operating_cash_flow_ratio=None,
-            debt_to_equity=metric_data.get("totalDebt/totalEquityAnnual"),
-            debt_to_assets=None,
-            interest_coverage=None,
-            revenue_growth=metric_data.get("revenueGrowthTTMYoy"),
-            earnings_growth=None,
-            book_value_growth=None,
-            earnings_per_share_growth=metric_data.get("epsGrowthTTMYoy"),
-            free_cash_flow_growth=None,
-            operating_income_growth=None,
-            ebitda_growth=None,
-            payout_ratio=metric_data.get("payoutRatioAnnual"),
-            earnings_per_share=metric_data.get("epsBasicExclExtraItemsTTM"),
-            book_value_per_share=metric_data.get("bookValuePerShareAnnual"),
-            free_cash_flow_per_share=None,
-        )
+        # Note: Finnhub's metric names don't match our model exactly, so we map what we
+        metric = _map_finnhub_metrics(ticker, end_date, period, metric_data)
+
         financial_metrics = [metric]
 
     elif data_source == "financial_datasets":
@@ -348,7 +305,7 @@ def get_financial_metrics(
         url = f"https://api.financialdatasets.ai/financial-metrics/?ticker={ticker}&report_period_lte={end_date}&limit={limit}&period={period}"
         response = _make_api_request(url, headers)
         if response.status_code != 200:
-            raise Exception(
+            raise ValueError(
                 f"Error fetching data: {ticker} - {response.status_code} - {response.text}",
             )
 
@@ -370,6 +327,60 @@ def get_financial_metrics(
         [m.model_dump() for m in financial_metrics],
     )
     return financial_metrics
+
+
+def _map_finnhub_metrics(
+    ticker: str,
+    end_date: str,
+    period: str,
+    metric_data: dict,
+) -> FinancialMetrics:
+    """Map Finnhub metric data to FinancialMetrics model."""
+    return FinancialMetrics(
+        ticker=ticker,
+        report_period=end_date,
+        period=period,
+        currency="USD",
+        market_cap=metric_data.get("marketCapitalization"),
+        enterprise_value=None,
+        price_to_earnings_ratio=metric_data.get("peBasicExclExtraTTM"),
+        price_to_book_ratio=metric_data.get("pbAnnual"),
+        price_to_sales_ratio=metric_data.get("psAnnual"),
+        enterprise_value_to_ebitda_ratio=None,
+        enterprise_value_to_revenue_ratio=None,
+        free_cash_flow_yield=None,
+        peg_ratio=None,
+        gross_margin=metric_data.get("grossMarginTTM"),
+        operating_margin=metric_data.get("operatingMarginTTM"),
+        net_margin=metric_data.get("netProfitMarginTTM"),
+        return_on_equity=metric_data.get("roeTTM"),
+        return_on_assets=metric_data.get("roaTTM"),
+        return_on_invested_capital=metric_data.get("roicTTM"),
+        asset_turnover=metric_data.get("assetTurnoverTTM"),
+        inventory_turnover=metric_data.get("inventoryTurnoverTTM"),
+        receivables_turnover=metric_data.get("receivablesTurnoverTTM"),
+        days_sales_outstanding=None,
+        operating_cycle=None,
+        working_capital_turnover=None,
+        current_ratio=metric_data.get("currentRatioAnnual"),
+        quick_ratio=metric_data.get("quickRatioAnnual"),
+        cash_ratio=None,
+        operating_cash_flow_ratio=None,
+        debt_to_equity=metric_data.get("totalDebt/totalEquityAnnual"),
+        debt_to_assets=None,
+        interest_coverage=None,
+        revenue_growth=metric_data.get("revenueGrowthTTMYoy"),
+        earnings_growth=None,
+        book_value_growth=None,
+        earnings_per_share_growth=metric_data.get("epsGrowthTTMYoy"),
+        free_cash_flow_growth=None,
+        operating_income_growth=None,
+        ebitda_growth=None,
+        payout_ratio=metric_data.get("payoutRatioAnnual"),
+        earnings_per_share=metric_data.get("epsBasicExclExtraItemsTTM"),
+        book_value_per_share=metric_data.get("bookValuePerShareAnnual"),
+        free_cash_flow_per_share=None,
+    )
 
 
 def search_line_items(
@@ -398,7 +409,7 @@ def search_line_items(
     }
     response = _make_api_request(url, headers, method="POST", json_data=body)
     if response.status_code != 200:
-        raise Exception(
+        raise ValueError(
             f"Error fetching data: {ticker} - {response.status_code} - {response.text}",
         )
     data = response.json()
@@ -409,6 +420,96 @@ def search_line_items(
 
     # Cache the results
     return search_results[:limit]
+
+
+def _fetch_from_finnhub_insider_trades(
+    ticker: str,
+    start_date: str | None,
+    end_date: str,
+    limit: int,
+    api_key: str,
+) -> list[InsiderTrade]:
+    """Fetch insider trades from Finnhub API."""
+    finnhub_api_key = api_key or os.environ.get("FINNHUB_API_KEY")
+    if not finnhub_api_key:
+        raise ValueError(
+            "FINNHUB_API_KEY is required. Please set it in your .env file.",
+        )
+
+    client = finnhub.Client(api_key=finnhub_api_key)
+
+    from_date = start_date or (
+        datetime.datetime.strptime(end_date, "%Y-%m-%d")
+        - datetime.timedelta(days=365)
+    ).strftime("%Y-%m-%d")
+
+    try:
+        insider_data = client.stock_insider_transactions(
+            ticker,
+            from_date,
+            end_date,
+        )
+
+        if not insider_data or "data" not in insider_data:
+            return []
+
+        return [
+            _convert_finnhub_insider_trade(ticker, trade)
+            for trade in insider_data["data"][:limit]
+        ]
+    except Exception as e:
+        print(f"Warning: Finnhub insider trades error for {ticker}: {e}")
+        return []
+
+
+def _fetch_from_financial_datasets_insider_trades(
+    ticker: str,
+    start_date: str | None,
+    end_date: str,
+    limit: int,
+    api_key: str,
+) -> list[InsiderTrade]:
+    """Fetch insider trades from Financial Datasets API."""
+    headers = {}
+    financial_api_key = api_key or os.environ.get("FINANCIAL_DATASETS_API_KEY")
+    if financial_api_key:
+        headers["X-API-KEY"] = financial_api_key
+
+    all_trades = []
+    current_end_date = end_date
+
+    while True:
+        url = f"https://api.financialdatasets.ai/insider-trades/?ticker={ticker}&filing_date_lte={current_end_date}"
+        if start_date:
+            url += f"&filing_date_gte={start_date}"
+        url += f"&limit={limit}"
+
+        response = _make_api_request(url, headers)
+        if response.status_code != 200:
+            raise ValueError(
+                f"Error fetching data: {ticker} - {response.status_code} - {response.text}",
+            )
+
+        data = response.json()
+        response_model = InsiderTradeResponse(**data)
+        insider_trades = response_model.insider_trades
+
+        if not insider_trades:
+            break
+
+        all_trades.extend(insider_trades)
+
+        if not start_date or len(insider_trades) < limit:
+            break
+
+        current_end_date = min(
+            trade.filing_date for trade in insider_trades
+        ).split("T")[0]
+
+        if current_end_date <= start_date:
+            break
+
+    return all_trades
 
 
 def get_insider_trades(
@@ -433,129 +534,29 @@ def get_insider_trades(
     Returns:
         list[InsiderTrade]: List of insider trades
     """
-    # Create a cache key that includes all parameters to ensure exact matches
     cache_key = (
         f"{ticker}_{start_date or 'none'}_{end_date}_{limit}_{data_source}"
     )
 
-    # Check cache first - simple exact match
     if cached_data := _cache.get_insider_trades(cache_key):
         return [InsiderTrade(**trade) for trade in cached_data]
 
-    all_trades = []
-
     if data_source == "finnhub":
-        # Use Finnhub API - Insider Transactions
-        finnhub_api_key = api_key or os.environ.get("FINNHUB_API_KEY")
-        if not finnhub_api_key:
-            raise ValueError(
-                "FINNHUB_API_KEY is required. Please set it in your .env file.",
-            )
-
-        client = finnhub.Client(api_key=finnhub_api_key)
-
-        # Finnhub API: stock_insider_transactions(symbol, from_date, to_date)
-        # Convert date format if needed
-        from_date = (
-            start_date
-            if start_date
-            else (
-                datetime.datetime.strptime(end_date, "%Y-%m-%d")
-                - datetime.timedelta(days=365)
-            ).strftime("%Y-%m-%d")
+        all_trades = _fetch_from_finnhub_insider_trades(
+            ticker,
+            start_date,
+            end_date,
+            limit,
+            api_key,
         )
-
-        try:
-            insider_data = client.stock_insider_transactions(
-                ticker,
-                from_date,
-                end_date,
-            )
-
-            if insider_data and "data" in insider_data:
-                # Convert Finnhub format to InsiderTrade format
-                for trade in insider_data["data"][:limit]:  # Limit results
-                    # Calculate shares owned after from share and change
-                    shares_after = trade.get("share", 0)
-
-                    insider_trade = InsiderTrade(
-                        ticker=ticker,
-                        issuer=None,  # Not provided by Finnhub
-                        name=trade.get("name", ""),
-                        title=None,  # Not provided by Finnhub
-                        is_board_director=None,  # Not provided by Finnhub
-                        transaction_date=trade.get("transactionDate", ""),
-                        transaction_shares=abs(
-                            trade.get("change", 0),
-                        ),  # Number of shares in transaction
-                        transaction_price_per_share=trade.get(
-                            "transactionPrice",
-                            0.0,
-                        ),
-                        transaction_value=abs(trade.get("change", 0))
-                        * trade.get("transactionPrice", 0.0),
-                        shares_owned_before_transaction=(
-                            shares_after - trade.get("change", 0)
-                            if shares_after and trade.get("change")
-                            else None
-                        ),
-                        shares_owned_after_transaction=(
-                            float(shares_after) if shares_after else None
-                        ),
-                        security_title=None,  # Not provided by Finnhub
-                        filing_date=trade.get("filingDate", ""),
-                    )
-                    all_trades.append(insider_trade)
-        except Exception as e:
-            # Finnhub may not have data for all tickers
-            print(f"Warning: Finnhub insider trades error for {ticker}: {e}")
-            return []
-
     elif data_source == "financial_datasets":
-        # Use Financial Datasets API
-        headers = {}
-        financial_api_key = api_key or os.environ.get(
-            "FINANCIAL_DATASETS_API_KEY",
+        all_trades = _fetch_from_financial_datasets_insider_trades(
+            ticker,
+            start_date,
+            end_date,
+            limit,
+            api_key,
         )
-        if financial_api_key:
-            headers["X-API-KEY"] = financial_api_key
-
-        current_end_date = end_date
-
-        while True:
-            url = f"https://api.financialdatasets.ai/insider-trades/?ticker={ticker}&filing_date_lte={current_end_date}"
-            if start_date:
-                url += f"&filing_date_gte={start_date}"
-            url += f"&limit={limit}"
-
-            response = _make_api_request(url, headers)
-            if response.status_code != 200:
-                raise Exception(
-                    f"Error fetching data: {ticker} - {response.status_code} - {response.text}",
-                )
-
-            data = response.json()
-            response_model = InsiderTradeResponse(**data)
-            insider_trades = response_model.insider_trades
-
-            if not insider_trades:
-                break
-
-            all_trades.extend(insider_trades)
-
-            # Only continue pagination if we have a start_date and got a full page
-            if not start_date or len(insider_trades) < limit:
-                break
-
-            # Update end_date to the oldest filing date from current batch for next iteration
-            current_end_date = min(
-                trade.filing_date for trade in insider_trades
-            ).split("T")[0]
-
-            # If we've reached or passed the start_date, we can stop
-            if current_end_date <= start_date:
-                break
-
     else:
         raise ValueError(
             f"Invalid data_source: {data_source}. Must be 'finnhub' or 'financial_datasets'",
@@ -564,12 +565,114 @@ def get_insider_trades(
     if not all_trades:
         return []
 
-    # Cache the results using the comprehensive cache key
     _cache.set_insider_trades(
         cache_key,
         [trade.model_dump() for trade in all_trades],
     )
     return all_trades
+
+
+def _fetch_from_finnhub_company_news(
+    ticker: str,
+    start_date: str | None,
+    end_date: str,
+    limit: int,
+    api_key: str,
+) -> list[CompanyNews]:
+    """Fetch company news from Finnhub API."""
+    finnhub_api_key = api_key or os.environ.get("FINNHUB_API_KEY")
+    if not finnhub_api_key:
+        raise ValueError(
+            "FINNHUB_API_KEY is required. Please set it in your .env file.",
+        )
+
+    client = finnhub.Client(api_key=finnhub_api_key)
+
+    from_date = start_date or (
+        datetime.datetime.strptime(end_date, "%Y-%m-%d")
+        - datetime.timedelta(days=30)
+    ).strftime("%Y-%m-%d")
+
+    try:
+        news_data = client.company_news(ticker, _from=from_date, to=end_date)
+
+        if not news_data:
+            return []
+
+        all_news = []
+        for news_item in news_data[:limit]:
+            company_news = CompanyNews(
+                ticker=ticker,
+                title=news_item.get("headline", ""),
+                related=news_item.get("related", ""),
+                source=news_item.get("source", ""),
+                date=(
+                    datetime.datetime.fromtimestamp(
+                        news_item.get("datetime", 0),
+                        datetime.timezone.utc,
+                    ).strftime("%Y-%m-%d")
+                    if news_item.get("datetime")
+                    else None
+                ),
+                url=news_item.get("url", ""),
+                summary=news_item.get("summary", ""),
+                category=news_item.get("category", ""),
+            )
+            all_news.append(company_news)
+        return all_news
+    except Exception as e:
+        print(f"Warning: Finnhub company news error for {ticker}: {e}")
+        return []
+
+
+def _fetch_from_financial_datasets_company_news(
+    ticker: str,
+    start_date: str | None,
+    end_date: str,
+    limit: int,
+    api_key: str,
+) -> list[CompanyNews]:
+    """Fetch company news from Financial Datasets API."""
+    headers = {}
+    financial_api_key = api_key or os.environ.get("FINANCIAL_DATASETS_API_KEY")
+    if financial_api_key:
+        headers["X-API-KEY"] = financial_api_key
+
+    all_news = []
+    current_end_date = end_date
+
+    while True:
+        url = f"https://api.financialdatasets.ai/news/?ticker={ticker}&end_date={current_end_date}"
+        if start_date:
+            url += f"&start_date={start_date}"
+        url += f"&limit={limit}"
+
+        response = _make_api_request(url, headers)
+        if response.status_code != 200:
+            raise ValueError(
+                f"Error fetching data: {ticker} - {response.status_code} - {response.text}",
+            )
+
+        data = response.json()
+        response_model = CompanyNewsResponse(**data)
+        company_news = response_model.news
+
+        if not company_news:
+            break
+
+        all_news.extend(company_news)
+
+        if not start_date or len(company_news) < limit:
+            break
+
+        current_end_date = min(news.date for news in company_news).split("T")[
+            0
+        ]
+
+        if current_end_date <= start_date:
+            break
+
+    return all_news
 
 
 def get_company_news(
@@ -594,118 +697,29 @@ def get_company_news(
     Returns:
         list[CompanyNews]: List of company news
     """
-    # Create a cache key that includes all parameters to ensure exact matches
     cache_key = (
         f"{ticker}_{start_date or 'none'}_{end_date}_{limit}_{data_source}"
     )
 
-    # Check cache first - simple exact match
     if cached_data := _cache.get_company_news(cache_key):
         return [CompanyNews(**news) for news in cached_data]
 
-    all_news = []
-
     if data_source == "finnhub":
-        # Use Finnhub API - Company News
-        finnhub_api_key = api_key or os.environ.get("FINNHUB_API_KEY")
-        if not finnhub_api_key:
-            raise ValueError(
-                "FINNHUB_API_KEY is required. Please set it in your .env file.",
-            )
-
-        client = finnhub.Client(api_key=finnhub_api_key)
-
-        # Finnhub API: company_news(symbol, _from, to)
-        # Convert date format if needed
-        from_date = (
-            start_date
-            if start_date
-            else (
-                datetime.datetime.strptime(end_date, "%Y-%m-%d")
-                - datetime.timedelta(days=30)
-            ).strftime("%Y-%m-%d")
+        all_news = _fetch_from_finnhub_company_news(
+            ticker,
+            start_date,
+            end_date,
+            limit,
+            api_key,
         )
-        try:
-            news_data = client.company_news(
-                ticker,
-                _from=from_date,
-                to=end_date,
-            )
-
-            if news_data:
-                # Convert Finnhub format to CompanyNews format
-                for news_item in news_data[:limit]:  # Limit results
-                    company_news = CompanyNews(
-                        ticker=ticker,
-                        title=news_item.get("headline", ""),
-                        related=news_item.get(
-                            "related",
-                            "",
-                        ),  # Finnhub doesn't provide author
-                        source=news_item.get("source", ""),
-                        date=(
-                            datetime.datetime.fromtimestamp(
-                                news_item.get("datetime", 0),
-                                datetime.timezone.utc,
-                            ).strftime("%Y-%m-%d")
-                            if news_item.get("datetime")
-                            else None
-                        ),
-                        url=news_item.get("url", ""),
-                        summary=news_item.get("summary", ""),
-                        category=news_item.get("category", ""),
-                    )
-                    all_news.append(company_news)
-        except Exception as e:
-            # Finnhub may not have data for all tickers
-            print(f"Warning: Finnhub company news error for {ticker}: {e}")
-            return []
-
     elif data_source == "financial_datasets":
-        # Use Financial Datasets API
-        headers = {}
-        financial_api_key = api_key or os.environ.get(
-            "FINANCIAL_DATASETS_API_KEY",
+        all_news = _fetch_from_financial_datasets_company_news(
+            ticker,
+            start_date,
+            end_date,
+            limit,
+            api_key,
         )
-        if financial_api_key:
-            headers["X-API-KEY"] = financial_api_key
-
-        current_end_date = end_date
-
-        while True:
-            url = f"https://api.financialdatasets.ai/news/?ticker={ticker}&end_date={current_end_date}"
-            if start_date:
-                url += f"&start_date={start_date}"
-            url += f"&limit={limit}"
-
-            response = _make_api_request(url, headers)
-            if response.status_code != 200:
-                raise Exception(
-                    f"Error fetching data: {ticker} - {response.status_code} - {response.text}",
-                )
-
-            data = response.json()
-            response_model = CompanyNewsResponse(**data)
-            company_news = response_model.news
-
-            if not company_news:
-                break
-
-            all_news.extend(company_news)
-
-            # Only continue pagination if we have a start_date and got a full page
-            if not start_date or len(company_news) < limit:
-                break
-
-            # Update end_date to the oldest date from current batch for next iteration
-            current_end_date = min(news.date for news in company_news).split(
-                "T",
-            )[0]
-
-            # If we've reached or passed the start_date, we can stop
-            if current_end_date <= start_date:
-                break
-
     else:
         raise ValueError(
             f"Invalid data_source: {data_source}. Must be 'finnhub' or 'financial_datasets'",
@@ -714,12 +728,37 @@ def get_company_news(
     if not all_news:
         return []
 
-    # Cache the results using the comprehensive cache key
     _cache.set_company_news(
         cache_key,
         [news.model_dump() for news in all_news],
     )
     return all_news
+
+
+def _convert_finnhub_insider_trade(ticker: str, trade: dict) -> InsiderTrade:
+    """Convert Finnhub insider trade format to InsiderTrade model."""
+    shares_after = trade.get("share", 0)
+    change = trade.get("change", 0)
+
+    return InsiderTrade(
+        ticker=ticker,
+        issuer=None,
+        name=trade.get("name", ""),
+        title=None,
+        is_board_director=None,
+        transaction_date=trade.get("transactionDate", ""),
+        transaction_shares=abs(change),
+        transaction_price_per_share=trade.get("transactionPrice", 0.0),
+        transaction_value=abs(change) * trade.get("transactionPrice", 0.0),
+        shares_owned_before_transaction=(
+            shares_after - change if shares_after and change else None
+        ),
+        shares_owned_after_transaction=float(shares_after)
+        if shares_after
+        else None,
+        security_title=None,
+        filing_date=trade.get("filingDate", ""),
+    )
 
 
 def get_market_cap(
