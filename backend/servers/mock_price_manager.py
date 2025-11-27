@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 class MockPriceManager:
     """Mock Price Manager - Generates virtual prices for testing"""
 
-    def __init__(self, poll_interval: int = None, volatility: float = None):
+    def __init__(self, poll_interval: int = 10, volatility: float = 5):
         """
         Args:
             poll_interval: Price update interval (seconds),
