@@ -103,6 +103,58 @@ class TeamDashboardGenerator:
         # Cache price data
         self._price_cache = {}  # ticker -> DataFrame
 
+    def load_internal_state(self):
+        """Public wrapper for loading internal state"""
+        return self._load_internal_state()
+
+    def save_internal_state(self, state):
+        """Public wrapper for saving internal state"""
+        return self._save_internal_state(state)
+
+    def update_agent_performance(
+        self,
+        date,
+        ana_signals,
+        pm_signals,
+        real_returns,
+        state,
+        update_stats,
+    ):
+        """Public wrapper for updating agent performance"""
+        return self._update_agent_performance(
+            date,
+            ana_signals,
+            pm_signals,
+            real_returns,
+            state,
+            update_stats,
+        )
+
+    def update_pm_performance(
+        self,
+        date,
+        pm_signals,
+        real_returns,
+        state,
+        update_stats,
+    ):
+        """Public wrapper for updating PM performance"""
+        return self._update_pm_performance(
+            date,
+            pm_signals,
+            real_returns,
+            state,
+            update_stats,
+        )
+
+    def generate_stats(self, state):
+        """Public wrapper for generating stats"""
+        return self._generate_stats(state)
+
+    def generate_leaderboard(self, state):
+        """Public wrapper for generating leaderboard"""
+        return self._generate_leaderboard(state)
+
     def _get_next_trading_day(self, date: str) -> str:
         """
         Get the next trading day for the specified date
