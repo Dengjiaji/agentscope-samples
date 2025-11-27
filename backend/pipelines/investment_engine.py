@@ -7,6 +7,7 @@ Handles single-day analysis workflow: analysts → risk → portfolio manager �
 # flake8: noqa: E501
 # pylint: disable=C0301
 import concurrent.futures
+from csv import Error
 import json
 import logging
 import os
@@ -203,7 +204,7 @@ class InvestmentEngine:
             Single-day analysis result including updated portfolio state
         """
         # Calculate lookback start date (30 days)
-        from datetime import datetime, timedelta
+        from datetime import timedelta
 
         date_obj = datetime.strptime(date, "%Y-%m-%d")
         lookback_start = (date_obj - timedelta(days=30)).strftime("%Y-%m-%d")
@@ -344,7 +345,7 @@ class InvestmentEngine:
         agent_id: str,
         tickers: List[str],
         first_round_analysis: Dict[str, Any],
-        overall_summary: Dict[str, Any],
+        _overall_summary: Dict[str, Any],
         notifications: List[Dict[str, Any]],
         state: AgentState,
     ) -> SecondRoundAnalysis:
@@ -386,8 +387,12 @@ class InvestmentEngine:
             # pdb.set_trace()
             try:
                 ticker_first_round["tool_analysis"]["synthesis_details"]
-            except:
-                with open("../../../ticker_first_round.json", "w") as f:
+            except Error as exc:
+                with open(
+                    "../../../ticker_first_round.json",
+                    "w",
+                    encoding="utf-8",
+                ) as f:
                     json.dump(
                         ticker_first_round,
                         f,
@@ -409,7 +414,7 @@ class InvestmentEngine:
                 # 抛出异常以便调试
                 raise ValueError(
                     f"ticker_first_round structure is invalid for ticker {ticker}. Debug files saved to txt.",
-                )
+                ) from exc
 
             ticker_report = f"""## Stock {i}: {ticker}
 
@@ -490,7 +495,7 @@ class InvestmentEngine:
         agent_memory = notification_system.get_agent_memory(agent_id)
 
         # Execute analyst
-        result = agent.execute(state)
+        _result = agent.execute(state)
 
         # Get analysis result
         analysis_result = state["data"]["analyst_signals"].get(agent_id, {})
@@ -535,56 +540,9 @@ class InvestmentEngine:
                 filtered = {}
                 for ticker, ticker_data in result.items():
                     if isinstance(ticker_data, dict):
-                        filtered_ticker_data = {
-                            k: v
-                            for k, v in ticker_data.items()
-                            if k != "tool_selection"
-                        }
-
-                        # Filter tool_analysis.tool_results
-                        if (
-                            "tool_analysis" in filtered_ticker_data
-                            and isinstance(
-                                filtered_ticker_data["tool_analysis"],
-                                dict,
-                            )
-                        ):
-                            tool_analysis = filtered_ticker_data[
-                                "tool_analysis"
-                            ].copy()
-                            if "tool_results" in tool_analysis and isinstance(
-                                tool_analysis["tool_results"],
-                                list,
-                            ):
-                                # Keep only specified fields in each tool_result
-                                filtered_tool_results = []
-                                for tool_result in tool_analysis[
-                                    "tool_results"
-                                ]:
-                                    if isinstance(tool_result, dict):
-                                        filtered_tool_result = {
-                                            k: v
-                                            for k, v in tool_result.items()
-                                            if k
-                                            in [
-                                                "signal",
-                                                "reasoning",
-                                                "tool_name",
-                                                "details",
-                                                "selection_reason",
-                                            ]
-                                        }
-                                        filtered_tool_results.append(
-                                            filtered_tool_result,
-                                        )
-                                tool_analysis[
-                                    "tool_results"
-                                ] = filtered_tool_results
-                            filtered_ticker_data[
-                                "tool_analysis"
-                            ] = tool_analysis
-
-                        filtered[ticker] = filtered_ticker_data
+                        filtered[ticker] = self._filter_ticker_data(
+                            ticker_data,
+                        )
                     else:
                         filtered[ticker] = ticker_data
                 return filtered
@@ -607,7 +565,7 @@ class InvestmentEngine:
                 notification_decision = should_send_notification(
                     agent_id=agent_id,
                     analysis_result=analysis_result,
-                    agent_memory=agent_memory,
+                    _agent_memory=agent_memory,
                     state=state,
                 )
 
@@ -631,7 +589,7 @@ class InvestmentEngine:
                                 "category",
                                 "general",
                             ),
-                            backtest_date=backtest_date,
+                            _backtest_date=backtest_date,
                         )
 
                     # Broadcast notification to all agents' memory
@@ -684,13 +642,54 @@ class InvestmentEngine:
                 "status": "no_result",
             }
 
+    def _filter_ticker_data(self, ticker_data: dict) -> dict:
+        """Filter single ticker data"""
+        # Remove tool_selection field
+        filtered_ticker_data = {
+            k: v for k, v in ticker_data.items() if k != "tool_selection"
+        }
+
+        # Filter tool_analysis.tool_results
+        if "tool_analysis" in filtered_ticker_data and isinstance(
+            filtered_ticker_data["tool_analysis"],
+            dict,
+        ):
+            tool_analysis = filtered_ticker_data["tool_analysis"].copy()
+            if "tool_results" in tool_analysis and isinstance(
+                tool_analysis["tool_results"],
+                list,
+            ):
+                # Keep only specified fields in each tool_result
+                filtered_tool_results = []
+                for tool_result in tool_analysis["tool_results"]:
+                    if isinstance(tool_result, dict):
+                        filtered_tool_result = {
+                            k: v
+                            for k, v in tool_result.items()
+                            if k
+                            in [
+                                "signal",
+                                "reasoning",
+                                "tool_name",
+                                "details",
+                                "selection_reason",
+                            ]
+                        }
+                        filtered_tool_results.append(
+                            filtered_tool_result,
+                        )
+                tool_analysis["tool_results"] = filtered_tool_results
+            filtered_ticker_data["tool_analysis"] = tool_analysis
+
+        return filtered_ticker_data
+
     def _run_analysts_parallel(self, state: AgentState) -> Dict[str, Any]:
         """Execute all analysts in parallel"""
         start_time = datetime.now()
 
         # Create independent state copy for each analyst to avoid concurrency conflicts
         analyst_states = {}
-        for agent_id in self.core_analysts.keys():
+        for agent_id, _ in self.core_analysts.items():
             analyst_states[agent_id] = deepcopy(state)
 
         analyst_results = {}
@@ -737,7 +736,7 @@ class InvestmentEngine:
                     }
 
         end_time = datetime.now()
-        execution_time = (end_time - start_time).total_seconds()
+        _execution_time = (end_time - start_time).total_seconds()
 
         return analyst_results
 
@@ -815,7 +814,7 @@ class InvestmentEngine:
 
         # Create independent state copy for each analyst
         analyst_states = {}
-        for agent_id in self.core_analysts.keys():
+        for agent_id, _ in self.core_analysts.items():
             analyst_states[agent_id] = deepcopy(state)
             # Clear first round analysis results to avoid conflicts
             analyst_states[agent_id]["data"]["analyst_signals"] = {}
@@ -853,7 +852,7 @@ class InvestmentEngine:
                     ]
 
         end_time = datetime.now()
-        execution_time = (end_time - start_time).total_seconds()
+        _execution_time = (end_time - start_time).total_seconds()
 
         return second_round_results
 
@@ -944,7 +943,6 @@ class InvestmentEngine:
 
             except Exception as e:
                 logging.error(f"[{agent_id}] Exception during retry: {str(e)}")
-                import traceback
 
                 logging.debug(
                     f"Retry exception traceback:\n{traceback.format_exc()}",
@@ -976,7 +974,7 @@ class InvestmentEngine:
             agent_id=agent_id,
             tickers=tickers,
             first_round_analysis=first_round_analysis,
-            overall_summary=overall_summary,
+            _overall_summary=overall_summary,
             notifications=notifications,
             state=state,
         )
@@ -1063,7 +1061,7 @@ class InvestmentEngine:
         else:
             risk_agent = RiskManagerAgent(agent_id=agent_id, mode="basic")
 
-        risk_result = risk_agent.execute(state)
+        _risk_result = risk_agent.execute(state)
         risk_analysis = state["data"]["analyst_signals"].get(agent_id, {})
 
         if risk_analysis:
@@ -1144,31 +1142,10 @@ class InvestmentEngine:
             execute_trades: Whether to execute trades. If False, only generate decisions without execution (for live mode pre-market)
         """
         try:
-            # Select appropriate Portfolio Manager based on mode
-            # Prepare config with dashboard directory
-            pm_config = {
-                "config_name": self.config_name,
-                "sandbox_dir": self.sandbox_dir,
-            }
-            if mode == "portfolio":
-                pm_agent = PortfolioManagerAgent(
-                    agent_id="portfolio_manager",
-                    mode="portfolio",
-                    config=pm_config,
-                )
-            else:
-                pm_agent = PortfolioManagerAgent(
-                    agent_id="portfolio_manager",
-                    mode="direction",
-                    config=pm_config,
-                )
-
-            portfolio_result = pm_agent.execute(state)
-
-            # Update state
-            if portfolio_result and "messages" in portfolio_result:
-                state["messages"] = portfolio_result["messages"]
-                state["data"] = portfolio_result["data"]
+            # Get initial portfolio result
+            portfolio_result = self._get_initial_portfolio_result(state, mode)
+            if portfolio_result.get("error"):
+                return portfolio_result
 
             # Get initial investment decisions
             initial_decisions = self._extract_portfolio_decisions(
@@ -1177,317 +1154,456 @@ class InvestmentEngine:
             )
 
             if not initial_decisions:
-                return {
-                    "agent_id": "portfolio_manager",
-                    "agent_name": "Portfolio Manager",
-                    "error": "Unable to get initial decisions",
-                    "status": "error",
-                }
+                return self._error_response("Unable to get initial decisions")
 
-            # If communications enabled
+            # Process based on communication settings
             if enable_communications:
-                try:
-                    max_cycles = int(
-                        state["metadata"].get("max_communication_cycles", 3),
-                    )
-                except Exception:
-                    max_cycles = 3
-
-                final_decisions = initial_decisions
-                last_decision_dump = None
-                communication_results = {}
-                updated_signals: dict = {}
-
-                for cycle in range(1, max_cycles + 1):
-                    # Get analyst signals (refresh each round)
-                    analyst_signals = {}
-                    if cycle == 1:
-                        for agent_id in self.core_analysts.keys():
-                            if agent_id in state["data"]["analyst_signals"]:
-                                analyst_signals[agent_id] = state["data"][
-                                    "analyst_signals"
-                                ][agent_id]
-                    else:
-                        analyst_signals = (
-                            updated_signals if updated_signals else {}
-                        )
-
-                    # Decide communication strategy
-                    communication_decision = (
-                        communication_manager.decide_communication_strategy(
-                            manager_signals=final_decisions,
-                            analyst_signals=analyst_signals,
-                            state=state,
-                        )
-                    )
-                    last_decision_dump = communication_decision.model_dump()
-
-                    # Record communication decision
-                    if (
-                        "communication_decisions"
-                        not in state["data"]["communication_logs"]
-                    ):
-                        state["data"]["communication_logs"][
-                            "communication_decisions"
-                        ] = []
-
-                    state["data"]["communication_logs"][
-                        "communication_decisions"
-                    ].append(
-                        {
-                            "timestamp": datetime.now().isoformat(),
-                            "decision": last_decision_dump,
-                        },
-                    )
-
-                    if not communication_decision.should_communicate:
-                        break
-
-                    if self.streamer:
-                        self.streamer.print(
-                            "agent",
-                            f"Communication type selected: {communication_decision.communication_type}\n"
-                            f"Discussion topic: {communication_decision.discussion_topic}\n"
-                            f"Target analysts: {', '.join(communication_decision.target_analysts)}",
-                            role_key="portfolio_manager",
-                        )
-
-                    if (
-                        communication_decision.communication_type
-                        == "private_chat"
-                    ):
-                        # Conduct private chats
-                        communication_results = self._conduct_private_chats(
-                            communication_decision,
-                            analyst_signals,
-                            state,
-                        )
-                    elif (
-                        communication_decision.communication_type == "meeting"
-                    ):
-                        # Conduct meeting
-                        communication_results = self._conduct_meeting(
-                            communication_decision,
-                            analyst_signals,
-                            state,
-                        )
-                    else:
-                        communication_results = {}
-
-                    # If signals adjusted, rerun portfolio decisions
-                    if communication_results.get("signals_adjusted", False):
-                        if self.streamer:
-                            self.streamer.print(
-                                "agent",
-                                "Regenerating investment decisions based on communication results...",
-                                role_key="portfolio_manager",
-                            )
-
-                        # Update analyst signals
-                        updated_signals = communication_results.get(
-                            "updated_signals",
-                            {},
-                        )
-                        for (
-                            agent_id,
-                            updated_signal,
-                        ) in updated_signals.items():
-                            state["data"]["analyst_signals"][
-                                f"{agent_id}_post_communication_cycle{cycle}"
-                            ] = updated_signal
-
-                        # Rerun portfolio management
-                        # Prepare config with dashboard directory
-                        pm_config = {
-                            "config_name": self.config_name,
-                            "sandbox_dir": self.sandbox_dir,
-                        }
-                        if mode == "portfolio":
-                            pm_agent = PortfolioManagerAgent(
-                                agent_id="portfolio_manager",
-                                mode="portfolio",
-                                config=pm_config,
-                            )
-                        else:
-                            pm_agent = PortfolioManagerAgent(
-                                agent_id="portfolio_manager",
-                                mode="direction",
-                                config=pm_config,
-                            )
-
-                        final_portfolio_result = pm_agent.execute(state)
-
-                        if (
-                            final_portfolio_result
-                            and "messages" in final_portfolio_result
-                        ):
-                            state["messages"] = final_portfolio_result[
-                                "messages"
-                            ]
-                            state["data"] = final_portfolio_result["data"]
-
-                        new_final_decisions = (
-                            self._extract_portfolio_decisions(
-                                state,
-                                agent_name="portfolio_manager",
-                            )
-                        )
-                        if new_final_decisions:
-                            final_decisions = new_final_decisions
-                            if self.streamer:
-                                self.streamer.print(
-                                    "agent",
-                                    "Investment decisions updated based on communication results",
-                                    role_key="portfolio_manager",
-                                )
-                    else:
-                        break
-
-                # Execute final trading decisions (only if execute_trades=True)
-                if not execute_trades:
-                    # Live mode pre-market: Only generate decisions, do not execute trades yet
-                    # Execution will happen after market close when we have closing prices
-                    if self.streamer:
-                        decision_lines = [
-                            "Generated final trading decisions (will execute after market close):",
-                        ]
-                        for ticker, decision in final_decisions.items():
-                            action = decision.get("action", "N/A")
-                            confidence = decision.get("confidence", 0)
-                            reasoning = decision.get("reasoning", "")
-
-                            decision_lines.append(f"\n【{ticker}】")
-                            decision_lines.append(f"  Decision: {action}")
-                            if mode == "portfolio":
-                                quantity = decision.get("quantity", 0)
-                                decision_lines.append(
-                                    f"  Quantity: {quantity} shares",
-                                )
-                            decision_lines.append(
-                                f"  Confidence: {confidence}%",
-                            )
-                            if reasoning:
-                                decision_lines.append(
-                                    f"  💭 Reasoning: {reasoning}",
-                                )
-
-                        self.streamer.print(
-                            "agent",
-                            "\n".join(decision_lines),
-                            role_key="portfolio_manager",
-                        )
-
-                    # Return decisions without execution
-                    return {
-                        "agent_id": "portfolio_manager",
-                        "agent_name": "Portfolio Manager",
-                        "initial_decisions": initial_decisions,
-                        "final_decisions": final_decisions,
-                        "communication_decision": last_decision_dump,
-                        "communication_results": communication_results,
-                        "final_execution_report": None,  # No execution yet
-                        "portfolio_summary": {
-                            "status": "signal_based_analysis",
-                        },
-                        "communications_enabled": True,
-                        "status": "success",
-                        "trades_deferred": True,  # Flag indicating trades are deferred
-                    }
-
-                # Execute final trading decisions
-                if self.streamer:
-                    decision_lines = ["Executing final trading decisions"]
-                    for ticker, decision in final_decisions.items():
-                        action = decision.get("action", "N/A")
-                        confidence = decision.get("confidence", 0)
-                        reasoning = decision.get("reasoning", "")
-
-                        decision_lines.append(f"\n【{ticker}】")
-                        decision_lines.append(f"  Decision: {action}")
-                        if mode == "portfolio":
-                            quantity = decision.get("quantity", 0)
-                            decision_lines.append(
-                                f"  Quantity: {quantity} shares",
-                            )
-                        decision_lines.append(f"  Confidence: {confidence}%")
-                        if reasoning:
-                            decision_lines.append(
-                                f"  💭 Reasoning: {reasoning}",
-                            )
-
-                    self.streamer.print(
-                        "agent",
-                        "\n".join(decision_lines),
-                        role_key="portfolio_manager",
-                    )
-
-                final_execution_report = self._execute_portfolio_trades(
+                return self._process_with_communications(
                     state,
-                    final_decisions,
+                    initial_decisions,
                     mode,
+                    execute_trades,
                 )
 
-                # Generate simplified summary
-                portfolio_summary = {"status": "signal_based_analysis"}
-
-                return {
-                    "agent_id": "portfolio_manager",
-                    "agent_name": "Portfolio Manager",
-                    "initial_decisions": initial_decisions,
-                    "final_decisions": final_decisions,
-                    "communication_decision": last_decision_dump,
-                    "communication_results": communication_results,
-                    "final_execution_report": final_execution_report,
-                    "portfolio_summary": portfolio_summary,
-                    "communications_enabled": True,
-                    "status": "success",
-                }
-
-            else:
-                # Communication mechanism disabled
-                if not execute_trades:
-                    # Live mode pre-market: Only generate decisions
-                    return {
-                        "agent_id": "portfolio_manager",
-                        "agent_name": "Portfolio Manager",
-                        "final_decisions": initial_decisions,
-                        "execution_report": None,
-                        "portfolio_summary": {
-                            "status": "signal_based_analysis",
-                        },
-                        "communications_enabled": False,
-                        "status": "success",
-                        "trades_deferred": True,
-                    }
-                else:
-                    # Execute initial decisions directly
-                    execution_report = self._execute_portfolio_trades(
-                        state,
-                        initial_decisions,
-                        mode,
-                    )
-
-                    # Generate simplified summary
-                    portfolio_summary = {"status": "signal_based_analysis"}
-
-                    return {
-                        "agent_id": "portfolio_manager",
-                        "agent_name": "Portfolio Manager",
-                        "final_decisions": initial_decisions,
-                        "execution_report": execution_report,
-                        "portfolio_summary": portfolio_summary,
-                        "communications_enabled": False,
-                        "status": "success",
-                    }
+            return self._process_without_communications(
+                state,
+                initial_decisions,
+                mode,
+                execute_trades,
+            )
 
         except Exception as e:
             traceback.print_exc()
-            return {
-                "agent_id": "portfolio_manager",
-                "agent_name": "Portfolio Manager",
-                "error": str(e),
-                "status": "error",
-            }
+            return self._error_response(str(e))
+
+    def _get_initial_portfolio_result(
+        self,
+        state: AgentState,
+        mode: str,
+    ) -> Dict[str, Any]:
+        """Get initial portfolio management result"""
+        pm_config = {
+            "config_name": self.config_name,
+            "sandbox_dir": self.sandbox_dir,
+        }
+
+        agent_mode = "portfolio" if mode == "portfolio" else "direction"
+        pm_agent = PortfolioManagerAgent(
+            agent_id="portfolio_manager",
+            mode=agent_mode,
+            config=pm_config,
+        )
+
+        portfolio_result = pm_agent.execute(state)
+
+        # Update state
+        if portfolio_result and "messages" in portfolio_result:
+            state["messages"] = portfolio_result["messages"]
+            state["data"] = portfolio_result["data"]
+
+        return portfolio_result or {}
+
+    def _process_with_communications(
+        self,
+        state: AgentState,
+        initial_decisions: Dict,
+        mode: str,
+        execute_trades: bool,
+    ) -> Dict[str, Any]:
+        """Process portfolio management with communication mechanism"""
+        max_cycles = self._get_max_communication_cycles(state)
+
+        final_decisions = initial_decisions
+        last_decision_dump = None
+        communication_results = {}
+        updated_signals = {}
+
+        for cycle in range(1, max_cycles + 1):
+            # Get analyst signals for this cycle
+            analyst_signals = self._get_analyst_signals_for_cycle(
+                state,
+                cycle,
+                updated_signals,
+            )
+
+            # Decide communication strategy
+            communication_decision = (
+                communication_manager.decide_communication_strategy(
+                    analyst_signals=analyst_signals,
+                    state=state,
+                )
+            )
+            last_decision_dump = communication_decision.model_dump()
+
+            # Record communication decision
+            self._record_communication_decision(state, last_decision_dump)
+
+            if not communication_decision.should_communicate:
+                break
+
+            # Stream communication info
+            self._stream_communication_info(communication_decision)
+
+            # Conduct communication
+            communication_results = self._conduct_communication(
+                communication_decision,
+                analyst_signals,
+                state,
+            )
+
+            # Handle signal adjustments
+            should_break = self._handle_signal_adjustments(
+                state,
+                communication_results,
+                cycle,
+                mode,
+                updated_signals,
+                final_decisions,
+            )
+
+            if should_break:
+                final_decisions = (
+                    self._get_updated_decisions(state) or final_decisions
+                )
+                break
+
+        # Return result based on execute_trades flag
+        return self._create_final_response(
+            state,
+            initial_decisions,
+            final_decisions,
+            last_decision_dump,
+            communication_results,
+            mode,
+            execute_trades,
+            communications_enabled=True,
+        )
+
+    def _process_without_communications(
+        self,
+        state: AgentState,
+        initial_decisions: Dict,
+        mode: str,
+        execute_trades: bool,
+    ) -> Dict[str, Any]:
+        """Process portfolio management without communication mechanism"""
+        if not execute_trades:
+            return self._create_deferred_response(initial_decisions)
+
+        execution_report = self._execute_portfolio_trades(
+            state,
+            initial_decisions,
+            mode,
+        )
+
+        portfolio_summary = {"status": "signal_based_analysis"}
+
+        return {
+            "agent_id": "portfolio_manager",
+            "agent_name": "Portfolio Manager",
+            "final_decisions": initial_decisions,
+            "execution_report": execution_report,
+            "portfolio_summary": portfolio_summary,
+            "communications_enabled": False,
+            "status": "success",
+        }
+
+    def _get_max_communication_cycles(self, state: AgentState) -> int:
+        """Get maximum communication cycles from state"""
+        try:
+            return int(state["metadata"].get("max_communication_cycles", 3))
+        except Exception:
+            return 3
+
+    def _get_analyst_signals_for_cycle(
+        self,
+        state: AgentState,
+        cycle: int,
+        updated_signals: Dict,
+    ) -> Dict:
+        """Get analyst signals for current communication cycle"""
+        if cycle == 1:
+            analyst_signals = {}
+            for agent_id, _ in self.core_analysts.items():
+                if agent_id in state["data"]["analyst_signals"]:
+                    analyst_signals[agent_id] = state["data"][
+                        "analyst_signals"
+                    ][agent_id]
+            return analyst_signals
+
+        return updated_signals if updated_signals else {}
+
+    def _record_communication_decision(
+        self,
+        state: AgentState,
+        decision_dump: Dict,
+    ) -> None:
+        """Record communication decision in state"""
+        if (
+            "communication_decisions"
+            not in state["data"]["communication_logs"]
+        ):
+            state["data"]["communication_logs"]["communication_decisions"] = []
+
+        state["data"]["communication_logs"]["communication_decisions"].append(
+            {
+                "timestamp": datetime.now().isoformat(),
+                "decision": decision_dump,
+            },
+        )
+
+    def _stream_communication_info(self, communication_decision) -> None:
+        """Stream communication information"""
+        if not self.streamer:
+            return
+
+        self.streamer.print(
+            "agent",
+            f"Communication type selected: {communication_decision.communication_type}\n"
+            f"Discussion topic: {communication_decision.discussion_topic}\n"
+            f"Target analysts: {', '.join(communication_decision.target_analysts)}",
+            role_key="portfolio_manager",
+        )
+
+    def _conduct_communication(
+        self,
+        communication_decision,
+        analyst_signals: Dict,
+        state: AgentState,
+    ) -> Dict:
+        """Conduct communication based on decision type"""
+        if communication_decision.communication_type == "private_chat":
+            return self._conduct_private_chats(
+                communication_decision,
+                analyst_signals,
+                state,
+            )
+
+        if communication_decision.communication_type == "meeting":
+            return self._conduct_meeting(
+                communication_decision,
+                analyst_signals,
+                state,
+            )
+
+        return {}
+
+    def _handle_signal_adjustments(
+        self,
+        state: AgentState,
+        communication_results: Dict,
+        cycle: int,
+        mode: str,
+        updated_signals: Dict,
+        _final_decisions: Dict,
+    ) -> bool:
+        """Handle signal adjustments after communication. Returns True if should break loop."""
+        if not communication_results.get("signals_adjusted", False):
+            return True
+
+        if self.streamer:
+            self.streamer.print(
+                "agent",
+                "Regenerating investment decisions based on communication results...",
+                role_key="portfolio_manager",
+            )
+
+        # Update analyst signals
+        new_signals = communication_results.get("updated_signals", {})
+        for agent_id, updated_signal in new_signals.items():
+            state["data"]["analyst_signals"][
+                f"{agent_id}_post_communication_cycle{cycle}"
+            ] = updated_signal
+        updated_signals.update(new_signals)
+
+        # Rerun portfolio management
+        self._rerun_portfolio_management(state, mode)
+
+        return False
+
+    def _rerun_portfolio_management(
+        self,
+        state: AgentState,
+        mode: str,
+    ) -> None:
+        """Rerun portfolio management with updated signals"""
+        pm_config = {
+            "config_name": self.config_name,
+            "sandbox_dir": self.sandbox_dir,
+        }
+
+        agent_mode = "portfolio" if mode == "portfolio" else "direction"
+        pm_agent = PortfolioManagerAgent(
+            agent_id="portfolio_manager",
+            mode=agent_mode,
+            config=pm_config,
+        )
+
+        final_portfolio_result = pm_agent.execute(state)
+
+        if final_portfolio_result and "messages" in final_portfolio_result:
+            state["messages"] = final_portfolio_result["messages"]
+            state["data"] = final_portfolio_result["data"]
+
+        if self.streamer:
+            self.streamer.print(
+                "agent",
+                "Investment decisions updated based on communication results",
+                role_key="portfolio_manager",
+            )
+
+    def _get_updated_decisions(self, state: AgentState) -> Dict:
+        """Get updated portfolio decisions from state"""
+        return self._extract_portfolio_decisions(
+            state,
+            agent_name="portfolio_manager",
+        )
+
+    def _create_final_response(
+        self,
+        state: AgentState,
+        initial_decisions: Dict,
+        final_decisions: Dict,
+        last_decision_dump: Dict | None,
+        communication_results: Dict,
+        mode: str,
+        execute_trades: bool,
+        communications_enabled: bool,
+    ) -> Dict[str, Any]:
+        """Create final response based on execution settings"""
+        if not execute_trades:
+            self._stream_deferred_decisions(final_decisions, mode)
+            return self._create_deferred_response_with_communication(
+                initial_decisions,
+                final_decisions,
+                last_decision_dump,
+                communication_results,
+            )
+
+        # Execute trades
+        self._stream_execution_decisions(final_decisions, mode)
+
+        final_execution_report = self._execute_portfolio_trades(
+            state,
+            final_decisions,
+            mode,
+        )
+
+        portfolio_summary = {"status": "signal_based_analysis"}
+
+        return {
+            "agent_id": "portfolio_manager",
+            "agent_name": "Portfolio Manager",
+            "initial_decisions": initial_decisions,
+            "final_decisions": final_decisions,
+            "communication_decision": last_decision_dump,
+            "communication_results": communication_results,
+            "final_execution_report": final_execution_report,
+            "portfolio_summary": portfolio_summary,
+            "communications_enabled": communications_enabled,
+            "status": "success",
+        }
+
+    def _stream_deferred_decisions(self, decisions: Dict, mode: str) -> None:
+        """Stream deferred trading decisions"""
+        if not self.streamer:
+            return
+
+        decision_lines = [
+            "Generated final trading decisions (will execute after market close):",
+        ]
+        self._append_decision_lines(decision_lines, decisions, mode)
+
+        self.streamer.print(
+            "agent",
+            "\n".join(decision_lines),
+            role_key="portfolio_manager",
+        )
+
+    def _stream_execution_decisions(self, decisions: Dict, mode: str) -> None:
+        """Stream executing trading decisions"""
+        if not self.streamer:
+            return
+
+        decision_lines = ["Executing final trading decisions"]
+        self._append_decision_lines(decision_lines, decisions, mode)
+
+        self.streamer.print(
+            "agent",
+            "\n".join(decision_lines),
+            role_key="portfolio_manager",
+        )
+
+    def _append_decision_lines(
+        self,
+        lines: list,
+        decisions: Dict,
+        mode: str,
+    ) -> None:
+        """Append decision details to lines list"""
+        for ticker, decision in decisions.items():
+            action = decision.get("action", "N/A")
+            confidence = decision.get("confidence", 0)
+            reasoning = decision.get("reasoning", "")
+
+            lines.append(f"\n【{ticker}】")
+            lines.append(f"  Decision: {action}")
+
+            if mode == "portfolio":
+                quantity = decision.get("quantity", 0)
+                lines.append(f"  Quantity: {quantity} shares")
+
+            lines.append(f"  Confidence: {confidence}%")
+
+            if reasoning:
+                lines.append(f"  💭 Reasoning: {reasoning}")
+
+    def _create_deferred_response(
+        self,
+        initial_decisions: Dict,
+    ) -> Dict[str, Any]:
+        """Create response for deferred trade execution (no communications)"""
+        return {
+            "agent_id": "portfolio_manager",
+            "agent_name": "Portfolio Manager",
+            "final_decisions": initial_decisions,
+            "execution_report": None,
+            "portfolio_summary": {"status": "signal_based_analysis"},
+            "communications_enabled": False,
+            "status": "success",
+            "trades_deferred": True,
+        }
+
+    def _create_deferred_response_with_communication(
+        self,
+        initial_decisions: Dict,
+        final_decisions: Dict,
+        last_decision_dump: Dict | None,
+        communication_results: Dict,
+    ) -> Dict[str, Any]:
+        """Create response for deferred trade execution (with communications)"""
+        return {
+            "agent_id": "portfolio_manager",
+            "agent_name": "Portfolio Manager",
+            "initial_decisions": initial_decisions,
+            "final_decisions": final_decisions,
+            "communication_decision": last_decision_dump or {},
+            "communication_results": communication_results,
+            "final_execution_report": None,
+            "portfolio_summary": {"status": "signal_based_analysis"},
+            "communications_enabled": True,
+            "status": "success",
+            "trades_deferred": True,
+        }
+
+    def _error_response(self, error_message: str) -> Dict[str, Any]:
+        """Create error response"""
+        return {
+            "agent_id": "portfolio_manager",
+            "agent_name": "Portfolio Manager",
+            "error": error_message,
+            "status": "error",
+        }
 
     def _conduct_private_chats(
         self,
@@ -1629,30 +1745,38 @@ class InvestmentEngine:
     ) -> Dict[str, Any]:
         """Extract portfolio decisions from state (AgentScope format)"""
         try:
-            if state["messages"]:
-                # Search from back for specified agent's message
-                for message in reversed(state["messages"]):
-                    # AgentScope format: {"name": str, "content": str, "role": str, "metadata": dict}
-                    if isinstance(message, dict):
-                        message_name = message.get("name")
-                        message_content = message.get("content")
+            if not state["messages"]:
+                return {}
 
-                        # Check if matches specified agent
-                        if message_name == agent_name and message_content:
-                            try:
-                                return json.loads(message_content)
-                            except json.JSONDecodeError:
-                                # If content is not JSON, try to return directly
-                                return (
-                                    message_content
-                                    if isinstance(message_content, dict)
-                                    else {}
-                                )
+            for message in reversed(state["messages"]):
+                result = self._parse_agent_message(message, agent_name)
+                if result is not None:
+                    return result
+
             return {}
         except Exception:
-            pass
-
             return {}
+
+    def _parse_agent_message(
+        self,
+        message: Any,
+        agent_name: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Parse a single agent message"""
+        if not isinstance(message, dict):
+            return None
+
+        if message.get("name") != agent_name or not message.get("content"):
+            return None
+
+        message_content = message.get("content")
+        if message_content is None:
+            return {}
+
+        try:
+            return json.loads(message_content)
+        except json.JSONDecodeError:
+            return message_content if isinstance(message_content, dict) else {}
 
     def execute_deferred_trades(
         self,
@@ -1686,7 +1810,10 @@ class InvestmentEngine:
         )
         state["metadata"]["is_live_mode"] = False  # Get today's closing price
 
-        risk_analysis_results = self._run_risk_management_analysis(state, mode)
+        _risk_analysis_results = self._run_risk_management_analysis(
+            state,
+            mode,
+        )
 
         # Extract current_prices from risk manager results
         analyst_signals = state["data"].get("analyst_signals", {})
@@ -1852,7 +1979,7 @@ class InvestmentEngine:
     def _generate_final_report(
         self,
         analyst_results: Dict[str, Any],
-        state: AgentState,
+        _state: AgentState,
     ) -> Dict[str, Any]:
         """Generate final analysis report"""
         # pdb.set_trace()
