@@ -20,7 +20,6 @@ python live_trading_fund.py --date 2025-01-15 --force-run --config_name my_confi
 """
 # flake8: noqa: E501
 # pylint: disable=C0301
-
 import argparse
 import json
 import os
@@ -29,14 +28,7 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-
-# Set up path before importing backend modules
-BASE_DIR = Path(__file__).resolve().parents[2]
-if str(BASE_DIR) not in sys.path:
-    sys.path.insert(0, str(BASE_DIR))
-
 from dotenv import load_dotenv
-
 from backend.config.constants import ANALYST_TYPES
 from backend.config.env_config import LiveThinkingFundConfig
 from backend.dashboard.team_dashboard import TeamDashboardGenerator
@@ -44,6 +36,13 @@ from backend.memory import MemoryReflectionSystem, get_memory
 from backend.pipelines.investment_engine import InvestmentEngine
 from backend.pipelines.multi_day_strategy import MultiDayStrategy
 from backend.servers.streamer import ConsoleStreamer
+
+
+# Set up path before importing backend modules
+BASE_DIR = Path(__file__).resolve().parents[2]
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
 
 load_dotenv()
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -182,7 +181,6 @@ class LiveTradingFund:
         date: str,
         tickers: List[str],
         max_comm_cycles: int = 2,
-        force_run: bool = False,
         enable_communications: bool = False,
         enable_notifications: bool = False,
         skip_real_returns: bool = False,
@@ -201,52 +199,10 @@ class LiveTradingFund:
             f"Analysis targets: {', '.join(tickers)}",
         )
 
-        # Get analyst performance stats from dashboard (already calculated)
-        analyst_stats = None
-        if self.dashboard_generator:
-            dashboard_state = self.dashboard_generator._load_internal_state()
-            agent_performance = dashboard_state.get("agent_performance", {})
+        # Get analyst performance stats
+        analyst_stats = self._load_analyst_stats()
 
-            analyst_stats = {}
-            for agent_id, perf in agent_performance.items():
-                bull_count = perf.get("bull_count", 0)
-                bull_win = perf.get("bull_win", 0)
-                bull_unknown = perf.get("bull_unknown", 0)
-                bear_count = perf.get("bear_count", 0)
-                bear_win = perf.get("bear_win", 0)
-                bear_unknown = perf.get("bear_unknown", 0)
-
-                evaluated_bull = max(bull_count - bull_unknown, 0)
-                evaluated_bear = max(bear_count - bear_unknown, 0)
-                total_count = bull_count + bear_count
-                total_win = bull_win + bear_win
-                evaluated_total = evaluated_bull + evaluated_bear
-                win_rate = (
-                    (total_win / evaluated_total)
-                    if evaluated_total > 0
-                    else None
-                )
-
-                analyst_stats[agent_id] = {
-                    "win_rate": win_rate,
-                    "total_predictions": total_count,
-                    "correct_predictions": total_win,
-                    "bull": {
-                        "count": bull_count,
-                        "win": bull_win,
-                        "unknown": bull_unknown,
-                    },
-                    "bear": {
-                        "count": bear_count,
-                        "win": bear_win,
-                        "unknown": bear_unknown,
-                    },
-                }
-            print(
-                f"✓ Loaded analyst performance stats for {len(analyst_stats)} analysts",
-            )
-
-        # Run single day analysis (inject portfolio state)
+        # Run single day analysis
         result = self.strategy.run_single_day(
             tickers=tickers,
             date=date,
@@ -257,7 +213,94 @@ class LiveTradingFund:
             is_live_mode=is_live_mode,
         )
 
-        # Use defaultdict to simplify initialization
+        # Build live environment
+        live_env = self._build_live_environment(
+            result,
+            tickers,
+            date,
+            skip_real_returns,
+        )
+
+        # Display results
+        self._display_results(live_env, tickers, skip_real_returns)
+
+        # Log sandbox activity
+        self._log_sandbox_activity(
+            date,
+            self.PRE_MARKET,
+            {
+                "status": "success",
+                "tickers": tickers,
+                "timestamp": datetime.now().isoformat(),
+                "details": result,
+            },
+        )
+
+        # Update dashboard (only in backtest mode)
+        if not skip_real_returns:
+            self._update_dashboard(date, live_env, result)
+
+        return {
+            "status": "success",
+            "date": date,
+            "live_env": live_env,
+        }
+
+    def _load_analyst_stats(self) -> Optional[Dict[str, Any]]:
+        """Load analyst performance statistics from dashboard"""
+        if not self.dashboard_generator:
+            return None
+
+        dashboard_state = self.dashboard_generator.load_internal_state()
+        agent_performance = dashboard_state.get("agent_performance", {})
+
+        analyst_stats = {}
+        for agent_id, perf in agent_performance.items():
+            bull_count = perf.get("bull_count", 0)
+            bull_win = perf.get("bull_win", 0)
+            bull_unknown = perf.get("bull_unknown", 0)
+            bear_count = perf.get("bear_count", 0)
+            bear_win = perf.get("bear_win", 0)
+            bear_unknown = perf.get("bear_unknown", 0)
+
+            evaluated_bull = max(bull_count - bull_unknown, 0)
+            evaluated_bear = max(bear_count - bear_unknown, 0)
+            total_count = bull_count + bear_count
+            total_win = bull_win + bear_win
+            evaluated_total = evaluated_bull + evaluated_bear
+            win_rate = (
+                (total_win / evaluated_total) if evaluated_total > 0 else None
+            )
+
+            analyst_stats[agent_id] = {
+                "win_rate": win_rate,
+                "total_predictions": total_count,
+                "correct_predictions": total_win,
+                "bull": {
+                    "count": bull_count,
+                    "win": bull_win,
+                    "unknown": bull_unknown,
+                },
+                "bear": {
+                    "count": bear_count,
+                    "win": bear_win,
+                    "unknown": bear_unknown,
+                },
+            }
+
+        print(
+            f"✓ Loaded analyst performance stats for {len(analyst_stats)} analysts",
+        )
+        return analyst_stats
+
+    def _build_live_environment(
+        self,
+        result: Dict[str, Any],
+        tickers: List[str],
+        date: str,
+        skip_real_returns: bool,
+    ) -> Dict[str, Any]:
+        """Build live environment from analysis result"""
         ana_signals_dict: Dict[str, Dict[str, Any]] = defaultdict(dict)
         real_returns_dict: Dict[str, float] = defaultdict(float)
         daily_returns_dict: Dict[str, float] = defaultdict(float)
@@ -267,9 +310,7 @@ class LiveTradingFund:
             "ana_signals": ana_signals_dict,
             "real_returns": real_returns_dict,
             "daily_returns": daily_returns_dict,
-            "state": result.get(
-                "state",
-            ),  # Add state for memory reflection and deferred trade execution
+            "state": result.get("state"),
             "pre_portfolio_state": result.get("pre_portfolio_state"),
         }
 
@@ -279,11 +320,34 @@ class LiveTradingFund:
         live_env["pm_signals"] = final_decisions
 
         # Extract analyst signals
-        print("[system]", "===== Analyst Signal Details =====")
+        self._extract_analyst_signals(result, tickers, live_env)
 
+        # Calculate returns
+        self._calculate_returns(
+            tickers,
+            final_decisions,
+            date,
+            skip_real_returns,
+            live_env,
+        )
+
+        # Add portfolio info for portfolio mode
+        if self.mode == "portfolio":
+            self._add_portfolio_info(result, pm_results, live_env)
+
+        return live_env
+
+    def _extract_analyst_signals(
+        self,
+        result: Dict[str, Any],
+        tickers: List[str],
+        live_env: Dict[str, Any],
+    ) -> None:
+        """Extract analyst signals from result"""
+        print("[system]", "===== Analyst Signal Details =====")
         analyst_results = result.get("final_analyst_results", {})
 
-        for agent_id in ANALYST_TYPES.keys():
+        for agent_id, _ in ANALYST_TYPES.items():
             if agent_id not in analyst_results:
                 continue
 
@@ -291,9 +355,9 @@ class LiveTradingFund:
                 "analysis_result",
                 {},
             )
+            signals = []
 
             # Format: {ticker_signals: [{ticker, signal, confidence, ...}]}
-            signals = []
             if "ticker_signals" in analyst_result:
                 for item in analyst_result["ticker_signals"]:
                     ticker = item["ticker"]
@@ -326,167 +390,188 @@ class LiveTradingFund:
                     role_key=agent_id,
                 )
 
-        # Calculate daily returns (skip if live mode pre-market analysis)
-        if not skip_real_returns:
-            for ticker in tickers:
-                if ticker in final_decisions:
-                    action = final_decisions[ticker].get("action", "hold")
-                    (
-                        daily_return,
-                        real_return,
-                        close_price,
-                    ) = self.strategy._calculate_stock_daily_return_from_signal(
-                        ticker,
-                        date,
-                        action,
-                    )
-                    live_env["real_returns"][ticker] = real_return
-                    live_env["daily_returns"][ticker] = daily_return
-        else:
-            # Live mode: Set real_returns to None (unknown)
-            for ticker in tickers:
-                if ticker in final_decisions:
-                    live_env["real_returns"][ticker] = None
-                    live_env["daily_returns"][ticker] = None
-
-        print("[system]", f"{date} Sandbox analysis completed")
-
-        # Display stock performance
+    def _calculate_returns(
+        self,
+        tickers: List[str],
+        final_decisions: Dict[str, Any],
+        date: str,
+        skip_real_returns: bool,
+        live_env: Dict[str, Any],
+    ) -> None:
+        """Calculate daily returns for each ticker"""
         for ticker in tickers:
-            if ticker in final_decisions:
-                signal_info = final_decisions[ticker]
-                signal = signal_info.get("signal", "N/A")
-                action = signal_info.get("action", "N/A")
-                confidence = signal_info.get("confidence", 0)
-                reasoning = signal_info.get("reasoning", 0)
-                # pdb.set_trace()
-                if skip_real_returns:
-                    # Live mode: Do not display daily return (still unknown)
-                    if self.mode == "signal":
-                        self.streamer.print(
-                            "agent",
-                            f"{ticker}: Final signal {signal}(confidence {confidence}%) \n{reasoning}",
-                            role_key="portfolio_manager",
-                        )
-                    elif self.mode == "portfolio":
-                        quantity = signal_info.get("quantity", 0)
-                        if action == "hold":
-                            self.streamer.print(
-                                "agent",
-                                f"{ticker}: Final signal {action}(changed 0 shares, confidence {confidence}%) \n{reasoning}",
-                                role_key="portfolio_manager",
-                            )
-                        else:
-                            self.streamer.print(
-                                "agent",
-                                f"{ticker}: Final signal {action}({quantity} shares, confidence {confidence}%) \n{reasoning}",
-                                role_key="portfolio_manager",
-                            )
-                else:
-                    # Backtest mode: Display daily return
-                    daily_ret = live_env["daily_returns"].get(ticker, 0) * 100
-                    real_ret = live_env["real_returns"].get(ticker, 0) * 100
+            if ticker not in final_decisions:
+                continue
 
-                    if self.mode == "signal":
-                        self.streamer.print(
-                            "agent",
-                            f"{ticker}: Final signal {signal}(confidence {confidence}%, stock real daily return {real_ret:.2f}%) \n{reasoning}",
-                            role_key="portfolio_manager",
-                        )
-                    elif self.mode == "portfolio":
-                        quantity = signal_info.get("quantity", 0)
-                        if action == "hold":
-                            self.streamer.print(
-                                "agent",
-                                f"{ticker}: Final signal {action}(changed 0 shares, confidence {confidence}%, stock real daily return {real_ret:.2f}%) \n{reasoning}",
-                                role_key="portfolio_manager",
-                            )
-                        else:
-                            self.streamer.print(
-                                "agent",
-                                f"{ticker}: Final signal {action}({quantity} shares, confidence {confidence}%, stock real daily return {real_ret:.2f}%) \n{reasoning}",
-                                role_key="portfolio_manager",
-                            )
-
-        # Portfolio mode: Add portfolio info
-        if self.mode == "portfolio":
-            live_env["portfolio_summary"] = pm_results.get(
-                "portfolio_summary",
-                {},
-            )
-            live_env["updated_portfolio"] = result.get("updated_portfolio", {})
-
-            # Get executed_trades from execution_report or final_execution_report
-            # In live mode pre-market, execution_report may be None (trades deferred)
-            pm_results = result.get("portfolio_management_results", {})
-            execution_report = pm_results.get(
-                "final_execution_report",
-            ) or pm_results.get("execution_report")
-
-            # Handle None case (live mode pre-market: trades are deferred)
-            if execution_report is not None:
-                live_env["executed_trades"] = execution_report.get(
-                    "executed_trades",
-                    [],
-                )
-                live_env["failed_trades"] = execution_report.get(
-                    "failed_trades",
-                    [],
-                )
+            if skip_real_returns:
+                live_env["real_returns"][ticker] = None
+                live_env["daily_returns"][ticker] = None
             else:
-                # Live mode pre-market: no trades executed yet (will execute after market close)
-                live_env["executed_trades"] = []
-                live_env["failed_trades"] = []
+                action = final_decisions[ticker].get("action", "hold")
+                (
+                    daily_return,
+                    real_return,
+                    _close_price,
+                ) = self.strategy.calculate_stock_daily_return_from_signal(
+                    ticker,
+                    date,
+                    action,
+                )
+                live_env["real_returns"][ticker] = real_return
+                live_env["daily_returns"][ticker] = daily_return
 
-        # Record to sandbox log
-        self._log_sandbox_activity(
-            date,
-            self.PRE_MARKET,
-            {
-                "status": "success",
-                "tickers": tickers,
-                "timestamp": datetime.now().isoformat(),
-                "details": result,
-            },
-        )
-
-        # Update team dashboard data (only in backtest mode, not in live mode)
-        # Backtest mode (skip_real_returns=False): Update dashboard
-        # Live mode (skip_real_returns=True): Skip dashboard update
         if not skip_real_returns:
-            try:
-                dashboard_update_stats = (
-                    self.dashboard_generator.update_from_day_result(
-                        date=date,
-                        pre_market_result={
-                            "pre_market": {
-                                "live_env": live_env,
-                                "raw_results": result,
-                            },
+            print("[system]", f"{date} Sandbox analysis completed")
+
+    def _add_portfolio_info(
+        self,
+        result: Dict[str, Any],
+        pm_results: Dict[str, Any],
+        live_env: Dict[str, Any],
+    ) -> None:
+        """Add portfolio information to live environment"""
+        live_env["portfolio_summary"] = pm_results.get("portfolio_summary", {})
+        live_env["updated_portfolio"] = result.get("updated_portfolio", {})
+
+        # Get executed_trades from execution_report
+        execution_report = pm_results.get(
+            "final_execution_report",
+        ) or pm_results.get("execution_report")
+
+        if execution_report is not None:
+            live_env["executed_trades"] = execution_report.get(
+                "executed_trades",
+                [],
+            )
+            live_env["failed_trades"] = execution_report.get(
+                "failed_trades",
+                [],
+            )
+        else:
+            # Live mode pre-market: no trades executed yet
+            live_env["executed_trades"] = []
+            live_env["failed_trades"] = []
+
+    def _display_results(
+        self,
+        live_env: Dict[str, Any],
+        tickers: List[str],
+        skip_real_returns: bool,
+    ) -> None:
+        """Display stock performance results"""
+        final_decisions = live_env["pm_signals"]
+
+        for ticker in tickers:
+            if ticker not in final_decisions:
+                continue
+
+            signal_info = final_decisions[ticker]
+
+            if skip_real_returns:
+                self._display_signal_without_return(signal_info, ticker)
+            else:
+                self._display_signal_with_return(
+                    signal_info,
+                    ticker,
+                    live_env["real_returns"],
+                )
+
+    def _display_signal_without_return(
+        self,
+        signal_info: Dict[str, Any],
+        ticker: str,
+    ) -> None:
+        """Display signal without return (live mode)"""
+        signal = signal_info.get("signal", "N/A")
+        action = signal_info.get("action", "N/A")
+        confidence = signal_info.get("confidence", 0)
+        reasoning = signal_info.get("reasoning", "")
+
+        if self.mode == "signal":
+            self.streamer.print(
+                "agent",
+                f"{ticker}: Final signal {signal}(confidence {confidence}%) \n{reasoning}",
+                role_key="portfolio_manager",
+            )
+        elif self.mode == "portfolio":
+            quantity = signal_info.get("quantity", 0)
+            shares_text = (
+                "changed 0 shares"
+                if action == "hold"
+                else f"{quantity} shares"
+            )
+            self.streamer.print(
+                "agent",
+                f"{ticker}: Final signal {action}({shares_text}, confidence {confidence}%) \n{reasoning}",
+                role_key="portfolio_manager",
+            )
+
+    def _display_signal_with_return(
+        self,
+        signal_info: Dict[str, Any],
+        ticker: str,
+        real_returns: Dict[str, float],
+    ) -> None:
+        """Display signal with return (backtest mode)"""
+        signal = signal_info.get("signal", "N/A")
+        action = signal_info.get("action", "N/A")
+        confidence = signal_info.get("confidence", 0)
+        reasoning = signal_info.get("reasoning", "")
+        real_ret = real_returns.get(ticker, 0) * 100
+
+        if self.mode == "signal":
+            self.streamer.print(
+                "agent",
+                f"{ticker}: Final signal {signal}(confidence {confidence}%, stock real daily return {real_ret:.2f}%) \n{reasoning}",
+                role_key="portfolio_manager",
+            )
+        elif self.mode == "portfolio":
+            quantity = signal_info.get("quantity", 0)
+            shares_text = (
+                "changed 0 shares"
+                if action == "hold"
+                else f"{quantity} shares"
+            )
+            self.streamer.print(
+                "agent",
+                f"{ticker}: Final signal {action}({shares_text}, confidence {confidence}%, stock real daily return {real_ret:.2f}%) \n{reasoning}",
+                role_key="portfolio_manager",
+            )
+
+    def _update_dashboard(
+        self,
+        date: str,
+        live_env: Dict[str, Any],
+        result: Dict[str, Any],
+    ) -> None:
+        """Update team dashboard with analysis results"""
+        try:
+            dashboard_update_stats = (
+                self.dashboard_generator.update_from_day_result(
+                    date=date,
+                    pre_market_result={
+                        "pre_market": {
+                            "live_env": live_env,
+                            "raw_results": result,
                         },
-                        mode=self.mode,
-                    )
+                    },
+                    mode=self.mode,
                 )
-                self.streamer.print(
-                    "system",
-                    f"Team dashboard updated: {dashboard_update_stats.get('trades_added', 0)} trades added, "
-                    f"{dashboard_update_stats.get('agents_updated', 0)} agents updated",
-                )
-            except Exception as e:
-                self.streamer.print(
-                    "system",
-                    f"⚠️ Dashboard update failed: {e}",
-                )
-                import traceback
+            )
+            self.streamer.print(
+                "system",
+                f"Team dashboard updated: {dashboard_update_stats.get('trades_added', 0)} trades added, "
+                f"{dashboard_update_stats.get('agents_updated', 0)} agents updated",
+            )
+        except Exception as e:
+            self.streamer.print(
+                "system",
+                f"⚠️ Dashboard update failed: {e}",
+            )
+            import traceback
 
-                print(f"Dashboard update error for {date}: {e}")
-                traceback.print_exc()
-
-        return {
-            "status": "success",
-            "date": date,
-            "live_env": live_env,
-        }
+            print(f"Dashboard update error for {date}: {e}")
+            traceback.print_exc()
 
     def run_post_market_review(
         self,
@@ -526,136 +611,29 @@ class LiveTradingFund:
         real_returns = live_env["real_returns"]
         daily_returns = live_env["daily_returns"]
 
-        # 1. Portfolio Manager signal review (display different info based on mode)
-        pm_review_lines = [
-            "Reviewing based on pre-market analysis...",
-            "Portfolio Manager signal review:",
-        ]
-
-        if self.mode == "portfolio":
-            # Portfolio mode: Display detailed operation info
-            for ticker in tickers:
-                if ticker in pm_signals:
-                    signal_info = pm_signals[ticker]
-                    action = signal_info.get("action", "N/A")
-                    quantity = signal_info.get("quantity", 0)
-                    confidence = signal_info.get("confidence", "N/A")
-                    reasoning = signal_info.get("reasoning", "")
-
-                    # Display operation and quantity
-                    if quantity > 0:
-                        pm_review_lines.append(
-                            f"  {ticker}: {action} ({quantity} shares, confidence: {confidence}%)",
-                        )
-                    else:
-                        pm_review_lines.append(
-                            f"  {ticker}: {action} ( confidence: {confidence}%)",
-                        )
-
-                    # Add decision reasoning
-                    if reasoning:
-                        pm_review_lines.append(
-                            f"    💭 Reasoning: {reasoning}",
-                        )
-                else:
-                    pm_review_lines.append(f"  {ticker}: No signal data")
-        else:
-            # Signal mode: Display traditional signal info
-            for ticker in tickers:
-                if ticker in pm_signals:
-                    signal_info = pm_signals[ticker]
-                    reasoning = signal_info.get("reasoning", "")
-                    pm_review_lines.append(
-                        f"  {ticker}: {signal_info['signal']} (confidence: {signal_info.get('confidence', 'N/A')}%)",
-                    )
-                    # Add decision reasoning
-                    if reasoning:
-                        pm_review_lines.append(
-                            f"    💭 Reasoning: {reasoning}",
-                        )
-                else:
-                    pm_review_lines.append(f"  {ticker}: No signal data")
-
-        # 2. Actual return performance (Portfolio mode adds value change info)
-        returns_lines = ["Actual return performance:"]
-
-        if self.mode == "portfolio":
-            # Portfolio mode: Display value changes
-            for ticker in tickers:
-                if ticker in real_returns:
-                    # daily_ret = daily_returns[ticker] * 100
-                    real_ret = real_returns[ticker] * 100
-                    signal_info = pm_signals.get(ticker, {})
-                    action = signal_info.get("action", "N/A")
-                    quantity = signal_info.get("quantity", 0)
-
-                    # Calculate value change (simplified calculation, should actually be based on positions)
-                    if quantity > 0 and action in ["long", "short"]:
-                        returns_lines.append(
-                            f"  {ticker}: stock real daily return {real_ret:.2f}% (operation: {action} {quantity} shares)",
-                        )
-                    elif quantity == 0 and action in ["hold"]:
-                        returns_lines.append(
-                            f"  {ticker}: stock real daily return {real_ret:.2f}% (operation: {action})",
-                        )
-                    else:
-                        returns_lines.append(
-                            f"  {ticker}: stock real daily return {real_ret:.2f}% (signal: {signal_info.get('signal', 'N/A')})",
-                        )
-                else:
-                    returns_lines.append(f"  {ticker}: No return data")
-
-            # Display portfolio total value change (need to get from portfolio state)
-            portfolio_info = live_env.get("portfolio_summary", {})
-            if portfolio_info:
-                total_value = portfolio_info.get("total_value", 0)
-                cash = portfolio_info.get("cash", 0)
-                returns_lines.append(
-                    f"\nPortfolio total value: ${total_value:,.2f} (cash: ${cash:,.2f})",
-                )
-        else:
-            # Signal mode: Display traditional return info
-            for ticker in tickers:
-                if ticker in real_returns:
-                    daily_ret = real_returns[ticker] * 100
-                    real_ret = real_returns[ticker] * 100
-                    returns_lines.append(
-                        f"  {ticker}: stock real daily return {real_ret:.2f}% (signal: {pm_signals.get(ticker, {}).get('signal', 'N/A')})",
-                    )
-                else:
-                    returns_lines.append(f"  {ticker}: No return data")
-
-        # 3. Analyst signal comparison (merge into one output)
-        analyst_lines = ["Analyst signal comparison:"]
-        for agent, agent_signals in ana_signals.items():
-            analyst_lines.append(f"\n{agent}:")
-            for ticker in tickers:
-                signal_data = agent_signals.get(ticker, {})
-                signal = (
-                    signal_data.get("signal", "N/A")
-                    if isinstance(signal_data, dict)
-                    else "N/A"
-                )
-                analyst_lines.append(f"  {ticker}: {signal}")
-
+        # Build and display review content
+        review_content = self._build_review_content(
+            tickers,
+            pm_signals,
+            ana_signals,
+            real_returns,
+            daily_returns,
+            live_env,
+        )
         self.streamer.print(
             "agent",
-            "\n".join(pm_review_lines)
-            + "\n"
-            + "\n".join(returns_lines)
-            + "\n"
-            + "\n".join(analyst_lines),
+            review_content,
             role_key="portfolio_manager",
         )
 
-        # Get review mode
+        # Execute review based on mode
         review_mode = os.getenv(
             "MEMORY_REVIEW_MODE",
             "individual_review",
         ).lower()
         state = live_env.get("state")
+
         if review_mode == "individual_review":
-            # New mode: Individual Review
             return self._run_individual_review_mode(
                 date,
                 tickers,
@@ -667,7 +645,6 @@ class LiveTradingFund:
                 state,
             )
         else:
-            # Old mode: Central Review
             return self._run_central_review_mode(
                 date,
                 tickers,
@@ -678,6 +655,241 @@ class LiveTradingFund:
                 live_env,
                 state,
             )
+
+    def _build_review_content(
+        self,
+        tickers: List[str],
+        pm_signals: Dict[str, Any],
+        ana_signals: Dict[str, Any],
+        real_returns: Dict[str, float],
+        daily_returns: Dict[str, float],
+        live_env: Dict[str, Any],
+    ) -> str:
+        """Build complete review content"""
+        pm_review = self._build_pm_review(tickers, pm_signals)
+        returns_review = self._build_returns_review(
+            tickers,
+            pm_signals,
+            real_returns,
+            daily_returns,
+            live_env,
+        )
+        analyst_review = self._build_analyst_review(tickers, ana_signals)
+
+        return "\n".join(
+            [
+                "Reviewing based on pre-market analysis...",
+                pm_review,
+                returns_review,
+                analyst_review,
+            ],
+        )
+
+    def _build_pm_review(
+        self,
+        tickers: List[str],
+        pm_signals: Dict[str, Any],
+    ) -> str:
+        """Build Portfolio Manager signal review"""
+        lines = ["Portfolio Manager signal review:"]
+
+        if self.mode == "portfolio":
+            lines.extend(
+                self._build_pm_review_portfolio_mode(tickers, pm_signals),
+            )
+        else:
+            lines.extend(
+                self._build_pm_review_signal_mode(tickers, pm_signals),
+            )
+
+        return "\n".join(lines)
+
+    def _build_pm_review_portfolio_mode(
+        self,
+        tickers: List[str],
+        pm_signals: Dict[str, Any],
+    ) -> List[str]:
+        """Build PM review for portfolio mode"""
+        lines = []
+
+        for ticker in tickers:
+            if ticker not in pm_signals:
+                lines.append(f"  {ticker}: No signal data")
+                continue
+
+            signal_info = pm_signals[ticker]
+            action = signal_info.get("action", "N/A")
+            quantity = signal_info.get("quantity", 0)
+            confidence = signal_info.get("confidence", "N/A")
+            reasoning = signal_info.get("reasoning", "")
+
+            # Display operation and quantity
+            if quantity > 0:
+                lines.append(
+                    f"  {ticker}: {action} ({quantity} shares, confidence: {confidence}%)",
+                )
+            else:
+                lines.append(
+                    f"  {ticker}: {action} ( confidence: {confidence}%)",
+                )
+
+            # Add decision reasoning
+            if reasoning:
+                lines.append(f"    💭 Reasoning: {reasoning}")
+
+        return lines
+
+    def _build_pm_review_signal_mode(
+        self,
+        tickers: List[str],
+        pm_signals: Dict[str, Any],
+    ) -> List[str]:
+        """Build PM review for signal mode"""
+        lines = []
+
+        for ticker in tickers:
+            if ticker not in pm_signals:
+                lines.append(f"  {ticker}: No signal data")
+                continue
+
+            signal_info = pm_signals[ticker]
+            signal = signal_info["signal"]
+            confidence = signal_info.get("confidence", "N/A")
+            reasoning = signal_info.get("reasoning", "")
+
+            lines.append(
+                f"  {ticker}: {signal} (confidence: {confidence}%)",
+            )
+
+            # Add decision reasoning
+            if reasoning:
+                lines.append(f"    💭 Reasoning: {reasoning}")
+
+        return lines
+
+    def _build_returns_review(
+        self,
+        tickers: List[str],
+        pm_signals: Dict[str, Any],
+        real_returns: Dict[str, float],
+        _daily_returns: Dict[str, float],
+        live_env: Dict[str, Any],
+    ) -> str:
+        """Build actual return performance review"""
+        lines = ["Actual return performance:"]
+
+        if self.mode == "portfolio":
+            lines.extend(
+                self._build_returns_portfolio_mode(
+                    tickers,
+                    pm_signals,
+                    real_returns,
+                    live_env,
+                ),
+            )
+        else:
+            lines.extend(
+                self._build_returns_signal_mode(
+                    tickers,
+                    pm_signals,
+                    real_returns,
+                ),
+            )
+
+        return "\n".join(lines)
+
+    def _build_returns_portfolio_mode(
+        self,
+        tickers: List[str],
+        pm_signals: Dict[str, Any],
+        real_returns: Dict[str, float],
+        live_env: Dict[str, Any],
+    ) -> List[str]:
+        """Build returns review for portfolio mode"""
+        lines = []
+
+        for ticker in tickers:
+            if ticker not in real_returns:
+                lines.append(f"  {ticker}: No return data")
+                continue
+
+            real_ret = real_returns[ticker] * 100
+            signal_info = pm_signals.get(ticker, {})
+            action = signal_info.get("action", "N/A")
+            quantity = signal_info.get("quantity", 0)
+
+            # Format return line based on action
+            if quantity > 0 and action in ["long", "short"]:
+                lines.append(
+                    f"  {ticker}: stock real daily return {real_ret:.2f}% "
+                    f"(operation: {action} {quantity} shares)",
+                )
+            elif quantity == 0 and action == "hold":
+                lines.append(
+                    f"  {ticker}: stock real daily return {real_ret:.2f}% "
+                    f"(operation: {action})",
+                )
+            else:
+                lines.append(
+                    f"  {ticker}: stock real daily return {real_ret:.2f}% "
+                    f"(signal: {signal_info.get('signal', 'N/A')})",
+                )
+
+        # Add portfolio summary
+        portfolio_info = live_env.get("portfolio_summary", {})
+        if portfolio_info:
+            total_value = portfolio_info.get("total_value", 0)
+            cash = portfolio_info.get("cash", 0)
+            lines.append(
+                f"\nPortfolio total value: ${total_value:,.2f} "
+                f"(cash: ${cash:,.2f})",
+            )
+
+        return lines
+
+    def _build_returns_signal_mode(
+        self,
+        tickers: List[str],
+        pm_signals: Dict[str, Any],
+        real_returns: Dict[str, float],
+    ) -> List[str]:
+        """Build returns review for signal mode"""
+        lines = []
+
+        for ticker in tickers:
+            if ticker not in real_returns:
+                lines.append(f"  {ticker}: No return data")
+                continue
+
+            real_ret = real_returns[ticker] * 100
+            signal = pm_signals.get(ticker, {}).get("signal", "N/A")
+            lines.append(
+                f"  {ticker}: stock real daily return {real_ret:.2f}% "
+                f"(signal: {signal})",
+            )
+
+        return lines
+
+    def _build_analyst_review(
+        self,
+        tickers: List[str],
+        ana_signals: Dict[str, Any],
+    ) -> str:
+        """Build analyst signal comparison"""
+        lines = ["Analyst signal comparison:"]
+
+        for agent, agent_signals in ana_signals.items():
+            lines.append(f"\n{agent}:")
+            for ticker in tickers:
+                signal_data = agent_signals.get(ticker, {})
+                signal = (
+                    signal_data.get("signal", "N/A")
+                    if isinstance(signal_data, dict)
+                    else "N/A"
+                )
+                lines.append(f"  {ticker}: {signal}")
+
+        return "\n".join(lines)
 
     def _perform_memory_review(
         self,
@@ -798,79 +1010,20 @@ class LiveTradingFund:
             "===== Central Review Memory Management =====",
         )
 
+        llm_decision = None
+        execution_results = None
+
         try:
             if self.memory_reflection:
-                #  Extract additional data from live_env (like individual_review_mode)
-                portfolio_summary = live_env.get("portfolio_summary", {})
-                executed_trades = live_env.get("executed_trades", [])
-                failed_trades = live_env.get("failed_trades", [])
-                pre_portfolio_state = live_env.get("pre_portfolio_state", {})
-                updated_portfolio = live_env.get("updated_portfolio", {})
+                reflection_data = self._prepare_reflection_data(
+                    pm_signals,
+                    ana_signals,
+                    daily_returns,
+                    real_returns,
+                    tickers,
+                    live_env,
+                )
 
-                # Get analyst performance stats from dashboard
-                analyst_stats = {}
-                if self.dashboard_generator:
-                    dashboard_state = (
-                        self.dashboard_generator._load_internal_state()
-                    )
-                    agent_performance = dashboard_state.get(
-                        "agent_performance",
-                        {},
-                    )
-
-                    for agent_id, perf in agent_performance.items():
-                        bull_count = perf.get("bull_count", 0)
-                        bull_win = perf.get("bull_win", 0)
-                        bull_unknown = perf.get("bull_unknown", 0)
-                        bear_count = perf.get("bear_count", 0)
-                        bear_win = perf.get("bear_win", 0)
-                        bear_unknown = perf.get("bear_unknown", 0)
-
-                        evaluated_bull = max(bull_count - bull_unknown, 0)
-                        evaluated_bear = max(bear_count - bear_unknown, 0)
-                        total_count = bull_count + bear_count
-                        total_win = bull_win + bear_win
-                        evaluated_total = evaluated_bull + evaluated_bear
-                        win_rate = (
-                            (total_win / evaluated_total)
-                            if evaluated_total > 0
-                            else None
-                        )
-
-                        analyst_stats[agent_id] = {
-                            "win_rate": win_rate,
-                            "total_predictions": total_count,
-                            "correct_predictions": total_win,
-                            "bull": {
-                                "count": bull_count,
-                                "win": bull_win,
-                                "unknown": bull_unknown,
-                            },
-                            "bear": {
-                                "count": bear_count,
-                                "win": bear_win,
-                                "unknown": bear_unknown,
-                            },
-                        }
-
-                # Build enhanced reflection_data with live_env data
-                reflection_data = {
-                    "pm_signals": pm_signals,
-                    "actual_returns": daily_returns,
-                    "real_returns": real_returns,
-                    "analyst_signals": ana_signals,
-                    "tickers": tickers,
-                    # Add live_env data for richer context
-                    "portfolio_summary": portfolio_summary,
-                    "executed_trades": executed_trades,
-                    "failed_trades": failed_trades,
-                    "pre_portfolio_state": pre_portfolio_state,
-                    "updated_portfolio": updated_portfolio,
-                    "analyst_stats": analyst_stats,  # Add analyst performance stats
-                    "live_env": live_env,  # Include full live_env for backward compatibility
-                }
-
-                # Use unified review system (central_review mode)
                 llm_decision = self.memory_reflection.perform_reflection(
                     date=date,
                     reflection_data=reflection_data,
@@ -878,175 +1031,12 @@ class LiveTradingFund:
                     state=state,
                 )
 
-                # Display LLM decision result
-                if llm_decision["status"] == "success":
-                    if llm_decision["mode"] == "operations_executed":
-                        # Count execution results
-                        successful = sum(
-                            1
-                            for result in llm_decision["execution_results"]
-                            if result["result"]["status"] == "success"
-                        )
-                        total = len(llm_decision["execution_results"])
-
-                        # Build detailed tool call info
-                        memory_lines = [
-                            "Using LLM tool_call for intelligent memory management",
-                            f"Executed {llm_decision['operations_count']} memory operations",
-                            f"Execution statistics: Success {successful}/{total}",
-                            "\nTool call details:",
-                        ]
-
-                        for i, exec_result in enumerate(
-                            llm_decision["execution_results"],
-                            1,
-                        ):
-                            tool_name = exec_result["tool_name"]
-                            args = exec_result["args"]
-                            result = exec_result["result"]
-
-                            # Tool call basic info
-                            memory_lines.append(f"\n{i}. Tool: {tool_name}")
-                            memory_lines.append(
-                                f"   Analyst: {args.get('analyst_id', 'N/A')}",
-                            )
-
-                            agent_id = args.get("analyst_id", "N/A")
-                            memory_lines.append(
-                                f"   Memory tool parameters: {args}",
-                            )
-
-                            # Display execution result
-                            if result["status"] == "success":
-                                memory_lines.append("\tStatus: Success")
-                                if "affected_count" in result:
-                                    memory_lines.append(
-                                        f"   Affected memory count: {result['affected_count']}",
-                                    )
-                            else:
-                                memory_lines.append(
-                                    f"\tStatus: Failed - {result.get('error', 'Unknown')}",
-                                )
-
-                            if tool_name == "search_and_update_analyst_memory":
-                                agent_mem_lines = []
-                                agent_mem_lines.append(
-                                    "[memory management]: search and update memory",
-                                )
-                                agent_mem_lines.append(
-                                    f"search memory query: {args.get('query', 'N/A')}",
-                                )
-
-                                # Add memory ID and queried original content
-                                if result.get("memory_id"):
-                                    agent_mem_lines.append(
-                                        f"memory ID: {result['memory_id']}",
-                                    )
-                                if result.get("original_content"):
-                                    original = result["original_content"]
-                                    # Limit length to avoid being too long
-                                    display_original = (
-                                        original[:200] + "..."
-                                        if len(original) > 200
-                                        else original
-                                    )
-                                    agent_mem_lines.append(
-                                        f"original memory: {display_original}",
-                                    )
-
-                                agent_mem_lines.append(
-                                    f"new memory content: {args.get('new_content', 'N/A')}",
-                                )
-                                agent_mem_lines.append(
-                                    f"reason: {args.get('reason', 'N/A')}",
-                                )
-                                self.streamer.print(
-                                    "agent",
-                                    "\n".join(agent_mem_lines),
-                                    role_key=agent_id,
-                                )
-                            elif (
-                                tool_name == "search_and_delete_analyst_memory"
-                            ):
-                                agent_mem_lines = []
-                                agent_mem_lines.append(
-                                    "[memory management]: search and delete memory",
-                                )
-                                agent_mem_lines.append(
-                                    f"search memory query: {args.get('query', 'N/A')}",
-                                )
-
-                                # Add memory ID and deleted content
-                                if result.get("memory_id"):
-                                    agent_mem_lines.append(
-                                        f"memory ID: {result['memory_id']}",
-                                    )
-                                if result.get("deleted_content"):
-                                    deleted = result["deleted_content"]
-                                    # Limit length to avoid being too long
-                                    display_deleted = (
-                                        deleted[:200] + "..."
-                                        if len(deleted) > 200
-                                        else deleted
-                                    )
-                                    agent_mem_lines.append(
-                                        f"deleted memory: {display_deleted}",
-                                    )
-
-                                agent_mem_lines.append(
-                                    f"reason: {args.get('reason', 'N/A')}",
-                                )
-                                self.streamer.print(
-                                    "agent",
-                                    "\n".join(agent_mem_lines),
-                                    role_key=agent_id,
-                                )
-
-                        self.streamer.print(
-                            "agent",
-                            "\n".join(memory_lines),
-                            role_key="portfolio_manager",
-                        )
-                        execution_results = llm_decision["execution_results"]
-
-                    elif llm_decision["mode"] == "no_action":
-                        no_action_lines = [
-                            "Using LLM tool_call for intelligent memory management",
-                            "LLM determined no memory operations needed",
-                            f"Reasoning: {llm_decision['reasoning']}",
-                        ]
-                        self.streamer.print(
-                            "agent",
-                            "\n".join(no_action_lines),
-                            role_key="portfolio_manager",
-                        )
-                        execution_results = None
-                    else:
-                        self.streamer.print(
-                            "system",
-                            f"Unknown LLM decision mode: {llm_decision['mode']}",
-                        )
-                        execution_results = None
-
-                elif llm_decision["status"] == "skipped":
-                    self.streamer.print(
-                        "system",
-                        f"Memory management skipped: {llm_decision['reason']}",
-                    )
-                    execution_results = None
-                else:
-                    self.streamer.print(
-                        "system",
-                        f"LLM decision failed: {llm_decision.get('error', 'Unknown error')}",
-                    )
-                    execution_results = None
+                execution_results = self._handle_llm_decision(llm_decision)
             else:
                 self.streamer.print(
                     "system",
                     "LLM memory management system not enabled, skipping memory operations",
                 )
-                llm_decision = None
-                execution_results = None
 
         except Exception as e:
             self.streamer.print(
@@ -1057,6 +1047,287 @@ class LiveTradingFund:
 
             traceback.print_exc()
 
+        return self._build_response(
+            pm_signals,
+            ana_signals,
+            daily_returns,
+            real_returns,
+            llm_decision,
+            execution_results,
+        )
+
+    def _prepare_reflection_data(
+        self,
+        pm_signals: Dict,
+        ana_signals: Dict,
+        daily_returns: Dict,
+        real_returns: Dict,
+        tickers: List[str],
+        live_env: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Prepare reflection data with analyst stats and portfolio info"""
+        analyst_stats = self._extract_analyst_stats()
+
+        return {
+            "pm_signals": pm_signals,
+            "actual_returns": daily_returns,
+            "real_returns": real_returns,
+            "analyst_signals": ana_signals,
+            "tickers": tickers,
+            "portfolio_summary": live_env.get("portfolio_summary", {}),
+            "executed_trades": live_env.get("executed_trades", []),
+            "failed_trades": live_env.get("failed_trades", []),
+            "pre_portfolio_state": live_env.get("pre_portfolio_state", {}),
+            "updated_portfolio": live_env.get("updated_portfolio", {}),
+            "analyst_stats": analyst_stats,
+            "live_env": live_env,
+        }
+
+    def _extract_analyst_stats(self) -> Dict[str, Any]:
+        """Extract analyst performance stats from dashboard"""
+        analyst_stats = {}
+
+        if not self.dashboard_generator:
+            return analyst_stats
+
+        dashboard_state = self.dashboard_generator.load_internal_state()
+        agent_performance = dashboard_state.get("agent_performance", {})
+
+        for agent_id, perf in agent_performance.items():
+            analyst_stats[agent_id] = self._calculate_agent_stats(perf)
+
+        return analyst_stats
+
+    def _calculate_agent_stats(self, perf: Dict) -> Dict[str, Any]:
+        """Calculate statistics for a single agent"""
+        bull_count = perf.get("bull_count", 0)
+        bull_win = perf.get("bull_win", 0)
+        bull_unknown = perf.get("bull_unknown", 0)
+        bear_count = perf.get("bear_count", 0)
+        bear_win = perf.get("bear_win", 0)
+        bear_unknown = perf.get("bear_unknown", 0)
+
+        evaluated_bull = max(bull_count - bull_unknown, 0)
+        evaluated_bear = max(bear_count - bear_unknown, 0)
+        total_count = bull_count + bear_count
+        total_win = bull_win + bear_win
+        evaluated_total = evaluated_bull + evaluated_bear
+        win_rate = (
+            (total_win / evaluated_total) if evaluated_total > 0 else None
+        )
+
+        return {
+            "win_rate": win_rate,
+            "total_predictions": total_count,
+            "correct_predictions": total_win,
+            "bull": {
+                "count": bull_count,
+                "win": bull_win,
+                "unknown": bull_unknown,
+            },
+            "bear": {
+                "count": bear_count,
+                "win": bear_win,
+                "unknown": bear_unknown,
+            },
+        }
+
+    def _handle_llm_decision(self, llm_decision: Dict) -> Optional[list]:
+        """Handle LLM decision and return execution results"""
+        if llm_decision["status"] != "success":
+            self._handle_failed_decision(llm_decision)
+            return None
+
+        if llm_decision["mode"] == "operations_executed":
+            return self._handle_operations_executed(llm_decision)
+        elif llm_decision["mode"] == "no_action":
+            self._handle_no_action(llm_decision)
+            return None
+        else:
+            self.streamer.print(
+                "system",
+                f"Unknown LLM decision mode: {llm_decision['mode']}",
+            )
+            return None
+
+    def _handle_failed_decision(self, llm_decision: Dict) -> None:
+        """Handle failed or skipped LLM decisions"""
+        if llm_decision["status"] == "skipped":
+            self.streamer.print(
+                "system",
+                f"Memory management skipped: {llm_decision['reason']}",
+            )
+        else:
+            self.streamer.print(
+                "system",
+                f"LLM decision failed: {llm_decision.get('error', 'Unknown error')}",
+            )
+
+    def _handle_operations_executed(self, llm_decision: Dict) -> list:
+        """Handle operations executed mode"""
+        execution_results = llm_decision["execution_results"]
+        successful = sum(
+            1
+            for result in execution_results
+            if result["result"]["status"] == "success"
+        )
+        total = len(execution_results)
+
+        memory_lines = [
+            "Using LLM tool_call for intelligent memory management",
+            f"Executed {llm_decision['operations_count']} memory operations",
+            f"Execution statistics: Success {successful}/{total}",
+            "\nTool call details:",
+        ]
+
+        for i, exec_result in enumerate(execution_results, 1):
+            self._format_execution_result(memory_lines, i, exec_result)
+
+        self.streamer.print(
+            "agent",
+            "\n".join(memory_lines),
+            role_key="portfolio_manager",
+        )
+
+        return execution_results
+
+    def _handle_no_action(self, llm_decision: Dict) -> None:
+        """Handle no action mode"""
+        no_action_lines = [
+            "Using LLM tool_call for intelligent memory management",
+            "LLM determined no memory operations needed",
+            f"Reasoning: {llm_decision['reasoning']}",
+        ]
+        self.streamer.print(
+            "agent",
+            "\n".join(no_action_lines),
+            role_key="portfolio_manager",
+        )
+
+    def _format_execution_result(
+        self,
+        memory_lines: List[str],
+        index: int,
+        exec_result: Dict,
+    ) -> None:
+        """Format a single execution result"""
+        tool_name = exec_result["tool_name"]
+        args = exec_result["args"]
+        result = exec_result["result"]
+        agent_id = args.get("analyst_id", "N/A")
+
+        memory_lines.append(f"\n{index}. Tool: {tool_name}")
+        memory_lines.append(f"   Analyst: {agent_id}")
+        memory_lines.append(f"   Memory tool parameters: {args}")
+
+        self._format_result_status(memory_lines, result)
+        self._print_agent_memory_operation(tool_name, args, result, agent_id)
+
+    def _format_result_status(
+        self,
+        memory_lines: List[str],
+        result: Dict,
+    ) -> None:
+        """Format result status information"""
+        if result["status"] == "success":
+            memory_lines.append("\tStatus: Success")
+            if "affected_count" in result:
+                memory_lines.append(
+                    f"   Affected memory count: {result['affected_count']}",
+                )
+        else:
+            memory_lines.append(
+                f"\tStatus: Failed - {result.get('error', 'Unknown')}",
+            )
+
+    def _print_agent_memory_operation(
+        self,
+        tool_name: str,
+        args: Dict,
+        result: Dict,
+        agent_id: str,
+    ) -> None:
+        """Print agent-specific memory operation details"""
+        if tool_name == "search_and_update_analyst_memory":
+            self._print_update_operation(args, result, agent_id)
+        elif tool_name == "search_and_delete_analyst_memory":
+            self._print_delete_operation(args, result, agent_id)
+
+    def _print_update_operation(
+        self,
+        args: Dict,
+        result: Dict,
+        agent_id: str,
+    ) -> None:
+        """Print update memory operation details"""
+        agent_mem_lines = [
+            "[memory management]: search and update memory",
+            f"search memory query: {args.get('query', 'N/A')}",
+        ]
+
+        if result.get("memory_id"):
+            agent_mem_lines.append(f"memory ID: {result['memory_id']}")
+
+        if result.get("original_content"):
+            original = result["original_content"]
+            display_original = (
+                original[:200] + "..." if len(original) > 200 else original
+            )
+            agent_mem_lines.append(f"original memory: {display_original}")
+
+        agent_mem_lines.extend(
+            [
+                f"new memory content: {args.get('new_content', 'N/A')}",
+                f"reason: {args.get('reason', 'N/A')}",
+            ],
+        )
+
+        self.streamer.print(
+            "agent",
+            "\n".join(agent_mem_lines),
+            role_key=agent_id,
+        )
+
+    def _print_delete_operation(
+        self,
+        args: Dict,
+        result: Dict,
+        agent_id: str,
+    ) -> None:
+        """Print delete memory operation details"""
+        agent_mem_lines = [
+            "[memory management]: search and delete memory",
+            f"search memory query: {args.get('query', 'N/A')}",
+        ]
+
+        if result.get("memory_id"):
+            agent_mem_lines.append(f"memory ID: {result['memory_id']}")
+
+        if result.get("deleted_content"):
+            deleted = result["deleted_content"]
+            display_deleted = (
+                deleted[:200] + "..." if len(deleted) > 200 else deleted
+            )
+            agent_mem_lines.append(f"deleted memory: {display_deleted}")
+
+        agent_mem_lines.append(f"reason: {args.get('reason', 'N/A')}")
+
+        self.streamer.print(
+            "agent",
+            "\n".join(agent_mem_lines),
+            role_key=agent_id,
+        )
+
+    def _build_response(
+        self,
+        pm_signals: Dict,
+        ana_signals: Dict,
+        daily_returns: Dict,
+        real_returns: Dict,
+        llm_decision: Optional[Dict],
+        execution_results: Optional[list],
+    ) -> Dict[str, Any]:
+        """Build final response dictionary"""
         return {
             "status": "success",
             "type": "full_review",
@@ -1064,9 +1335,7 @@ class LiveTradingFund:
             "analyst_signals": ana_signals,
             "actual_returns": daily_returns,
             "real_returns": real_returns,
-            "llm_memory_decision": (
-                llm_decision if "llm_decision" in locals() else None
-            ),
+            "llm_memory_decision": llm_decision,
             "memory_tool_calls_results": execution_results,
             "timestamp": datetime.now().isoformat(),
         }
@@ -1113,7 +1382,7 @@ class LiveTradingFund:
             agents_data = {}
 
             # ========== 1. Each analyst data ==========
-            for analyst_id in ANALYST_TYPES.keys():
+            for analyst_id, _ in ANALYST_TYPES.items():
                 my_signals = {}
                 for ticker in tickers:
                     if (
@@ -1153,7 +1422,7 @@ class LiveTradingFund:
 
             # ========== 2. PM data ==========
             # 获取 dashboard state 中的历史胜率数据
-            dashboard_state = self.dashboard_generator._load_internal_state()
+            dashboard_state = self.dashboard_generator.load_internal_state()
             agent_performance = dashboard_state.get("agent_performance", {})
 
             # 格式化为简洁的统计数据（只提取关键信息）
@@ -1222,7 +1491,7 @@ class LiveTradingFund:
             # ========== 4. Generate summary report ==========
             summary = self._generate_individual_review_summary(
                 reflection_results=reflection_results,
-                portfolio_summary=portfolio_summary,
+                _portfolio_summary=portfolio_summary,
             )
 
             print("system", "\n📊 Individual Review Summary:")
@@ -1252,7 +1521,7 @@ class LiveTradingFund:
     def _generate_individual_review_summary(
         self,
         reflection_results: Dict[str, Dict[str, Any]],
-        portfolio_summary: Dict[str, Any],
+        _portfolio_summary: Dict[str, Any],
     ) -> str:
         """Generate Individual Review summary"""
         summary_lines = []
@@ -1338,7 +1607,6 @@ class LiveTradingFund:
         end_date: str,
         tickers: List[str],
         max_comm_cycles: int = 2,
-        force_run: bool = False,
         enable_communications: bool = False,
         enable_notifications: bool = False,
     ) -> Dict[str, Any]:
@@ -1376,7 +1644,6 @@ class LiveTradingFund:
                 date=date,
                 tickers=tickers,
                 max_comm_cycles=max_comm_cycles,
-                force_run=force_run,
                 enable_communications=enable_communications,
                 enable_notifications=enable_notifications,
             )
@@ -1459,7 +1726,6 @@ class LiveTradingFund:
         date: str,
         tickers: List[str],
         max_comm_cycles: int = 2,
-        force_run: bool = False,
         enable_communications: bool = False,
         enable_notifications: bool = False,
     ) -> Dict[str, Any]:
@@ -1511,7 +1777,6 @@ class LiveTradingFund:
             date,
             tickers,
             max_comm_cycles,
-            force_run,
             enable_communications,
             enable_notifications,
             skip_real_returns=True,  # Live mode: Skip real_returns calculation
@@ -1532,7 +1797,6 @@ class LiveTradingFund:
         pre_market_result: Optional[Dict[str, Any]] = None,
         prev_date: Optional[str] = None,
         prev_signals: Optional[Dict[str, Any]] = None,
-        skip_real_returns: bool = False,
     ) -> Dict[str, Any]:
         """Execute trades and update previous day's agent performance
 
@@ -1621,8 +1885,6 @@ class LiveTradingFund:
 
         # Step 1: Update historical data (to get today's closing prices)
         try:
-            import os
-
             from backend.data.ret_data_updater import DataUpdater
 
             api_key = os.getenv("FINNHUB_API_KEY")
@@ -1790,8 +2052,8 @@ class LiveTradingFund:
                 (
                     daily_return,
                     real_return,
-                    close_price,
-                ) = self.strategy._calculate_stock_daily_return_from_signal(
+                    _close_price,
+                ) = self.strategy.calculate_stock_daily_return_from_signal(
                     ticker,
                     prev_date,
                     action,
@@ -1807,12 +2069,12 @@ class LiveTradingFund:
             "signals_updated": 0,
         }
 
-        dashboard_state = self.dashboard_generator._load_internal_state()
+        dashboard_state = self.dashboard_generator.load_internal_state()
 
         # Note: Model configuration is now always read fresh from environment variables
         # in _get_agent_model_config(), no need to store in state
 
-        self.dashboard_generator._update_agent_performance(
+        self.dashboard_generator.update_agent_performance(
             date=prev_date,
             ana_signals=ana_signals,
             pm_signals=pm_signals,
@@ -1820,20 +2082,20 @@ class LiveTradingFund:
             state=dashboard_state,
             update_stats=update_stats,
         )
-        self.dashboard_generator._update_pm_performance(
+        self.dashboard_generator.update_pm_performance(
             date=prev_date,
             pm_signals=pm_signals,
             real_returns=real_returns,
             state=dashboard_state,
             update_stats=update_stats,
         )
-        self.dashboard_generator._save_internal_state(dashboard_state)
+        self.dashboard_generator.save_internal_state(dashboard_state)
 
         # ⭐ Key fix: Generate dashboard files needed by frontend
         # - stats.json: Contains Portfolio Manager's win_rate and other statistics
         # - leaderboard.json: Contains leaderboard data for all Agents (with model info)
-        self.dashboard_generator._generate_stats(dashboard_state)
-        self.dashboard_generator._generate_leaderboard(dashboard_state)
+        self.dashboard_generator.generate_stats(dashboard_state)
+        self.dashboard_generator.generate_leaderboard(dashboard_state)
 
         self.streamer.print(
             "system",
@@ -1867,7 +2129,6 @@ class LiveTradingFund:
         date: str,
         tickers: List[str],
         max_comm_cycles: int = 2,
-        force_run: bool = False,
         enable_communications: bool = False,
         enable_notifications: bool = False,
     ) -> Dict[str, Any]:
@@ -1911,7 +2172,6 @@ class LiveTradingFund:
                 date,
                 tickers,
                 max_comm_cycles,
-                force_run,
                 enable_communications,
                 enable_notifications,
             )
@@ -2046,8 +2306,8 @@ class LiveTradingFund:
             return {}
 
 
-def main():
-    """Main function"""
+def _parse_arguments() -> argparse.Namespace:
+    """Parse command line arguments"""
     parser = argparse.ArgumentParser(
         description="Live Trading Thinking Fund - Sandbox time simulation system",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -2095,25 +2355,21 @@ Example usage:
         type=str,
         help="Stock symbol list, comma separated (optional, use environment variable configuration)",
     )
-
     parser.add_argument(
         "--max-comm-cycles",
         type=int,
         help="Maximum communication rounds (default: 2)",
     )
-
     parser.add_argument(
         "--force-run",
         action="store_true",
         help="Force run, rerun even if already run on this trading day",
     )
-
     parser.add_argument(
         "--base-dir",
         type=str,
         help="Base directory",
     )
-
     # Portfolio mode parameters
     parser.add_argument(
         "--mode",
@@ -2121,92 +2377,134 @@ Example usage:
         choices=["signal", "portfolio"],
         help="Running mode: signal (signal mode) or portfolio (portfolio mode). Default read from .env",
     )
-
     parser.add_argument(
         "--initial-cash",
         type=float,
         help="Portfolio mode initial cash (default: 100000.0)",
     )
-
     parser.add_argument(
         "--margin-requirement",
         type=float,
         help="Portfolio mode margin requirement, 0.0 means disable shorting, 0.5 means 50%% margin (default: 0.0)",
     )
 
-    args = parser.parse_args()
+    return parser.parse_args()
 
+
+def _initialize_system(config: LiveThinkingFundConfig) -> LiveTradingFund:
+    """Initialize memory system and thinking fund"""
+    console_streamer = ConsoleStreamer()
+
+    # Initialize memory system
+    _memory_instance = get_memory(base_dir=config.config_name)
+    print("✅ Memory system initialized")
+
+    # Initialize thinking fund system
+    thinking_fund = LiveTradingFund(
+        config_name=config.config_name,
+        streamer=console_streamer,
+        mode=config.mode,
+        initial_cash=config.initial_cash,
+        margin_requirement=config.margin_requirement,
+    )
+
+    return thinking_fund
+
+
+def _print_configuration(config: LiveThinkingFundConfig) -> None:
+    """Print system configuration"""
+    from pprint import pprint
+
+    print("\n📊 Live Trading Thinking Fund Configuration:")
+    print(f"   Running mode: {config.mode.upper()}")
+    if config.mode == "portfolio":
+        print(f"   Initial cash: ${config.initial_cash:,.2f}")
+        print(f"   Margin requirement: {config.margin_requirement * 100:.1f}%")
+    pprint(config.__dict__)
+
+
+def _run_simulation(
+    thinking_fund: LiveTradingFund,
+    args: argparse.Namespace,
+    config: LiveThinkingFundConfig,
+    tickers: List[str],
+) -> None:
+    """Run single or multi-day simulation"""
+    if args.start_date or args.end_date:
+        _run_multi_day_simulation(thinking_fund, args, config, tickers)
+    else:
+        _run_single_day_simulation(thinking_fund, args, tickers)
+
+
+def _run_multi_day_simulation(
+    thinking_fund: LiveTradingFund,
+    args: argparse.Namespace,
+    config: LiveThinkingFundConfig,
+    tickers: List[str],
+) -> None:
+    """Run multi-day simulation"""
+    if not args.start_date or not args.end_date:
+        print(
+            "Error: Multi-day mode requires both --start-date and --end-date",
+        )
+        sys.exit(1)
+
+    results = thinking_fund.run_multi_day_simulation(
+        start_date=args.start_date,
+        end_date=args.end_date,
+        tickers=tickers,
+        max_comm_cycles=config.max_comm_cycles,
+        enable_communications=not config.disable_communications,
+        enable_notifications=not config.disable_notifications,
+    )
+    print(
+        f"\nMulti-day sandbox simulation completed: "
+        f"{results['summary']['success_days']} / {results['summary']['total_days']} success",
+    )
+
+
+def _run_single_day_simulation(
+    thinking_fund: LiveTradingFund,
+    args: argparse.Namespace,
+    tickers: List[str],
+) -> None:
+    """Run single day simulation"""
+    if not args.date:
+        print("Error: Please provide --date or --start-date/--end-date")
+        sys.exit(1)
+
+    if not thinking_fund.validate_date_format(args.date):
+        print(f"Error: Invalid date format: {args.date} (need YYYY-MM-DD)")
+        sys.exit(1)
+
+    _results = thinking_fund.run_full_day_simulation(
+        date=args.date,
+        tickers=tickers,
+        max_comm_cycles=args.max_comm_cycles,
+    )
+    print(f"\n{args.date} sandbox time simulation completed!")
+
+
+def main():
+    """Main function"""
     try:
-        # Load configuration
+        args = _parse_arguments()
+
+        # Load and override configuration
         config = LiveThinkingFundConfig()
         config.override_with_args(args)
 
-        # Create ConsoleStreamer for initialization phase
-        console_streamer = ConsoleStreamer()
+        # Initialize system
+        thinking_fund = _initialize_system(config)
 
-        # Initialize memory system (automatically select framework based on environment variable)
-        memory_instance = get_memory(base_dir=config.config_name)
-        print("✅ Memory system initialized")
+        # Print configuration
+        _print_configuration(config)
 
-        # Initialize thinking fund system, pass mode and portfolio parameters
-        thinking_fund = LiveTradingFund(
-            config_name=config.config_name,
-            streamer=console_streamer,
-            mode=config.mode,  # Pass running mode
-            initial_cash=config.initial_cash,  # Portfolio mode initial cash
-            # Portfolio mode margin requirement
-            margin_requirement=config.margin_requirement,
-        )
-
+        # Get tickers
         tickers = args.tickers.split(",") if args.tickers else config.tickers
-        from pprint import pprint
 
-        print("\n📊 Live Trading Thinking Fund Configuration:")
-        print(f"   Running mode: {config.mode.upper()}")
-        if config.mode == "portfolio":
-            print(f"   Initial cash: ${config.initial_cash:,.2f}")
-            print(
-                f"   Margin requirement: {config.margin_requirement * 100:.1f}%",
-            )
-        pprint(config.__dict__)
-
-        if args.start_date or args.end_date:
-            if not args.start_date or not args.end_date:
-                print(
-                    "Error: Multi-day mode requires both --start-date and --end-date",
-                )
-                sys.exit(1)
-            results = thinking_fund.run_multi_day_simulation(
-                start_date=args.start_date,
-                end_date=args.end_date,
-                tickers=tickers,
-                max_comm_cycles=config.max_comm_cycles,
-                force_run=args.force_run,
-                enable_communications=not config.disable_communications,
-                enable_notifications=not config.disable_notifications,
-            )
-            print(
-                f"\nMulti-day sandbox simulation completed: {results['summary']['success_days']} / {results['summary']['total_days']} success",
-            )
-        else:
-            if not args.date:
-                print(
-                    "Error: Please provide --date or --start-date/--end-date",
-                )
-                sys.exit(1)
-            if not thinking_fund.validate_date_format(args.date):
-                print(
-                    f"Error: Invalid date format: {args.date} (need YYYY-MM-DD)",
-                )
-                sys.exit(1)
-
-            results = thinking_fund.run_full_day_simulation(
-                date=args.date,
-                tickers=tickers,
-                max_comm_cycles=args.max_comm_cycles,
-                force_run=args.force_run,
-            )
-            print(f"\n{args.date} sandbox time simulation completed!")
+        # Run simulation
+        _run_simulation(thinking_fund, args, config, tickers)
 
     except KeyboardInterrupt:
         print("\nUser interrupted simulation")
