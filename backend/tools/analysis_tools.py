@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Unified analysis tools collection
-Contains all tools for fundamental analysis, technical analysis, sentiment analysis, and valuation analysis
+Contains all tools for fundamental analysis, technical analysis,
+sentiment analysis, and valuation analysis
 """
 # flake8: noqa: E501
 # pylint: disable=C0301
@@ -281,7 +282,7 @@ def analyze_valuation_ratios(
 # ===================== Technical Analysis Tools =====================
 def analyze_trend_following(
     ticker: str,
-    start_date: str,
+    _start_date: str,
     end_date: str,
     api_key: str,
 ) -> Dict[str, Any]:
@@ -428,7 +429,7 @@ def analyze_trend_following(
 
 def analyze_mean_reversion(
     ticker: str,
-    start_date: str,
+    _start_date: str,
     end_date: str,
     api_key: str,
 ) -> Dict[str, Any]:
@@ -518,7 +519,7 @@ def analyze_mean_reversion(
 
 def analyze_momentum(
     ticker: str,
-    start_date: str,
+    _start_date: str,
     end_date: str,
     api_key: str,
 ) -> Dict[str, Any]:
@@ -613,7 +614,7 @@ def analyze_momentum(
 
 def analyze_volatility(
     ticker: str,
-    start_date: str,
+    _start_date: str,
     end_date: str,
     api_key: str,
 ) -> Dict[str, Any]:
@@ -1105,14 +1106,6 @@ def ev_ebitda_valuation_analysis(
 ) -> Dict[str, Any]:
     """
     EV/EBITDA multiple valuation analysis
-
-    Args:
-        ticker: Stock ticker
-        end_date: End date
-        api_key: API key
-
-    Returns:
-        Dictionary containing EV/EBITDA valuation analysis results
     """
     try:
         # Get financial metrics
@@ -1124,25 +1117,25 @@ def ev_ebitda_valuation_analysis(
             api_key=api_key,
         )
 
+        most_recent = financial_metrics[0] if financial_metrics else None
+
+        # Consolidated validation
+        error_msg = None
         if not financial_metrics:
-            return {"error": "No financial metrics found"}
-
-        most_recent = financial_metrics[0]
-
-        # Check required data
-        if not (
+            error_msg = "No financial metrics found"
+        elif not (
             most_recent.enterprise_value
             and most_recent.enterprise_value_to_ebitda_ratio
         ):
-            return {"error": "Missing EV/EBITDA data"}
+            error_msg = "Missing EV/EBITDA data"
+        elif most_recent.enterprise_value_to_ebitda_ratio <= 0:
+            error_msg = "Invalid EV/EBITDA ratio"
 
-        if most_recent.enterprise_value_to_ebitda_ratio <= 0:
-            return {"error": "Invalid EV/EBITDA ratio"}
+        if error_msg:
+            return {"error": error_msg}
 
         # Get market cap
         market_cap = get_market_cap(ticker, end_date, api_key=api_key)
-        if not market_cap:
-            return {"error": "Market cap unavailable"}
 
         # Calculate current EBITDA
         current_ebitda = (
@@ -1158,8 +1151,14 @@ def ev_ebitda_valuation_analysis(
             and m.enterprise_value_to_ebitda_ratio > 0
         ]
 
-        if len(valid_multiples) < 3:
-            return {"error": "Insufficient historical data"}
+        # More validation
+        if not market_cap:
+            error_msg = "Market cap unavailable"
+        elif len(valid_multiples) < 3:
+            error_msg = "Insufficient historical data"
+
+        if error_msg:
+            return {"error": error_msg}
 
         median_multiple = median(valid_multiples)
         current_multiple = most_recent.enterprise_value_to_ebitda_ratio
@@ -1209,14 +1208,6 @@ def residual_income_valuation_analysis(
 ) -> Dict[str, Any]:
     """
     Residual Income Model (RIM) valuation analysis
-
-    Args:
-        ticker: Stock ticker
-        end_date: End date
-        api_key: API key
-
-    Returns:
-        Dictionary containing residual income valuation analysis results
     """
     try:
         # Get financial metrics
@@ -1228,10 +1219,7 @@ def residual_income_valuation_analysis(
             api_key=api_key,
         )
 
-        if not financial_metrics:
-            return {"error": "No financial metrics found"}
-
-        most_recent = financial_metrics[0]
+        most_recent = financial_metrics[0] if financial_metrics else None
 
         # Get net income data
         line_items = search_line_items(
@@ -1243,20 +1231,28 @@ def residual_income_valuation_analysis(
             api_key=api_key,
         )
 
-        if not line_items or not line_items[0].net_income:
-            return {"error": "No net income data"}
-
-        net_income = line_items[0].net_income
-
         # Get market cap
         market_cap = get_market_cap(ticker, end_date, api_key=api_key)
-        if not market_cap:
-            return {"error": "Market cap unavailable"}
 
-        # Check required data
+        # Consolidated validation
+        error_msg = None
+        if not financial_metrics:
+            error_msg = "No financial metrics found"
+        elif not line_items or not line_items[0].net_income:
+            error_msg = "No net income data"
+        elif not market_cap:
+            error_msg = "Market cap unavailable"
+        elif (
+            not most_recent.price_to_book_ratio
+            or most_recent.price_to_book_ratio <= 0
+        ):
+            error_msg = "Invalid P/B ratio"
+
+        if error_msg:
+            return {"error": error_msg}
+
+        net_income = line_items[0].net_income
         pb_ratio = most_recent.price_to_book_ratio
-        if not pb_ratio or pb_ratio <= 0:
-            return {"error": "Invalid P/B ratio"}
 
         # Calculate book value
         book_value = market_cap / pb_ratio
