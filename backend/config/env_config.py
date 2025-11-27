@@ -7,7 +7,6 @@ Supports loading configuration parameters from .env file and provides default va
 # flake8: noqa: E501
 # pylint: disable=C0301
 import os
-from dataclasses import field
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict
@@ -91,22 +90,27 @@ def get_env_value(
 
     # Type conversion
     try:
-        if value_type == bool:
-            return value.lower() in ("true", "1", "yes", "on")
-        elif value_type == int:
-            return int(value)
-        elif value_type == float:
-            return float(value)
-        elif value_type == list:
-            # Assume comma-separated string
-            return [item.strip() for item in value.split(",") if item.strip()]
-        else:
-            return value
+        return _convert_value(value, value_type)
     except (ValueError, TypeError):
         print(
             f"⚠️ Environment variable {key} value '{value}' cannot be converted to {value_type.__name__}, using default value",
         )
         return default
+
+
+def _convert_value(value: str, value_type: type) -> Any:
+    """Helper function to convert string value to specified type"""
+    if value_type == bool:
+        return value.lower() in ("true", "1", "yes", "on")
+    elif value_type == int:
+        return int(value)
+    elif value_type == float:
+        return float(value)
+    elif value_type == list:
+        # Assume comma-separated string
+        return [item.strip() for item in value.split(",") if item.strip()]
+    else:
+        return value
 
 
 class MultiDayConfig:
@@ -234,13 +238,34 @@ class MultiDayConfig:
 
     def override_with_args(self, args):
         """Override environment variable configuration with command line arguments"""
-        if hasattr(args, "tickers") and args.tickers:
-            self.tickers = [
+        # Define attribute mapping with validation rules
+        attr_mappings = {
+            "tickers": lambda val: [
                 ticker.strip().upper()
-                for ticker in args.tickers.split(",")
+                for ticker in val.split(",")
                 if ticker.strip()
-            ]
+            ],
+            "initial_cash": lambda val: val,
+            "margin_requirement": lambda val: val,
+            "start_date": lambda val: val,
+            "end_date": lambda val: val,
+            "output_dir": lambda val: val,
+            "disable_communications": lambda val: val,
+            "disable_notifications": lambda val: val,
+            "disable_data_prefetch": lambda val: val,
+            "enable_okr": lambda val: val,
+            "show_reasoning": lambda val: val,
+            "dry_run": lambda val: val,
+            "verbose": lambda val: val,
+            "max_comm_cycles": lambda val: val,
+        }
 
+        # Process simple attributes
+        for attr, converter in attr_mappings.items():
+            if hasattr(args, attr) and getattr(args, attr):
+                setattr(self, attr, converter(getattr(args, attr)))
+
+        # Handle mode separately due to validation logic
         if hasattr(args, "mode") and args.mode:
             if args.mode in ["signal", "portfolio"]:
                 self.mode = args.mode
@@ -249,59 +274,11 @@ class MultiDayConfig:
                     f"⚠️ Invalid run mode: {args.mode}, keeping current value '{self.mode}'",
                 )
 
-        if hasattr(args, "initial_cash") and args.initial_cash:
-            self.initial_cash = args.initial_cash
-
-        if hasattr(args, "margin_requirement") and args.margin_requirement:
-            self.margin_requirement = args.margin_requirement
-
-        if hasattr(args, "start_date") and args.start_date:
-            self.start_date = args.start_date
-
-        if hasattr(args, "end_date") and args.end_date:
-            self.end_date = args.end_date
-
-        if hasattr(args, "output_dir") and args.output_dir:
-            self.output_dir = args.output_dir
-
-        if (
-            hasattr(args, "disable_communications")
-            and args.disable_communications
-        ):
-            self.disable_communications = args.disable_communications
-
-        if (
-            hasattr(args, "disable_notifications")
-            and args.disable_notifications
-        ):
-            self.disable_notifications = args.disable_notifications
-
-        if (
-            hasattr(args, "disable_data_prefetch")
-            and args.disable_data_prefetch
-        ):
-            self.disable_data_prefetch = args.disable_data_prefetch
-
-        if hasattr(args, "enable_okr") and args.enable_okr:
-            self.enable_okr = args.enable_okr
-
-        if hasattr(args, "show_reasoning") and args.show_reasoning:
-            self.show_reasoning = args.show_reasoning
-
-        if hasattr(args, "dry_run") and args.dry_run:
-            self.dry_run = args.dry_run
-
-        if hasattr(args, "verbose") and args.verbose:
-            self.verbose = args.verbose
-
-        if hasattr(args, "max_comm_cycles") and args.max_comm_cycles:
-            self.max_comm_cycles = args.max_comm_cycles
-
 
 class LiveTradingConfig:
     """Live trading system configuration class"""
 
-    tickers: list[str] = field(default_factory=list)
+    tickers: list[str] | None = None
     start_date: str | None = None
     end_date: str | None = None
     date: str | None = None
@@ -400,7 +377,7 @@ class LiveTradingConfig:
 class LiveThinkingFundConfig:
     """Live trading system configuration class"""
 
-    tickers: list[str] = field(default_factory=list)
+    tickers: list[str] | None = None
     start_date: str | None = None
     end_date: str | None = None
     date: str | None = None
