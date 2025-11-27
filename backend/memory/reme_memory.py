@@ -124,6 +124,7 @@ class ReMeMemory(LongTermMemory):
         if sqlite_file.exists():
             # SQLite3 exists, try to list all collections (workspaces)
             try:
+                # pylint: disable=protected-access
                 all_collections = self.vector_store._client.list_collections()
                 logger.info(
                     f"Found {len(all_collections)} workspaces in SQLite3 database",
