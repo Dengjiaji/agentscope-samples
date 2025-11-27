@@ -48,7 +48,7 @@ class MultiDayStrategy:
         initial_cash: float = 100000.0,
         margin_requirement: float = 0.0,
         prefetch_data: bool = True,
-        **kwargs,
+        **_kwargs,
     ):
         """
         Initialize multi-day strategy manager
@@ -143,7 +143,7 @@ class MultiDayStrategy:
         if portfolio_files:
             latest_file = portfolio_files[-1]
             try:
-                with open(latest_file, "r") as f:
+                with open(latest_file, "r", encoding="utf-8") as f:
                     state = json.load(f)
                 return state
             except Exception as e:
@@ -158,7 +158,7 @@ class MultiDayStrategy:
             self.state_dir / f"portfolio_{date.replace('-', '_')}.json"
         )
         try:
-            with open(state_file, "w") as f:
+            with open(state_file, "w", encoding="utf-8") as f:
                 json.dump(portfolio, f, indent=2, default=str)
         except Exception as e:
             print(f"❌ Failed to save portfolio state: {e}")
@@ -630,8 +630,8 @@ class MultiDayStrategy:
                     # Calculate daily return based on directional signal
                     (
                         daily_return,
-                        real_return,
-                        close_price,
+                        _real_return,
+                        _close_price,
                     ) = self._calculate_stock_daily_return_from_signal(
                         ticker,
                         daily_result["date"],
@@ -785,7 +785,7 @@ class MultiDayStrategy:
                 ticker_data[date]["daily_return"] for date in dates
             ]
 
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
+            _fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
 
             # Upper chart: Cumulative return curve
             dates_dt = pd.to_datetime(dates)
@@ -816,7 +816,11 @@ class MultiDayStrategy:
                 f"Total Return: {final_return:.2f}%",
                 transform=ax1.transAxes,
                 fontsize=12,
-                bbox=dict(boxstyle="round", facecolor="lightblue", alpha=0.8),
+                bbox={
+                    "boxstyle": "round",
+                    "facecolor": "lightblue",
+                    "alpha": 0.8,
+                },
                 verticalalignment="top",
             )
 
@@ -853,12 +857,12 @@ class MultiDayStrategy:
         except Exception as e:
             raise RuntimeError(
                 f"Failed to generate {ticker} return chart: {e}",
-            )
+            ) from e
 
     def create_stocks_comparison_chart(self, individual_data: Dict) -> str:
         """Create stock comparison chart"""
         try:
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
+            _fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
 
             colors = plt.cm.Set1(np.linspace(0, 1, len(individual_data)))
 
@@ -944,4 +948,4 @@ class MultiDayStrategy:
         except Exception as e:
             raise RuntimeError(
                 f"Failed to generate stock comparison chart: {e}",
-            )
+            ) from e
