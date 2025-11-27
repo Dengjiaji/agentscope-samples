@@ -1,0 +1,47 @@
+# Position Limits Configuration
+# Position limit configuration (Portfolio mode) - Aggressive mode
+
+# Base position limit - Aggressive configuration
+base_position_limit: 0.25
+# Volatility-based position adjustments - Aggressive configuration
+volatility_adjustments:
+  low_volatility:  # < 15%
+    max_volatility: 0.15
+    multiplier: 1.50  # Allow 52.5% allocation (aggressive mode, increased from 1.25)
+    description: "Allow higher allocation for stable stocks - aggressive mode"
+
+  medium_volatility:  # 15% - 30%
+    min_volatility: 0.15
+    max_volatility: 0.30
+    multiplier_formula: "1.3 - (annualized_volatility - 0.15) * 0.6"
+    # 35% -> 19% linear decrease (aggressive mode, gentler decrease)
+    description: "Aggressive configuration with volatility fine-tuning"
+
+  high_volatility:  # 30% - 50%
+    min_volatility: 0.30
+    max_volatility: 0.50
+    multiplier_formula: "0.95 - (annualized_volatility - 0.30) * 0.6"
+    # 33% -> 12% linear decrease (aggressive mode, increased lower limit)
+    description: "Aggressive configuration for high volatility stocks"
+
+  very_high_volatility:  # > 50%
+    min_volatility: 0.50
+    multiplier: 0.65  # Maximum 23% allocation (aggressive mode, increased from 0.50)
+    description: "Aggressive configuration for extremely high-risk stocks"
+
+# Position limit bounds - Aggressive configuration
+position_limit_bounds:
+  min_multiplier: 0.35  # Minimum 12% (0.35 * 0.35) (aggressive mode, increased from 0.25)
+  max_multiplier: 1.50  # Maximum 52.5% (0.35 * 1.50) (aggressive mode, increased from 1.25)
+
+# Margin requirements
+margin_requirements:
+  short_position_margin: 0.50  # Short positions require 50% margin
+  maintenance_margin: 0.25  # Maintenance margin 25%
+
+# Risk calculation parameters
+risk_calculation:
+  lookback_days: 60  # Number of days for volatility calculation lookback
+  trading_days_per_year: 252  # Number of trading days used for annualization
+  rolling_window: 30  # Rolling window size (for percentile calculation)
+
