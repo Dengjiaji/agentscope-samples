@@ -409,7 +409,7 @@ class LiveTradingFund:
                     daily_return,
                     real_return,
                     _close_price,
-                ) = self.strategy.calculate_stock_daily_return_from_signal(
+                ) = self.strategy._calculate_stock_daily_return_from_signal(
                     ticker,
                     date,
                     action,
@@ -2050,7 +2050,7 @@ class LiveTradingFund:
                     daily_return,
                     real_return,
                     _close_price,
-                ) = self.strategy.calculate_stock_daily_return_from_signal(
+                ) = self.strategy._calculate_stock_daily_return_from_signal(
                     ticker,
                     prev_date,
                     action,
