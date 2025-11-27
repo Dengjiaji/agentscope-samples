@@ -386,30 +386,30 @@ class RiskManagerAgent(AgentBase):
     ) -> tuple:
         """Calculate risk assessment"""
         # Risk level based on volatility
+        assessment = f"{ticker}: daily_vol {daily_vol:.2%}"
         if annualized_vol < 0.15:
             risk_level = "low"
             base_score = 25
             if vol_percentile < 30:
-                assessment = f"Low risk stock, annualized volatility {annualized_vol:.1%}, currently at historically low volatility level"
+                assessment += f"Low risk stock, annualized volatility {annualized_vol:.1%}, currently at historically low volatility level"
             else:
-                assessment = f"Low risk stock, annualized volatility {annualized_vol:.1%}, price volatility relatively mild"
+                assessment += f"Low risk stock, annualized volatility {annualized_vol:.1%}, price volatility relatively mild"
         elif annualized_vol < 0.30:
             risk_level = "medium"
             base_score = 50
             if vol_percentile > 70:
-                risk_score = base_score + 15
-                assessment = f"Medium risk stock, annualized volatility {annualized_vol:.1%}, volatility currently rising"
+                base_score = base_score + 15
+                assessment += f"Medium risk stock, annualized volatility {annualized_vol:.1%}, volatility currently rising"
             else:
-                risk_score = base_score
-                assessment = f"Medium risk stock, annualized volatility {annualized_vol:.1%}, volatility at normal level"
+                assessment += f"Medium risk stock, annualized volatility {annualized_vol:.1%}, volatility at normal level"
         elif annualized_vol < 0.50:
             risk_level = "high"
             base_score = 75
-            assessment = f"High risk stock, annualized volatility {annualized_vol:.1%}, significant price volatility"
+            assessment += f"High risk stock, annualized volatility {annualized_vol:.1%}, significant price volatility"
         else:
             risk_level = "very_high"
             base_score = 90
-            assessment = f"Very high risk stock, annualized volatility {annualized_vol:.1%}, extreme price volatility"
+            assessment += f"Very high risk stock, annualized volatility {annualized_vol:.1%}, extreme price volatility"
 
         # Data quality adjustment
         if data_points < 10:
