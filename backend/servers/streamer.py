@@ -26,29 +26,28 @@ class BaseStreamer:
     def price(self, value: float):
         raise NotImplementedError
 
-    def default_print(self, content: str, type: str):
+    def default_print(self, content: str, msg_type: str):
         raise NotImplementedError
 
-    def print(self, type: str = "", content: str = "", **kwargs):
+    def print(self, msg_type: str = "", content: str = "", **kwargs):
         """
         Generic print interface
         :param content: Output content
-        :param type: Message type, options: system / agent / price / custom
+        :param msg_type: Message type, options: system / agent / price / custom
         """
-        if type == "system" or type == "":
+        if msg_type in ("system", ""):
             self.system(content)
-        elif type == "agent":
-            # Allow passing role_key in kwargs
+        elif msg_type == "agent":
             role_key = kwargs.get("role_key", "_default")
             self.agent(role_key, content)
-        elif type == "price":
+        elif msg_type == "price":
             try:
                 value = float(content)
             except ValueError:
                 value = 0.0
             self.price(value)
         else:
-            self.default_print(content, type)
+            self.default_print(content, msg_type)
 
 
 class ConsoleStreamer(BaseStreamer):
@@ -62,8 +61,8 @@ class ConsoleStreamer(BaseStreamer):
     def price(self, value: float):
         print(f"[price] {float(value):.4f}")
 
-    def default_print(self, content: str, type: str):
-        print(f"[{type}] {content}")
+    def default_print(self, content: str, msg_type: str):
+        print(f"[{msg_type}] {content}")
 
 
 class WebSocketStreamer(BaseStreamer):
@@ -135,9 +134,8 @@ class WebSocketStreamer(BaseStreamer):
         ts = self._bump()
         self._enqueue({"type": "price", "price": float(value), "ts": ts})
 
-    def default_print(self, content: str, type: str):
-        ts = self._bump()
-        self._enqueue({"type": type, "content": content, "ts": ts})
+    def default_print(self, content: str, msg_type: str):
+        self._fanout("default_print", content, msg_type)
 
 
 class MultiStreamer(BaseStreamer):
@@ -164,8 +162,8 @@ class MultiStreamer(BaseStreamer):
     def price(self, value: float):
         self._fanout("price", value)
 
-    def default_print(self, content: str, type: str):
-        self._fanout("default_print", content, type)
+    def default_print(self, content: str, msg_type: str):
+        self._fanout("default_print", content, msg_type)
 
 
 class BroadcastStreamer(BaseStreamer):
@@ -284,22 +282,22 @@ class BroadcastStreamer(BaseStreamer):
         )
         self._broadcast(message)
 
-    def default_print(self, content: str, type: str):
+    def default_print(self, content: str, msg_type: str):
         """Default print (generic interface)"""
-        message = self._normalize_message(type, content)
+        message = self._normalize_message(msg_type, content)
         self._broadcast(message)
 
-    def print(self, type: str = "", content: str = "", **kwargs):
+    def print(self, msg_type: str = "", content: str = "", **kwargs):
         """
         Generic print interface (enhanced version)
         Supports arbitrary event types and custom fields
         """
-        if type in ("system", ""):
+        if msg_type in ("system", ""):
             self.system(content)
-        elif type == "agent":
+        elif msg_type == "agent":
             role_key = kwargs.get("role_key", "_default")
             self.agent(role_key, content)
-        elif type == "price":
+        elif msg_type == "price":
             try:
                 value = float(content)
                 self.price(value)
@@ -307,5 +305,5 @@ class BroadcastStreamer(BaseStreamer):
                 self.price(0.0)
         else:
             # Handle all other message types
-            message = self._normalize_message(type, content, **kwargs)
+            message = self._normalize_message(msg_type, content, **kwargs)
             self._broadcast(message)
