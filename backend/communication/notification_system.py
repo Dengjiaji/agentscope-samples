@@ -71,7 +71,7 @@ class SimpleNotificationSystem:
         content: str,
         urgency: str = "medium",
         category: str = "general",
-        backtest_date: Optional[str] = None,
+        _backtest_date: Optional[str] = None,
     ) -> str:
         """Broadcast notification"""
         notification = Notification(sender_agent, content, urgency, category)
