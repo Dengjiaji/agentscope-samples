@@ -1187,7 +1187,7 @@ class InvestmentEngine:
             "sandbox_dir": self.sandbox_dir,
         }
 
-        agent_mode = "portfolio" if mode == "portfolio" else "direction"
+        agent_mode = "portfolio" if mode == "portfolio" else "signal"
         pm_agent = PortfolioManagerAgent(
             agent_id="portfolio_manager",
             mode=agent_mode,
@@ -1432,7 +1432,7 @@ class InvestmentEngine:
             "sandbox_dir": self.sandbox_dir,
         }
 
-        agent_mode = "portfolio" if mode == "portfolio" else "direction"
+        agent_mode = "portfolio" if mode == "portfolio" else "signal"
         pm_agent = PortfolioManagerAgent(
             agent_id="portfolio_manager",
             mode=agent_mode,

@@ -282,7 +282,7 @@ def analyze_valuation_ratios(
 # ===================== Technical Analysis Tools =====================
 def analyze_trend_following(
     ticker: str,
-    _start_date: str,
+    start_date: str,
     end_date: str,
     api_key: str,
 ) -> Dict[str, Any]:
@@ -302,6 +302,7 @@ def analyze_trend_following(
         # Automatically extend historical data range to meet technical analysis needs
         from datetime import datetime, timedelta
 
+        _start_dt = datetime.strptime(start_date, "%Y-%m-%d")
         end_dt = datetime.strptime(end_date, "%Y-%m-%d")
         # Extend to 250 days ago to ensure sufficient data for 200-day MA
         extended_start_date = (end_dt - timedelta(days=250)).strftime(
@@ -429,7 +430,7 @@ def analyze_trend_following(
 
 def analyze_mean_reversion(
     ticker: str,
-    _start_date: str,
+    start_date: str,
     end_date: str,
     api_key: str,
 ) -> Dict[str, Any]:
@@ -449,6 +450,7 @@ def analyze_mean_reversion(
         # Automatically extend historical data range to meet technical analysis needs
         from datetime import datetime, timedelta
 
+        _start_dt = datetime.strptime(start_date, "%Y-%m-%d")
         end_dt = datetime.strptime(end_date, "%Y-%m-%d")
         # Extend to 60 days ago to ensure sufficient historical data
         extended_start_date = (end_dt - timedelta(days=60)).strftime(
@@ -519,7 +521,7 @@ def analyze_mean_reversion(
 
 def analyze_momentum(
     ticker: str,
-    _start_date: str,
+    start_date: str,
     end_date: str,
     api_key: str,
 ) -> Dict[str, Any]:
@@ -539,6 +541,7 @@ def analyze_momentum(
         # Automatically extend historical data range to meet technical analysis needs
         from datetime import datetime, timedelta
 
+        _start_dt = datetime.strptime(start_date, "%Y-%m-%d")
         end_dt = datetime.strptime(end_date, "%Y-%m-%d")
         # Extend to 45 days ago to ensure sufficient historical data
         extended_start_date = (end_dt - timedelta(days=45)).strftime(
@@ -614,7 +617,7 @@ def analyze_momentum(
 
 def analyze_volatility(
     ticker: str,
-    _start_date: str,
+    start_date: str,
     end_date: str,
     api_key: str,
 ) -> Dict[str, Any]:
@@ -634,6 +637,7 @@ def analyze_volatility(
         # Automatically extend historical data range to meet technical analysis needs
         from datetime import datetime, timedelta
 
+        _start_dt = datetime.strptime(start_date, "%Y-%m-%d")
         end_dt = datetime.strptime(end_date, "%Y-%m-%d")
         # Extend to 90 days ago to ensure sufficient historical data for volatility calculation
         extended_start_date = (end_dt - timedelta(days=90)).strftime(
@@ -1136,7 +1140,10 @@ def ev_ebitda_valuation_analysis(
 
         # Get market cap
         market_cap = get_market_cap(ticker, end_date, api_key=api_key)
-
+        # Type assertions after validation
+        assert most_recent is not None
+        assert most_recent.enterprise_value is not None
+        assert most_recent.enterprise_value_to_ebitda_ratio is not None
         # Calculate current EBITDA
         current_ebitda = (
             most_recent.enterprise_value
@@ -1159,6 +1166,7 @@ def ev_ebitda_valuation_analysis(
 
         if error_msg:
             return {"error": error_msg}
+        assert market_cap is not None  # Type assertion after validation
 
         median_multiple = median(valid_multiples)
         current_multiple = most_recent.enterprise_value_to_ebitda_ratio
@@ -1250,7 +1258,10 @@ def residual_income_valuation_analysis(
 
         if error_msg:
             return {"error": error_msg}
-
+        assert most_recent is not None
+        assert most_recent.price_to_book_ratio is not None
+        assert market_cap is not None
+        assert line_items[0].net_income is not None
         net_income = line_items[0].net_income
         pb_ratio = most_recent.price_to_book_ratio
 

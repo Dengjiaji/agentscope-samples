@@ -944,7 +944,6 @@ class Server:
             date=date,
             tickers=self.config.tickers,
             max_comm_cycles=self.config.max_comm_cycles,
-            force_run=False,
             enable_communications=not self.config.disable_communications,
             enable_notifications=not self.config.disable_notifications,
         )

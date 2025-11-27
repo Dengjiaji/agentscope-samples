@@ -665,9 +665,9 @@ def _fetch_from_financial_datasets_company_news(
         if not start_date or len(company_news) < limit:
             break
 
-        current_end_date = min(news.date for news in company_news).split("T")[
-            0
-        ]
+        current_end_date = min(
+            news.date for news in company_news if news.date is not None
+        ).split("T")[0]
 
         if current_end_date <= start_date:
             break

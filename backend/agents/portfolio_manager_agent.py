@@ -48,7 +48,7 @@ class PortfolioManagerAgent(AgentBase):
     def __init__(
         self,
         agent_id: str = "portfolio_manager",
-        mode: Literal["direction", "portfolio"] = "direction",
+        mode: str = "portfolio",
         config: Optional[Dict[str, Any]] = None,
     ):
         """
@@ -63,7 +63,7 @@ class PortfolioManagerAgent(AgentBase):
 
         Examples:
             >>> # Direction decision mode
-            >>> agent = PortfolioManagerAgent(mode="direction")
+            >>> agent = PortfolioManagerAgent(mode="signal")
             >>>
             >>> # Portfolio mode (includes quantity)
             >>> agent = PortfolioManagerAgent(mode="portfolio")

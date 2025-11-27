@@ -163,11 +163,8 @@ class LiveTradingFund:
         self,
         date: str,
         time_point: str,
-        force_run: bool = False,
     ) -> bool:
         """Determine whether to run sandbox analysis (independent of live_system check logic)"""
-        if force_run:
-            return True
 
         # Check if sandbox log has successful record
         existing_data = self._load_sandbox_log(date, time_point)

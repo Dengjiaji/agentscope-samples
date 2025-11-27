@@ -283,7 +283,6 @@ class LiveTradingConfig:
     end_date: str | None = None
     date: str | None = None
     max_comm_cycles: int = 2
-    force_run: bool = False
     base_dir: str | None = None
     disable_communications: bool = False
     disable_notifications: bool = False
@@ -317,14 +316,6 @@ class LiveTradingConfig:
         self.target_date = get_env_value(
             "TARGET_DATE",
             default=None,
-            env_vars=self.env_vars,
-        )
-
-        # Feature switches
-        self.force_run = get_env_value(
-            "FORCE_RUN",
-            default=False,
-            value_type=bool,
             env_vars=self.env_vars,
         )
 
@@ -367,9 +358,6 @@ class LiveTradingConfig:
         if hasattr(args, "date") and args.date:
             self.target_date = args.date
 
-        if hasattr(args, "force_run") and args.force_run:
-            self.force_run = args.force_run
-
         if hasattr(args, "max_comm_cycles") and args.max_comm_cycles:
             self.max_comm_cycles = args.max_comm_cycles
 
@@ -382,7 +370,6 @@ class LiveThinkingFundConfig:
     end_date: str | None = None
     date: str | None = None
     max_comm_cycles: int = 2
-    force_run: bool = False
     base_dir: str | None = None
     disable_communications: bool = False
     disable_notifications: bool = False
@@ -455,13 +442,6 @@ class LiveThinkingFundConfig:
                 "%Y-%m-%d",
             )
 
-        # Feature switches
-        self.force_run = get_env_value(
-            "FORCE_RUN",
-            default=False,
-            value_type=bool,
-            env_vars=self.env_vars,
-        )
         self.pause_before_trade = get_env_value(
             "PAUSE_BEFORE_TRADE",
             default=False,
@@ -510,9 +490,6 @@ class LiveThinkingFundConfig:
 
         if hasattr(args, "date") and args.date:
             self.target_date = args.date
-
-        if hasattr(args, "force_run") and args.force_run:
-            self.force_run = args.force_run
 
         if hasattr(args, "max_comm_cycles") and args.max_comm_cycles:
             self.max_comm_cycles = args.max_comm_cycles
