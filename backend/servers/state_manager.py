@@ -166,7 +166,7 @@ class StateManager:
                 "last_saved": datetime.now().isoformat(),
             }
 
-            with open(state_file, "w") as f:
+            with open(state_file, "w", encoding="utf-8") as f:
                 json.dump(
                     state_to_save,
                     f,
@@ -190,7 +190,7 @@ class StateManager:
                 logger.info("No saved state file found")
                 return False
 
-            with open(state_file, "r") as f:
+            with open(state_file, "r", encoding="utf-8") as f:
                 saved_state = json.load(f)
 
             # Restore feed history
@@ -262,7 +262,7 @@ class StateManager:
             if not returns_file.exists():
                 return {"equity": [], "baseline": [], "strategies": []}
 
-            with open(returns_file, "r") as f:
+            with open(returns_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
             # Convert to frontend format
@@ -276,7 +276,10 @@ class StateManager:
                             "v": value,
                         },
                     )
-                except:
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to load historical equity data: {e}",
+                    )
                     continue
 
             return {
