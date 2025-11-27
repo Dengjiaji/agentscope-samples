@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """Helper functions for LLM"""
 # flake8: noqa: E501
-# pylint: disable=E501
 import json
 from typing import Optional, Union
 
@@ -17,7 +16,7 @@ def tool_call(
     agent_name: Optional[str] = None,
     state: Optional[AgentState] = None,
     max_retries: int = 3,
-    default_factory=None,
+    _default_factory=None,
 ) -> BaseModel:
     """
     Call LLM using AgentScope model wrapper, supports structured output
@@ -33,26 +32,10 @@ def tool_call(
     Returns:
         Pydantic model instance
     """
-
     # Extract model configuration and API keys
-    api_keys = {}
-    if state:
-        # Extract API keys from state
-        if "data" in state and "api_keys" in state["data"]:
-            api_keys = state["data"]["api_keys"]
-        elif "metadata" in state:
-            request = state.get("metadata", {}).get("request")
-            if request and hasattr(request, "api_keys"):
-                api_keys = request.api_keys
-
-    if state and agent_name:
-        model_name, model_provider = get_agent_model_config(state, agent_name)
-    else:
-        # Use system default configuration
-        model_name = "gpt-4o-mini"
-        model_provider = "OPENAI"
-
-    llm = get_model(model_name, model_provider, api_keys=api_keys or {})
+    api_keys = _extract_api_keys(state)
+    model_name, model_provider = _get_model_config(state, agent_name)
+    llm = get_model(model_name, model_provider, api_keys=api_keys)
 
     # Call LLM (with retry logic)
     for attempt in range(max_retries):
@@ -69,117 +52,155 @@ def tool_call(
             content = response["content"]
 
             # Parse JSON response
-            parsed_result = extract_json_from_response(content)
-            if parsed_result:
-                result = pydantic_model(**parsed_result)
+            result = _parse_response(content, pydantic_model)
 
-                # ✅ Check if key fields are empty (for SecondRoundAnalysis)
-                if hasattr(result, "ticker_signals") and (
-                    not result.ticker_signals
-                    or len(result.ticker_signals) == 0
-                ):
-                    # 🔍 Only print debug log when empty response detected
-                    print(
-                        f"\n⚠️ [{agent_name}] LLM returned empty ticker_signals "
-                        f"(attempt {attempt + 1}/{max_retries})",
-                    )
-                    print(f"   Response length: {len(content)} characters")
-                    print(f"   Response preview: {content[:500]}...")
+            # Check if result is valid
+            if _should_retry(result, agent_name, attempt, max_retries):
+                continue
 
-                    if attempt < max_retries - 1:
-                        print("   Preparing to retry...")
-                        continue  # Retry
-                    else:
-                        # ❌ Reached maximum retries, pause program
-                        print(
-                            f"\n❌❌❌ [{agent_name}] Reached maximum retry count ({max_retries}), "
-                            f"LLM continues to return empty signals",
-                        )
+            return result
 
-                        import pdb
-
-                        pdb.set_trace()
-
-                        # If user chooses to continue, raise exception
-                        raise ValueError(
-                            f"LLM return empty ticker_signals after {max_retries} attempts",
-                        )
-
-                return result
-
-            # If parsing failed, try direct parsing
-            try:
-                result = pydantic_model(**json.loads(content))
-
-                # ✅ Also check directly parsed result
-                if hasattr(result, "ticker_signals") and (
-                    not result.ticker_signals
-                    or len(result.ticker_signals) == 0
-                ):
-                    # 🔍 Only print debug log when empty response detected
-                    print(
-                        f"\n⚠️ [{agent_name}] LLM returned empty ticker_signals "
-                        f"(attempt {attempt + 1}/{max_retries})",
-                    )
-                    print(f"   Response length: {len(content)} characters")
-                    print(f"   Response preview: {content[:500]}...")
-
-                    if attempt < max_retries - 1:
-                        print("   Preparing to retry...")
-                        continue  # Retry
-                    else:
-                        # Reached maximum retries, pause program
-                        print(
-                            f"\n❌❌❌ [{agent_name}] Reached maximum retry count ({max_retries}), "
-                            f"LLM continues to return empty signals",
-                        )
-
-                        # If user chooses to continue, raise exception
-                        raise ValueError(
-                            f"LLM continues to return empty ticker_signals "
-                            f"after {max_retries} attempts",
-                        )
-
-                return result
-            except ValueError as ve:
-                # Re-raise our own ValueError
-                raise ve
-            except:
-                pass
-
+        except ValueError as ve:
+            # Re-raise our own ValueError
+            raise ve
         except Exception as e:
-            # Print detailed error information
-            error_details = (
-                f"LLM Error - Agent: {agent_name}, "
-                f"Model: {model_name} ({model_provider}), "
-                f"Attempt: {attempt + 1}/{max_retries}"
-            )
-            print(f"{error_details}")
-            print(f"Error Type: {type(e).__name__}")
-            print(f"Error Message: {str(e)}")
-
-            import traceback
-
-            print(f"Full Traceback:\n{traceback.format_exc()}")
-
-            if attempt == max_retries - 1:
-                print(
-                    f"🚨 FINAL ERROR: LLM call failed after {max_retries} attempts",
-                )
-                print(
-                    f"🚨 Agent: {agent_name}, Model: {model_name} ({model_provider})",
-                )
-                print(f"🚨 Final Error: {e}")
+            if not _handle_error(
+                e,
+                agent_name,
+                model_name,
+                model_provider,
+                attempt,
+                max_retries,
+            ):
                 return create_default_response(pydantic_model)
-            else:
-                # Not the last attempt - retry with exponential backoff
-                import time
+            continue
 
-                wait_time = 2**attempt  # 1s, 2s, 4s, ...
-                print(f"⏳ Waiting {wait_time}s before retry...")
-                time.sleep(wait_time)
-                print(f"🔄 Retrying (attempt {attempt + 2}/{max_retries})...")
-                continue  # ✨ Enter next iteration of the loop
+    # Should not reach here, but return default as fallback
+    return create_default_response(pydantic_model)
+
+
+def _extract_api_keys(state: Optional[AgentState]) -> dict:
+    """Extract API keys from state"""
+    if not state:
+        return {}
+
+    # Extract API keys from state
+    if "data" in state and "api_keys" in state["data"]:
+        return state["data"]["api_keys"]
+
+    if "metadata" in state:
+        request = state.get("metadata", {}).get("request")
+        if request and hasattr(request, "api_keys"):
+            return request.api_keys
+
+    return {}
+
+
+def _get_model_config(
+    state: Optional[AgentState],
+    agent_name: Optional[str],
+) -> tuple:
+    """Get model configuration"""
+    if state and agent_name:
+        return get_agent_model_config(state, agent_name)
+
+    # Use system default configuration
+    return "gpt-4o-mini", "OPENAI"
+
+
+def _parse_response(
+    content: str,
+    pydantic_model: type[BaseModel],
+) -> BaseModel:
+    """Parse LLM response to pydantic model"""
+    # Try extract JSON first
+    parsed_result = extract_json_from_response(content)
+    if parsed_result:
+        return pydantic_model(**parsed_result)
+
+    # Try direct parsing
+    return pydantic_model(**json.loads(content))
+
+
+def _should_retry(
+    result: BaseModel,
+    agent_name: Optional[str],
+    attempt: int,
+    max_retries: int,
+) -> bool:
+    """Check if we should retry based on result"""
+    if not hasattr(result, "ticker_signals"):
+        return False
+
+    if result.ticker_signals and len(result.ticker_signals) > 0:
+        return False
+
+    # Empty ticker_signals detected
+    print(
+        f"\n⚠️ [{agent_name}] LLM returned empty ticker_signals "
+        f"(attempt {attempt + 1}/{max_retries})",
+    )
+    print("   Response preview available in debug mode")
+
+    if attempt < max_retries - 1:
+        print("   Preparing to retry...")
+        return True
+
+    # Reached maximum retries
+    print(
+        f"\n❌❌❌ [{agent_name}] Reached maximum retry count ({max_retries}), "
+        f"LLM continues to return empty signals",
+    )
+    raise ValueError(
+        f"LLM return empty ticker_signals after {max_retries} attempts",
+    )
+
+
+def _handle_error(
+    error: Exception,
+    agent_name: Optional[str],
+    model_name: str,
+    model_provider: str,
+    attempt: int,
+    max_retries: int,
+) -> bool:
+    """
+    Handle LLM errors
+
+    Returns:
+        True if should retry, False if should return default response
+    """
+    error_details = (
+        f"LLM Error - Agent: {agent_name}, "
+        f"Model: {model_name} ({model_provider}), "
+        f"Attempt: {attempt + 1}/{max_retries}"
+    )
+    print(f"{error_details}")
+    print(f"Error Type: {type(error).__name__}")
+    print(f"Error Message: {str(error)}")
+
+    import traceback
+
+    print(f"Full Traceback:\n{traceback.format_exc()}")
+
+    if attempt == max_retries - 1:
+        print(
+            f"🚨 FINAL ERROR: LLM call failed after {max_retries} attempts",
+        )
+        print(
+            f"🚨 Agent: {agent_name}, Model: {model_name} ({model_provider})",
+        )
+        print(f"🚨 Final Error: {error}")
+        return False
+
+    # Not the last attempt - retry with exponential backoff
+    import time
+
+    wait_time = 2**attempt  # 1s, 2s, 4s, ...
+    print(f"⏳ Waiting {wait_time}s before retry...")
+    time.sleep(wait_time)
+    print(f"🔄 Retrying (attempt {attempt + 2}/{max_retries})...")
+    return True
 
 
 def create_default_response(model_class: type[BaseModel]) -> BaseModel:
