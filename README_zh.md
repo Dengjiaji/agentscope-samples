@@ -58,10 +58,22 @@ uv pip install -e .
 
 # 配置环境变量
 cp env.template .env
-# 编辑 .env 文件，添加你的 API Keys
+# 编辑 .env 文件，添加你的 API Keys,以下的配置项为必填项
+
 # finance data API
+FINANCIAL_DATASETS_API_KEY=
+FINNHUB_API_KEY=
+
 # LLM API for Agents
+OPENAI_API_KEY=
+OPENAI_BASE_URL=
+MODEL_NAME=qwen3-max-preview
+
 # LLM & embedding API for Memory
+FLOW_LLM_API_KEY=
+FLOW_LLM_BASE_URL=
+FLOW_EMBEDDING_API_KEY=
+FLOW_EMBEDDING_BASE_URL=
 ```
 
 ### 运行

@@ -55,10 +55,22 @@ uv pip install -e .
 
 # Configure environment variables
 cp env.template .env
-# Edit .env file and add your API Keys
+# Edit .env file and add your API Keys. The following config are required:
+
 # finance data API
+FINANCIAL_DATASETS_API_KEY=
+FINNHUB_API_KEY=
+
 # LLM API for Agents
+OPENAI_API_KEY=
+OPENAI_BASE_URL=
+MODEL_NAME=qwen3-max-preview
+
 # LLM & embedding API for Memory
+FLOW_LLM_API_KEY=
+FLOW_LLM_BASE_URL=
+FLOW_EMBEDDING_API_KEY=
+FLOW_EMBEDDING_BASE_URL=
 ```
 
 ### Running
