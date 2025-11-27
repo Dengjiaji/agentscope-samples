@@ -19,16 +19,11 @@ from datetime import time as datetime_time
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
-
-# Set up path before importing backend modules
-BASE_DIR = Path(__file__).resolve().parents[2]
-if str(BASE_DIR) not in sys.path:
-    sys.path.insert(0, str(BASE_DIR))
-
 import pandas_market_calendars as mcal
 import websockets
 from dotenv import load_dotenv
 from websockets.server import WebSocketServerProtocol
+
 
 from backend.config.env_config import LiveThinkingFundConfig
 from backend.config.path_config import get_logs_and_memory_dir
@@ -40,6 +35,9 @@ from backend.servers.state_manager import StateManager
 from backend.servers.streamer import BroadcastStreamer
 from backend.utils.virtual_clock import get_virtual_clock, init_virtual_clock
 
+BASE_DIR = Path(__file__).resolve().parents[2]
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 _NYSE_CALENDAR = mcal.get_calendar("NYSE")
 
 
@@ -62,33 +60,43 @@ class LiveTradingServer:
         self.config = config
         self.mock_mode = mock_mode
         self.pause_before_trade = pause_before_trade
-        # Time accelerator for debugging (1.0=normal, 60.0=1 minute as 1 hour)
         self.time_accelerator = time_accelerator
-        # Virtual start time (for Mock mode backtesting)
         self.virtual_start_time = virtual_start_time
         self.connected_clients: Set[WebSocketServerProtocol] = set()
         self.lock = asyncio.Lock()
         self.loop = None
 
-        # Initialize virtual clock (enabled in Mock mode)
-        if mock_mode and time_accelerator != 1.0:
+        # Initialize components
+        self._setup_virtual_clock()
+        self._setup_dashboard_paths()
+        self._setup_state_management()
+        self._setup_price_manager()
+        self._setup_memory_system()
+        self._initialize_trading_system()
+        self._initialize_live_mode_state()
+
+    def _setup_virtual_clock(self):
+        """Initialize virtual clock for time acceleration."""
+        if self.mock_mode and self.time_accelerator != 1.0:
             init_virtual_clock(
-                start_time=virtual_start_time,
-                time_accelerator=time_accelerator,
+                start_time=self.virtual_start_time,
+                time_accelerator=self.time_accelerator,
                 enabled=True,
             )
             logger.info(
-                f"🕐 Virtual clock enabled: acceleration {time_accelerator}x, start time: {virtual_start_time or 'current time'}",
+                f"🕐 Virtual clock enabled: acceleration {self.time_accelerator}x, "
+                f"start time: {self.virtual_start_time or 'current time'}",
             )
         else:
             init_virtual_clock(enabled=False)
 
         self.vclock = get_virtual_clock()
 
-        # Dashboard file paths
+    def _setup_dashboard_paths(self):
+        """Set up dashboard file paths and load internal state."""
         self.dashboard_dir = (
             get_logs_and_memory_dir()
-            / config.config_name
+            / self.config.config_name
             / "sandbox_logs"
             / "team_dashboard"
         )
@@ -106,14 +114,14 @@ class LiveTradingServer:
         self.internal_state = self._load_internal_state()
         self.latest_prices: Dict[str, float] = {}
 
-        # Use StateManager to manage state
+    def _setup_state_management(self):
+        """Initialize state manager and portfolio state."""
         self.state_manager = StateManager(
-            config_name=config.config_name,
+            config_name=self.config.config_name,
             base_dir=BASE_DIR,
             max_history=200,
         )
 
-        # Initialize portfolio state
         # Load equity history from internal_state if available
         equity_history = self.internal_state.get("equity_history", [])
         baseline_history = self.internal_state.get("baseline_history", [])
@@ -126,8 +134,8 @@ class LiveTradingServer:
         self.state_manager.update(
             "portfolio",
             {
-                "total_value": config.initial_cash,
-                "cash": config.initial_cash,
+                "total_value": self.config.initial_cash,
+                "cash": self.config.initial_cash,
                 "pnl_percent": 0,
                 "equity": equity_history,
                 "baseline": baseline_history,
@@ -138,11 +146,16 @@ class LiveTradingServer:
         )
 
         logger.info(
-            f"📊 Loaded history: equity={len(equity_history)} points, baseline={len(baseline_history)} points",
+            f"📊 Loaded history: equity={len(equity_history)} points, "
+            f"baseline={len(baseline_history)} points",
         )
 
-        # Initialize price manager
-        if mock_mode:
+        # Record initial cash (for calculating returns)
+        self.initial_cash = self.config.initial_cash
+
+    def _setup_price_manager(self):
+        """Initialize price manager based on mode."""
+        if self.mock_mode:
             logger.info("🎭 Using Mock price manager (test mode)")
             self.price_manager = MockPriceManager(
                 poll_interval=5,
@@ -158,7 +171,6 @@ class LiveTradingServer:
                 logger.info("   Get free API Key: https://finnhub.io/register")
                 raise ValueError("Missing FINNHUB_API_KEY")
 
-            # Use polling interval (every 30 seconds)
             logger.info(
                 "📊 Using Finnhub real-time prices (polling interval: 30 seconds)",
             )
@@ -167,42 +179,29 @@ class LiveTradingServer:
         # Add price update callback
         self.price_manager.add_price_callback(self._on_price_update)
 
-        # Record initial cash (for calculating returns)
-        self.initial_cash = config.initial_cash
-
-        # Initialize memory system
-        memory_instance = get_memory(config.config_name)
+    def _setup_memory_system(self):
+        """Initialize memory system."""
+        _memory_instance = get_memory(self.config.config_name)
         logger.info("✅ Memory system initialized")
-
-        # Memory system initialization complete (no need to pre-register analysts)
         logger.info("✅ Memory system ready")
 
-        # Initialize trading system
+    def _initialize_trading_system(self):
+        """Initialize trading system and dashboard."""
         self.thinking_fund = None
-
-        # Initialize dashboard files if they don't exist (including leaderboard with model info)
         self._ensure_dashboard_initialized()
 
-        # Live mode state
+    def _initialize_live_mode_state(self):
+        """Initialize live mode state variables."""
         self.current_phase = (
             "backtest"  # backtest, live_analysis, live_monitoring
         )
         self.is_today = False
         self.market_is_open = False
-        self.last_trading_date = None  # Record last trading execution date
-        # Record last actual trading execution US date (for cross-day detection)
+        self.last_trading_date = None
         self.last_executed_date = None
-        self.trading_executed_today = (
-            False  # Flag whether trading was executed today
-        )
-        self.analysis_executed_today = (
-            False  # Flag whether pre-market analysis was executed today
-        )
-        self.last_pre_market_analysis_date = (
-            None  # Record last pre-market analysis US trading date
-        )
-
-        # Save daily signals and results for updating agent perf the next day
+        self.trading_executed_today = False
+        self.analysis_executed_today = False
+        self.last_pre_market_analysis_date = None
         self.daily_signals = (
             {}
         )  # {date: {'ana_signals': ..., 'pm_signals': ...}}
@@ -307,6 +306,33 @@ class LiveTradingServer:
 
     def _update_dashboard_files_with_price(self, symbol: str, price: float):
         """Update prices and related calculations in holdings.json, stats.json and summary.json files"""
+        # Load files
+        holdings, stats, summary = self._load_dashboard_files()
+        if holdings is None or stats is None:
+            return
+
+        # Update holdings and calculate totals
+        updated, total_value, cash = self._update_holdings_with_price(
+            holdings,
+            symbol,
+            price,
+        )
+
+        # Update stats
+        self._update_stats_file(stats, holdings, total_value, cash)
+
+        # Update summary if exists
+        if summary:
+            self._update_summary_file(
+                summary,
+                updated,
+                total_value,
+                cash,
+                holdings,
+            )
+
+    def _load_dashboard_files(self):
+        """Load holdings, stats, and summary JSON files"""
         holdings_file = self.dashboard_files.get("holdings")
         stats_file = self.dashboard_files.get("stats")
         summary_file = self.dashboard_files.get("summary")
@@ -315,29 +341,21 @@ class LiveTradingServer:
             logger.warning(
                 "holdings.json file does not exist, skipping update",
             )
-            return
+            return None, None, None
 
         if not stats_file or not stats_file.exists():
             logger.warning("stats.json file does not exist, skipping update")
-            return
+            return None, None, None
 
-        # Read holdings.json
         try:
             with open(holdings_file, "r", encoding="utf-8") as f:
                 holdings = json.load(f)
-        except Exception as e:
-            logger.error(f"Failed to read holdings.json: {e}")
-            return
-
-        # Read stats.json
-        try:
             with open(stats_file, "r", encoding="utf-8") as f:
                 stats = json.load(f)
         except Exception as e:
-            logger.error(f"Failed to read stats.json: {e}")
-            return
+            logger.error(f"Failed to read dashboard files: {e}")
+            return None, None, None
 
-        # Read summary.json (if exists)
         summary = None
         if summary_file and summary_file.exists():
             try:
@@ -346,13 +364,20 @@ class LiveTradingServer:
             except Exception as e:
                 logger.error(f"Failed to read summary.json: {e}")
 
-        # Update prices in holdings
-        # Note: 'updated' indicates whether this specific symbol's price in our holdings was updated
-        # Even if updated=False (symbol not in holdings or holdings=0), we still update curves
+        return holdings, stats, summary
+
+    def _update_holdings_with_price(
+        self,
+        holdings: list,
+        symbol: str,
+        price: float,
+    ):
+        """Update holdings with new price and recalculate weights"""
         updated = False
         total_value = 0.0
         cash = 0.0
 
+        # Update prices and calculate total value
         for holding in holdings:
             ticker = holding.get("ticker")
             quantity = holding.get("quantity", 0)
@@ -361,14 +386,12 @@ class LiveTradingServer:
                 cash = holding.get("marketValue", 0)
                 total_value += cash
             elif ticker == symbol:
-                # Update current price
                 holding["currentPrice"] = round(price, 2)
                 market_value = quantity * price
                 holding["marketValue"] = round(market_value, 2)
                 total_value += market_value
                 updated = True
             else:
-                # Accumulate market value of other holdings
                 total_value += holding.get("marketValue", 0)
 
         # Recalculate weights
@@ -378,8 +401,9 @@ class LiveTradingServer:
                 weight = market_value / total_value
                 holding["weight"] = round(weight, 4)
 
-        # If updated, save holdings.json
+        # Save if updated
         if updated:
+            holdings_file = self.dashboard_files.get("holdings")
             try:
                 with open(holdings_file, "w", encoding="utf-8") as f:
                     json.dump(holdings, f, indent=2, ensure_ascii=False)
@@ -388,21 +412,29 @@ class LiveTradingServer:
                 )
             except Exception as e:
                 logger.error(f"Failed to save holdings.json: {e}")
-                return
 
-        # Update stats.json
+        return updated, total_value, cash
+
+    def _update_stats_file(
+        self,
+        stats: dict,
+        holdings: list,
+        total_value: float,
+        cash: float,
+    ):
+        """Update and save stats.json"""
         total_return = (
             ((total_value - self.initial_cash) / self.initial_cash * 100)
             if self.initial_cash > 0
             else 0.0
         )
 
-        # Update tickerWeights
-        ticker_weights = {}
-        for holding in holdings:
-            ticker = holding.get("ticker")
-            if ticker != "CASH":
-                ticker_weights[ticker] = holding.get("weight", 0)
+        # Update ticker weights
+        ticker_weights = {
+            holding.get("ticker"): holding.get("weight", 0)
+            for holding in holdings
+            if holding.get("ticker") != "CASH"
+        }
 
         stats["totalAssetValue"] = round(total_value, 2)
         stats["totalReturn"] = round(total_return, 2)
@@ -410,81 +442,100 @@ class LiveTradingServer:
         stats["tickerWeights"] = ticker_weights
 
         # Save stats.json
+        stats_file = self.dashboard_files.get("stats")
         try:
             with open(stats_file, "w", encoding="utf-8") as f:
                 json.dump(stats, f, indent=2, ensure_ascii=False)
-            if updated:
-                logger.debug(
-                    f"✅ Updated stats.json: total assets=${total_value:.2f}, return={total_return:.2f}%",
-                )
         except Exception as e:
             logger.error(f"Failed to save stats.json: {e}")
 
-        summary_changed = False
-        current_time = None
+    def _update_summary_file(
+        self,
+        summary: dict,
+        updated: bool,
+        total_value: float,
+        cash: float,
+        holdings: list,
+    ):
+        """Update and save summary.json"""
+        try:
+            current_time = self._get_current_timestamp_ms_for_data()
+            summary_changed = False
 
-        if summary:
-            try:
-                # Use virtual time (in mock mode) or real time
-                current_time = self._get_current_timestamp_ms_for_data()
-
-                # Always update summary stats if price was updated
-                if updated:
-                    summary["balance"] = round(total_value, 2)
-                    summary["totalAssetValue"] = round(total_value, 2)
-                    summary["pnlPct"] = round(total_return, 2)
-                    summary["totalReturn"] = round(total_return, 2)
-                    summary["cashPosition"] = round(cash, 2)
-                    summary["tickerWeights"] = ticker_weights
-
-                # CRITICAL FIX: Always update equity and benchmark curves together to keep indices aligned
-                # This ensures that equity[i], baseline[i], baseline_vw[i], momentum[i] all represent the same timestamp
-                # Even when holdings are 0 (pure cash), we still need to record equity points
-
-                # Check if we should add a new data point (avoid adding too frequently)
-                equity_list = summary.get("equity", [])
-                should_add_point = False
-
-                if len(equity_list) == 0:
-                    # Always add first point
-                    should_add_point = True
-                else:
-                    # Add point if at least 5 seconds have passed since last point
-                    last_timestamp = equity_list[-1].get("t", 0)
-                    time_diff_ms = current_time - last_timestamp
-                    if time_diff_ms >= 5000:  # 5 seconds minimum interval
-                        should_add_point = True
-
-                if should_add_point:
-                    # Add equity point
-                    equity_list.append(
-                        {
-                            "t": current_time,
-                            "v": round(total_value, 2),
-                        },
+            # Update summary stats if price was updated
+            if updated:
+                total_return = (
+                    (
+                        (total_value - self.initial_cash)
+                        / self.initial_cash
+                        * 100
                     )
-                    # No limit on curve length - keep all historical data
+                    if self.initial_cash > 0
+                    else 0.0
+                )
+                ticker_weights = {
+                    holding.get("ticker"): holding.get("weight", 0)
+                    for holding in holdings
+                    if holding.get("ticker") != "CASH"
+                }
 
-                    summary["equity"] = equity_list
-                    # Sync to internal_state for persistence
-                    self.internal_state["equity_history"] = equity_list
+                summary["balance"] = round(total_value, 2)
+                summary["totalAssetValue"] = round(total_value, 2)
+                summary["pnlPct"] = round(total_return, 2)
+                summary["totalReturn"] = round(total_return, 2)
+                summary["cashPosition"] = round(cash, 2)
+                summary["tickerWeights"] = ticker_weights
 
-                    # CRITICAL: Update benchmark curves synchronously with the SAME timestamp
-                    # This maintains index alignment: equity[i] and baseline[i] will have same timestamp
-                    if self._update_benchmark_curves(summary, current_time):
-                        pass  # Benchmarks updated
+            # Update equity and benchmark curves
+            if self._should_add_equity_point(summary, current_time):
+                self._add_equity_point(summary, total_value, current_time)
+                self._update_benchmark_curves(summary, current_time)
+                summary_changed = True
+            elif updated:
+                summary_changed = True
 
-                    summary_changed = True
-                elif updated:
-                    # Even if we didn't add a curve point, if price was updated, save the file
-                    summary_changed = True
-
-                if summary_changed and summary_file:
+            # Save if changed
+            if summary_changed:
+                summary_file = self.dashboard_files.get("summary")
+                if summary_file:
                     with open(summary_file, "w", encoding="utf-8") as f:
                         json.dump(summary, f, indent=2, ensure_ascii=False)
                     self._save_internal_state()
-            except Exception as e:
-                logger.error(f"Failed to update summary.json: {e}")
+
+        except Exception as e:
+            logger.error(f"Failed to update summary.json: {e}")
+
+    def _should_add_equity_point(
+        self,
+        summary: dict,
+        current_time: int,
+    ) -> bool:
+        """Check if we should add a new equity data point"""
+        equity_list = summary.get("equity", [])
+
+        if len(equity_list) == 0:
+            return True
+
+        last_timestamp = equity_list[-1].get("t", 0)
+        time_diff_ms = current_time - last_timestamp
+        return time_diff_ms >= 5000  # 5 seconds minimum interval
+
+    def _add_equity_point(
+        self,
+        summary: dict,
+        total_value: float,
+        current_time: int,
+    ):
+        """Add a new equity point to summary"""
+        equity_list = summary.get("equity", [])
+        equity_list.append(
+            {
+                "t": current_time,
+                "v": round(total_value, 2),
+            },
+        )
+        summary["equity"] = equity_list
+        self.internal_state["equity_history"] = equity_list
 
     def _load_internal_state(self) -> Dict[str, Any]:
         """
@@ -618,10 +669,9 @@ class LiveTradingServer:
 
         # Trading session: 22:30 - 05:00 (next day), Asia/Shanghai equivalent
         is_in_trading_session = (
-            (current_hour == 22 and current_minute >= 30)
-            or current_hour >= 23
-            or (current_hour >= 0 and current_hour < 5)
-            or (current_hour == 5 and current_minute == 0)
+            (current_hour == 22 and current_minute >= 30)  # After 22:30
+            or current_hour == 23  # All of hour 23
+            or 0 <= current_hour <= 5  # Midnight to 05:00 inclusive
         )
 
         session_start_time = current_time.replace(
@@ -648,7 +698,11 @@ class LiveTradingServer:
         # Fallback: use the first available value as base if nothing before session
         if base_value is None:
             first_valid = next(
-                (p for p in values if p.get("t") is not None and p.get("v") is not None),
+                (
+                    p
+                    for p in values
+                    if p.get("t") is not None and p.get("v") is not None
+                ),
                 None,
             )
             if not first_valid:
@@ -686,9 +740,7 @@ class LiveTradingServer:
 
         # Then cumulative returns for all in-session points
         for point in session_points:
-            cumulative_return = (
-                (point["v"] - base_value) / base_value * 100
-            )
+            cumulative_return = (point["v"] - base_value) / base_value * 100
             returns.append(
                 {
                     "t": point["t"],
@@ -713,82 +765,86 @@ class LiveTradingServer:
         changed = False
 
         # Update baseline (equal weight)
-        baseline_state = self.internal_state.get("baseline_state", {})
-        if baseline_state.get("initialized") and baseline_state.get(
-            "initial_allocation",
+        if self._update_single_benchmark(
+            "baseline_state",
+            "baseline_history",
+            "baseline",
+            summary,
+            timestamp_ms,
         ):
-            total_value = 0.0
-            missing_price = False
-            for ticker, alloc in baseline_state["initial_allocation"].items():
-                price = self._get_price_for_benchmark(
-                    ticker,
-                    alloc.get("buy_price"),
-                )
-                if price is None:
-                    missing_price = True
-                    break
-                total_value += alloc.get("qty", 0) * price
-            if not missing_price:
-                # Use the SAME max_points (500) as equity to maintain synchronization
-                history = self._append_curve_point(
-                    self.internal_state.setdefault("baseline_history", []),
-                    timestamp_ms,
-                    total_value,
-                )
-                summary["baseline"] = history
-                changed = True
+            changed = True
 
         # Update baseline_vw (value weighted)
-        baseline_vw_state = self.internal_state.get("baseline_vw_state", {})
-        if baseline_vw_state.get("initialized") and baseline_vw_state.get(
-            "initial_allocation",
+        if self._update_single_benchmark(
+            "baseline_vw_state",
+            "baseline_vw_history",
+            "baseline_vw",
+            summary,
+            timestamp_ms,
         ):
-            total_value = 0.0
-            missing_price = False
-            for ticker, alloc in baseline_vw_state[
-                "initial_allocation"
-            ].items():
-                price = self._get_price_for_benchmark(
-                    ticker,
-                    alloc.get("buy_price"),
-                )
-                if price is None:
-                    missing_price = True
-                    break
-                total_value += alloc.get("qty", 0) * price
-            if not missing_price:
-                history = self._append_curve_point(
-                    self.internal_state.setdefault("baseline_vw_history", []),
-                    timestamp_ms,
-                    total_value,
-                )
-                summary["baseline_vw"] = history
-                changed = True
+            changed = True
 
         # Update momentum strategy
-        momentum_state = self.internal_state.get("momentum_state", {})
-        if momentum_state.get("initialized"):
-            total_value = momentum_state.get("cash", 0.0)
-            missing_price = False
-            for ticker, pos in momentum_state.get("positions", {}).items():
-                price = self._get_price_for_benchmark(
-                    ticker,
-                    pos.get("buy_price"),
-                )
-                if price is None:
-                    missing_price = True
-                    break
-                total_value += pos.get("qty", 0) * price
-            if not missing_price:
-                history = self._append_curve_point(
-                    self.internal_state.setdefault("momentum_history", []),
-                    timestamp_ms,
-                    total_value,
-                )
-                summary["momentum"] = history
-                changed = True
+        if self._update_momentum_benchmark(summary, timestamp_ms):
+            changed = True
 
         return changed
+
+    def _update_single_benchmark(
+        self,
+        state_key: str,
+        history_key: str,
+        summary_key: str,
+        summary: Dict[str, Any],
+        timestamp_ms: int,
+    ) -> bool:
+        """Update a single benchmark curve."""
+        state = self.internal_state.get(state_key, {})
+        if not (state.get("initialized") and state.get("initial_allocation")):
+            return False
+
+        total_value = 0.0
+        for ticker, alloc in state["initial_allocation"].items():
+            price = self._get_price_for_benchmark(
+                ticker,
+                alloc.get("buy_price"),
+            )
+            if price is None:
+                return False
+            total_value += alloc.get("qty", 0) * price
+
+        history = self._append_curve_point(
+            self.internal_state.setdefault(history_key, []),
+            timestamp_ms,
+            total_value,
+        )
+        summary[summary_key] = history
+        return True
+
+    def _update_momentum_benchmark(
+        self,
+        summary: Dict[str, Any],
+        timestamp_ms: int,
+    ) -> bool:
+        """Update momentum strategy curve."""
+        momentum_state = self.internal_state.get("momentum_state", {})
+        if not momentum_state.get("initialized"):
+            return False
+
+        total_value = momentum_state.get("cash", 0.0)
+        for ticker, pos in momentum_state.get("positions", {}).items():
+            price = self._get_price_for_benchmark(ticker, pos.get("buy_price"))
+            if price is None:
+                return False
+            total_value += pos.get("qty", 0) * price
+
+        history = self._append_curve_point(
+            self.internal_state.setdefault("momentum_history", []),
+            timestamp_ms,
+            total_value,
+        )
+        summary["momentum"] = history
+        return True
 
     async def broadcast(self, message: Dict[str, Any]):
         """Broadcast message to all connected clients"""
@@ -864,7 +920,7 @@ class LiveTradingServer:
         current_time = self._get_current_time_for_data()
         timestamp = current_time.isoformat()
 
-        for file_type in self.dashboard_files.keys():
+        for file_type, _ in self.dashboard_files.items():
             data = self._load_dashboard_file(file_type)
             if data is None:
                 continue
@@ -1161,7 +1217,6 @@ class LiveTradingServer:
             Dictionary containing market status
         """
         now_beijing = self._get_current_time_beijing()
-        current_date_str = now_beijing.strftime("%Y-%m-%d")
 
         # Check if it's a trading day (using US date)
         us_date = (now_beijing - timedelta(hours=12)).strftime("%Y-%m-%d")
@@ -1240,7 +1295,7 @@ class LiveTradingServer:
         current_time = now_beijing.time()
 
         # Condition 1: Execute trading between 05:05 - 20:00 (5-hour window, adapts to time acceleration)
-        if not (datetime_time(5, 5) <= current_time < datetime_time(20, 00)):
+        if not datetime_time(5, 5) <= current_time < datetime_time(20, 00):
             return False
 
         # Condition 2: Check if current US trading date equals pre-market analysis date + 1 day
@@ -1285,235 +1340,11 @@ class LiveTradingServer:
                 f"✅ New client connected (total connections: {len(self.connected_clients)})",
             )
 
-            initial_state = self.state_manager.get_full_state()
+            # Send initial state
+            await self._send_initial_state(websocket)
 
-            # Load Dashboard data from files
-            try:
-                summary_data = self._load_dashboard_file("summary")
-                holdings_data = self._load_dashboard_file("holdings")
-                stats_data = self._load_dashboard_file("stats")
-                trades_data = self._load_dashboard_file("trades")
-                leaderboard_data = self._load_dashboard_file("leaderboard")
-
-                initial_state["dashboard"] = {
-                    "summary": summary_data,
-                    "holdings": holdings_data,
-                    "stats": stats_data,
-                    "trades": trades_data,
-                    "leaderboard": leaderboard_data,
-                }
-
-                if summary_data and "portfolio" in initial_state:
-                    equity_data = summary_data.get("equity", [])
-                    baseline_data = summary_data.get("baseline", [])
-                    baseline_vw_data = summary_data.get("baseline_vw", [])
-                    momentum_data = summary_data.get("momentum", [])
-
-                    equity_return = (
-                        self._calculate_cumulative_returns_for_live(
-                            equity_data,
-                        )
-                    )
-                    baseline_return = (
-                        self._calculate_cumulative_returns_for_live(
-                            baseline_data,
-                        )
-                    )
-                    baseline_vw_return = (
-                        self._calculate_cumulative_returns_for_live(
-                            baseline_vw_data,
-                        )
-                    )
-                    momentum_return = (
-                        self._calculate_cumulative_returns_for_live(
-                            momentum_data,
-                        )
-                    )
-
-                    initial_state["portfolio"].update(
-                        {
-                            "total_value": summary_data.get("balance"),
-                            "pnl_percent": summary_data.get("pnlPct"),
-                            "equity": equity_data,
-                            "baseline": baseline_data,
-                            "baseline_vw": baseline_vw_data,
-                            "momentum": momentum_data,
-                            "equity_return": equity_return,
-                            "baseline_return": baseline_return,
-                            "baseline_vw_return": baseline_vw_return,
-                            "momentum_return": momentum_return,
-                        },
-                    )
-                # Ensure data is a valid array or dictionary
-                if holdings_data and isinstance(holdings_data, list):
-                    initial_state["holdings"] = holdings_data
-                elif not holdings_data:
-                    initial_state["holdings"] = []
-
-                if stats_data and isinstance(stats_data, dict):
-                    initial_state["stats"] = stats_data
-                elif not stats_data:
-                    initial_state["stats"] = {}
-
-                if trades_data and isinstance(trades_data, list):
-                    initial_state["trades"] = trades_data
-                elif not trades_data:
-                    initial_state["trades"] = []
-
-                if leaderboard_data and isinstance(leaderboard_data, list):
-                    initial_state["leaderboard"] = leaderboard_data
-                elif not leaderboard_data:
-                    initial_state["leaderboard"] = []
-
-                logger.info(
-                    "✅ Successfully loaded Dashboard data from files",
-                )
-
-                # Broadcast all Dashboard data immediately after connection (ensure frontend receives)
-                # Use small delay to ensure initial_state message is sent first
-                await asyncio.sleep(0.1)
-                await self._broadcast_all_dashboard_files()
-            except Exception as e:
-                logger.error(
-                    f"⚠️ Failed to load Dashboard data from files: {e}",
-                )
-
-            # Add server mode and market status information
-            initial_state["server_mode"] = "live"
-            initial_state["is_mock_mode"] = self.mock_mode
-            initial_state["market_status"] = self._get_market_status()
-
-            # Send full state
-            await websocket.send(
-                json.dumps(
-                    {
-                        "type": "initial_state",
-                        "state": initial_state,
-                    },
-                    ensure_ascii=False,
-                    default=str,
-                ),
-            )
-
-            # Keep connection
-            try:
-                async for message in websocket:
-                    try:
-                        data = json.loads(message)
-                        msg_type = data.get("type", "unknown")
-
-                        if msg_type == "ping":
-                            await websocket.send(
-                                json.dumps(
-                                    {
-                                        "type": "pong",
-                                        "timestamp": datetime.now().isoformat(),
-                                    },
-                                    ensure_ascii=False,
-                                    default=str,
-                                ),
-                            )
-
-                        elif msg_type == "get_state":
-                            await websocket.send(
-                                json.dumps(
-                                    {
-                                        "type": "state_response",
-                                        "state": self.state_manager.get_full_state(),
-                                    },
-                                    ensure_ascii=False,
-                                    default=str,
-                                ),
-                            )
-
-                        elif msg_type == "fast_forward_time":
-                            # Time fast forward feature (Mock mode only)
-                            if not self.mock_mode:
-                                await websocket.send(
-                                    json.dumps(
-                                        {
-                                            "type": "error",
-                                            "message": "Time fast forward feature is only available in Mock mode",
-                                        },
-                                        ensure_ascii=False,
-                                        default=str,
-                                    ),
-                                )
-                            elif not self.vclock.enabled:
-                                await websocket.send(
-                                    json.dumps(
-                                        {
-                                            "type": "error",
-                                            "message": "Virtual clock not enabled",
-                                        },
-                                        ensure_ascii=False,
-                                        default=str,
-                                    ),
-                                )
-                            else:
-                                minutes = data.get(
-                                    "minutes",
-                                    30,
-                                )  # Default fast forward 30 minutes
-                                try:
-                                    old_time = self.vclock.now()
-                                    self.vclock.fast_forward(minutes)
-                                    new_time = self.vclock.now()
-
-                                    logger.info(
-                                        f"⏩ Time fast forwarded: {minutes} minutes ({old_time.strftime('%H:%M:%S')} → {new_time.strftime('%H:%M:%S')})",
-                                    )
-
-                                    # Broadcast time fast forward event
-                                    await self.broadcast(
-                                        {
-                                            "type": "time_fast_forwarded",
-                                            "minutes": minutes,
-                                            "old_time": old_time.isoformat(),
-                                            "new_time": new_time.isoformat(),
-                                            "old_time_str": old_time.strftime(
-                                                "%Y-%m-%d %H:%M:%S",
-                                            ),
-                                            "new_time_str": new_time.strftime(
-                                                "%Y-%m-%d %H:%M:%S",
-                                            ),
-                                        },
-                                    )
-
-                                    await websocket.send(
-                                        json.dumps(
-                                            {
-                                                "type": "fast_forward_success",
-                                                "minutes": minutes,
-                                                "old_time": old_time.isoformat(),
-                                                "new_time": new_time.isoformat(),
-                                                "message": f"Time fast forwarded {minutes} minutes",
-                                            },
-                                            ensure_ascii=False,
-                                            default=str,
-                                        ),
-                                    )
-                                except Exception as e:
-                                    logger.error(
-                                        f"Time fast forward failed: {e}",
-                                    )
-                                    await websocket.send(
-                                        json.dumps(
-                                            {
-                                                "type": "error",
-                                                "message": f"Time fast forward failed: {str(e)}",
-                                            },
-                                            ensure_ascii=False,
-                                            default=str,
-                                        ),
-                                    )
-
-                    except json.JSONDecodeError:
-                        logger.warning("Received non-JSON message")
-                    except Exception as e:
-                        logger.error(f"Error processing message: {e}")
-            except websockets.ConnectionClosed:
-                pass
+            # Keep connection and handle messages
+            await self._handle_client_messages(websocket)
 
         except Exception as e:
             logger.error(f"Connection handling error: {e}")
@@ -1523,6 +1354,229 @@ class LiveTradingServer:
             logger.info(
                 f"Client disconnected (remaining connections: {len(self.connected_clients)})",
             )
+
+    async def _send_initial_state(self, websocket: WebSocketServerProtocol):
+        """Send initial state to client"""
+        initial_state = self.state_manager.get_full_state()
+
+        # Load Dashboard data from files
+        try:
+            self._load_dashboard_data(initial_state)
+            logger.info("✅ Successfully loaded Dashboard data from files")
+
+            # Broadcast all Dashboard data immediately after connection
+            await asyncio.sleep(0.1)
+            await self._broadcast_all_dashboard_files()
+        except Exception as e:
+            logger.error(f"⚠️ Failed to load Dashboard data from files: {e}")
+
+        # Add server metadata
+        initial_state["server_mode"] = "live"
+        initial_state["is_mock_mode"] = self.mock_mode
+        initial_state["market_status"] = self._get_market_status()
+
+        # Send full state
+        await websocket.send(
+            json.dumps(
+                {
+                    "type": "initial_state",
+                    "state": initial_state,
+                },
+                ensure_ascii=False,
+                default=str,
+            ),
+        )
+
+    def _load_dashboard_data(self, initial_state: dict):
+        """Load dashboard data from files into initial state"""
+        summary_data = self._load_dashboard_file("summary")
+        holdings_data = self._load_dashboard_file("holdings")
+        stats_data = self._load_dashboard_file("stats")
+        trades_data = self._load_dashboard_file("trades")
+        leaderboard_data = self._load_dashboard_file("leaderboard")
+
+        initial_state["dashboard"] = {
+            "summary": summary_data,
+            "holdings": holdings_data,
+            "stats": stats_data,
+            "trades": trades_data,
+            "leaderboard": leaderboard_data,
+        }
+
+        # Update portfolio data
+        if summary_data and "portfolio" in initial_state:
+            self._update_portfolio_data(initial_state, summary_data)
+
+        # Set holdings, stats, trades, leaderboard
+        initial_state["holdings"] = (
+            holdings_data if isinstance(holdings_data, list) else []
+        )
+        initial_state["stats"] = (
+            stats_data if isinstance(stats_data, dict) else {}
+        )
+        initial_state["trades"] = (
+            trades_data if isinstance(trades_data, list) else []
+        )
+        initial_state["leaderboard"] = (
+            leaderboard_data if isinstance(leaderboard_data, list) else []
+        )
+
+    def _update_portfolio_data(self, initial_state: dict, summary_data: dict):
+        """Update portfolio data with returns calculation"""
+        equity_data = summary_data.get("equity", [])
+        baseline_data = summary_data.get("baseline", [])
+        baseline_vw_data = summary_data.get("baseline_vw", [])
+        momentum_data = summary_data.get("momentum", [])
+
+        initial_state["portfolio"].update(
+            {
+                "total_value": summary_data.get("balance"),
+                "pnl_percent": summary_data.get("pnlPct"),
+                "equity": equity_data,
+                "baseline": baseline_data,
+                "baseline_vw": baseline_vw_data,
+                "momentum": momentum_data,
+                "equity_return": self._calculate_cumulative_returns_for_live(
+                    equity_data,
+                ),
+                "baseline_return": self._calculate_cumulative_returns_for_live(
+                    baseline_data,
+                ),
+                "baseline_vw_return": self._calculate_cumulative_returns_for_live(
+                    baseline_vw_data,
+                ),
+                "momentum_return": self._calculate_cumulative_returns_for_live(
+                    momentum_data,
+                ),
+            },
+        )
+
+    async def _handle_client_messages(
+        self,
+        websocket: WebSocketServerProtocol,
+    ):
+        """Handle incoming client messages"""
+        try:
+            async for message in websocket:
+                try:
+                    data = json.loads(message)
+                    msg_type = data.get("type", "unknown")
+
+                    if msg_type == "ping":
+                        await self._handle_ping(websocket)
+                    elif msg_type == "get_state":
+                        await self._handle_get_state(websocket)
+                    elif msg_type == "fast_forward_time":
+                        await self._handle_fast_forward_time(websocket, data)
+
+                except json.JSONDecodeError:
+                    logger.warning("Received non-JSON message")
+                except Exception as e:
+                    logger.error(f"Error processing message: {e}")
+        except websockets.ConnectionClosed:
+            pass
+
+    async def _handle_ping(self, websocket: WebSocketServerProtocol):
+        """Handle ping message"""
+        await websocket.send(
+            json.dumps(
+                {
+                    "type": "pong",
+                    "timestamp": datetime.now().isoformat(),
+                },
+                ensure_ascii=False,
+                default=str,
+            ),
+        )
+
+    async def _handle_get_state(self, websocket: WebSocketServerProtocol):
+        """Handle get_state message"""
+        await websocket.send(
+            json.dumps(
+                {
+                    "type": "state_response",
+                    "state": self.state_manager.get_full_state(),
+                },
+                ensure_ascii=False,
+                default=str,
+            ),
+        )
+
+    async def _handle_fast_forward_time(
+        self,
+        websocket: WebSocketServerProtocol,
+        data: dict,
+    ):
+        """Handle fast_forward_time message"""
+        if not self.mock_mode:
+            await self._send_error(
+                websocket,
+                "Time fast forward feature is only available in Mock mode",
+            )
+            return
+
+        if not self.vclock.enabled:
+            await self._send_error(websocket, "Virtual clock not enabled")
+            return
+
+        minutes = data.get("minutes", 30)
+        try:
+            old_time = self.vclock.now()
+            self.vclock.fast_forward(minutes)
+            new_time = self.vclock.now()
+
+            logger.info(
+                f"⏩ Time fast forwarded: {minutes} minutes ({old_time.strftime('%H:%M:%S')} → {new_time.strftime('%H:%M:%S')})",
+            )
+
+            # Broadcast time fast forward event
+            await self.broadcast(
+                {
+                    "type": "time_fast_forwarded",
+                    "minutes": minutes,
+                    "old_time": old_time.isoformat(),
+                    "new_time": new_time.isoformat(),
+                    "old_time_str": old_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "new_time_str": new_time.strftime("%Y-%m-%d %H:%M:%S"),
+                },
+            )
+
+            await websocket.send(
+                json.dumps(
+                    {
+                        "type": "fast_forward_success",
+                        "minutes": minutes,
+                        "old_time": old_time.isoformat(),
+                        "new_time": new_time.isoformat(),
+                        "message": f"Time fast forwarded {minutes} minutes",
+                    },
+                    ensure_ascii=False,
+                    default=str,
+                ),
+            )
+        except Exception as e:
+            logger.error(f"Time fast forward failed: {e}")
+            await self._send_error(
+                websocket,
+                f"Time fast forward failed: {str(e)}",
+            )
+
+    async def _send_error(
+        self,
+        websocket: WebSocketServerProtocol,
+        message: str,
+    ):
+        """Send error message to client"""
+        await websocket.send(
+            json.dumps(
+                {
+                    "type": "error",
+                    "message": message,
+                },
+                ensure_ascii=False,
+                default=str,
+            ),
+        )
 
     async def run_live_trading_simulation(self):
         """Run live trading simulation"""
@@ -1823,107 +1877,124 @@ class LiveTradingServer:
 
         while True:
             now_beijing = self._get_current_time_beijing()
-
-            # Check if it's a trading day (using US date)
-            us_date = (now_beijing - timedelta(hours=12)).strftime(
-                "%Y-%m-%d",
-            )  # Rough conversion to US date
+            us_date = (now_beijing - timedelta(hours=12)).strftime("%Y-%m-%d")
             is_trading_day = self._is_trading_day(us_date)
 
             if not is_trading_day:
-                # Non-trading day: only maintain page updates
                 await self._handle_non_trading_day(now_beijing)
-                await self.vclock.sleep(
-                    60,
-                )  # Check every minute (virtual time)
+                await self.vclock.sleep(60)
                 continue
 
             # Trading day logic
-            is_market_open = self._is_market_open_time_beijing()
-            should_run_analysis = self._should_run_pre_market_analysis()
-            should_execute_trade = self._should_execute_trading_now()
+            await self._handle_trading_day(now_beijing, us_date)
 
-            # Debug logs
-            if should_run_analysis:
-                print(
-                    f"🔍 Detected pre-market analysis time window | analysis_executed_today={self.analysis_executed_today} | us_date={us_date}",
-                )
-            if should_execute_trade:
-                print(
-                    f"🔍 Detected trade execution time window | trading_executed_today={self.trading_executed_today} | us_date={us_date}",
-                )
+            # Reset daily flags if needed
+            await self._check_and_reset_daily_flags(now_beijing, us_date)
 
-            if should_run_analysis and not self.analysis_executed_today:
-                # Run pre-market analysis after market open (22:30:00-23:30:00, 1-hour window)
-                print(
-                    f"🎯 Triggering pre-market analysis (func1) | us_date={us_date} | Beijing time={now_beijing.strftime('%H:%M:%S')}",
-                )
-                await self._run_pre_market_analysis(us_date)
-                await self.vclock.sleep(30)  # Wait 30 seconds (virtual time)
+    async def _handle_trading_day(self, now_beijing, us_date):
+        """Handle trading day operations"""
+        is_market_open = self._is_market_open_time_beijing()
+        should_run_analysis = self._should_run_pre_market_analysis()
+        should_execute_trade = self._should_execute_trading_now()
 
-            elif is_market_open:
-                # Market open hours (22:30-05:00): real-time price monitoring
-                await self._handle_market_open_period(now_beijing, us_date)
-                await self.vclock.sleep(
-                    60,
-                )  # Check every minute (virtual time)
+        # Debug logs
+        self._log_trading_windows(
+            should_run_analysis,
+            should_execute_trade,
+            us_date,
+        )
 
-            elif should_execute_trade and not self.trading_executed_today:
-                # Trade execution time after close (05:05-21:00)
-                print(
-                    f"🎯 Triggering trade execution (func2) | us_date={us_date} | Beijing time={now_beijing.strftime('%H:%M:%S')}",
-                )
-                await self._run_trade_execution_with_prev_update(us_date)
-                self.trading_executed_today = True
-                self.last_trading_date = us_date
-                self.last_executed_date = (
-                    us_date  # Record actual execution date
-                )
-                await self.vclock.sleep(
-                    300,
-                )  # Wait 5 minutes after execution (virtual time)
+        if should_run_analysis and not self.analysis_executed_today:
+            await self._execute_pre_market_analysis(now_beijing, us_date)
+        elif is_market_open:
+            await self._handle_market_open_period(now_beijing, us_date)
+            await self.vclock.sleep(60)
+        elif should_execute_trade and not self.trading_executed_today:
+            await self._execute_trading(now_beijing, us_date)
+        else:
+            await self._handle_off_market_with_dynamic_sleep(now_beijing)
 
-            else:
-                # Non-trading hours (10:00-22:30): only maintain page updates
-                await self._handle_off_market_period(now_beijing)
+    def _log_trading_windows(
+        self,
+        should_run_analysis,
+        should_execute_trade,
+        us_date,
+    ):
+        """Log trading window detection"""
+        if should_run_analysis:
+            print(
+                f"🔍 Detected pre-market analysis time window | "
+                f"analysis_executed_today={self.analysis_executed_today} | us_date={us_date}",
+            )
+        if should_execute_trade:
+            print(
+                f"🔍 Detected trade execution time window | "
+                f"trading_executed_today={self.trading_executed_today} | us_date={us_date}",
+            )
 
-                # If close to market open time, shorten wait
-                next_open = self._get_next_market_open_time_beijing()
-                time_to_open = (next_open - now_beijing).total_seconds()
+    async def _execute_pre_market_analysis(self, now_beijing, us_date):
+        """Execute pre-market analysis"""
+        print(
+            f"🎯 Triggering pre-market analysis (func1) | "
+            f"us_date={us_date} | Beijing time={now_beijing.strftime('%H:%M:%S')}",
+        )
+        await self._run_pre_market_analysis(us_date)
+        await self.vclock.sleep(30)
 
-                if time_to_open < 600:  # Less than 10 minutes to market open
-                    await self.vclock.sleep(30)  # Virtual time 30 seconds
-                else:
-                    await self.vclock.sleep(300)  # Virtual time 5 minutes
+    async def _execute_trading(self, now_beijing, us_date):
+        """Execute trading operations"""
+        print(
+            f"🎯 Triggering trade execution (func2) | "
+            f"us_date={us_date} | Beijing time={now_beijing.strftime('%H:%M:%S')}",
+        )
+        await self._run_trade_execution_with_prev_update(us_date)
+        self.trading_executed_today = True
+        self.last_trading_date = us_date
+        self.last_executed_date = us_date
+        await self.vclock.sleep(300)
 
-            # Check US trading day change, reset flags
-            # Check between 20:00-22:29 if flags need to be reset (ensure after trade execution window ends, before next analysis)
-            # ✅ Only reset when date actually changes, avoid repeated execution within same day
+    async def _handle_off_market_with_dynamic_sleep(self, now_beijing):
+        """Handle off-market period with dynamic sleep"""
+        await self._handle_off_market_period(now_beijing)
+
+        next_open = self._get_next_market_open_time_beijing()
+        time_to_open = (next_open - now_beijing).total_seconds()
+
+        sleep_duration = 30 if time_to_open < 600 else 300
+        await self.vclock.sleep(sleep_duration)
+
+        async def _check_and_reset_daily_flags(self, now_beijing, us_date):
+            """Check and reset daily flags when date changes"""
             current_time = now_beijing.time()
-            if datetime_time(20, 0) <= current_time < datetime_time(22, 29):
-                # Check if date actually changed
-                if (
-                    self.last_executed_date
-                    and us_date != self.last_executed_date
-                ):
-                    if (
-                        self.trading_executed_today
-                        or self.analysis_executed_today
-                    ):
-                        logger.info(
-                            f"📅 Detected trading day change ({self.last_executed_date} → {us_date}), resetting daily flags",
-                        )
-                        logger.info(
-                            f"   Beijing time={now_beijing.strftime('%H:%M:%S')}",
-                        )
-                        logger.info(
-                            f"   Before reset: trading_executed={self.trading_executed_today}, analysis_executed={self.analysis_executed_today}",
-                        )
-                        self.trading_executed_today = False
-                        self.analysis_executed_today = False
-                        logger.info(
-                            f"   After reset: trading_executed={self.trading_executed_today}, analysis_executed={self.analysis_executed_today}",
-                        )
+            if not (
+                datetime_time(20, 0) <= current_time < datetime_time(22, 29)
+            ):
+                return
+
+            if (
+                not self.last_executed_date
+                or us_date == self.last_executed_date
+            ):
+                return
+
+            if self.trading_executed_today or self.analysis_executed_today:
+                logger.info(
+                    f"📅 Detected trading day change ({self.last_executed_date} → {us_date}), "
+                    f"resetting daily flags",
+                )
+                logger.info(
+                    f"   Beijing time={now_beijing.strftime('%H:%M:%S')}",
+                )
+                logger.info(
+                    f"   Before reset: trading_executed={self.trading_executed_today}, "
+                    f"analysis_executed={self.analysis_executed_today}",
+                )
+                self.trading_executed_today = False
+                self.analysis_executed_today = False
+                logger.info(
+                    f"   After reset: trading_executed={self.trading_executed_today}, "
+                    f"analysis_executed={self.analysis_executed_today}",
+                )
 
     async def _handle_non_trading_day(self, now_beijing: datetime):
         """Handle non-trading day: only maintain page time updates, no price fetching"""
@@ -2126,7 +2197,7 @@ class LiveTradingServer:
             cwd=str(BASE_DIR),
         )
 
-        stdout, stderr = await process.communicate()
+        _stdout, stderr = await process.communicate()
 
         if process.returncode == 0:
             logger.info("✅ [Scheduled Task] Historical data update completed")
@@ -2211,25 +2282,25 @@ class LiveTradingServer:
                 f"❌ Failed to broadcast Dashboard data on startup: {e}",
             )
 
+        # Initialize before the loop
+        self._last_market_status_update = datetime.now()
+
         while True:
             try:
                 await asyncio.sleep(5)
                 await self._broadcast_dashboard_from_files()
 
                 # Periodically update market status (every 60 seconds)
-                if hasattr(self, "_last_market_status_update"):
-                    if (
-                        datetime.now() - self._last_market_status_update
-                    ).total_seconds() >= 60:
-                        market_status = self._get_market_status()
-                        await self.broadcast(
-                            {
-                                "type": "market_status_update",
-                                "market_status": market_status,
-                            },
-                        )
-                        self._last_market_status_update = datetime.now()
-                else:
+                if (
+                    datetime.now() - self._last_market_status_update
+                ).total_seconds() >= 60:
+                    market_status = self._get_market_status()
+                    await self.broadcast(
+                        {
+                            "type": "market_status_update",
+                            "market_status": market_status,
+                        },
+                    )
                     self._last_market_status_update = datetime.now()
             except Exception as e:
                 logger.error(f"❌ Dashboard file monitor error: {e}")
