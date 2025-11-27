@@ -585,8 +585,8 @@ class TeamDashboardGenerator:
         if ticker in price_history and price_history[ticker]:
             dates = sorted(price_history[ticker].keys())
             # Search backwards from latest date to find first non-None price
-            for date in reversed(dates):
-                price = price_history[ticker][date]
+            for dt in reversed(dates):
+                price = price_history[ticker][dt]
                 if price is not None:
                     return price
 
@@ -767,18 +767,10 @@ class TeamDashboardGenerator:
     ):
         """Signal mode: Update signal records"""
         portfolio_state = state["portfolio_state"]
-
-        # In Signal mode, simulate position changes (assume fixed quantity for each signal)
-        DEFAULT_QUANTITY = 100  # Default trade quantity
+        DEFAULT_QUANTITY = 100
 
         for ticker, signal_info in pm_signals.items():
             signal = signal_info.get("signal", "neutral")
-            # action = signal_info.get("action", "hold")
-
-            # if action == 'hold':
-            #     continue
-
-            # Get current price
             price = self._get_ticker_price(
                 ticker,
                 date,
@@ -789,84 +781,159 @@ class TeamDashboardGenerator:
             numeric_real_return, _ = self._normalize_real_return(
                 real_returns.get(ticker),
             )
-            quantity = DEFAULT_QUANTITY
 
-            # Map signal to side
-            side_map = {
-                "bullish": "BUY",
-                "bearish": "SELL",
-                "neutral": "HOLD",
-            }
-            side = side_map.get(signal, "HOLD")
-
-            # Update positions
-            if signal == "bullish":
-                if ticker not in portfolio_state["positions"]:
-                    portfolio_state["positions"][ticker] = {
-                        "qty": 0,
-                        "avg_cost": price,
-                    }
-                pos = portfolio_state["positions"][ticker]
-                old_qty = pos["qty"]
-                old_cost = pos["avg_cost"]
-                new_qty = old_qty + quantity
-                # Calculate new average cost
-                if new_qty > 0:
-                    if price is None:
-                        raise ValueError(f"Price is None for {ticker}")
-                    new_cost = (
-                        old_qty * old_cost + quantity * price
-                    ) / new_qty
-                    pos["qty"] = new_qty
-                    pos["avg_cost"] = new_cost
-            elif signal == "bearish":
-                if ticker in portfolio_state["positions"]:
-                    pos = portfolio_state["positions"][ticker]
-                    pos["qty"] = max(0, pos["qty"] - quantity)
-                    if pos["qty"] == 0:
-                        del portfolio_state["positions"][ticker]
-
-            # Calculate P&L (treat as 0 when return is unknown)
-            if price is None:
-                raise ValueError(f"Price is None for {ticker}")
-            if numeric_real_return is None:
-                raise ValueError(f"numeric_real_return is None for {ticker}")
-            pnl = quantity * price * numeric_real_return
-
-            # Generate trade ID
-            trade_count = len(
-                [
-                    t
-                    for t in state["all_trades"]
-                    if t["ticker"] == ticker and t["ts"] == timestamp_ms
-                ],
+            # Update positions based on signal
+            self._update_position_by_signal(
+                portfolio_state,
+                ticker,
+                signal,
+                price,
+                DEFAULT_QUANTITY,
             )
-            trade_id = f"t_{date.replace('-', '')}_{ticker}_{trade_count}"
 
-            if price is None:
-                raise ValueError(f"Price is None for {ticker}")
-            trade_record = {
-                "id": trade_id,
-                "ts": timestamp_ms,
-                "trading_date": date,  # ✨ Store trading date explicitly to avoid timezone confusion
-                "side": side,
-                "ticker": ticker,
-                "qty": quantity,
-                "price": round(price, 2),
-                "pnl": round(pnl, 2),
-            }
+            # Create and record trade
+            trade_record = self._create_trade_record(
+                date,
+                timestamp_ms,
+                ticker,
+                signal,
+                DEFAULT_QUANTITY,
+                price,
+                numeric_real_return,
+                state["all_trades"],
+            )
 
             state["all_trades"].append(trade_record)
             update_stats["trades_added"] += 1
 
-        # Save daily position snapshot for fast lookup (optimization for PM's _get_recent_memory)
+        # Save daily position snapshot
+        self._save_daily_position_snapshot(state, date, portfolio_state)
+
+    def _update_position_by_signal(
+        self,
+        portfolio_state: Dict,
+        ticker: str,
+        signal: str,
+        price: Optional[float],
+        quantity: int,
+    ):
+        """Update position based on signal type"""
+        if signal == "bullish":
+            self._handle_bullish_position(
+                portfolio_state,
+                ticker,
+                price,
+                quantity,
+            )
+        elif signal == "bearish":
+            self._handle_bearish_position(
+                portfolio_state,
+                ticker,
+                quantity,
+            )
+
+    def _handle_bullish_position(
+        self,
+        portfolio_state: Dict,
+        ticker: str,
+        price: Optional[float],
+        quantity: int,
+    ):
+        """Handle bullish signal position update"""
+        if ticker not in portfolio_state["positions"]:
+            portfolio_state["positions"][ticker] = {
+                "qty": 0,
+                "avg_cost": price,
+            }
+
+        pos = portfolio_state["positions"][ticker]
+        old_qty = pos["qty"]
+        old_cost = pos["avg_cost"]
+        new_qty = old_qty + quantity
+
+        if new_qty > 0:
+            if price is None:
+                raise ValueError(f"Price is None for {ticker}")
+            new_cost = (old_qty * old_cost + quantity * price) / new_qty
+            pos["qty"] = new_qty
+            pos["avg_cost"] = new_cost
+
+    def _handle_bearish_position(
+        self,
+        portfolio_state: Dict,
+        ticker: str,
+        quantity: int,
+    ):
+        """Handle bearish signal position update"""
+        if ticker in portfolio_state["positions"]:
+            pos = portfolio_state["positions"][ticker]
+            pos["qty"] = max(0, pos["qty"] - quantity)
+            if pos["qty"] == 0:
+                del portfolio_state["positions"][ticker]
+
+    def _create_trade_record(
+        self,
+        date: str,
+        timestamp_ms: int,
+        ticker: str,
+        signal: str,
+        quantity: int,
+        price: Optional[float],
+        numeric_real_return: Optional[float],
+        all_trades: list,
+    ) -> Dict:
+        """Create a trade record"""
+        if price is None:
+            raise ValueError(f"Price is None for {ticker}")
+        if numeric_real_return is None:
+            raise ValueError(f"numeric_real_return is None for {ticker}")
+
+        # Map signal to side
+        side_map = {
+            "bullish": "BUY",
+            "bearish": "SELL",
+            "neutral": "HOLD",
+        }
+        side = side_map.get(signal, "HOLD")
+
+        # Calculate P&L
+        pnl = quantity * price * numeric_real_return
+
+        # Generate trade ID
+        trade_count = len(
+            [
+                t
+                for t in all_trades
+                if t["ticker"] == ticker and t["ts"] == timestamp_ms
+            ],
+        )
+        trade_id = f"t_{date.replace('-', '')}_{ticker}_{trade_count}"
+
+        return {
+            "id": trade_id,
+            "ts": timestamp_ms,
+            "trading_date": date,
+            "side": side,
+            "ticker": ticker,
+            "qty": quantity,
+            "price": round(price, 2),
+            "pnl": round(pnl, 2),
+        }
+
+    def _save_daily_position_snapshot(
+        self,
+        state: Dict,
+        date: str,
+        portfolio_state: Dict,
+    ):
+        """Save daily position snapshot for fast lookup"""
         if "daily_position_history" not in state:
             state["daily_position_history"] = {}
 
-        # Save current positions as end-of-day snapshot
-        position_snapshot = {}
-        for ticker, pos_data in portfolio_state["positions"].items():
-            position_snapshot[ticker] = pos_data["qty"]
+        position_snapshot = {
+            ticker: pos_data["qty"]
+            for ticker, pos_data in portfolio_state["positions"].items()
+        }
         state["daily_position_history"][date] = position_snapshot
 
     def _update_agent_performance(
@@ -883,33 +950,13 @@ class TeamDashboardGenerator:
             state["agent_performance"] = {}
 
         for agent_id, signals in ana_signals.items():
-            if agent_id not in state["agent_performance"]:
-                state["agent_performance"][agent_id] = {
-                    "signals": [],
-                    "bull_count": 0,
-                    "bull_win": 0,
-                    "bull_unknown": 0,
-                    "bear_count": 0,
-                    "bear_win": 0,
-                    "bear_unknown": 0,
-                    "neutral_count": 0,
-                    "logs": [],
-                }
-
-            agent_perf = state["agent_performance"][agent_id]
-            agent_perf.setdefault("bull_unknown", 0)
-            agent_perf.setdefault("bear_unknown", 0)
+            agent_perf = self._get_or_create_agent_performance(
+                state["agent_performance"],
+                agent_id,
+            )
 
             for ticker, signal_data in signals.items():
-                if not signal_data or signal_data == "N/A":
-                    continue
-
-                # Extract signal value (supports dict and string formats)
-                if isinstance(signal_data, dict):
-                    signal = signal_data.get("signal", "N/A")
-                else:
-                    signal = signal_data
-
+                signal = self._extract_signal_value(signal_data)
                 if not signal or signal == "N/A":
                     continue
 
@@ -918,78 +965,182 @@ class TeamDashboardGenerator:
                     display_real_return,
                 ) = self._normalize_real_return(real_returns.get(ticker))
 
-                # Determine signal type and correctness (standardized format, case-insensitive)
-                signal_lower = (
-                    signal.lower()
-                    if isinstance(signal, str)
-                    else str(signal).lower()
+                # Process signal and update statistics
+                self._process_agent_signal(
+                    agent_perf,
+                    date,
+                    ticker,
+                    signal,
+                    numeric_real_return,
+                    display_real_return,
                 )
-                is_bull = (
-                    signal_lower in ["buy", "bullish", "long"]
-                    or "bull" in signal_lower
-                )
-                is_bear = (
-                    signal_lower in ["sell", "bearish", "short"]
-                    or "bear" in signal_lower
-                )
-                is_neutral = (
-                    signal_lower in ["hold", "neutral"]
-                    or "neutral" in signal_lower
-                )
-
-                is_correct = False
-                result_unknown = numeric_real_return is None
-
-                if is_bull:
-                    agent_perf["bull_count"] += 1
-                    if result_unknown:
-                        agent_perf["bull_unknown"] += 1
-                    else:
-                        if numeric_real_return is None:
-                            raise ValueError(
-                                f"numeric_real_return is None for {ticker}",
-                            )
-                        if numeric_real_return > 0:
-                            is_correct = True
-                            agent_perf["bull_win"] += 1
-                elif is_bear:
-                    agent_perf["bear_count"] += 1
-                    if result_unknown:
-                        agent_perf["bear_unknown"] += 1
-                    else:
-                        if numeric_real_return is None:
-                            raise ValueError(
-                                f"numeric_real_return is None for {ticker}",
-                            )
-                        if numeric_real_return < 0:
-                            is_correct = True
-                            agent_perf["bear_win"] += 1
-                elif is_neutral:
-                    agent_perf["neutral_count"] += 1
-                    # neutral signals are not included in win rate statistics
-
-                # Record signal
-                signal_record = {
-                    "date": date,
-                    "ticker": ticker,
-                    "signal": signal,
-                    "real_return": display_real_return,
-                    "is_correct": "unknown" if result_unknown else is_correct,
-                }
-                agent_perf["signals"].append(signal_record)
-
-                # Update logs (keep last 50 entries)
-                if result_unknown and not is_neutral:
-                    marker = "?"
-                elif is_neutral:
-                    marker = ""
-                else:
-                    marker = "✓" if is_correct else "✗"
-                log_entry = f"{'Bull' if is_bull else 'Bear' if is_bear else 'Neutral'} on {ticker} {marker}"
-                agent_perf["logs"].insert(0, log_entry)
-                agent_perf["logs"] = agent_perf["logs"][:50]
 
             update_stats["agents_updated"] += 1
+
+    def _get_or_create_agent_performance(
+        self,
+        agent_performance: Dict,
+        agent_id: str,
+    ) -> Dict:
+        """Get or create agent performance record"""
+        if agent_id not in agent_performance:
+            agent_performance[agent_id] = {
+                "signals": [],
+                "bull_count": 0,
+                "bull_win": 0,
+                "bull_unknown": 0,
+                "bear_count": 0,
+                "bear_win": 0,
+                "bear_unknown": 0,
+                "neutral_count": 0,
+                "logs": [],
+            }
+
+        agent_perf = agent_performance[agent_id]
+        agent_perf.setdefault("bull_unknown", 0)
+        agent_perf.setdefault("bear_unknown", 0)
+        return agent_perf
+
+    def _extract_signal_value(self, signal_data) -> str:
+        """Extract signal value from various formats"""
+        if not signal_data or signal_data == "N/A":
+            return ""
+
+        if isinstance(signal_data, dict):
+            return signal_data.get("signal", "N/A")
+        return signal_data
+
+    def _process_agent_signal(
+        self,
+        agent_perf: Dict,
+        date: str,
+        ticker: str,
+        signal: str,
+        numeric_real_return: Optional[float],
+        display_real_return: str,
+    ):
+        """Process a single agent signal and update performance"""
+        signal_type = self._classify_signal(signal)
+        result_unknown = numeric_real_return is None
+        is_correct = self._evaluate_signal_correctness(
+            signal_type,
+            numeric_real_return,
+            result_unknown,
+        )
+
+        # Update statistics
+        self._update_signal_statistics(
+            agent_perf,
+            signal_type,
+            is_correct,
+            result_unknown,
+            numeric_real_return,
+        )
+
+        # Record signal
+        signal_record = {
+            "date": date,
+            "ticker": ticker,
+            "signal": signal,
+            "real_return": display_real_return,
+            "is_correct": "unknown" if result_unknown else is_correct,
+        }
+        agent_perf["signals"].append(signal_record)
+
+        # Update logs
+        self._update_agent_logs(
+            agent_perf,
+            signal_type,
+            ticker,
+            is_correct,
+            result_unknown,
+        )
+
+    def _classify_signal(self, signal: str) -> str:
+        """Classify signal into bull/bear/neutral"""
+        signal_lower = (
+            signal.lower() if isinstance(signal, str) else str(signal).lower()
+        )
+
+        if (
+            signal_lower in ["buy", "bullish", "long"]
+            or "bull" in signal_lower
+        ):
+            return "bull"
+        if (
+            signal_lower in ["sell", "bearish", "short"]
+            or "bear" in signal_lower
+        ):
+            return "bear"
+        if signal_lower in ["hold", "neutral"] or "neutral" in signal_lower:
+            return "neutral"
+        return "unknown"
+
+    def _evaluate_signal_correctness(
+        self,
+        signal_type: str,
+        numeric_real_return: Optional[float],
+        result_unknown: bool,
+    ) -> bool:
+        """Evaluate if signal prediction was correct"""
+        if result_unknown or signal_type == "neutral":
+            return False
+
+        if numeric_real_return is None:
+            return False
+
+        if signal_type == "bull":
+            return numeric_real_return > 0
+        if signal_type == "bear":
+            return numeric_real_return < 0
+
+        return False
+
+    def _update_signal_statistics(
+        self,
+        agent_perf: Dict,
+        signal_type: str,
+        is_correct: bool,
+        result_unknown: bool,
+        numeric_real_return: Optional[float],
+    ):
+        """Update agent performance statistics"""
+        if signal_type == "bull":
+            agent_perf["bull_count"] += 1
+            if result_unknown:
+                agent_perf["bull_unknown"] += 1
+            elif is_correct:
+                agent_perf["bull_win"] += 1
+        elif signal_type == "bear":
+            agent_perf["bear_count"] += 1
+            if result_unknown:
+                agent_perf["bear_unknown"] += 1
+            elif is_correct:
+                agent_perf["bear_win"] += 1
+        elif signal_type == "neutral":
+            agent_perf["neutral_count"] += 1
+
+    def _update_agent_logs(
+        self,
+        agent_perf: Dict,
+        signal_type: str,
+        ticker: str,
+        is_correct: bool,
+        result_unknown: bool,
+    ):
+        """Update agent performance logs"""
+        if signal_type == "neutral":
+            marker = ""
+        elif result_unknown:
+            marker = "?"
+        else:
+            marker = "✓" if is_correct else "✗"
+
+        signal_name = signal_type.capitalize()
+        log_entry = f"{signal_name} on {ticker} {marker}".strip()
+
+        agent_perf["logs"].insert(0, log_entry)
+        agent_perf["logs"] = agent_perf["logs"][:50]
 
     def _update_pm_performance(
         self,
@@ -1014,114 +1165,87 @@ class TeamDashboardGenerator:
         """
         agent_id = "portfolio_manager"
 
-        if "agent_performance" not in state:
-            state["agent_performance"] = {}
-
-        if agent_id not in state["agent_performance"]:
-            state["agent_performance"][agent_id] = {
-                "signals": [],
-                "bull_count": 0,
-                "bull_win": 0,
-                "bull_unknown": 0,
-                "bear_count": 0,
-                "bear_win": 0,
-                "bear_unknown": 0,
-                "neutral_count": 0,
-                "logs": [],
-            }
-
-        pm_perf = state["agent_performance"][agent_id]
-        pm_perf.setdefault("bull_unknown", 0)
-        pm_perf.setdefault("bear_unknown", 0)
-
-        # Get final positions (after trade execution) in portfolio mode
-        updated_portfolio = (
-            live_env.get("updated_portfolio", {}) if live_env else {}
+        pm_perf = self._get_or_create_agent_performance(
+            state.setdefault("agent_performance", {}),
+            agent_id,
         )
-        final_positions = updated_portfolio.get("positions", {})
+
+        # Get final positions for portfolio mode
+        final_positions = self._get_final_positions(live_env, mode)
 
         for ticker, signal_info in pm_signals.items():
-            # Determine signal based on FINAL POSITION (portfolio mode) or ACTION (signal mode)
-            if mode == "portfolio" and ticker in final_positions:
-                # Portfolio mode: Use final position direction after trade execution
-                position = final_positions[ticker]
-                long_qty = position.get("long", 0)
-                short_qty = position.get("short", 0)
-
-                # Determine final position direction
-                if long_qty > 0:
-                    signal = "bullish"  # Final position is long → bullish
-                elif short_qty > 0:
-                    signal = "bearish"  # Final position is short → bearish
-                else:
-                    signal = "neutral"  # No position → neutral
-            else:
-                # Signal mode or no position data: Use action as signal
-                action = signal_info["action"]
-                action_to_signal = {
-                    "long": "bullish",
-                    "short": "bearish",
-                    "hold": "neutral",
-                }
-                signal = action_to_signal[action.lower()]
+            # Determine signal based on mode
+            signal = self._determine_pm_signal(
+                ticker,
+                signal_info,
+                final_positions,
+                mode,
+            )
 
             (
                 numeric_real_return,
                 display_real_return,
             ) = self._normalize_real_return(real_returns.get(ticker))
 
-            signal_lower = signal.lower()
-            is_bull = "bull" in signal_lower or signal_lower == "long"
-            is_bear = "bear" in signal_lower or signal_lower == "short"
-            is_neutral = "neutral" in signal_lower or signal_lower == "hold"
+            # Process signal and update statistics (reuse from agent performance)
+            self._process_agent_signal(
+                pm_perf,
+                date,
+                ticker,
+                signal,
+                numeric_real_return,
+                display_real_return,
+            )
 
-            is_correct = False
-            result_unknown = numeric_real_return is None
-            if is_bull:
-                pm_perf["bull_count"] += 1
-                if result_unknown:
-                    pm_perf["bull_unknown"] += 1
-                else:
-                    if numeric_real_return is None:
-                        raise ValueError(
-                            f"numeric_real_return is None for {ticker}",
-                        )
-                    if numeric_real_return > 0:
-                        is_correct = True
-                        pm_perf["bull_win"] += 1
-            elif is_bear:
-                pm_perf["bear_count"] += 1
-                if result_unknown:
-                    pm_perf["bear_unknown"] += 1
-                else:
-                    if numeric_real_return is None:
-                        raise ValueError(
-                            f"numeric_real_return is None for {ticker}",
-                        )
-                    if numeric_real_return < 0:
-                        is_correct = True
-                        pm_perf["bear_win"] += 1
-            elif is_neutral:
-                pm_perf["neutral_count"] += 1
+    def _get_final_positions(
+        self,
+        live_env: Dict,
+        mode: str,
+    ) -> Dict:
+        """Get final positions for portfolio mode"""
+        if mode != "portfolio" or not live_env:
+            return {}
 
-            signal_record = {
-                "date": date,
-                "ticker": ticker,
-                "signal": signal,
-                "real_return": display_real_return,
-                "is_correct": "unknown" if result_unknown else is_correct,
-            }
-            pm_perf["signals"].append(signal_record)
+        updated_portfolio = live_env.get("updated_portfolio", {})
+        return updated_portfolio.get("positions", {})
 
-            if result_unknown and not is_neutral:
-                marker = "?"
-            elif is_neutral:
-                marker = ""
-            else:
-                marker = "✓" if is_correct else "✗"
-            log_entry = f"{'Bull' if is_bull else 'Bear' if is_bear else 'Neutral'} on {ticker} {marker}"
-            pm_perf["logs"].insert(0, log_entry)
-            pm_perf["logs"] = pm_perf["logs"][:50]
+    def _determine_pm_signal(
+        self,
+        ticker: str,
+        signal_info: Dict,
+        final_positions: Dict,
+        mode: str,
+    ) -> str:
+        """
+        Determine PM signal based on mode
+
+        Portfolio mode: Use final position direction after trade execution
+        Signal mode: Use action as signal
+        """
+        if mode == "portfolio" and ticker in final_positions:
+            return self._get_signal_from_position(final_positions[ticker])
+
+        return self._get_signal_from_action(signal_info["action"])
+
+    def _get_signal_from_position(self, position: Dict) -> str:
+        """Convert position to signal direction"""
+        long_qty = position.get("long", 0)
+        short_qty = position.get("short", 0)
+
+        if long_qty > 0:
+            return "bullish"  # Final position is long → bullish
+        if short_qty > 0:
+            return "bearish"  # Final position is short → bearish
+        return "neutral"  # No position → neutral
+
+    def _get_signal_from_action(self, action: str) -> str:
+        """Convert action to signal"""
+        action_to_signal = {
+            "long": "bullish",
+            "short": "bearish",
+            "hold": "neutral",
+        }
+        return action_to_signal.get(action.lower(), "neutral")
 
     def _update_equity_curve(self, date: str, timestamp_ms: int, state: Dict):
         """Update equity curve (using actual prices)"""
