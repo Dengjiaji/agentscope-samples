@@ -140,7 +140,6 @@ class Toolselector:
         llm,
         analyst_persona: str,
         ticker: str,
-        market_conditions: Dict[str, Any],
         analysis_objective: str = "Comprehensive investment analysis",
     ) -> Dict[str, Any]:
         """Use LLM to select analysis tools"""
@@ -361,7 +360,8 @@ class Toolselector:
                 # Success - return result
                 if attempt > 0:
                     print(
-                        f"✅ Synthesis succeeded on attempt {attempt + 1}/{max_retries} for {ticker}",
+                        f"✅ Synthesis succeeded on attempt "
+                        f"{attempt + 1}/{max_retries} for {ticker}",
                     )
 
                 return {
@@ -386,7 +386,8 @@ class Toolselector:
                     # Calculate exponential backoff: 1s, 2s, 4s, ...
                     wait_time = 2**attempt
                     print(
-                        f"⚠️ Synthesis attempt {attempt_num}/{max_retries} failed for {ticker}: {str(e)}",
+                        f"⚠️ Synthesis attempt {attempt_num}/{max_retries} "
+                        f"failed for {ticker}: {str(e)}",
                     )
                     print(f"   Retrying in {wait_time}s...")
                     time.sleep(wait_time)
