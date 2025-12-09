@@ -105,6 +105,7 @@ It includes **agent deployment** and **secure sandboxed tool execution**, and ca
 |                         | conversational_agents/multiagent_debate               | ✅               | ❌            | Agents engaging in debates                       |
 | **Evaluation**          | evaluation/ace_bench                                  | ✅               | ❌            | Benchmarks with ACE Bench                        |
 | **General AI Agent**               | alias/                                                | ✅               | ✅                      | Agent application running in sandbox to solve diverse real-world problems |
+| **Financial Trading**   | evotraders/                                           | ✅               | ❌            | Self-Evolving Multi-Agent Trading System         |
 
 ------
 
@@ -133,6 +134,17 @@ A powerful multi-agent data processing system that leverages Data-Juicer's 200+ 
 Beyond being a ready-to-use agent, we envision Alias as a foundational template that can be adapted to different scenarios.
 
 📖 **Documentation**: [English](alias/README.md) | [中文](alias/README_ZH.md)
+
+### EvoTraders
+
+*EvoTraders* is a financial trading agent framework that builds a trading system capable of continuous learning and evolution in real markets through multi-agent collaboration and memory systems. Key features include:
+
+- **Multi-Agent Collaboration**: A team of specialized analysts (Fundamentals, Technical, Sentiment, Valuation) and managers collaborating like a real trading team.
+- **Memory Enhancement & Evolution**: Agents reflect and summarize after trades using the ReMe memory framework, evolving their trading styles over time.
+- **Real-Time & Backtesting**: Supports both real-time market data integration for live trading and backtesting modes.
+- **Visualized Dashboard**: A comprehensive frontend to observe analysis processes, communication, and performance tracking.
+
+📖 **Documentation**: [English](evotraders/README.md) | [中文](evotraders/README_zh.md)
 
 ------
 
